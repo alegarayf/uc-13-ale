@@ -216,3 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node / monorepo
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+*.tsbuildinfo
+frontend/node_modules/.tmp/
+
+# Databricks (local sync / bundles)
+.databricks/

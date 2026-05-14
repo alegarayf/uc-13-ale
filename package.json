@@ -1,0 +1,24 @@
+{
+  "name": "rallyday",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend-api"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd frontend && npm install && cd ../backend-api && npm install",
+    "install:ai": "cd backend-ai && python3 -m pip install -r requirements.txt",
+    "dev": "dotenv -e .env -- concurrently -k -n web,api,ai -c blue,green,magenta \"npm run dev -w frontend\" \"npm run dev -w backend-api\" \"npm run dev:ai\"",
+    "dev:frontend": "dotenv -e .env -- npm run dev -w frontend",
+    "dev:api": "dotenv -e .env -- npm run dev -w backend-api",
+    "dev:ai": "dotenv -e .env -- node scripts/dev-ai.mjs",
+    "build": "npm run build -w frontend && npm run build -w backend-api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "dotenv-cli": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
