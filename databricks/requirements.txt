@@ -1,0 +1,6 @@
+# Databricks runtime dependencies for UC13 ingestion pipeline
+# Install at the top of any notebook with:
+#   %pip install -r /Workspace/Repos/your-repo/databricks/requirements.txt
+# Note: python-dotenv intentionally excluded — use dbutils.secrets in Databricks
+msal>=1.28.0
+requests>=2.31.0
