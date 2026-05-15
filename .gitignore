@@ -227,3 +227,11 @@ frontend/node_modules/.tmp/
 
 # Databricks (local sync / bundles)
 .databricks/
+
+#databricks project specific
+databricks/.env
+databricks/tmp
+
+# Mac files
+.DS_Store
+**/.DS_Store
