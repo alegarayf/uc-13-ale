@@ -1,0 +1,16 @@
+# Databricks App configuration for project-blackbox
+# This file defines how your app runs in the Databricks Apps environment.
+
+# Command to start your app.
+# Adjust the path if your entry point is different.
+command: ["npm", "run", "dev"]
+
+# Environment variables (optional).
+# Uncomment and modify as needed:
+# env:
+#   - name: DATABRICKS_WAREHOUSE_ID
+#     value: '<your-warehouse-id>'
+#   - name: NODE_ENV
+#     value: 'production'
+#   - name: MY_SECRET
+#     valueFrom: 'my-secret-scope/my-key'
