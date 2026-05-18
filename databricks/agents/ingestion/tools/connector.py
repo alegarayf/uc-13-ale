@@ -1,13 +1,13 @@
 """
-SharePoint connector — device code flow (temporary until Azure AD app registration).
+SharePoint connector — client credentials flow (MSAL ConfidentialClientApplication).
 
-Authentication will be swapped to client credentials flow once we have a registered
-app. The public interface (function signatures and return types) is stable and will
-not change at that time.
+Authenticates silently using an Azure AD app registration (SP_CLIENT_ID /
+SP_CLIENT_SECRET). No interactive prompt is required; the token is acquired
+and cached in memory for the lifetime of the process.
 
 Responsibilities
 ----------------
-- Authenticate against Microsoft Graph via MSAL device code flow
+- Authenticate against Microsoft Graph via MSAL client credentials flow
 - List files under a SharePoint folder (recursively, paginated)
 - Download files individually or in parallel, preserving folder structure
 - NO parsing, transformation, or text extraction of file contents
@@ -31,24 +31,33 @@ logger = logging.getLogger(__name__)
 # Environment variables — validated lazily on first use
 # ---------------------------------------------------------------------------
 
-_REQUIRED_ENV = ("SP_TENANT_ID", "SP_SITE_URL", "SP_FOLDER_PATH")
+_REQUIRED_ENV = (
+    "SP_TENANT_ID",
+    "SP_CLIENT_ID",
+    "SP_CLIENT_SECRET",
+    "SP_SITE_URL",
+    "SP_FOLDER_PATH",
+)
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 
-def _env() -> tuple[str, str, str]:
-    """Return (SP_TENANT_ID, SP_SITE_URL, SP_FOLDER_PATH), raising early if any are absent."""
+def _env() -> tuple[str, str, str, str, str]:
+    """Return (SP_TENANT_ID, SP_CLIENT_ID, SP_CLIENT_SECRET, SP_SITE_URL, SP_FOLDER_PATH)."""
     missing = [k for k in _REQUIRED_ENV if not os.environ.get(k)]
     if missing:
         raise ValueError(
             f"Missing required environment variables: {', '.join(missing)}. "
             "Ensure .env is loaded (e.g. via python-dotenv) before calling any connector function."
         )
-    return os.environ["SP_TENANT_ID"], os.environ["SP_SITE_URL"], os.environ["SP_FOLDER_PATH"]
-SCOPES = [
-    "https://graph.microsoft.com/Sites.Read.All",
-    "https://graph.microsoft.com/Files.Read.All",
-]
+    return (
+        os.environ["SP_TENANT_ID"],
+        os.environ["SP_CLIENT_ID"],
+        os.environ["SP_CLIENT_SECRET"],
+        os.environ["SP_SITE_URL"],
+        os.environ["SP_FOLDER_PATH"],
+    )
+
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -69,19 +78,17 @@ class FileMetadata:
 # Module-level MSAL app — created once, token cached in memory
 # ---------------------------------------------------------------------------
 
-_msal_app: msal.PublicClientApplication | None = None
-_cached_token: str | None = None
+_msal_app: msal.ConfidentialClientApplication | None = None
 
 
-def _get_msal_app() -> msal.PublicClientApplication:
+def _get_msal_app() -> msal.ConfidentialClientApplication:
     global _msal_app
     if _msal_app is None:
-        tenant_id, _, _ = _env()
+        tenant_id, client_id, client_secret, _, _ = _env()
         authority = f"https://login.microsoftonline.com/{tenant_id}"
-        # "9bc3ab49-b65d-410a-85ad-de819febfddc" is the well-known Microsoft
-        # Graph Explorer client ID, acceptable for device-code / delegated flows.
-        _msal_app = msal.PublicClientApplication(
-            client_id="9bc3ab49-b65d-410a-85ad-de819febfddc",
+        _msal_app = msal.ConfidentialClientApplication(
+            client_id=client_id,
+            client_credential=client_secret,
             authority=authority,
         )
     return _msal_app
@@ -94,46 +101,27 @@ def _get_msal_app() -> msal.PublicClientApplication:
 
 def authenticate() -> str:
     """
-    Return a valid Microsoft Graph bearer token.
+    Return a valid Microsoft Graph bearer token using client credentials flow.
 
-    On the first call (or after token expiry) this triggers device code flow
-    and prints instructions for the user. Subsequent calls within the same
-    process reuse the cached token.
+    Fully silent — no interactive prompt. MSAL's in-memory cache is used so
+    the token is only fetched once per process (refreshed automatically when
+    it expires).
     """
-    global _cached_token
-
     app = _get_msal_app()
 
-    # Try silent acquisition from MSAL's in-memory token cache first.
-    accounts = app.get_accounts()
-    if accounts:
-        result = app.acquire_token_silent(SCOPES, account=accounts[0])
-        if result and "access_token" in result:
-            _cached_token = result["access_token"]
-            logger.info("Authentication successful (token from cache)")
-            return _cached_token
-
-    # Fall back to interactive device code flow.
-    flow = app.initiate_device_flow(scopes=SCOPES)
-    if "user_code" not in flow:
-        raise RuntimeError(
-            f"Failed to create device flow: {flow.get('error_description', flow)}"
-        )
-
-    # This message must always be visible to the user.
-    print("\n" + flow["message"])
-    print("Waiting for authentication…\n")
-
-    result = app.acquire_token_by_device_flow(flow)
+    # .default scope instructs AAD to issue a token for all app-level
+    # permissions granted to the service principal in the portal.
+    result = app.acquire_token_for_client(
+        scopes=["https://graph.microsoft.com/.default"]
+    )
 
     if "access_token" not in result:
         raise RuntimeError(
             f"Authentication failed: {result.get('error_description', result)}"
         )
 
-    _cached_token = result["access_token"]
     logger.info("Authentication successful")
-    return _cached_token
+    return result["access_token"]
 
 
 # ---------------------------------------------------------------------------
@@ -150,11 +138,13 @@ def get_site_id(token: str) -> str:
     """
     from urllib.parse import urlparse
 
-    _, sp_site_url, _ = _env()
+    _, _, _, sp_site_url, _ = _env()
     parsed = urlparse(sp_site_url)
-    hostname = parsed.netloc          # e.g. rallydaypartnerscom.sharepoint.com
-    site_path = parsed.path.lstrip("/")  # e.g. teams/RallydayPartnersExternal
+    hostname = parsed.netloc   # e.g. rallydaypartnerscom.sharepoint.com
+    site_path = parsed.path    # e.g. /teams/RallydayPartnersExternal — keep leading slash
 
+    # Graph API colon-path syntax: /sites/{hostname}:/{path}
+    # The leading slash on site_path satisfies the required colon+slash separator.
     url = f"{GRAPH_BASE}/sites/{hostname}:{site_path}"
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -179,9 +169,17 @@ def list_files(folder_path: str | None = None) -> list[FileMetadata]:
     leaf files are returned. Pagination via ``@odata.nextLink`` is handled
     automatically.
     """
-    _, _, sp_folder_path = _env()
+    _, _, _, _, sp_folder_path = _env()
     token = authenticate()
     site_id = get_site_id(token)
+
+    # SP_FOLDER_PATH must be the path relative to the site's default document
+    # library root (i.e. relative to "Shared Documents/"), NOT the full
+    # server-relative SharePoint URL. Example:
+    #   correct:   /Nimble Gravity UC13
+    #   incorrect: /teams/RallydayPartnersExternal/Shared Documents/Nimble Gravity UC13
+    # Graph's drive/root:{path}:/children treats "Shared Documents" as the
+    # drive root, so prepending it causes a 404.
     root_path = (folder_path or sp_folder_path).rstrip("/")
 
     headers = {"Authorization": f"Bearer {token}"}
@@ -364,7 +362,14 @@ def download_all(destination_root: str) -> dict[str, str | None]:
 if __name__ == "__main__":
     from dotenv import load_dotenv
 
-    load_dotenv()  # picks up databricks/.env when run from the databricks/ directory
+    # In Databricks, set env vars from secrets before running:
+    # import os
+    # os.environ["SP_CLIENT_ID"] = dbutils.secrets.get("uc13", "sp_client_id")
+    # os.environ["SP_CLIENT_SECRET"] = dbutils.secrets.get("uc13", "sp_client_secret")
+    # os.environ["SP_TENANT_ID"] = dbutils.secrets.get("uc13", "sp_tenant_id")
+    # os.environ["SP_SITE_URL"] = dbutils.secrets.get("uc13", "sp_site_url")
+    # os.environ["SP_FOLDER_PATH"] = dbutils.secrets.get("uc13", "sp_folder_path")
+    load_dotenv()  # locally: picks up databricks/.env when run from the databricks/ directory
 
     LOCAL_DEST = "./tmp/dataroom"
 
