@@ -37,13 +37,14 @@ _REQUIRED_ENV = (
     "SP_CLIENT_SECRET",
     "SP_SITE_URL",
     "SP_FOLDER_PATH",
+    "SP_COMPANY_NAME",
 )
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 
-def _env() -> tuple[str, str, str, str, str]:
-    """Return (SP_TENANT_ID, SP_CLIENT_ID, SP_CLIENT_SECRET, SP_SITE_URL, SP_FOLDER_PATH)."""
+def _env() -> tuple[str, str, str, str, str, str]:
+    """Return (SP_TENANT_ID, SP_CLIENT_ID, SP_CLIENT_SECRET, SP_SITE_URL, SP_FOLDER_PATH, SP_COMPANY_NAME)."""
     missing = [k for k in _REQUIRED_ENV if not os.environ.get(k)]
     if missing:
         raise ValueError(
@@ -56,7 +57,18 @@ def _env() -> tuple[str, str, str, str, str]:
         os.environ["SP_CLIENT_SECRET"],
         os.environ["SP_SITE_URL"],
         os.environ["SP_FOLDER_PATH"],
+        os.environ["SP_COMPANY_NAME"],
     )
+
+
+def get_company_folder_path() -> str:
+    """Return the drive-relative path scoped to the current company.
+
+    Constructed as: {SP_FOLDER_PATH}/Example Data Room/{SP_COMPANY_NAME}
+    Example: /Nimble Gravity UC13/Example Data Room/Elder Care
+    """
+    _, _, _, _, folder_path, company_name = _env()
+    return f"{folder_path.rstrip('/')}/Example Data Room/{company_name}"
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +96,7 @@ _msal_app: msal.ConfidentialClientApplication | None = None
 def _get_msal_app() -> msal.ConfidentialClientApplication:
     global _msal_app
     if _msal_app is None:
-        tenant_id, client_id, client_secret, _, _ = _env()
+        tenant_id, client_id, client_secret, _, _, _ = _env()
         authority = f"https://login.microsoftonline.com/{tenant_id}"
         _msal_app = msal.ConfidentialClientApplication(
             client_id=client_id,
@@ -138,7 +150,7 @@ def get_site_id(token: str) -> str:
     """
     from urllib.parse import urlparse
 
-    _, _, _, sp_site_url, _ = _env()
+    _, _, _, sp_site_url, _, _ = _env()
     parsed = urlparse(sp_site_url)
     hostname = parsed.netloc   # e.g. rallydaypartnerscom.sharepoint.com
     site_path = parsed.path    # e.g. /teams/RallydayPartnersExternal — keep leading slash
@@ -160,30 +172,75 @@ def get_site_id(token: str) -> str:
 # File listing
 # ---------------------------------------------------------------------------
 
+import re as _re
+
+# Strips version/date suffixes from file stems before grouping duplicates.
+# Matches patterns like: vSHARE_5.29.25, v5.30.25, 2025-June-13, _final,
+# _UPLOAD, _vF, v1, v2, trailing date strings, etc.
+_VERSION_SUFFIX_RE = _re.compile(
+    r"[-_\s]*(v\w+|v\d[\d.]*|\d{4}[-_]\w+[-_]\d+|final|upload)+",
+    _re.IGNORECASE,
+)
+
+
+def _base_name(file_name: str) -> str:
+    """Return the version-stripped stem + lowercased extension for dedup grouping."""
+    stem = Path(file_name).stem
+    ext = Path(file_name).suffix.lower()
+    base = _VERSION_SUFFIX_RE.sub("", stem).strip()
+    return f"{base}{ext}"
+
+
+def _deduplicate(files: list[FileMetadata]) -> list[FileMetadata]:
+    """Within each group sharing the same base name, keep the most recently modified file."""
+    groups: dict[str, list[FileMetadata]] = {}
+    for f in files:
+        key = _base_name(f.name)
+        groups.setdefault(key, []).append(f)
+
+    kept: list[FileMetadata] = []
+    for group in groups.values():
+        if len(group) == 1:
+            kept.append(group[0])
+            continue
+        # Sort descending by last_modified (ISO 8601 strings sort lexicographically).
+        group.sort(key=lambda f: f.last_modified, reverse=True)
+        winner, *dupes = group
+        logger.warning(
+            "Keeping %s (most recent), skipping %d older version(s): %s",
+            winner.name,
+            len(dupes),
+            [d.name for d in dupes],
+        )
+        kept.append(winner)
+
+    return kept
+
 
 def list_files(folder_path: str | None = None) -> list[FileMetadata]:
-    """
-    Recursively list all files under *folder_path* (defaults to SP_FOLDER_PATH).
+    """Recursively list all files under *folder_path*, deduplicated by version.
 
-    Subfolders are traversed but not included in the returned list — only
-    leaf files are returned. Pagination via ``@odata.nextLink`` is handled
-    automatically.
+    If *folder_path* is ``None``, defaults to the company-scoped path returned
+    by :func:`get_company_folder_path` (i.e. SP_FOLDER_PATH/Example Data Room/SP_COMPANY_NAME).
+
+    *folder_path* must be drive-relative (relative to "Shared Documents/"), NOT
+    the full server-relative SharePoint URL.  Example::
+
+        correct:   /Nimble Gravity UC13/Example Data Room/Elder Care
+        incorrect: /teams/RallydayPartnersExternal/Shared Documents/…
+
+    Subfolders are traversed but not returned — only leaf files are returned.
+    Pagination via ``@odata.nextLink`` is handled automatically.
+    Files that appear to be older versions of the same document (matched by
+    a version-suffix regex) are deduplicated: only the most recently modified
+    copy is kept.
     """
-    _, _, _, _, sp_folder_path = _env()
     token = authenticate()
     site_id = get_site_id(token)
-
-    # SP_FOLDER_PATH must be the path relative to the site's default document
-    # library root (i.e. relative to "Shared Documents/"), NOT the full
-    # server-relative SharePoint URL. Example:
-    #   correct:   /Nimble Gravity UC13
-    #   incorrect: /teams/RallydayPartnersExternal/Shared Documents/Nimble Gravity UC13
-    # Graph's drive/root:{path}:/children treats "Shared Documents" as the
-    # drive root, so prepending it causes a 404.
-    root_path = (folder_path or sp_folder_path).rstrip("/")
+    root_path = (folder_path or get_company_folder_path()).rstrip("/")
 
     headers = {"Authorization": f"Bearer {token}"}
-    results: list[FileMetadata] = []
+    raw: list[FileMetadata] = []
 
     def _collect(path: str, relative_base: str) -> None:
         url = f"{GRAPH_BASE}/sites/{site_id}/drive/root:{path}:/children"
@@ -202,7 +259,7 @@ def list_files(folder_path: str | None = None) -> list[FileMetadata]:
                     name: str = item["name"]
                     relative_path = f"{relative_base}/{name}" if relative_base else name
                     ext = Path(name).suffix.lstrip(".").lower()
-                    results.append(
+                    raw.append(
                         FileMetadata(
                             item_id=item["id"],
                             name=name,
@@ -216,7 +273,15 @@ def list_files(folder_path: str | None = None) -> list[FileMetadata]:
             url = data.get("@odata.nextLink")
 
     _collect(root_path, "")
-    logger.info("Listed %d files under %s", len(results), root_path)
+    logger.info("Found %d files (pre-dedup) under %s", len(raw), root_path)
+
+    results = _deduplicate(raw)
+    skipped = len(raw) - len(results)
+    logger.info(
+        "After deduplication: %d files kept, %d older version(s) skipped",
+        len(results),
+        skipped,
+    )
     return results
 
 
@@ -360,6 +425,10 @@ def download_all(destination_root: str) -> dict[str, str | None]:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    import logging as _logging
+
+    _logging.basicConfig(level=_logging.WARNING)  # surface dedup warnings to console
+
     from dotenv import load_dotenv
 
     # In Databricks, set env vars from secrets before running:
@@ -369,16 +438,21 @@ if __name__ == "__main__":
     # os.environ["SP_TENANT_ID"] = dbutils.secrets.get("uc13", "sp_tenant_id")
     # os.environ["SP_SITE_URL"] = dbutils.secrets.get("uc13", "sp_site_url")
     # os.environ["SP_FOLDER_PATH"] = dbutils.secrets.get("uc13", "sp_folder_path")
+    # os.environ["SP_COMPANY_NAME"] = dbutils.secrets.get("uc13", "sp_company_name")
     load_dotenv()  # locally: picks up databricks/.env when run from the databricks/ directory
 
     LOCAL_DEST = "./tmp/dataroom"
 
+    company_path = get_company_folder_path()
     print("=== Testing SharePoint connector ===")
-    files = list_files()
-    print(f"Found {len(files)} files")
+    print(f"Company folder: {company_path}")
+
+    all_files = list_files()
+    dedup_count = len(all_files)
+    print(f"\nFound {dedup_count} files after deduplication")
 
     print(f"\nDownloading first 3 files to {LOCAL_DEST}...")
-    results = download_batch(files[:3], destination_root=LOCAL_DEST)
+    results = download_batch(all_files[:3], destination_root=LOCAL_DEST)
     for item_id, path in results.items():
         if path:
             print(f"  ✓ Saved: {path}")
