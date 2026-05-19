@@ -42,11 +42,16 @@ logger = logging.getLogger(__name__)
 # Environment variables
 # ---------------------------------------------------------------------------
 
-_LOCAL_REQUIRED_ENV = ("DATABRICKS_HOST", "DATABRICKS_TOKEN", "UC_VOLUME_PATH")
+_LOCAL_REQUIRED_ENV = (
+    "DATABRICKS_HOST",
+    "DATABRICKS_TOKEN",
+    "UC_VOLUME_PATH",
+    "SP_COMPANY_NAME",
+)
 
 
-def _env() -> tuple[str, str, str]:
-    """Return (DATABRICKS_HOST, DATABRICKS_TOKEN, UC_VOLUME_PATH).
+def _env() -> tuple[str, str, str, str]:
+    """Return (DATABRICKS_HOST, DATABRICKS_TOKEN, UC_VOLUME_PATH, SP_COMPANY_NAME).
 
     Only validated when running locally — inside Databricks these env vars may
     not be set and the runtime uses filesystem paths directly instead.
@@ -61,6 +66,7 @@ def _env() -> tuple[str, str, str]:
         os.environ["DATABRICKS_HOST"].rstrip("/"),
         os.environ["DATABRICKS_TOKEN"],
         os.environ["UC_VOLUME_PATH"].rstrip("/"),
+        os.environ["SP_COMPANY_NAME"],
     )
 
 
@@ -73,6 +79,25 @@ def _uc_volume_path() -> str:
             "Set it to the Unity Catalog Volume path, e.g. /Volumes/uc13/ingestion/raw_files"
         )
     return val
+
+
+def get_volume_company_path() -> str:
+    """Return the Volume path scoped to the current company.
+
+    Constructed as: {UC_VOLUME_PATH}/{SP_COMPANY_NAME}
+    Example: /Volumes/uc13/ingestion/raw_files/Elder Care
+
+    Each company's files are isolated under their own subfolder in the Volume,
+    making it safe to process multiple companies without cross-contamination.
+    """
+    volume_path = _uc_volume_path()
+    company_name = os.environ.get("SP_COMPANY_NAME", "").strip()
+    if not company_name:
+        raise ValueError(
+            "SP_COMPANY_NAME environment variable is not set. "
+            "Set it to the company name as it appears in SharePoint (e.g. 'Elder Care')."
+        )
+    return f"{volume_path}/{company_name}"
 
 
 # ---------------------------------------------------------------------------
@@ -128,18 +153,20 @@ def _is_databricks_env() -> bool:
 
 
 def upload_file(payload: FilePayload) -> UploadResult:
-    """Write a single FilePayload to the Unity Catalog Volume.
+    """Write a single FilePayload to the Unity Catalog Volume under the company subfolder.
+
+    Destination path: {UC_VOLUME_PATH}/{SP_COMPANY_NAME}/{payload.relative_path}
 
     LOCAL mode  — HTTP PUT to the Databricks Files API.
     DATABRICKS  — direct filesystem write to the Volume mount path.
 
     Returns an UploadResult; never raises.
     """
-    volume_path = _uc_volume_path()
+    company_volume_path = get_volume_company_path()
 
     # Normalise relative_path: strip leading slashes so path joins work cleanly.
     rel = payload.relative_path.lstrip("/")
-    dest_volume_path = f"{volume_path}/{rel}"
+    dest_volume_path = f"{company_volume_path}/{rel}"
 
     try:
         if _is_databricks_env():
@@ -148,7 +175,7 @@ def upload_file(payload: FilePayload) -> UploadResult:
             dest.write_bytes(payload.content)
             logger.debug("DATABRICKS write: %s", dest_volume_path)
         else:
-            host, token, _ = _env()
+            host, token, _, _ = _env()
             url = f"{host}/api/2.0/fs/files{dest_volume_path}"
             headers = {
                 "Authorization": f"Bearer {token}",
@@ -190,6 +217,7 @@ def upload_batch(
 ) -> UploadSummary:
     """Upload a list of FilePayload objects to the UC Volume in parallel.
 
+    Files are stored under UC_VOLUME_PATH/{SP_COMPANY_NAME}/ to isolate companies.
     Never raises — all failures are captured in the returned UploadSummary.
 
     Future integration with connector.py
@@ -315,7 +343,7 @@ def list_volume_files(prefix: str = "") -> list[str]:
                 found.append(os.path.join(dirpath, fname))
         return found
 
-    host, token, _ = _env()
+    host, token, _, _ = _env()
     url = f"{host}/api/2.0/fs/files{base}"
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -341,17 +369,22 @@ if __name__ == "__main__":
 
     local_dir = sys.argv[1] if len(sys.argv) > 1 else "./tmp/dataroom"
 
+    company_vol_path = get_volume_company_path()
+    company_name = os.environ.get("SP_COMPANY_NAME", "")
+
     print("=== Testing uploader ===")
+    print(f"Company:      {company_name}")
+    print(f"Volume path:  {company_vol_path}/")
 
     print("\nFiles currently in Volume:")
-    existing = list_volume_files()
+    existing = list_volume_files(prefix=company_name)
     if existing:
         for f in existing:
             print(f"  {f}")
     else:
         print("  (empty)")
 
-    print(f"\nUploading files from {local_dir}...")
+    print(f"\nUploading {company_name} files to {company_vol_path}/...")
     summary = upload_from_directory(local_dir)
 
     print("\n--- Upload summary ---")
