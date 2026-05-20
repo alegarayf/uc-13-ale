@@ -15,11 +15,23 @@ function loadEnvOnce(): void {
   loadEnv();
 }
 
+function parseCacheTtlSeconds(value: string | undefined): number {
+  const n = Number(value ?? "60");
+  if (!Number.isFinite(n) || n < 0) return 60;
+  return Math.floor(n);
+}
+
 export function getConfig() {
   loadEnvOnce();
+  const cacheTtlSeconds = parseCacheTtlSeconds(process.env.API_CACHE_TTL_SECONDS);
   return {
     port: Number(process.env.BACKEND_API_PORT) || 3001,
     dataStore: normalizeDataStore(process.env.DATA_STORE),
+    cache: {
+      enabled: cacheTtlSeconds > 0,
+      ttlMs: cacheTtlSeconds * 1000,
+      ttlSeconds: cacheTtlSeconds,
+    },
     databricks: {
       serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME ?? "",
       httpPath: process.env.DATABRICKS_HTTP_PATH ?? "",

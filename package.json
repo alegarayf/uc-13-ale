@@ -12,7 +12,11 @@
     "dev:frontend": "dotenv -e .env -- npm run dev -w frontend",
     "dev:api": "dotenv -e .env -- npm run dev -w backend-api",
     "dev:ai": "dotenv -e .env -- node scripts/dev-ai.mjs",
-    "build": "npm run build -w frontend && npm run build -w backend-api"
+    "build": "npm run build -w frontend && npm run build -w backend-api",
+    "test": "npm run test -w backend-api && npm run test -w frontend",
+    "test:api": "npm run test -w backend-api",
+    "test:api:coverage": "npm run test:coverage -w backend-api",
+    "test:frontend": "npm run test -w frontend"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
