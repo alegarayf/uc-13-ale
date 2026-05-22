@@ -2,6 +2,34 @@
 
 React + Vite UI for Rallyday. Environment variables are loaded from the **repository root** (see `frontend/vite.config.ts` `envDir`).
 
+## My Garden (`/my-garden`)
+
+Read-only list of Salesforce opportunities owned by the current user (interim: fixed owner email on the API).
+
+| Feature | API | UI |
+|---------|-----|-----|
+| List | `GET /api/companies` | Table on `MyGarden.tsx` |
+| Detail | `GET /api/companies/:id` | `CompanyDetailView` (replaces list in content pane; row click) |
+
+Search and filters (industry, stage, lead source, status) are client-side in `companyDisplay.ts`.
+
+### Key modules
+
+```
+frontend/src/
+├── api/companies.ts
+├── components/companies/
+│   ├── CompanyToolbar.tsx
+│   └── CompanyDetailView.tsx
+├── pages/MyGarden.tsx
+├── types/company.ts
+└── utils/companyDisplay.ts
+```
+
+See [backend companies API](../../backend-api/docs/api/companies.md).
+
+---
+
 ## Garden rules (`/garden-rules`)
 
 The Garden rules page loads data from the backend API and supports full CRUD.
@@ -45,6 +73,6 @@ Modals use the native `<dialog>` element (`showModal()`) so the page behind does
 npm run test -w frontend
 ```
 
-Covers `formatRule` display helpers and `ruleForm` validation/mapping logic.
+Covers `formatRule` and `companyDisplay` helpers, plus `ruleForm` validation/mapping logic.
 
 See also: [backend rules API](../../backend-api/docs/api/rules.md).

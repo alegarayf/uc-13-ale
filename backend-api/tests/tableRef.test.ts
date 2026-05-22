@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rulesTableRef } from "../src/db/tableRef.js";
+import { opportunitySilverTableRef, rulesTableRef } from "../src/db/tableRef.js";
 
 describe("rulesTableRef", () => {
   it("builds catalog.schema.table", () => {
@@ -12,5 +12,11 @@ describe("rulesTableRef", () => {
     expect(() => rulesTableRef({ catalog: "", schema: "garden" })).toThrow(
       /DATABRICKS_CATALOG/,
     );
+  });
+});
+
+describe("opportunitySilverTableRef", () => {
+  it("returns the silver opportunity view name", () => {
+    expect(opportunitySilverTableRef()).toBe("salesforce_silver.opportunity_silver");
   });
 });
