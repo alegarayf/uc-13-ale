@@ -16,7 +16,7 @@ Rallyday/
 ├── .env.example          # Copy to `.env` at repo root (see Environment)
 ├── package.json          # Workspaces + concurrent dev scripts
 ├── tsconfig.base.json
-├── frontend/             # React UI (Garden rules CRUD at /garden-rules)
+├── frontend/             # React UI (My Garden at /my-garden, Garden rules at /garden-rules)
 ├── backend-api/          # Express REST API + docs in backend-api/docs/
 ├── backend-ai/
 └── databricks/
@@ -61,7 +61,7 @@ Create a **`.env` in the repository root** (gitignored). `npm run dev` loads it 
 | `FRONTEND_PORT`, `BACKEND_API_PORT`, `BACKEND_AI_PORT` | Local ports |
 | `VITE_*` | Frontend env (Vite `envDir` is the repo root) |
 | `DATABRICKS_*` | Required when `DATA_STORE=databricks` (see `.env.example`) |
-| `API_CACHE_TTL_SECONDS` | TTL for cached rules reads (default `60`; `0` disables) |
+| `API_CACHE_TTL_SECONDS` | TTL for cached API reads — rules and companies (default `60`; `0` disables) |
 
 `backend-api` also loads `backend-api/.env` if present (overrides root).
 
@@ -84,8 +84,10 @@ npm run test:frontend         # frontend unit tests (form helpers, formatting)
 
 | Area | Documentation |
 |------|----------------|
-| Backend API | [`backend-api/docs/`](backend-api/docs/README.md) — architecture, rules REST API, caching |
-| Frontend | [`frontend/docs/`](frontend/docs/README.md) — Garden rules UI and API client |
+| Backend API | [`backend-api/docs/`](backend-api/docs/README.md) — architecture, [rules](backend-api/docs/api/rules.md) and [companies](backend-api/docs/api/companies.md) REST APIs, caching |
+| Frontend | [`frontend/docs/`](frontend/docs/README.md) — My Garden and Garden rules UI |
+
+**My Garden** (local): open `/my-garden` after `npm run dev`. With `DATA_STORE=memory`, five seed opportunities are returned for the configured owner email. With `DATA_STORE=databricks`, data comes from `salesforce_silver.opportunity_silver`.
 
 **Garden rules** (local): open `/garden-rules` after `npm run dev`. Use `DATA_STORE=memory` for seeded sample rules, or `DATA_STORE=databricks` with SQL in `databricks/jobs/sql/`.
 

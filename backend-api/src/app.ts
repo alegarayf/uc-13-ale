@@ -2,8 +2,11 @@ import cors from "cors";
 import express, { type Express } from "express";
 import { cacheControl } from "./middleware/cacheControl.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { createCompaniesRepository } from "./repositories/createCompaniesRepository.js";
 import { createRulesRepository } from "./repositories/createRulesRepository.js";
+import { createCompaniesRouter } from "./routes/companies.js";
 import { createRulesRouter } from "./routes/rules.js";
+import { CompaniesService } from "./services/companiesService.js";
 import { RulesService } from "./services/rulesService.js";
 import type { DataStoreMode } from "./config.js";
 import { getConfig } from "./config.js";
@@ -12,6 +15,7 @@ import type { DataStore } from "./stores/DataStore.js";
 
 export interface AppDependencies {
   rulesService?: RulesService;
+  companiesService?: CompaniesService;
   store?: DataStore;
   dataStore?: DataStoreMode;
   aiBaseUrl?: string;
@@ -28,6 +32,9 @@ export function createApp(deps: AppDependencies = {}): Express {
   const rulesService =
     deps.rulesService ??
     new RulesService(createRulesRepository(dataStore, cfg.databricks));
+  const companiesService =
+    deps.companiesService ??
+    new CompaniesService(createCompaniesRepository(dataStore, cfg.databricks));
   const aiBaseUrl = deps.aiBaseUrl ?? cfg.aiBaseUrl;
 
   const app = express();
@@ -64,6 +71,7 @@ export function createApp(deps: AppDependencies = {}): Express {
   });
 
   app.use("/api/rules", createRulesRouter(rulesService));
+  app.use("/api/companies", createCompaniesRouter(companiesService));
   app.use(errorHandler);
 
   return app;

@@ -9,3 +9,8 @@ export function rulesTableRef(cfg: Pick<DatabricksStoreConfig, "catalog" | "sche
   }
   return `${catalog}.${schema}.rules`;
 }
+
+/** Unity Catalog materialized view for Salesforce opportunities (silver layer). */
+export function opportunitySilverTableRef(): string {
+  return "salesforce_silver.opportunity_silver";
+}

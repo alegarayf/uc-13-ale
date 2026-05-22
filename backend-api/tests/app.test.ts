@@ -21,4 +21,11 @@ describe("createApp", () => {
     expect(res.body).toMatchObject({ dataStore: "memory", aiBaseUrl: "http://ai" });
     expect(res.body.cache).toMatchObject({ enabled: expect.any(Boolean), ttlSeconds: expect.any(Number) });
   });
+
+  it("mounts companies read API with default test app", async () => {
+    const app = createApp({ dataStore: "memory" });
+    const res = await request(app).get("/api/companies").expect(200);
+    expect(res.body.data).toBeInstanceOf(Array);
+    expect(res.body.data.length).toBeGreaterThan(0);
+  });
 });

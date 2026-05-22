@@ -43,6 +43,8 @@ Domain models (e.g. `Rule`) subclass `BaseApiModel` and add entity-specific fiel
 
 `Rule` adds: `name`, `description`, `comparison`, `minimum`, `maximum`, `uom`, `status` (`active` | `inactive`).
 
+`Company` (`src/types/company.ts`) is used for Salesforce opportunities and does **not** extend `BaseApiModel`: string `id`, no `created_at` / `updated_at`. Fields are snake_case in JSON (`project_name`, `stage_name`, etc.).
+
 ## Data stores
 
 | Mode | Env | Behavior |
@@ -58,7 +60,7 @@ Read-heavy API paths use a **TTL cache** in the repository layer to avoid repeat
 
 | Mechanism | Location | Behavior |
 |-----------|----------|----------|
-| **Server TTL cache** | `src/repositories/cachingRulesRepository.ts` | Wraps `RulesRepository` reads (`findAll`, `findById`). Writes invalidate list + affected ids. |
+| **Server TTL cache** | `src/repositories/cachingRulesRepository.ts`, `cachingCompaniesRepository.ts` | Wraps repository reads. Rules: invalidates on writes. Companies: read-only (no invalidation). |
 | **HTTP `Cache-Control`** | `src/middleware/cacheControl.ts` | Successful GET responses include `private, max-age=N` (same window as TTL). |
 
 Configure with `API_CACHE_TTL_SECONDS` in `.env` (default `60`). Set to `0` to disable both layers.
@@ -71,13 +73,16 @@ Future repositories should use the same decorator pattern: cache reads, invalida
 
 ## Databricks table naming
 
-Runtime SQL uses a fully qualified name:
+Runtime SQL uses fully qualified names:
 
 ```text
-{catalog}.{schema}.rules
+{catalog}.{schema}.rules                    # garden rules (env-driven)
+salesforce_silver.opportunity_silver        # Salesforce opportunities (fixed ref)
 ```
 
 DDL in `databricks/jobs/sql/create_rules_table.sql` may use schema-local names (`garden.rules`); align catalog/schema with `DATABRICKS_CATALOG` and `DATABRICKS_SCHEMA` in `.env`.
+
+The opportunity silver view is referenced via `opportunitySilverTableRef()` and is not tied to `DATABRICKS_CATALOG` / `DATABRICKS_SCHEMA`.
 
 ## REST conventions
 
@@ -85,7 +90,7 @@ DDL in `databricks/jobs/sql/create_rules_table.sql` may use schema-local names (
 - Success collections: `{ "data": [ ... ] }`.
 - Success single resource: `{ "data": { ... } }`.
 - Errors: `{ "error": { "message": "...", "code": "VALIDATION_ERROR" | "NOT_FOUND" | ... } }`.
-- Numeric path IDs (e.g. `/api/rules/42`).
+- Numeric path IDs for rules (e.g. `/api/rules/42`); string ids for companies (e.g. `/api/companies/006ABC`).
 - `POST` → `201 Created`; `DELETE` → `204 No Content`.
 
 ## Application bootstrap
@@ -95,14 +100,21 @@ DDL in `databricks/jobs/sql/create_rules_table.sql` may use schema-local names (
 
 ## Frontend consumer
 
-The React app (`frontend/`) calls this API via `VITE_API_BASE_URL`. The Garden rules page (`/garden-rules`) uses:
+The React app (`frontend/`) calls this API via `VITE_API_BASE_URL`.
+
+**Garden rules** (`/garden-rules`):
 
 - `GET /api/rules` — table data
 - `POST /api/rules` — add modal
 - `PUT /api/rules/:id` — edit modal (full replace)
 - `DELETE /api/rules/:id` — delete confirmation
 
-See [frontend/docs/README.md](../../frontend/docs/README.md).
+**My Garden** (`/my-garden`):
+
+- `GET /api/companies` — table data (owner-scoped)
+- `GET /api/companies/:id` — read-only detail modal
+
+See [frontend/docs/README.md](../../frontend/docs/README.md) and [api/companies.md](./api/companies.md).
 
 Writes invalidate the server-side rules cache so the UI sees fresh data on the next list fetch (the UI also updates local state immediately after create/edit/delete).
 
@@ -116,7 +128,10 @@ Tests live in `backend-api/tests/` and use **Vitest** + **Supertest**.
 | `rulesService.test.ts` | Service logic with mocked repository |
 | `rulesRepository.*.test.ts` | Memory and Databricks repositories |
 | `rules.routes.test.ts` | Full HTTP stack with in-memory app (GET/POST/PUT/PATCH/DELETE) |
+| `companies.routes.test.ts`, `companiesService.test.ts` | Companies read API and owner scoping |
+| `companiesRepository.*.test.ts`, `companyRowMapper.test.ts` | Opportunity persistence and mapping |
 | `cachingRulesRepository.test.ts` | Cache hits and invalidation on create/update/delete |
+| `cachingCompaniesRepository.test.ts` | Cache hits for company reads |
 | `cacheControl.test.ts`, `TtlCache.test.ts` | HTTP `Cache-Control` and TTL store |
 | `ruleRowMapper.test.ts`, `tableRef.test.ts`, etc. | Supporting modules |
 
