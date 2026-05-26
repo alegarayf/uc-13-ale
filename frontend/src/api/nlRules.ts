@@ -1,4 +1,4 @@
-import { aiGet, aiPost } from "./aiClient.js";
+import { aiDelete, aiGet, aiPost } from "./aiClient.js";
 import type {
   NlRuleConfigDetail,
   NlRuleConfigListItem,
@@ -16,6 +16,10 @@ export function interpretNlRule(prompt: string): Promise<NlRuleInterpretResponse
 
 export function fetchNlRuleConfig(filename: string): Promise<NlRuleConfigDetail> {
   return aiGet<NlRuleConfigDetail>(`/api/ai/rules/configs/${encodeURIComponent(filename)}`);
+}
+
+export function deleteNlRuleConfig(filename: string): Promise<void> {
+  return aiDelete(`/api/ai/rules/configs/${encodeURIComponent(filename)}`);
 }
 
 export function confirmNlRule(

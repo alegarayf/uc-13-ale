@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from app.services.rules_config_store import read_rule_config, update_rule_config, write_rule_config
+from app.services.rules_config_store import (
+    delete_rule_config,
+    read_rule_config,
+    update_rule_config,
+    write_rule_config,
+)
 
 
 def test_update_rule_config_preserves_id(tmp_path: Path):
@@ -37,3 +42,16 @@ def test_update_rule_config_preserves_id(tmp_path: Path):
 def test_read_rejects_invalid_filename(tmp_path: Path):
     with pytest.raises(ValueError):
         read_rule_config(tmp_path, "../secrets.json")
+
+
+def test_delete_rule_config(tmp_path: Path):
+    filename, path = write_rule_config(
+        tmp_path,
+        rule_config={"name": "To delete"},
+        prompt="p",
+        summary="s",
+        session_id="sess",
+    )
+    assert path.is_file()
+    delete_rule_config(tmp_path, filename)
+    assert not path.is_file()

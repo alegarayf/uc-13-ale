@@ -474,6 +474,76 @@ button {
 }
 
 /* Garden rules table */
+.rules-search {
+  margin: 0 0 1rem;
+}
+
+.rules-search__label {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--rd-text-muted);
+}
+
+.rules-search__control {
+  position: relative;
+  max-width: 28rem;
+}
+
+.rules-search__input {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--rd-text);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--radius);
+  background: var(--rd-surface);
+}
+
+.rules-search__input:focus {
+  outline: 2px solid var(--rd-accent-bright);
+  outline-offset: 1px;
+}
+
+.rules-search__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rules-search__clear {
+  position: absolute;
+  top: 50%;
+  right: 0.375rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--rd-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.rules-search__clear:hover {
+  background: rgb(26 31 34 / 6%);
+  color: var(--rd-text);
+}
+
+.rules-table__empty-row td {
+  padding: 1.25rem 1rem;
+  font-size: 0.9375rem;
+  color: var(--rd-text-muted);
+  text-align: center;
+}
+
 .rules-table-wrap {
   overflow-x: auto;
 }

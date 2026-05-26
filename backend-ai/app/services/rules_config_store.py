@@ -82,6 +82,14 @@ def update_rule_config(
     return filename, filepath
 
 
+def delete_rule_config(directory: Path, filename: str) -> None:
+    _validate_config_filename(filename)
+    filepath = directory / filename
+    if not filepath.is_file():
+        raise FileNotFoundError(filename)
+    filepath.unlink()
+
+
 def list_rule_configs(directory: Path) -> list[dict[str, Any]]:
     if not directory.is_dir():
         return []
