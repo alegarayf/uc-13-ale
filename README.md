@@ -16,7 +16,8 @@ Rallyday/
 ├── .env.example          # Copy to `.env` at repo root (see Environment)
 ├── package.json          # Workspaces + concurrent dev scripts
 ├── tsconfig.base.json
-├── frontend/             # React UI (My Garden at /my-garden, Garden rules at /garden-rules)
+├── frontend/             # React UI (My Garden, Garden rules, AI rules experiment)
+├── rules-config/         # JSON rule configs from the NL / Genie experiment (gitignored files)
 ├── backend-api/          # Express REST API + docs in backend-api/docs/
 ├── backend-ai/
 └── databricks/
@@ -87,7 +88,7 @@ npm run test:frontend         # frontend unit tests (form helpers, formatting)
 | Backend API | [`backend-api/docs/`](backend-api/docs/README.md) — architecture, [rules](backend-api/docs/api/rules.md) and [companies](backend-api/docs/api/companies.md) REST APIs, caching |
 | Frontend | [`frontend/docs/`](frontend/docs/README.md) — My Garden and Garden rules UI |
 
-**My Garden** (local): open `/my-garden` after `npm run dev`. With `DATA_STORE=memory`, five seed opportunities are returned for the configured owner email. With `DATA_STORE=databricks`, data comes from `salesforce_silver.opportunity_silver`.
+**My Garden** (local): open `/my-garden` after `npm run dev`. With `DATA_STORE=memory`, fifteen seed opportunities (full field coverage) are returned for the configured owner email. With `DATA_STORE=databricks`, data comes from `salesforce_silver.opportunity_silver`.
 
 **Garden rules** (local): open `/garden-rules` after `npm run dev`. Use `DATA_STORE=memory` for seeded sample rules, or `DATA_STORE=databricks` with SQL in `databricks/jobs/sql/`.
 

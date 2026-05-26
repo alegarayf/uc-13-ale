@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMemoryCompaniesRepository } from "../src/repositories/companiesRepository.js";
+import { MEMORY_SEED_OWNER_COUNT } from "../src/repositories/companiesSeedData.js";
 import { DEFAULT_OPPORTUNITY_OWNER_EMAIL } from "../src/services/companiesService.js";
 
 describe("createMemoryCompaniesRepository", () => {
@@ -7,7 +8,7 @@ describe("createMemoryCompaniesRepository", () => {
 
   it("returns only companies for the given owner email", async () => {
     const companies = await repo.findByOwnerEmail(DEFAULT_OPPORTUNITY_OWNER_EMAIL);
-    expect(companies.length).toBe(5);
+    expect(companies.length).toBe(MEMORY_SEED_OWNER_COUNT);
     expect(
       companies.every(
         (c) =>
@@ -28,7 +29,7 @@ describe("createMemoryCompaniesRepository", () => {
 
   it("matches owner email case-insensitively", async () => {
     const companies = await repo.findByOwnerEmail("MCRysler@NimbleGravity.COM");
-    expect(companies.length).toBe(5);
+    expect(companies.length).toBe(MEMORY_SEED_OWNER_COUNT);
   });
 
   it("returns empty list for unknown owner", async () => {

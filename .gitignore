@@ -227,3 +227,6 @@ frontend/node_modules/.tmp/
 
 # Databricks (local sync / bundles)
 .databricks/
+
+# AI-generated rule JSON (experiment; directory kept via rules-config/.gitkeep)
+rules-config/rule-*.json

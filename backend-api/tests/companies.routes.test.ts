@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createTestApp, testRequest } from "./helpers.js";
+import { MEMORY_SEED_OWNER_COUNT } from "../src/repositories/companiesSeedData.js";
 import { DEFAULT_OPPORTUNITY_OWNER_EMAIL } from "../src/services/companiesService.js";
 
 describe("Companies API routes", () => {
@@ -10,7 +11,7 @@ describe("Companies API routes", () => {
     it("returns companies for the default owner", async () => {
       const res = await req().get("/api/companies").expect(200);
       expect(res.body.data).toBeInstanceOf(Array);
-      expect(res.body.data.length).toBe(5);
+      expect(res.body.data.length).toBe(MEMORY_SEED_OWNER_COUNT);
       expect(res.body.data[0]).toMatchObject({
         id: expect.any(String),
         project_name: expect.any(String),

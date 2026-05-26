@@ -9,7 +9,6 @@ export interface CompanyDetailViewProps {
   company: Company;
   loading?: boolean;
   error?: string | null;
-  onBack: () => void;
 }
 
 function DetailValue({ company, field }: { company: Company; field: CompanyDetailField }) {
@@ -47,15 +46,9 @@ function DetailValue({ company, field }: { company: Company; field: CompanyDetai
   return <>{formatCompanyDetailValue(company, field)}</>;
 }
 
-export function CompanyDetailView({ company, loading, error, onBack }: CompanyDetailViewProps) {
+export function CompanyDetailView({ company, loading, error }: CompanyDetailViewProps) {
   return (
     <div className="company-detail-view">
-      <div className="company-detail-view__toolbar">
-        <button type="button" className="btn btn--secondary" onClick={onBack}>
-          ← Back to companies
-        </button>
-      </div>
-
       <header className="company-detail-view__header">
         <h2 className="company-detail-view__title">{company.project_name}</h2>
         <p className="company-detail-view__subtitle">

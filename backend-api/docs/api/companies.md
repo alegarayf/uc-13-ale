@@ -110,7 +110,7 @@ When `API_CACHE_TTL_SECONDS` > 0:
 2. Set `DATA_STORE=databricks` and `DATABRICKS_*` in `.env` (catalog/schema env vars apply to `garden.rules`; the opportunity view uses a fixed three-part name — see `opportunitySilverTableRef()` in `src/db/tableRef.ts`).
 3. Rows must include `OpportunityOwnerEmail` (and the columns listed in `OPPORTUNITY_SELECT_COLUMNS` in `companyRowMapper.ts`).
 
-With `DATA_STORE=memory`, five seed companies are returned for the default owner; a sixth seed row (`opp-999`) exists for another owner and is excluded from list/detail for the default user.
+With `DATA_STORE=memory`, fifteen fully populated seed companies are returned for the default owner (`companiesSeedData.ts`); a sixteenth row (`opp-999`) belongs to another owner and is excluded from list/detail for the default user.
 
 ## Examples (curl)
 
