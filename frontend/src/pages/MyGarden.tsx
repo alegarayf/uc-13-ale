@@ -107,9 +107,20 @@ export function MyGarden() {
       </header>
 
       <section className="content-card" aria-labelledby="my-garden-heading">
-        <h2 id="my-garden-heading" className="content-card__title">
-          {showingDetail ? "Company details" : "Your companies"}
-        </h2>
+        {showingDetail ? (
+          <div className="content-card__toolbar">
+            <h2 id="my-garden-heading" className="content-card__title content-card__title--inline">
+              Company details
+            </h2>
+            <button type="button" className="btn btn--secondary" onClick={closeDetail}>
+              ← Back to companies
+            </button>
+          </div>
+        ) : (
+          <h2 id="my-garden-heading" className="content-card__title">
+            Your companies
+          </h2>
+        )}
 
         {loading && view === "list" && (
           <p className="content-card__note" role="status">
@@ -124,12 +135,14 @@ export function MyGarden() {
         )}
 
         {!loading && !error && showingDetail && selectedCompany && (
-          <CompanyDetailView
-            company={selectedCompany}
-            loading={detailLoading}
-            error={detailError}
-            onBack={closeDetail}
-          />
+          <>
+            <hr className="company-detail-view__rule" />
+            <CompanyDetailView
+              company={selectedCompany}
+              loading={detailLoading}
+              error={detailError}
+            />
+          </>
         )}
 
         {!loading && !error && view === "list" && (
@@ -212,7 +225,7 @@ export function MyGarden() {
                 No companies returned from the API
                 {dataStore ? ` (data store: ${dataStore})` : ""}.{" "}
                 {dataStore === "memory"
-                  ? "The in-memory store should include seed companies for your account."
+                  ? "The in-memory store should include 15 seed companies for your account — try restarting the API."
                   : dataStore === "databricks"
                     ? "Confirm salesforce_silver.opportunity_silver is populated and OpportunityOwnerEmail matches your user."
                     : "Check the opportunity silver view and owner email filter."}
