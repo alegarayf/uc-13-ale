@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.config import get_settings, resolve_rules_ai_mode
 from app.services.genie_rules import GenieRulesError, interpret_prompt
 from app.services.rules_config_store import (
+    delete_rule_config,
     list_rule_configs,
     read_rule_config,
     update_rule_config,
@@ -67,6 +68,17 @@ def list_configs() -> list[ConfigListItem]:
     settings = get_settings()
     items = list_rule_configs(settings.rules_config_dir)
     return [ConfigListItem(**item) for item in items]
+
+
+@router.delete("/configs/{filename}", status_code=204)
+def delete_config(filename: str) -> None:
+    settings = get_settings()
+    try:
+        delete_rule_config(settings.rules_config_dir, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Config not found.") from exc
 
 
 @router.get("/configs/{filename}", response_model=ConfigDetail)

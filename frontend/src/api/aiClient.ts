@@ -46,3 +46,20 @@ export async function aiPost<T>(path: string, body?: unknown): Promise<T> {
   });
   return parseAiResponse<T>(res);
 }
+
+export async function aiDelete(path: string): Promise<void> {
+  const res = await fetch(`${AI_BASE}${path}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const body = (await res.json()) as { detail?: string };
+      if (typeof body.detail === "string") message = body.detail;
+    } catch {
+      /* empty body on 204 failures */
+    }
+    throw new AiApiError(message, res.status);
+  }
+}

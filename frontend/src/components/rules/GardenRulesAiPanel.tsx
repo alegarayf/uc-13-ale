@@ -1,14 +1,20 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { fetchNlRuleConfig, fetchNlRuleConfigs } from "../../api/nlRules.js";
+import { DeleteNlRuleDialog } from "./DeleteNlRuleDialog.js";
 import { NlRuleFormModal } from "./NlRuleFormModal.js";
 import type { NlRuleConfigListItem } from "../../types/nlRule.js";
+import { nlRuleMatchesSearch } from "../../utils/ruleSearch.js";
 
 export interface GardenRulesAiPanelHandle {
   openAddModal: () => void;
 }
 
-export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle>(
-  function GardenRulesAiPanel(_, ref) {
+export interface GardenRulesAiPanelProps {
+  searchQuery?: string;
+}
+
+export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle, GardenRulesAiPanelProps>(
+  function GardenRulesAiPanel({ searchQuery = "" }, ref) {
     const [configs, setConfigs] = useState<NlRuleConfigListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -17,6 +23,8 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle>(
     const [editingFilename, setEditingFilename] = useState<string | null>(null);
     const [initialPrompt, setInitialPrompt] = useState("");
     const [loadConfigError, setLoadConfigError] = useState<string | null>(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deletingRule, setDeletingRule] = useState<NlRuleConfigListItem | null>(null);
 
     const loadConfigs = useCallback(async () => {
       const data = await fetchNlRuleConfigs();
@@ -84,6 +92,20 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle>(
       }
     }, [loadConfigs]);
 
+    function openDeleteDialog(row: NlRuleConfigListItem) {
+      setDeletingRule(row);
+      setDeleteDialogOpen(true);
+    }
+
+    const handleDeleted = useCallback(
+      (filename: string) => {
+        setConfigs((prev) => prev.filter((r) => r.filename !== filename));
+      },
+      [],
+    );
+
+    const filteredConfigs = configs.filter((row) => nlRuleMatchesSearch(row, searchQuery));
+
     return (
       <>
         {loadConfigError && (
@@ -118,7 +140,12 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle>(
                 </tr>
               </thead>
               <tbody>
-                {configs.map((row) => (
+                {filteredConfigs.length === 0 ? (
+                  <tr className="rules-table__empty-row">
+                    <td colSpan={4}>No rules match your search.</td>
+                  </tr>
+                ) : (
+                  filteredConfigs.map((row) => (
                   <tr key={row.filename}>
                     <td>
                       <span className="rules-table__name">{row.name ?? "—"}</span>
@@ -144,9 +171,17 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle>(
                       >
                         Edit
                       </button>
+                      <button
+                        type="button"
+                        className="btn btn--text btn--text-danger"
+                        onClick={() => openDeleteDialog(row)}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -163,6 +198,13 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle>(
           updateFilename={editingFilename ?? undefined}
           onClose={() => setModalOpen(false)}
           onConfirmed={handleConfirmed}
+        />
+
+        <DeleteNlRuleDialog
+          open={deleteDialogOpen}
+          rule={deletingRule}
+          onClose={() => setDeleteDialogOpen(false)}
+          onDeleted={handleDeleted}
         />
       </>
     );

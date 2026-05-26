@@ -6,9 +6,11 @@ import { GardenRulesAiPanel } from "../components/rules/GardenRulesAiPanel.js";
 import { DeleteRuleDialog } from "../components/rules/DeleteRuleDialog.js";
 import { RuleFormModal } from "../components/rules/RuleFormModal.js";
 import { RulesEditorModeToggle } from "../components/rules/RulesEditorModeToggle.js";
+import { RulesSearchBar } from "../components/rules/RulesSearchBar.js";
 import { useRulesEditorMode, type RulesEditorMode } from "../hooks/useRulesEditorMode.js";
 import type { Rule } from "../types/rule.js";
 import { formatRuleCriteria, formatRuleStatusLabel } from "../utils/formatRule.js";
+import { normalizeRuleSearchQuery, ruleMatchesSearch } from "../utils/ruleSearch.js";
 
 export function GardenRules() {
   const [searchParams] = useSearchParams();
@@ -26,6 +28,7 @@ export function GardenRules() {
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingRule, setDeletingRule] = useState<Rule | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +95,9 @@ export function GardenRules() {
 
   const isFormMode = editorMode === "form";
   const aiPanelRef = useRef<{ openAddModal: () => void }>(null);
+  const normalizedSearch = normalizeRuleSearchQuery(searchQuery);
+  const filteredRules = rules.filter((rule) => ruleMatchesSearch(rule, normalizedSearch));
+  const showRulesContent = !loading && !error;
 
   return (
     <div className="page">
@@ -138,9 +144,16 @@ export function GardenRules() {
           </p>
         )}
 
+        {showRulesContent && (
+          <RulesSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+          />
+        )}
+
         {isFormMode ? (
           <>
-            {!loading && !error && rules.length > 0 && (
+            {showRulesContent && rules.length > 0 && (
               <div className="rules-table-wrap">
                 <table className="rules-table">
                   <thead>
@@ -155,7 +168,12 @@ export function GardenRules() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rules.map((rule) => (
+                    {filteredRules.length === 0 ? (
+                      <tr className="rules-table__empty-row">
+                        <td colSpan={5}>No rules match your search.</td>
+                      </tr>
+                    ) : (
+                      filteredRules.map((rule) => (
                       <tr key={rule.id}>
                         <td>
                           <span className="rules-table__name">{rule.name}</span>
@@ -187,13 +205,14 @@ export function GardenRules() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             )}
 
-            {!loading && !error && rules.length === 0 && (
+            {showRulesContent && rules.length === 0 && (
               <p className="content-card__note">
                 No rules returned from the API
                 {dataStore ? ` (data store: ${dataStore})` : ""}.{" "}
@@ -206,7 +225,9 @@ export function GardenRules() {
             )}
           </>
         ) : (
-          !loading && !error && <GardenRulesAiPanel ref={aiPanelRef} />
+          showRulesContent && (
+            <GardenRulesAiPanel ref={aiPanelRef} searchQuery={normalizedSearch} />
+          )
         )}
       </section>
 
