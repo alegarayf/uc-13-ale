@@ -123,7 +123,12 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle>(
                     <td>
                       <span className="rules-table__name">{row.name ?? "—"}</span>
                     </td>
-                    <td>{row.summary ?? "—"}</td>
+                    <td className="rules-table__summary-cell">
+                      <div className="rules-table__summary-inner">
+                        <span className="rules-table__summary-text">{row.summary ?? "—"}</span>
+                        <span className="rules-table__config-file">{row.filename}</span>
+                      </div>
+                    </td>
                     <td>
                       {row.updatedAt
                         ? new Date(row.updatedAt).toLocaleString()

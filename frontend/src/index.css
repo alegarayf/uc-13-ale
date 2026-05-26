@@ -543,6 +543,31 @@ button {
   margin-left: 0.5rem;
 }
 
+.rules-table__summary-cell {
+  vertical-align: top;
+}
+
+.rules-table__summary-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+}
+
+.rules-table__summary-text {
+  display: block;
+}
+
+.rules-table__config-file {
+  display: block;
+  margin-top: auto;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--rd-text-muted);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
