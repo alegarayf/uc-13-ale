@@ -1,0 +1,207 @@
+# UC13 Ingestion Pipeline — Databricks Asset Bundle workflow definition
+#
+# Deploy with:
+#   databricks bundle deploy --target <env>
+#   databricks bundle run uc13_ingestion_pipeline --target <env>
+#
+# Or import via the Databricks UI:
+#   Workflows → Create Job → Import from YAML
+#
+# Required before first run:
+#   - Unity Catalog catalog "uc13" created by workspace admin
+#   - Secrets scope "uc13" with keys listed in workflows/README.md
+#   - Run 00_setup_vector_search once to create the VS endpoint and index
+
+resources:
+  jobs:
+    uc13_ingestion_pipeline:
+      name: "UC13 Ingestion Pipeline"
+      description: >
+        Phase 1 (SharePoint download + Priority Tier detection) →
+        Phase 2 (Document Classifier + Ingestion Parser + Company Profiler).
+        Set sp_company_name to switch between companies without code changes.
+
+      # Job-level parameters — visible in the Workflow UI Run Now dialog.
+      parameters:
+        - name: sp_company_name
+          default: ""
+          description: >
+            Company name as it appears in SharePoint under "Example Data Room/".
+            E.g. "Elder Care" or "Project Silo". Required — leave blank to abort.
+        - name: catalog
+          default: "uc13"
+          description: "Unity Catalog catalog name."
+        - name: schema
+          default: "ingestion"
+          description: "UC schema for raw tables (chunks, embeddings, upload_log)."
+        - name: embedding_endpoint
+          default: "databricks-bge-large-en"
+          description: "MLflow embedding endpoint name."
+        - name: llm_endpoint
+          default: "databricks-meta-llama-3-3-70b-instruct"
+          description: "MLflow LLM endpoint name."
+        - name: vs_endpoint_name
+          default: "uc13-vector-search"
+          description: "Databricks Vector Search endpoint name."
+
+      tasks:
+        # ------------------------------------------------------------------
+        # Task 0 — One-time environment setup
+        # Run manually when provisioning a new workspace or rebuilding the
+        # Vector Search index. In steady-state runs this task is skipped by
+        # setting the run_if condition via the UI or by commenting it out.
+        # ------------------------------------------------------------------
+        - task_key: setup_vector_search
+          description: >
+            Create UC schemas, embeddings table, VS endpoint and VS index.
+            Idempotent — safe to re-run; existing resources are left untouched.
+          python_script_task:
+            python_file: "databricks/jobs/scripts/00_setup_vector_search.py"
+            parameters:
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.vs_endpoint_name}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 1 — Phase 1: Download from SharePoint → UC Volume
+        # ------------------------------------------------------------------
+        - task_key: download_upload
+          description: >
+            Connect to SharePoint, list and deduplicate files for the target
+            company, download to scratch storage, upload to UC Volume, and
+            write uc13.ingestion.upload_log with Priority Tier signals.
+          depends_on:
+            - task_key: setup_vector_search
+          python_script_task:
+            python_file: "databricks/jobs/scripts/01_download_upload.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.schema}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 2 — Phase 2a: Document Classifier
+        # Reads volume files; calls LLM to assign workstream tags and priority.
+        # Must complete before Tasks 3 and 4 can start.
+        # ------------------------------------------------------------------
+        - task_key: document_classifier
+          description: >
+            LLM-based classification: assigns ARRAY<STRING> workstream tags
+            (FINANCIAL, CUSTOMER, KPI_OPS, LEGAL, QUALITY_EARNINGS, FORECAST,
+            BUSINESS_MODEL, BACKGROUND) and a BOOLEAN priority_tier to each file.
+            Writes uc13.classification.doc_relevance.
+          depends_on:
+            - task_key: download_upload
+          python_script_task:
+            python_file: "databricks/jobs/scripts/02_document_classifier.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.schema}}"
+              - "{{job.parameters.llm_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 3 — Phase 2b: Ingestion Parser
+        # Runs after the classifier; priority-tier documents are parsed first.
+        # Must complete before the Company Profiler can do semantic search.
+        # ------------------------------------------------------------------
+        - task_key: ingestion_parser
+          description: >
+            Parses should_parse=true files into semantic chunks, generates BGE
+            Large embeddings, writes uc13.ingestion.chunks and
+            uc13.ingestion.embeddings (CDF enabled, workstream + priority_tier).
+          depends_on:
+            - task_key: document_classifier
+          python_script_task:
+            python_file: "databricks/jobs/scripts/03_ingestion_parser.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.schema}}"
+              - "{{job.parameters.embedding_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 4 — Phase 2b: Company Profiler
+        # Runs after the parser so the vector index is populated.
+        # ------------------------------------------------------------------
+        - task_key: company_profiler
+          description: >
+            Semantic search over embeddings + LLM extraction to build a
+            structured company profile. Writes uc13.classification.company_profile.
+            company_name always comes from sp_company_name — never from LLM output.
+          depends_on:
+            - task_key: ingestion_parser
+          python_script_task:
+            python_file: "databricks/jobs/scripts/04_company_profiler.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.schema}}"
+              - "{{job.parameters.embedding_endpoint}}"
+              - "{{job.parameters.llm_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+      # Notify on failure (configure email or webhook in workspace settings).
+      email_notifications:
+        on_failure: []
+
+      # Maximum concurrent runs — process one company at a time.
+      max_concurrent_runs: 1
