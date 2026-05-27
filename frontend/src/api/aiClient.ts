@@ -47,6 +47,18 @@ export async function aiPost<T>(path: string, body?: unknown): Promise<T> {
   return parseAiResponse<T>(res);
 }
 
+export async function aiPatch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${AI_BASE}${path}`, {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  return parseAiResponse<T>(res);
+}
+
 export async function aiDelete(path: string): Promise<void> {
   const res = await fetch(`${AI_BASE}${path}`, {
     method: "DELETE",

@@ -14,11 +14,13 @@ const cfg = {
 const insertPayload: RuleInsertPayload = {
   name: "Databricks rule",
   description: "d",
-  comparison: ">=",
-  minimum: 5,
-  maximum: null,
-  uom: "ea",
   status: "active",
+  rule_source: "ai",
+  nl_prompt: "prompt",
+  nl_summary: "summary",
+  rule_definition: "{}",
+  python_source: null,
+  python_entrypoint: null,
   last_updated_by: "sql",
 };
 
@@ -53,7 +55,7 @@ describe("createDatabricksRulesRepository", () => {
     const db = mockClient({
       onQuery: (sql, params) => {
         if (sql.startsWith("INSERT")) {
-          expect(params).toMatchObject({ name: insertPayload.name });
+          expect(params).toMatchObject({ name: insertPayload.name, rule_source: "ai" });
           return [];
         }
         return [
@@ -61,11 +63,13 @@ describe("createDatabricksRulesRepository", () => {
             id: 10,
             name: insertPayload.name,
             description: insertPayload.description,
-            comparison: insertPayload.comparison,
-            minimum: insertPayload.minimum,
-            maximum: null,
-            uom: insertPayload.uom,
             status: insertPayload.status,
+            rule_source: insertPayload.rule_source,
+            nl_prompt: insertPayload.nl_prompt,
+            nl_summary: insertPayload.nl_summary,
+            rule_definition: insertPayload.rule_definition,
+            python_source: null,
+            python_entrypoint: null,
             created_at: "2026-05-20T00:00:00.000Z",
             updated_at: "2026-05-20T00:00:00.000Z",
             last_updated_by: insertPayload.last_updated_by,
@@ -88,11 +92,13 @@ describe("createDatabricksRulesRepository", () => {
               id: 5,
               name: "Old",
               description: null,
-              comparison: null,
-              minimum: null,
-              maximum: null,
-              uom: null,
               status: "active",
+              rule_source: "form",
+              nl_prompt: null,
+              nl_summary: null,
+              rule_definition: null,
+              python_source: null,
+              python_entrypoint: null,
               created_at: "t",
               updated_at: "t",
               last_updated_by: null,
@@ -106,11 +112,13 @@ describe("createDatabricksRulesRepository", () => {
     const updated = await repo.replace(5, {
       name: "New",
       description: null,
-      comparison: "=",
-      minimum: null,
-      maximum: null,
-      uom: null,
+      rule_source: "form",
       status: "inactive",
+      nl_prompt: null,
+      nl_summary: null,
+      rule_definition: null,
+      python_source: null,
+      python_entrypoint: null,
       last_updated_by: "u",
     });
     expect(updated).not.toBeNull();

@@ -5,8 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings, resolve_rules_ai_mode
 from app.routes.rules_nl import router as rules_nl_router
-from app.services.rules_config_store import ensure_rules_config_dir
-
 app = FastAPI(title="Rallyday AI", version="0.2.0")
 
 settings = get_settings()
@@ -18,8 +16,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-ensure_rules_config_dir(settings.rules_config_dir)
 
 app.include_router(rules_nl_router)
 

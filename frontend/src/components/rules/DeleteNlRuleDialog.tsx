@@ -1,13 +1,13 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { AiApiError } from "../../api/aiClient.js";
-import { deleteNlRuleConfig } from "../../api/nlRules.js";
-import type { NlRuleConfigListItem } from "../../types/nlRule.js";
+import { ApiError } from "../../api/client.js";
+import { deleteRule } from "../../api/rules.js";
+import type { Rule } from "../../types/rule.js";
 
 export interface DeleteNlRuleDialogProps {
   open: boolean;
-  rule: NlRuleConfigListItem | null;
+  rule: Rule | null;
   onClose: () => void;
-  onDeleted: (filename: string) => void;
+  onDeleted: (id: number) => void;
 }
 
 export function DeleteNlRuleDialog({ open, rule, onClose, onDeleted }: DeleteNlRuleDialogProps) {
@@ -16,7 +16,7 @@ export function DeleteNlRuleDialog({ open, rule, onClose, onDeleted }: DeleteNlR
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const displayName = rule?.name ?? rule?.filename ?? "this rule";
+  const displayName = rule?.name ?? "this rule";
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -39,11 +39,11 @@ export function DeleteNlRuleDialog({ open, rule, onClose, onDeleted }: DeleteNlR
     setDeleting(true);
     setError(null);
     try {
-      await deleteNlRuleConfig(rule.filename);
-      onDeleted(rule.filename);
+      await deleteRule(rule.id);
+      onDeleted(rule.id);
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof AiApiError ? err.message : "Failed to delete rule.");
+      setError(err instanceof ApiError ? err.message : "Failed to delete rule.");
     } finally {
       setDeleting(false);
     }
@@ -64,7 +64,7 @@ export function DeleteNlRuleDialog({ open, rule, onClose, onDeleted }: DeleteNlR
       <div className="rd-modal__panel">
         <header className="rd-modal__header">
           <h2 id={titleId} className="rd-modal__title">
-            Delete AI rule
+            Delete rule
           </h2>
           <button
             type="button"
@@ -84,8 +84,7 @@ export function DeleteNlRuleDialog({ open, rule, onClose, onDeleted }: DeleteNlR
             </p>
           )}
           <p className="rd-modal__message">
-            Delete <strong>{displayName}</strong>? The config file{" "}
-            <code>{rule.filename}</code> will be removed. This cannot be undone.
+            Delete <strong>{displayName}</strong> (rule #{rule.id})? This cannot be undone.
           </p>
         </div>
 

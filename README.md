@@ -16,8 +16,7 @@ Rallyday/
 ├── .env.example          # Copy to `.env` at repo root (see Environment)
 ├── package.json          # Workspaces + concurrent dev scripts
 ├── tsconfig.base.json
-├── frontend/             # React UI (My Garden, Garden rules, AI rules experiment)
-├── rules-config/         # JSON rule configs from the NL / Genie experiment (gitignored files)
+├── frontend/             # React UI (My Garden, Garden rules with AI)
 ├── backend-api/          # Express REST API + docs in backend-api/docs/
 ├── backend-ai/
 └── databricks/

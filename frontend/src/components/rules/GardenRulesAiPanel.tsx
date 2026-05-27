@@ -1,9 +1,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
-import { fetchNlRuleConfig, fetchNlRuleConfigs } from "../../api/nlRules.js";
+import { fetchRules } from "../../api/rules.js";
 import { DeleteNlRuleDialog } from "./DeleteNlRuleDialog.js";
 import { NlRuleFormModal } from "./NlRuleFormModal.js";
-import type { NlRuleConfigListItem } from "../../types/nlRule.js";
-import { nlRuleMatchesSearch } from "../../utils/ruleSearch.js";
+import type { Rule } from "../../types/rule.js";
+import { formatRuleStatusLabel, formatRuleSummary } from "../../utils/formatRule.js";
+import { isAiRule, ruleMatchesSearch } from "../../utils/ruleSearch.js";
 
 export interface GardenRulesAiPanelHandle {
   openAddModal: () => void;
@@ -15,20 +16,18 @@ export interface GardenRulesAiPanelProps {
 
 export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle, GardenRulesAiPanelProps>(
   function GardenRulesAiPanel({ searchQuery = "" }, ref) {
-    const [configs, setConfigs] = useState<NlRuleConfigListItem[]>([]);
+    const [rules, setRules] = useState<Rule[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-    const [editingFilename, setEditingFilename] = useState<string | null>(null);
-    const [initialPrompt, setInitialPrompt] = useState("");
-    const [loadConfigError, setLoadConfigError] = useState<string | null>(null);
+    const [editingRule, setEditingRule] = useState<Rule | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [deletingRule, setDeletingRule] = useState<NlRuleConfigListItem | null>(null);
+    const [deletingRule, setDeletingRule] = useState<Rule | null>(null);
 
-    const loadConfigs = useCallback(async () => {
-      const data = await fetchNlRuleConfigs();
-      setConfigs(data);
+    const loadRules = useCallback(async () => {
+      const data = await fetchRules();
+      setRules(data.filter(isAiRule));
     }, []);
 
     useEffect(() => {
@@ -38,14 +37,14 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle, GardenRul
         try {
           setLoading(true);
           setError(null);
-          const configList = await fetchNlRuleConfigs();
-          if (!cancelled) setConfigs(configList);
+          const aiRules = (await fetchRules()).filter(isAiRule);
+          if (!cancelled) setRules(aiRules);
         } catch (err: unknown) {
           if (!cancelled) {
             const message = err instanceof Error ? err.message : "Failed to load";
             setError(
               message === "Failed to fetch"
-                ? "Could not reach the AI API. Start it with npm run dev:ai and confirm VITE_AI_API_BASE_URL in .env."
+                ? "Could not reach the API. Start it with npm run dev (or npm run dev:api) and confirm VITE_API_BASE_URL in .env."
                 : message,
             );
           }
@@ -62,61 +61,42 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle, GardenRul
 
     function openAddModal() {
       setModalMode("add");
-      setEditingFilename(null);
-      setInitialPrompt("");
-      setLoadConfigError(null);
+      setEditingRule(null);
       setModalOpen(true);
     }
 
     useImperativeHandle(ref, () => ({ openAddModal }), []);
 
-    async function openEditModal(row: NlRuleConfigListItem) {
-      setLoadConfigError(null);
+    function openEditModal(rule: Rule) {
       setModalMode("edit");
-      setEditingFilename(row.filename);
-      try {
-        const detail = await fetchNlRuleConfig(row.filename);
-        setInitialPrompt(detail.prompt);
-        setModalOpen(true);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Failed to load rule config.";
-        setLoadConfigError(message);
-      }
+      setEditingRule(rule);
+      setModalOpen(true);
     }
 
     const handleConfirmed = useCallback(async () => {
       try {
-        await loadConfigs();
+        await loadRules();
       } catch {
         /* best-effort refresh */
       }
-    }, [loadConfigs]);
+    }, [loadRules]);
 
-    function openDeleteDialog(row: NlRuleConfigListItem) {
-      setDeletingRule(row);
+    function openDeleteDialog(rule: Rule) {
+      setDeletingRule(rule);
       setDeleteDialogOpen(true);
     }
 
-    const handleDeleted = useCallback(
-      (filename: string) => {
-        setConfigs((prev) => prev.filter((r) => r.filename !== filename));
-      },
-      [],
-    );
+    const handleDeleted = useCallback((id: number) => {
+      setRules((prev) => prev.filter((r) => r.id !== id));
+    }, []);
 
-    const filteredConfigs = configs.filter((row) => nlRuleMatchesSearch(row, searchQuery));
+    const filteredRules = rules.filter((row) => ruleMatchesSearch(row, searchQuery));
 
     return (
       <>
-        {loadConfigError && (
-          <p className="content-card__error" role="alert">
-            {loadConfigError}
-          </p>
-        )}
-
         {loading && (
           <p className="content-card__note" role="status">
-            Loading AI rules…
+            Loading rules…
           </p>
         )}
 
@@ -126,13 +106,14 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle, GardenRul
           </p>
         )}
 
-        {!loading && !error && configs.length > 0 && (
+        {!loading && !error && rules.length > 0 && (
           <div className="rules-table-wrap">
             <table className="rules-table" aria-labelledby="rules-heading">
               <thead>
                 <tr>
                   <th scope="col">Name</th>
                   <th scope="col">Summary</th>
+                  <th scope="col">Status</th>
                   <th scope="col">Updated</th>
                   <th scope="col">
                     <span className="visually-hidden">Actions</span>
@@ -140,46 +121,45 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle, GardenRul
                 </tr>
               </thead>
               <tbody>
-                {filteredConfigs.length === 0 ? (
+                {filteredRules.length === 0 ? (
                   <tr className="rules-table__empty-row">
-                    <td colSpan={4}>No rules match your search.</td>
+                    <td colSpan={5}>No rules match your search.</td>
                   </tr>
                 ) : (
-                  filteredConfigs.map((row) => (
-                  <tr key={row.filename}>
-                    <td>
-                      <span className="rules-table__name">{row.name ?? "—"}</span>
-                    </td>
-                    <td className="rules-table__summary-cell">
-                      <div className="rules-table__summary-inner">
-                        <span className="rules-table__summary-text">{row.summary ?? "—"}</span>
-                        <span className="rules-table__config-file">{row.filename}</span>
-                      </div>
-                    </td>
-                    <td>
-                      {row.updatedAt
-                        ? new Date(row.updatedAt).toLocaleString()
-                        : row.createdAt
-                          ? new Date(row.createdAt).toLocaleString()
-                          : "—"}
-                    </td>
-                    <td className="rules-table__actions">
-                      <button
-                        type="button"
-                        className="btn btn--text"
-                        onClick={() => void openEditModal(row)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--text btn--text-danger"
-                        onClick={() => openDeleteDialog(row)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
+                  filteredRules.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <span className="rules-table__name">{row.name}</span>
+                        <span className="rules-table__id">#{row.id}</span>
+                      </td>
+                      <td className="rules-table__summary-cell">
+                        <span className="rules-table__summary-text">{formatRuleSummary(row)}</span>
+                      </td>
+                      <td>
+                        <span
+                          className={`rules-table__status rules-table__status--${row.status}`}
+                        >
+                          {formatRuleStatusLabel(row.status)}
+                        </span>
+                      </td>
+                      <td>{new Date(row.updated_at).toLocaleString()}</td>
+                      <td className="rules-table__actions">
+                        <button
+                          type="button"
+                          className="btn btn--text"
+                          onClick={() => openEditModal(row)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--text btn--text-danger"
+                          onClick={() => openDeleteDialog(row)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
                   ))
                 )}
               </tbody>
@@ -187,15 +167,16 @@ export const GardenRulesAiPanel = forwardRef<GardenRulesAiPanelHandle, GardenRul
           </div>
         )}
 
-        {!loading && !error && configs.length === 0 && (
-          <p className="content-card__note">No AI rules yet. Add a rule to get started.</p>
+        {!loading && !error && rules.length === 0 && (
+          <p className="content-card__note">No rules yet. Add a rule to get started.</p>
         )}
 
         <NlRuleFormModal
           open={modalOpen}
           mode={modalMode}
-          initialPrompt={initialPrompt}
-          updateFilename={editingFilename ?? undefined}
+          initialPrompt={editingRule?.nl_prompt ?? ""}
+          existingRuleId={editingRule?.id}
+          existingStatus={editingRule?.status}
           onClose={() => setModalOpen(false)}
           onConfirmed={handleConfirmed}
         />

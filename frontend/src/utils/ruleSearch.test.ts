@@ -1,57 +1,38 @@
 import { describe, expect, it } from "vitest";
+import { isAiRule, ruleMatchesSearch } from "./ruleSearch.js";
 import type { Rule } from "../types/rule.js";
-import { nlRuleMatchesSearch, ruleMatchesSearch } from "./ruleSearch.js";
 
-const sampleRule: Rule = {
+const baseRule: Rule = {
   id: 1,
-  name: "Minimum ARR",
-  description: "Revenue floor for enterprise deals",
-  comparison: ">=",
-  minimum: 1_000_000,
-  maximum: null,
-  uom: "USD",
+  name: "Revenue threshold",
+  description: "Minimum annual revenue",
   status: "active",
-  created_at: "2026-01-01T00:00:00Z",
-  updated_at: "2026-01-01T00:00:00Z",
+  rule_source: "ai",
+  nl_prompt: "Require $10M revenue",
+  nl_summary: "Requires at least $10M revenue",
+  rule_definition: null,
+  python_source: null,
+  python_entrypoint: null,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
   last_updated_by: null,
 };
 
 describe("ruleMatchesSearch", () => {
-  it("matches empty query", () => {
-    expect(ruleMatchesSearch(sampleRule, "")).toBe(true);
+  it("matches name and nl fields", () => {
+    expect(ruleMatchesSearch(baseRule, "revenue")).toBe(true);
+    expect(ruleMatchesSearch(baseRule, "$10m")).toBe(true);
+    expect(ruleMatchesSearch(baseRule, "zzznomatch")).toBe(false);
   });
 
-  it("matches name and description", () => {
-    expect(ruleMatchesSearch(sampleRule, "arr")).toBe(true);
-    expect(ruleMatchesSearch(sampleRule, "enterprise")).toBe(true);
-  });
-
-  it("returns false when no field matches", () => {
-    expect(ruleMatchesSearch(sampleRule, "healthcare")).toBe(false);
+  it("returns true for empty query", () => {
+    expect(ruleMatchesSearch(baseRule, "")).toBe(true);
   });
 });
 
-describe("nlRuleMatchesSearch", () => {
-  it("matches filename and summary", () => {
-    expect(
-      nlRuleMatchesSearch(
-        {
-          filename: "rule-abc123.json",
-          name: "Slack alert",
-          summary: "Notify when revenue drops",
-        },
-        "slack",
-      ),
-    ).toBe(true);
-    expect(
-      nlRuleMatchesSearch(
-        {
-          filename: "rule-abc123.json",
-          name: "Slack alert",
-          summary: "Notify when revenue drops",
-        },
-        "rule-abc",
-      ),
-    ).toBe(true);
+describe("isAiRule", () => {
+  it("detects ai rules", () => {
+    expect(isAiRule(baseRule)).toBe(true);
+    expect(isAiRule({ ...baseRule, rule_source: "form" })).toBe(false);
   });
 });

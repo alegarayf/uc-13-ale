@@ -79,6 +79,19 @@ def _candidate_json_strings(text: str) -> list[str]:
     return candidates
 
 
+def _normalize_python_function(rule_config: dict[str, Any]) -> None:
+    pf = rule_config.get("python_function")
+    if not isinstance(pf, dict):
+        return
+    source = pf.get("source")
+    if not source or not isinstance(source, str):
+        return
+    try:
+        ast.parse(source)
+    except SyntaxError as exc:
+        raise ParseError(f"python_function.source is not valid Python: {exc}") from exc
+
+
 def _payload_from_dict(payload: dict[str, Any], *, original_text: str) -> tuple[str, dict[str, Any]]:
     if "summary" in payload and "rule" in payload:
         summary = str(payload["summary"]).strip()
@@ -87,6 +100,7 @@ def _payload_from_dict(payload: dict[str, Any], *, original_text: str) -> tuple[
             raise ParseError('"rule" must be a JSON object.')
         if not summary:
             raise ParseError('"summary" must be a non-empty string.')
+        _normalize_python_function(rule_config)
         return summary, rule_config
 
     summary_match = re.search(

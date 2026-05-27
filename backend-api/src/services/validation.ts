@@ -1,5 +1,5 @@
 import { ValidationError } from "../errors/httpErrors.js";
-import { RULE_COMPARISONS, RULE_STATUSES, type RuleComparison, type RuleStatus } from "../types/rule.js";
+import { RULE_SOURCES, RULE_STATUSES, type RuleSource, type RuleStatus } from "../types/rule.js";
 
 export function requireNonEmptyString(value: unknown, field: string): string {
   if (typeof value !== "string" || !value.trim()) {
@@ -31,19 +31,21 @@ export function optionalInt(value: unknown, field: string): number | null | unde
   return value;
 }
 
-export function normalizeComparison(value: unknown, required = false): RuleComparison | null {
+export function normalizeRuleSource(value: unknown, required = false): RuleSource {
   if (value === undefined || value === null || value === "") {
-    if (required) throw new ValidationError(`comparison must be one of: ${RULE_COMPARISONS.join(", ")}`);
-    return null;
+    if (required) {
+      throw new ValidationError(`rule_source must be one of: ${RULE_SOURCES.join(", ")}`);
+    }
+    return "form";
   }
   if (typeof value !== "string") {
-    throw new ValidationError(`comparison must be one of: ${RULE_COMPARISONS.join(", ")}`);
+    throw new ValidationError(`rule_source must be one of: ${RULE_SOURCES.join(", ")}`);
   }
-  const trimmed = value.trim();
-  if (!(RULE_COMPARISONS as readonly string[]).includes(trimmed)) {
-    throw new ValidationError(`comparison must be one of: ${RULE_COMPARISONS.join(", ")}`);
+  const trimmed = value.trim().toLowerCase();
+  if (!(RULE_SOURCES as readonly string[]).includes(trimmed)) {
+    throw new ValidationError(`rule_source must be one of: ${RULE_SOURCES.join(", ")}`);
   }
-  return trimmed as RuleComparison;
+  return trimmed as RuleSource;
 }
 
 export function normalizeStatus(value: unknown, required = false): RuleStatus {

@@ -1,7 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { ApiError } from "../../api/client.js";
 import { AiApiError } from "../../api/aiClient.js";
-import { confirmNlRule, denyNlRule, interpretNlRule } from "../../api/nlRules.js";
+import { createRule, replaceRule } from "../../api/rules.js";
+import { denyNlRule, interpretNlRule } from "../../api/nlRules.js";
 import type { NlRuleInterpretResponse } from "../../types/nlRule.js";
+import type { RuleStatus } from "../../types/rule.js";
+import {
+  buildAiRuleCreateInput,
+  buildAiRuleReplaceInput,
+} from "../../utils/buildAiRuleApiInput.js";
 import { GenieLoadingRobot } from "./GenieLoadingRobot.js";
 
 export type NlRuleFormModalMode = "add" | "edit";
@@ -9,12 +16,11 @@ export type NlRuleFormModalMode = "add" | "edit";
 export interface NlRuleFormModalProps {
   open: boolean;
   mode: NlRuleFormModalMode;
-  /** Prefill for add/edit (edit loads from saved config). */
   initialPrompt?: string;
-  /** When set, confirm updates this config file instead of creating a new one. */
-  updateFilename?: string;
+  existingRuleId?: number;
+  existingStatus?: RuleStatus;
   onClose: () => void;
-  onConfirmed: (result: { configFile: string; summary: string }) => void;
+  onConfirmed: () => void;
 }
 
 type Step = "prompt" | "review";
@@ -23,7 +29,8 @@ export function NlRuleFormModal({
   open,
   mode,
   initialPrompt = "",
-  updateFilename,
+  existingRuleId,
+  existingStatus = "active",
   onClose,
   onConfirmed,
 }: NlRuleFormModalProps) {
@@ -94,11 +101,30 @@ export function NlRuleFormModal({
     setError(null);
     setBusy(true);
     try {
-      const result = await confirmNlRule(interpretation.sessionId, updateFilename);
-      onConfirmed({ configFile: result.configFile, summary: interpretation.summary });
+      const nlPrompt = prompt.trim();
+      if (existingRuleId != null) {
+        await replaceRule(
+          existingRuleId,
+          buildAiRuleReplaceInput(
+            nlPrompt,
+            interpretation.summary,
+            interpretation.ruleConfig,
+            existingStatus,
+          ),
+        );
+      } else {
+        await createRule(
+          buildAiRuleCreateInput(nlPrompt, interpretation.summary, interpretation.ruleConfig),
+        );
+      }
+      onConfirmed();
       onClose();
     } catch (err: unknown) {
-      setError(aiErrorMessage(err));
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(aiErrorMessage(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -137,7 +163,7 @@ export function NlRuleFormModal({
       <div className="rd-modal__panel">
         <header className="rd-modal__header">
           <h2 id={titleId} className="rd-modal__title">
-            {isEdit ? "Edit rule with AI" : "Add rule with AI"}
+            {isEdit ? "Edit rule" : "Add rule"}
           </h2>
           <button
             type="button"
@@ -162,71 +188,72 @@ export function NlRuleFormModal({
             className={showGenieLoader ? "nl-rule-modal__content--hidden" : undefined}
             aria-hidden={showGenieLoader}
           >
-          {error && !showGenieLoader && (
-            <p className="rd-modal__error" role="alert">
-              {error}
-            </p>
-          )}
-
-          {step === "prompt" && (
-            <>
-              <p className="nl-rule-modal__hint">
-                Describe the rule in your own words. We&apos;ll send your description to Databricks
-                Genie and show you a summary of what it understood so you can confirm or refine it.
+            {error && !showGenieLoader && (
+              <p className="rd-modal__error" role="alert">
+                {error}
               </p>
-              <label className="form-field" htmlFor={promptId}>
-                <span className="form-field__label">Rule description</span>
-                <textarea
-                  id={promptId}
-                  className="nl-rule-modal__prompt"
-                  rows={12}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  disabled={busy}
-                  placeholder="Example: Reject opportunities where ARR is below $1M unless the sector is healthcare and the growth rate is above 40%."
-                  autoFocus
-                />
-              </label>
-            </>
-          )}
+            )}
 
-          {step === "review" && interpretation && (
-            <>
-              <p className="nl-rule-modal__hint">
-                Does this match what you meant? Confirm to save the rule, or deny to ask Genie to try
-                once more.
-                {interpretation.aiMode === "mock" && (
-                  <>
-                    {" "}
-                    <span className="nl-rule-modal__badge">Mock mode</span> — set{" "}
-                    <code>DATABRICKS_GENIE_SPACE_ID</code> to use live Genie.
-                  </>
-                )}
-              </p>
-
-              <section className="nl-rule-modal__review" aria-labelledby={`${titleId}-summary`}>
-                <h3 id={`${titleId}-summary`} className="nl-rule-modal__review-title">
-                  What we understood
-                </h3>
-                <p className="nl-rule-modal__summary">{interpretation.summary}</p>
-              </section>
-
-              {showDenyFeedback && interpretation.canDeny && (
-                <label className="form-field" htmlFor={`${promptId}-deny`}>
-                  <span className="form-field__label">What should change? (optional)</span>
+            {step === "prompt" && (
+              <>
+                <p className="nl-rule-modal__hint">
+                  Describe the rule in your own words. We&apos;ll send your description to
+                  Databricks Genie and show you a summary of what it understood so you can confirm or
+                  refine it.
+                </p>
+                <label className="form-field" htmlFor={promptId}>
+                  <span className="form-field__label">Rule description</span>
                   <textarea
-                    id={`${promptId}-deny`}
-                    className="nl-rule-modal__prompt nl-rule-modal__prompt--compact"
-                    rows={3}
-                    value={denyFeedback}
-                    onChange={(e) => setDenyFeedback(e.target.value)}
+                    id={promptId}
+                    className="nl-rule-modal__prompt"
+                    rows={12}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
                     disabled={busy}
-                    placeholder="Tell the AI what it misunderstood…"
+                    placeholder="Example: Reject opportunities where ARR is below $1M unless the sector is healthcare and the growth rate is above 40%."
+                    autoFocus
                   />
                 </label>
-              )}
-            </>
-          )}
+              </>
+            )}
+
+            {step === "review" && interpretation && (
+              <>
+                <p className="nl-rule-modal__hint">
+                  Does this match what you meant? Confirm to save the rule, or deny to ask Genie to
+                  try once more.
+                  {interpretation.aiMode === "mock" && (
+                    <>
+                      {" "}
+                      <span className="nl-rule-modal__badge">Mock mode</span> — set{" "}
+                      <code>DATABRICKS_GENIE_SPACE_ID</code> to use live Genie.
+                    </>
+                  )}
+                </p>
+
+                <section className="nl-rule-modal__review" aria-labelledby={`${titleId}-summary`}>
+                  <h3 id={`${titleId}-summary`} className="nl-rule-modal__review-title">
+                    What we understood
+                  </h3>
+                  <p className="nl-rule-modal__summary">{interpretation.summary}</p>
+                </section>
+
+                {showDenyFeedback && interpretation.canDeny && (
+                  <label className="form-field" htmlFor={`${promptId}-deny`}>
+                    <span className="form-field__label">What should change? (optional)</span>
+                    <textarea
+                      id={`${promptId}-deny`}
+                      className="nl-rule-modal__prompt nl-rule-modal__prompt--compact"
+                      rows={3}
+                      value={denyFeedback}
+                      onChange={(e) => setDenyFeedback(e.target.value)}
+                      disabled={busy}
+                      placeholder="Tell the AI what it misunderstood…"
+                    />
+                  </label>
+                )}
+              </>
+            )}
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "../src/errors/httpErrors.js";
 import {
-  normalizeComparison,
+  normalizeRuleSource,
   normalizeStatus,
   optionalInt,
   optionalNullableString,
@@ -42,21 +42,22 @@ describe("optionalInt", () => {
   });
 });
 
-describe("normalizeComparison", () => {
-  it("accepts valid operators", () => {
-    expect(normalizeComparison(">=")).toBe(">=");
+describe("normalizeRuleSource", () => {
+  it("accepts form and ai", () => {
+    expect(normalizeRuleSource("ai")).toBe("ai");
+    expect(normalizeRuleSource("form")).toBe("form");
   });
 
-  it("returns null for empty when not required", () => {
-    expect(normalizeComparison(null)).toBeNull();
+  it("defaults to form when not required", () => {
+    expect(normalizeRuleSource(null)).toBe("form");
   });
 
-  it("throws for invalid operator", () => {
-    expect(() => normalizeComparison("!=")).toThrow(ValidationError);
+  it("throws for invalid source", () => {
+    expect(() => normalizeRuleSource("legacy")).toThrow(ValidationError);
   });
 
   it("throws when required and missing", () => {
-    expect(() => normalizeComparison(undefined, true)).toThrow(ValidationError);
+    expect(() => normalizeRuleSource(undefined, true)).toThrow(ValidationError);
   });
 });
 

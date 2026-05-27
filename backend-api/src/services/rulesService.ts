@@ -8,51 +8,79 @@ import {
   type RuleMutableFields,
   type UpdateRuleInput,
 } from "../types/rule.js";
+import { pythonFromRuleDefinitionJson } from "./ruleDefinition.js";
 import {
-  normalizeComparison,
+  normalizeRuleSource,
   normalizeStatus,
-  optionalInt,
   optionalNullableString,
   optionalString,
   requireLastUpdatedBy,
   requireNonEmptyString,
 } from "./validation.js";
 
-function toInsertPayload(body: CreateRuleInput): RuleInsertPayload {
+function enrichPythonFields(payload: RuleInsertPayload): RuleInsertPayload {
+  if (payload.python_source && payload.python_entrypoint) {
+    return payload;
+  }
+  const extracted = pythonFromRuleDefinitionJson(payload.rule_definition);
   return {
-    name: requireNonEmptyString(body.name, "name"),
-    description: optionalString(body.description) ?? null,
-    comparison: normalizeComparison(body.comparison),
-    minimum: optionalInt(body.minimum, "minimum") ?? null,
-    maximum: optionalInt(body.maximum, "maximum") ?? null,
-    uom: optionalString(body.uom) ?? null,
-    status: normalizeStatus(body.status),
-    last_updated_by: requireLastUpdatedBy(body.last_updated_by),
+    ...payload,
+    python_source: payload.python_source ?? extracted.python_source,
+    python_entrypoint: payload.python_entrypoint ?? extracted.python_entrypoint,
   };
 }
 
-function toMutableFields(body: ReplaceRuleInput): RuleMutableFields {
-  return {
+function toInsertPayload(body: CreateRuleInput): RuleInsertPayload {
+  const ruleDefinition = optionalNullableString(body.rule_definition) ?? null;
+  const payload: RuleInsertPayload = {
     name: requireNonEmptyString(body.name, "name"),
     description: optionalString(body.description) ?? null,
-    comparison: normalizeComparison(body.comparison),
-    minimum: optionalInt(body.minimum, "minimum") ?? null,
-    maximum: optionalInt(body.maximum, "maximum") ?? null,
-    uom: optionalString(body.uom) ?? null,
-    status: normalizeStatus(body.status, true),
+    status: normalizeStatus(body.status),
+    rule_source: normalizeRuleSource(body.rule_source),
+    nl_prompt: optionalNullableString(body.nl_prompt) ?? null,
+    nl_summary: optionalNullableString(body.nl_summary) ?? null,
+    rule_definition: ruleDefinition,
+    python_source: optionalNullableString(body.python_source) ?? null,
+    python_entrypoint: optionalNullableString(body.python_entrypoint) ?? null,
     last_updated_by: requireLastUpdatedBy(body.last_updated_by),
   };
+  return enrichPythonFields(payload);
+}
+
+function toMutableFields(body: ReplaceRuleInput): RuleMutableFields {
+  const ruleDefinition = optionalNullableString(body.rule_definition) ?? null;
+  const payload: RuleMutableFields = {
+    name: requireNonEmptyString(body.name, "name"),
+    description: optionalString(body.description) ?? null,
+    status: normalizeStatus(body.status, true),
+    rule_source: normalizeRuleSource(body.rule_source, true),
+    nl_prompt: optionalNullableString(body.nl_prompt) ?? null,
+    nl_summary: optionalNullableString(body.nl_summary) ?? null,
+    rule_definition: ruleDefinition,
+    python_source: optionalNullableString(body.python_source) ?? null,
+    python_entrypoint: optionalNullableString(body.python_entrypoint) ?? null,
+    last_updated_by: requireLastUpdatedBy(body.last_updated_by),
+  };
+  return enrichPythonFields(payload);
 }
 
 function patchToMutableFields(body: UpdateRuleInput): Partial<RuleMutableFields> {
   const patch: Partial<RuleMutableFields> = {};
   if (body.name !== undefined) patch.name = requireNonEmptyString(body.name, "name");
   if (body.description !== undefined) patch.description = optionalNullableString(body.description) ?? null;
-  if (body.comparison !== undefined) patch.comparison = normalizeComparison(body.comparison, false);
-  if (body.minimum !== undefined) patch.minimum = optionalInt(body.minimum, "minimum") ?? null;
-  if (body.maximum !== undefined) patch.maximum = optionalInt(body.maximum, "maximum") ?? null;
-  if (body.uom !== undefined) patch.uom = optionalNullableString(body.uom) ?? null;
   if (body.status !== undefined) patch.status = normalizeStatus(body.status, true);
+  if (body.rule_source !== undefined) patch.rule_source = normalizeRuleSource(body.rule_source, true);
+  if (body.nl_prompt !== undefined) patch.nl_prompt = optionalNullableString(body.nl_prompt) ?? null;
+  if (body.nl_summary !== undefined) patch.nl_summary = optionalNullableString(body.nl_summary) ?? null;
+  if (body.rule_definition !== undefined) {
+    patch.rule_definition = optionalNullableString(body.rule_definition) ?? null;
+  }
+  if (body.python_source !== undefined) {
+    patch.python_source = optionalNullableString(body.python_source) ?? null;
+  }
+  if (body.python_entrypoint !== undefined) {
+    patch.python_entrypoint = optionalNullableString(body.python_entrypoint) ?? null;
+  }
   if (body.last_updated_by !== undefined) {
     patch.last_updated_by = requireLastUpdatedBy(body.last_updated_by);
   }
@@ -90,7 +118,12 @@ export class RulesService {
     if (Object.keys(patch).length === 0) {
       throw new ValidationError("request body must include at least one field to update");
     }
-    const updated = await this.repo.update(id, patch);
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundError(`Rule not found: ${id}`);
+    const merged = enrichPythonFields({
+      ...mergePatch(existing, patch),
+    } as RuleMutableFields);
+    const updated = await this.repo.replace(id, merged);
     if (!updated) throw new NotFoundError(`Rule not found: ${id}`);
     return updated;
   }
@@ -99,4 +132,24 @@ export class RulesService {
     const deleted = await this.repo.delete(id);
     if (!deleted) throw new NotFoundError(`Rule not found: ${id}`);
   }
+}
+
+function mergePatch(existing: Rule, patch: Partial<RuleMutableFields>): RuleMutableFields {
+  return {
+    name: patch.name ?? existing.name,
+    description: patch.description !== undefined ? patch.description : existing.description,
+    status: patch.status !== undefined ? patch.status : existing.status,
+    rule_source: patch.rule_source !== undefined ? patch.rule_source : existing.rule_source,
+    nl_prompt: patch.nl_prompt !== undefined ? patch.nl_prompt : existing.nl_prompt,
+    nl_summary: patch.nl_summary !== undefined ? patch.nl_summary : existing.nl_summary,
+    rule_definition:
+      patch.rule_definition !== undefined ? patch.rule_definition : existing.rule_definition,
+    python_source: patch.python_source !== undefined ? patch.python_source : existing.python_source,
+    python_entrypoint:
+      patch.python_entrypoint !== undefined
+        ? patch.python_entrypoint
+        : existing.python_entrypoint,
+    last_updated_by:
+      patch.last_updated_by !== undefined ? patch.last_updated_by : existing.last_updated_by,
+  };
 }
