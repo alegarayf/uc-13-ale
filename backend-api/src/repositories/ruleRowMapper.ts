@@ -1,9 +1,9 @@
 import {
   Rule,
-  RULE_COMPARISONS,
+  RULE_SOURCES,
   RULE_STATUSES,
-  type RuleComparison,
   type RuleFields,
+  type RuleSource,
   type RuleStatus,
 } from "../types/rule.js";
 import type { ApiTimestamp } from "../types/baseApiModel.js";
@@ -27,19 +27,12 @@ function toNullableString(value: unknown): string | null {
   return String(value);
 }
 
-function toNullableInt(value: unknown): number | null {
-  if (value == null || value === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.trunc(n) : null;
-}
-
-function toComparison(value: unknown): RuleComparison | null {
-  if (value == null || value === "") return null;
-  const s = String(value);
-  if ((RULE_COMPARISONS as readonly string[]).includes(s)) {
-    return s as RuleComparison;
+function toRuleSource(value: unknown): RuleSource {
+  const s = String(value ?? "form").trim().toLowerCase();
+  if ((RULE_SOURCES as readonly string[]).includes(s)) {
+    return s as RuleSource;
   }
-  return null;
+  return "form";
 }
 
 function toStatus(value: unknown): RuleStatus {
@@ -51,18 +44,20 @@ function toStatus(value: unknown): RuleStatus {
 }
 
 export const RULE_SELECT_COLUMNS =
-  "id, name, description, comparison, minimum, maximum, uom, status, created_at, updated_at, last_updated_by";
+  "id, name, description, status, rule_source, nl_prompt, nl_summary, rule_definition, python_source, python_entrypoint, created_at, updated_at, last_updated_by";
 
 export function mapRowToRuleFields(row: Record<string, unknown>): RuleFields {
   return {
     id: Number(pickField(row, "id")),
     name: String(pickField(row, "name") ?? ""),
     description: toNullableString(pickField(row, "description")),
-    comparison: toComparison(pickField(row, "comparison")),
-    minimum: toNullableInt(pickField(row, "minimum")),
-    maximum: toNullableInt(pickField(row, "maximum")),
-    uom: toNullableString(pickField(row, "uom")),
     status: toStatus(pickField(row, "status")),
+    rule_source: toRuleSource(pickField(row, "rule_source")),
+    nl_prompt: toNullableString(pickField(row, "nl_prompt")),
+    nl_summary: toNullableString(pickField(row, "nl_summary")),
+    rule_definition: toNullableString(pickField(row, "rule_definition")),
+    python_source: toNullableString(pickField(row, "python_source")),
+    python_entrypoint: toNullableString(pickField(row, "python_entrypoint")),
     created_at: toApiTimestamp(pickField(row, "created_at")),
     updated_at: toApiTimestamp(pickField(row, "updated_at")),
     last_updated_by: toNullableString(pickField(row, "last_updated_by")),

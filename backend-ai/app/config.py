@@ -18,7 +18,6 @@ class Settings(BaseSettings):
 
     # auto | mock | genie
     rules_ai_mode: str = "auto"
-    rules_config_dir: Path = _REPO_ROOT / "rules-config"
     rules_ai_max_denies: int = 1
 
 

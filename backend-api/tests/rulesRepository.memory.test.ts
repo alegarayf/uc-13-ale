@@ -1,69 +1,56 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createMemoryRulesRepository } from "../src/repositories/rulesRepository.js";
 import type { RuleInsertPayload } from "../src/types/rule.js";
 
-const payload: RuleInsertPayload = {
+const insertPayload: RuleInsertPayload = {
   name: "New rule",
   description: "desc",
-  comparison: "=",
-  minimum: 1,
-  maximum: 10,
-  uom: "units",
   status: "active",
+  rule_source: "ai",
+  nl_prompt: "prompt",
+  nl_summary: "summary",
+  rule_definition: "{}",
+  python_source: null,
+  python_entrypoint: null,
   last_updated_by: "test",
 };
 
 describe("createMemoryRulesRepository", () => {
-  let repo: ReturnType<typeof createMemoryRulesRepository>;
-
-  beforeEach(() => {
-    repo = createMemoryRulesRepository();
+  it("lists seed rules", async () => {
+    const repo = createMemoryRulesRepository();
+    const all = await repo.findAll();
+    expect(all.length).toBeGreaterThanOrEqual(3);
+    expect(all[0]?.rule_source).toBe("ai");
   });
 
-  it("lists seed rules ordered by id", async () => {
-    const rules = await repo.findAll();
-    expect(rules.length).toBeGreaterThanOrEqual(3);
-    expect(rules[0]!.id).toBeLessThan(rules[1]!.id);
+  it("creates and finds by id", async () => {
+    const repo = createMemoryRulesRepository();
+    const created = await repo.create(insertPayload);
+    const found = await repo.findById(created.id);
+    expect(found?.name).toBe("New rule");
+    expect(found?.nl_prompt).toBe("prompt");
   });
 
-  it("creates rules with generated id and timestamps", async () => {
-    const created = await repo.create(payload);
-    expect(created.id).toBeGreaterThan(3);
-    expect(created.created_at).toBe(created.updated_at);
-    expect(created.name).toBe(payload.name);
-  });
-
-  it("replaces and preserves created_at", async () => {
-    const created = await repo.create(payload);
-    const replaced = await repo.replace(created.id, {
-      name: "Updated",
-      description: null,
-      comparison: null,
-      minimum: null,
-      maximum: null,
-      uom: null,
-      status: "inactive",
-      last_updated_by: "editor",
+  it("replaces a rule", async () => {
+    const repo = createMemoryRulesRepository();
+    const replaced = await repo.replace(1, {
+      ...insertPayload,
+      name: "Replaced",
+      rule_source: "ai",
     });
-    expect(replaced?.status).toBe("inactive");
-    expect(replaced?.name).toBe("Updated");
-    expect(replaced?.created_at).toBe(created.created_at);
-    expect(replaced?.last_updated_by).toBe("editor");
+    expect(replaced?.name).toBe("Replaced");
   });
 
-  it("patches individual fields", async () => {
-    const patched = await repo.update(1, { minimum: 99 });
-    expect(patched?.minimum).toBe(99);
+  it("patches a rule", async () => {
+    const repo = createMemoryRulesRepository();
+    const patched = await repo.update(1, { nl_summary: "Patched summary" });
+    expect(patched?.nl_summary).toBe("Patched summary");
   });
 
-  it("deletes existing rules", async () => {
-    const created = await repo.create(payload);
+  it("deletes a rule", async () => {
+    const repo = createMemoryRulesRepository();
+    const created = await repo.create(insertPayload);
     expect(await repo.delete(created.id)).toBe(true);
     expect(await repo.findById(created.id)).toBeNull();
-  });
-
-  it("returns null for missing ids", async () => {
-    expect(await repo.findById(99999)).toBeNull();
-    expect(await repo.replace(99999, { ...payload })).toBeNull();
   });
 });

@@ -1,9 +1,11 @@
 from typing import Any
 
 from app.config import Settings, resolve_rules_ai_mode
-from app.prompts.rules_engine import RULES_ENGINE_GENIE_INSTRUCTIONS, RULES_ENGINE_JSON_PROMPT
+from app.prompts.rules_engine import RULES_ENGINE_GENIE_INSTRUCTIONS, RULES_ENGINE_IMPLEMENTATION_PROMPT
 from app.services.genie_message import GenieMessageError, display_summary_from_genie_text, extract_genie_response_text
 from app.services.response_parser import ParseError, parse_rules_interpretation
+from app.opportunity_silver_fields import normalize_rule_config
+from app.services.rule_python_codegen import ensure_rule_python_function
 
 
 class GenieRulesError(RuntimeError):
@@ -12,22 +14,73 @@ class GenieRulesError(RuntimeError):
 
 def _default_rule_config(user_prompt: str, genie_text: str) -> dict[str, Any]:
     name = user_prompt.strip()[:60] or "Natural language rule"
-    return {
+    summary = display_summary_from_genie_text(genie_text)
+    base = {
         "name": name,
-        "description": display_summary_from_genie_text(genie_text),
+        "description": summary,
         "intent": "evaluate_opportunity",
         "source": "genie_text",
         "conditions": [],
+        "actions": [],
         "metadata": {"user_prompt": user_prompt.strip()},
     }
+    return ensure_rule_python_function(
+        normalize_rule_config(base), user_prompt=user_prompt, summary=summary
+    )
 
 
-def _rule_config_from_genie_text(genie_text: str, user_prompt: str) -> dict[str, Any]:
+def _rule_config_from_genie_text(genie_text: str, user_prompt: str, *, summary: str) -> dict[str, Any]:
     try:
-        _summary, rule_config = parse_rules_interpretation(genie_text)
-        return rule_config
+        parsed_summary, rule_config = parse_rules_interpretation(genie_text)
+        summary = parsed_summary or summary
     except ParseError:
-        return _default_rule_config(user_prompt, genie_text)
+        rule_config = {
+            "name": user_prompt.strip()[:60] or "Natural language rule",
+            "description": summary,
+            "intent": "evaluate_opportunity",
+            "source": "genie_text",
+            "conditions": [],
+            "actions": [],
+            "metadata": {"user_prompt": user_prompt.strip()},
+        }
+    return ensure_rule_python_function(
+        normalize_rule_config(rule_config), user_prompt=user_prompt, summary=summary
+    )
+
+
+def _compose_implementation_message(user_prompt: str, summary: str) -> str:
+    return "\n".join(
+        [
+            RULES_ENGINE_IMPLEMENTATION_PROMPT.strip(),
+            "",
+            "User rule request:",
+            user_prompt.strip(),
+            "",
+            "Interpretation summary:",
+            summary.strip(),
+        ]
+    )
+
+
+def _fetch_implementation_json(
+    settings: Settings,
+    user_prompt: str,
+    summary: str,
+    *,
+    conversation_id: str | None,
+) -> tuple[dict[str, Any], str, str | None, str]:
+    """Return (rule_config, raw_json_text, conversation_id, message_id)."""
+    message_text = _compose_implementation_message(user_prompt, summary)
+    conv_id, msg_id, message = _genie_send_message(
+        settings, message_text, conversation_id=conversation_id
+    )
+    raw = extract_genie_response_text(message)
+    parsed_summary, rule_config = parse_rules_interpretation(raw)
+    final_summary = parsed_summary or summary
+    rule_config = ensure_rule_python_function(
+        rule_config, user_prompt=user_prompt, summary=final_summary
+    )
+    return rule_config, raw, conv_id, msg_id
 
 
 def _compose_genie_message(user_prompt: str, *, retry_feedback: str | None = None) -> str:
@@ -57,7 +110,7 @@ def _mock_interpret(user_prompt: str, *, retry_feedback: str | None = None) -> t
 
     rule_config: dict[str, Any] = {
         "name": name_hint[:60],
-        "description": user_prompt.strip(),
+        "description": summary,
         "intent": "evaluate_opportunity",
         "source": "nl_prompt",
         "conditions": [
@@ -67,8 +120,12 @@ def _mock_interpret(user_prompt: str, *, retry_feedback: str | None = None) -> t
                 "value": user_prompt.strip(),
             }
         ],
+        "actions": [],
         "metadata": {"mock": True, "retry": bool(retry_feedback)},
     }
+    rule_config = ensure_rule_python_function(
+        rule_config, user_prompt=user_prompt, summary=summary
+    )
     import json as json_module
 
     raw = json_module.dumps({"summary": summary, "rule": rule_config})
@@ -123,14 +180,22 @@ def _genie_send_message(
 
 
 def _interpret_genie_message(
+    settings: Settings,
     message,
     *,
     user_prompt: str,
-) -> tuple[str, dict[str, Any], str]:
+    conversation_id: str | None,
+) -> tuple[str, dict[str, Any], str, str | None, str]:
     genie_text = extract_genie_response_text(message)
     summary = display_summary_from_genie_text(genie_text)
-    rule_config = _rule_config_from_genie_text(genie_text, user_prompt)
-    return summary, rule_config, genie_text
+    try:
+        rule_config, impl_raw, conv_id, msg_id = _fetch_implementation_json(
+            settings, user_prompt, summary, conversation_id=conversation_id
+        )
+        return summary, rule_config, impl_raw, conv_id, msg_id
+    except (GenieMessageError, ParseError, GenieRulesError):
+        rule_config = _rule_config_from_genie_text(genie_text, user_prompt, summary=summary)
+        return summary, rule_config, genie_text, conversation_id, getattr(message, "message_id", "") or ""
 
 
 def interpret_prompt(
@@ -154,16 +219,11 @@ def interpret_prompt(
         conv_id, msg_id, message = _genie_send_message(
             settings, user_message, conversation_id=conversation_id
         )
-        summary, rule_config, raw = _interpret_genie_message(message, user_prompt=user_prompt)
+        summary, rule_config, raw, conv_id, msg_id = _interpret_genie_message(
+            settings, message, user_prompt=user_prompt, conversation_id=conv_id
+        )
         return summary, rule_config, raw, conv_id, msg_id
     except GenieMessageError as exc:
-        if not conversation_id:
-            raise GenieRulesError(str(exc)) from exc
-        conv_id, msg_id, repair_message = _genie_send_message(
-            settings, RULES_ENGINE_JSON_PROMPT, conversation_id=conversation_id
-        )
-        try:
-            summary, rule_config, raw = _interpret_genie_message(repair_message, user_prompt=user_prompt)
-            return summary, rule_config, raw, conv_id, msg_id
-        except GenieMessageError as repair_exc:
-            raise GenieRulesError(str(repair_exc)) from repair_exc
+        raise GenieRulesError(str(exc)) from exc
+    except ParseError as exc:
+        raise GenieRulesError(str(exc)) from exc

@@ -12,6 +12,11 @@ export async function fetchRules(): Promise<Rule[]> {
   return res.data;
 }
 
+export async function fetchRule(id: number): Promise<Rule> {
+  const res = await apiGet<ApiItemResponse<Rule>>(`/api/rules/${id}`);
+  return res.data;
+}
+
 export async function createRule(input: CreateRuleInput): Promise<Rule> {
   const res = await apiPost<ApiItemResponse<Rule>>("/api/rules", input);
   return res.data;

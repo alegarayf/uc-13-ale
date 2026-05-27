@@ -6,18 +6,20 @@ export interface BaseApiModel {
   last_updated_by: string | null;
 }
 
-export type RuleComparison = "=" | "<" | ">" | "<=" | ">=";
+export type RuleSource = "form" | "ai";
 
 export type RuleStatus = "active" | "inactive";
 
 export interface Rule extends BaseApiModel {
   name: string;
   description: string | null;
-  comparison: RuleComparison | null;
-  minimum: number | null;
-  maximum: number | null;
-  uom: string | null;
   status: RuleStatus;
+  rule_source: RuleSource;
+  nl_prompt: string | null;
+  nl_summary: string | null;
+  rule_definition: string | null;
+  python_source: string | null;
+  python_entrypoint: string | null;
 }
 
 export interface ApiListResponse<T> {
@@ -31,11 +33,13 @@ export interface ApiItemResponse<T> {
 export interface CreateRuleInput {
   name: string;
   description?: string | null;
-  comparison?: RuleComparison | null;
-  minimum?: number | null;
-  maximum?: number | null;
-  uom?: string | null;
   status?: RuleStatus;
+  rule_source?: RuleSource;
+  nl_prompt?: string | null;
+  nl_summary?: string | null;
+  rule_definition?: string | null;
+  python_source?: string | null;
+  python_entrypoint?: string | null;
   last_updated_by?: string | null;
 }
 
@@ -43,11 +47,13 @@ export interface CreateRuleInput {
 export interface ReplaceRuleInput {
   name: string;
   description?: string | null;
-  comparison: RuleComparison | null;
-  minimum?: number | null;
-  maximum?: number | null;
-  uom?: string | null;
   status: RuleStatus;
+  rule_source: RuleSource;
+  nl_prompt?: string | null;
+  nl_summary?: string | null;
+  rule_definition?: string | null;
+  python_source?: string | null;
+  python_entrypoint?: string | null;
   last_updated_by?: string | null;
 }
 

@@ -18,6 +18,7 @@ describe("Rules API routes", () => {
         id: expect.any(Number),
         name: expect.any(String),
         status: expect.stringMatching(/^(active|inactive)$/),
+        rule_source: expect.stringMatching(/^(form|ai)$/),
         created_at: expect.any(String),
         updated_at: expect.any(String),
       });
@@ -28,6 +29,7 @@ describe("Rules API routes", () => {
     it("returns a single rule", async () => {
       const res = await req().get("/api/rules/1").expect(200);
       expect(res.body.data.id).toBe(1);
+      expect(res.body.data.rule_source).toBe("ai");
     });
 
     it("returns 404 for unknown id", async () => {
@@ -42,26 +44,27 @@ describe("Rules API routes", () => {
   });
 
   describe("POST /api/rules", () => {
-    it("creates a rule", async () => {
+    it("creates an AI rule", async () => {
       const res = await req()
         .post("/api/rules")
         .send({
           name: "API test rule",
           description: "via supertest",
-          comparison: ">=",
-          minimum: 100,
-          maximum: null,
-          uom: "USD",
+          rule_source: "ai",
+          nl_prompt: "Test prompt",
+          nl_summary: "Test summary",
+          rule_definition: JSON.stringify({ name: "api_test", conditions: [] }),
           status: "active",
           last_updated_by: "test-suite",
         })
         .expect(201);
       expect(res.body.data.id).toBeGreaterThan(3);
       expect(res.body.data.name).toBe("API test rule");
+      expect(res.body.data.rule_source).toBe("ai");
     });
 
     it("returns 400 when name missing", async () => {
-      const res = await req().post("/api/rules").send({ comparison: "=" }).expect(400);
+      const res = await req().post("/api/rules").send({ rule_source: "ai" }).expect(400);
       expect(res.body.error.code).toBe("VALIDATION_ERROR");
     });
 
@@ -81,10 +84,7 @@ describe("Rules API routes", () => {
         .send({
           name: "Geography (updated)",
           description: "NA only",
-          comparison: "=",
-          minimum: null,
-          maximum: null,
-          uom: null,
+          rule_source: "form",
           status: "active",
           last_updated_by: "test-suite",
         })
@@ -93,31 +93,12 @@ describe("Rules API routes", () => {
       expect(res.body.data.created_at).toBeDefined();
     });
 
-    it("allows null comparison on replace", async () => {
-      await req()
-        .put("/api/rules/1")
-        .send({
-          name: "Revenue",
-          comparison: null,
-          description: null,
-          minimum: null,
-          maximum: null,
-          uom: null,
-          status: "active",
-        })
-        .expect(200);
-    });
-
     it("returns 404 when replacing unknown id", async () => {
       const res = await req()
         .put("/api/rules/99999")
         .send({
           name: "Missing",
-          comparison: null,
-          description: null,
-          minimum: null,
-          maximum: null,
-          uom: null,
+          rule_source: "form",
           status: "inactive",
         })
         .expect(404);
@@ -129,9 +110,9 @@ describe("Rules API routes", () => {
     it("updates one field", async () => {
       const res = await req()
         .patch("/api/rules/3")
-        .send({ minimum: 8 })
+        .send({ nl_summary: "Updated summary" })
         .expect(200);
-      expect(res.body.data.minimum).toBe(8);
+      expect(res.body.data.nl_summary).toBe("Updated summary");
     });
 
     it("returns 400 for empty body", async () => {
@@ -151,7 +132,7 @@ describe("Rules API routes", () => {
     it("deletes a created rule", async () => {
       const { body } = await req()
         .post("/api/rules")
-        .send({ name: "To delete", comparison: "=" })
+        .send({ name: "To delete", rule_source: "form", status: "active" })
         .expect(201);
       await req().delete(`/api/rules/${body.data.id}`).expect(204);
       await req().get(`/api/rules/${body.data.id}`).expect(404);

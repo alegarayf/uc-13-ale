@@ -7,6 +7,7 @@ import {
 import { Rule, type RuleInsertPayload, type RuleMutableFields } from "../types/rule.js";
 import type { DatabricksStoreConfig } from "../stores/databricksStore.js";
 import { nowTimestamp } from "../utils/timestamps.js";
+import { SEED_AI_EMPLOYEE_HEADCOUNT } from "./rulesSeedData.js";
 
 export interface RulesRepository {
   findAll(): Promise<Rule[]>;
@@ -17,47 +18,66 @@ export interface RulesRepository {
   delete(id: number): Promise<boolean>;
 }
 
+const SEED_TS = "2026-01-01T00:00:00.000Z";
+
 const SEED_RULES: Rule[] = [
   new Rule({
     id: 1,
-    name: "Revenue threshold",
-    description: "Minimum annual revenue for portfolio consideration.",
-    comparison: ">=",
-    minimum: 10_000_000,
-    maximum: null,
-    uom: "USD",
-    status: "active",
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
-    last_updated_by: "seed",
+    ...SEED_AI_EMPLOYEE_HEADCOUNT,
+    created_at: SEED_TS,
+    updated_at: SEED_TS,
   }),
   new Rule({
     id: 2,
     name: "Geography",
     description: "Primary operating region for eligible companies.",
-    comparison: "=",
-    minimum: null,
-    maximum: null,
-    uom: null,
     status: "active",
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
+    rule_source: "form",
+    nl_prompt: null,
+    nl_summary: null,
+    rule_definition: null,
+    python_source: null,
+    python_entrypoint: null,
+    created_at: SEED_TS,
+    updated_at: SEED_TS,
     last_updated_by: "seed",
   }),
   new Rule({
     id: 3,
     name: "Growth mindset score",
     description: "Minimum qualitative score from partner review.",
-    comparison: ">=",
-    minimum: 7,
-    maximum: 10,
-    uom: "score",
     status: "inactive",
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
+    rule_source: "form",
+    nl_prompt: null,
+    nl_summary: null,
+    rule_definition: null,
+    python_source: null,
+    python_entrypoint: null,
+    created_at: SEED_TS,
+    updated_at: SEED_TS,
     last_updated_by: "seed",
   }),
 ];
+
+function mergePatch(existing: Rule, patch: Partial<RuleMutableFields>): RuleMutableFields {
+  return {
+    name: patch.name ?? existing.name,
+    description: patch.description !== undefined ? patch.description : existing.description,
+    status: patch.status !== undefined ? patch.status : existing.status,
+    rule_source: patch.rule_source !== undefined ? patch.rule_source : existing.rule_source,
+    nl_prompt: patch.nl_prompt !== undefined ? patch.nl_prompt : existing.nl_prompt,
+    nl_summary: patch.nl_summary !== undefined ? patch.nl_summary : existing.nl_summary,
+    rule_definition:
+      patch.rule_definition !== undefined ? patch.rule_definition : existing.rule_definition,
+    python_source: patch.python_source !== undefined ? patch.python_source : existing.python_source,
+    python_entrypoint:
+      patch.python_entrypoint !== undefined
+        ? patch.python_entrypoint
+        : existing.python_entrypoint,
+    last_updated_by:
+      patch.last_updated_by !== undefined ? patch.last_updated_by : existing.last_updated_by,
+  };
+}
 
 export function createMemoryRulesRepository(): RulesRepository {
   const rules = new Map(SEED_RULES.map((r) => [r.id, r]));
@@ -106,17 +126,9 @@ export function createMemoryRulesRepository(): RulesRepository {
       if (!existing) return null;
       const rule = new Rule({
         id,
-        name: patch.name ?? existing.name,
-        description: patch.description !== undefined ? patch.description : existing.description,
-        comparison: patch.comparison !== undefined ? patch.comparison : existing.comparison,
-        minimum: patch.minimum !== undefined ? patch.minimum : existing.minimum,
-        maximum: patch.maximum !== undefined ? patch.maximum : existing.maximum,
-        uom: patch.uom !== undefined ? patch.uom : existing.uom,
-        status: patch.status !== undefined ? patch.status : existing.status,
         created_at: existing.created_at,
         updated_at: nowTimestamp(),
-        last_updated_by:
-          patch.last_updated_by !== undefined ? patch.last_updated_by : existing.last_updated_by,
+        ...mergePatch(existing, patch),
       });
       rules.set(id, rule);
       return rule;
@@ -151,6 +163,26 @@ export function createDatabricksRulesRepository(
     return mapRowToRule(rows[0]!);
   }
 
+  const insertColumns =
+    "name, description, status, rule_source, nl_prompt, nl_summary, rule_definition, python_source, python_entrypoint, created_at, updated_at, last_updated_by";
+  const insertValues =
+    ":name, :description, :status, :rule_source, :nl_prompt, :nl_summary, :rule_definition, :python_source, :python_entrypoint, current_timestamp(), current_timestamp(), :last_updated_by";
+
+  function insertParams(input: RuleInsertPayload) {
+    return {
+      name: input.name,
+      description: input.description,
+      status: input.status,
+      rule_source: input.rule_source,
+      nl_prompt: input.nl_prompt,
+      nl_summary: input.nl_summary,
+      rule_definition: input.rule_definition,
+      python_source: input.python_source,
+      python_entrypoint: input.python_entrypoint,
+      last_updated_by: input.last_updated_by,
+    };
+  }
+
   return {
     async findAll() {
       const rows = await db.query(
@@ -170,20 +202,8 @@ export function createDatabricksRulesRepository(
 
     async create(input) {
       await db.query(
-        `INSERT INTO ${table}
-         (name, description, comparison, minimum, maximum, uom, status, created_at, updated_at, last_updated_by)
-         VALUES
-         (:name, :description, :comparison, :minimum, :maximum, :uom, :status, current_timestamp(), current_timestamp(), :last_updated_by)`,
-        {
-          name: input.name,
-          description: input.description,
-          comparison: input.comparison,
-          minimum: input.minimum,
-          maximum: input.maximum,
-          uom: input.uom,
-          status: input.status,
-          last_updated_by: input.last_updated_by,
-        },
+        `INSERT INTO ${table} (${insertColumns}) VALUES (${insertValues})`,
+        insertParams(input),
       );
       return findNewestAfterInsert(input);
     },
@@ -195,25 +215,17 @@ export function createDatabricksRulesRepository(
         `UPDATE ${table}
          SET name = :name,
              description = :description,
-             comparison = :comparison,
-             minimum = :minimum,
-             maximum = :maximum,
-             uom = :uom,
              status = :status,
+             rule_source = :rule_source,
+             nl_prompt = :nl_prompt,
+             nl_summary = :nl_summary,
+             rule_definition = :rule_definition,
+             python_source = :python_source,
+             python_entrypoint = :python_entrypoint,
              updated_at = current_timestamp(),
              last_updated_by = :last_updated_by
          WHERE id = :id`,
-        {
-          id,
-          name: fields.name,
-          description: fields.description,
-          comparison: fields.comparison,
-          minimum: fields.minimum,
-          maximum: fields.maximum,
-          uom: fields.uom,
-          status: fields.status,
-          last_updated_by: fields.last_updated_by,
-        },
+        { id, ...insertParams(fields) },
       );
       return this.findById(id);
     },
@@ -221,17 +233,7 @@ export function createDatabricksRulesRepository(
     async update(id, patch) {
       const existing = await this.findById(id);
       if (!existing) return null;
-      return this.replace(id, {
-        name: patch.name ?? existing.name,
-        description: patch.description !== undefined ? patch.description : existing.description,
-        comparison: patch.comparison !== undefined ? patch.comparison : existing.comparison,
-        minimum: patch.minimum !== undefined ? patch.minimum : existing.minimum,
-        maximum: patch.maximum !== undefined ? patch.maximum : existing.maximum,
-        uom: patch.uom !== undefined ? patch.uom : existing.uom,
-        status: patch.status !== undefined ? patch.status : existing.status,
-        last_updated_by:
-          patch.last_updated_by !== undefined ? patch.last_updated_by : existing.last_updated_by,
-      });
+      return this.replace(id, mergePatch(existing, patch));
     },
 
     async delete(id) {

@@ -1,8 +1,8 @@
 import { BaseApiModel, type BaseApiModelFields } from "./baseApiModel.js";
 
-export const RULE_COMPARISONS = ["=", "<", ">", "<=", ">="] as const;
+export const RULE_SOURCES = ["form", "ai"] as const;
 
-export type RuleComparison = (typeof RULE_COMPARISONS)[number];
+export type RuleSource = (typeof RULE_SOURCES)[number];
 
 export const RULE_STATUSES = ["active", "inactive"] as const;
 
@@ -11,31 +11,37 @@ export type RuleStatus = (typeof RULE_STATUSES)[number];
 export interface RuleFields extends BaseApiModelFields {
   name: string;
   description: string | null;
-  comparison: RuleComparison | null;
-  minimum: number | null;
-  maximum: number | null;
-  uom: string | null;
   status: RuleStatus;
+  rule_source: RuleSource;
+  nl_prompt: string | null;
+  nl_summary: string | null;
+  rule_definition: string | null;
+  python_source: string | null;
+  python_entrypoint: string | null;
 }
 
 export class Rule extends BaseApiModel implements RuleFields {
   readonly name: string;
   readonly description: string | null;
-  readonly comparison: RuleComparison | null;
-  readonly minimum: number | null;
-  readonly maximum: number | null;
-  readonly uom: string | null;
   readonly status: RuleStatus;
+  readonly rule_source: RuleSource;
+  readonly nl_prompt: string | null;
+  readonly nl_summary: string | null;
+  readonly rule_definition: string | null;
+  readonly python_source: string | null;
+  readonly python_entrypoint: string | null;
 
   constructor(fields: RuleFields) {
     super(fields);
     this.name = fields.name;
     this.description = fields.description;
-    this.comparison = fields.comparison;
-    this.minimum = fields.minimum;
-    this.maximum = fields.maximum;
-    this.uom = fields.uom;
     this.status = fields.status;
+    this.rule_source = fields.rule_source;
+    this.nl_prompt = fields.nl_prompt;
+    this.nl_summary = fields.nl_summary;
+    this.rule_definition = fields.rule_definition;
+    this.python_source = fields.python_source;
+    this.python_entrypoint = fields.python_entrypoint;
   }
 }
 
@@ -43,11 +49,13 @@ export class Rule extends BaseApiModel implements RuleFields {
 export interface CreateRuleInput {
   name: string;
   description?: string | null;
-  comparison?: RuleComparison | null;
-  minimum?: number | null;
-  maximum?: number | null;
-  uom?: string | null;
   status?: RuleStatus;
+  rule_source?: RuleSource;
+  nl_prompt?: string | null;
+  nl_summary?: string | null;
+  rule_definition?: string | null;
+  python_source?: string | null;
+  python_entrypoint?: string | null;
   last_updated_by?: string | null;
 }
 
@@ -55,11 +63,13 @@ export interface CreateRuleInput {
 export interface ReplaceRuleInput {
   name: string;
   description?: string | null;
-  comparison: RuleComparison | null;
-  minimum?: number | null;
-  maximum?: number | null;
-  uom?: string | null;
   status: RuleStatus;
+  rule_source: RuleSource;
+  nl_prompt?: string | null;
+  nl_summary?: string | null;
+  rule_definition?: string | null;
+  python_source?: string | null;
+  python_entrypoint?: string | null;
   last_updated_by?: string | null;
 }
 
@@ -67,11 +77,13 @@ export interface ReplaceRuleInput {
 export interface UpdateRuleInput {
   name?: string;
   description?: string | null;
-  comparison?: RuleComparison | null;
-  minimum?: number | null;
-  maximum?: number | null;
-  uom?: string | null;
   status?: RuleStatus;
+  rule_source?: RuleSource;
+  nl_prompt?: string | null;
+  nl_summary?: string | null;
+  rule_definition?: string | null;
+  python_source?: string | null;
+  python_entrypoint?: string | null;
   last_updated_by?: string | null;
 }
 
@@ -79,11 +91,13 @@ export interface UpdateRuleInput {
 export interface RuleInsertPayload {
   name: string;
   description: string | null;
-  comparison: RuleComparison | null;
-  minimum: number | null;
-  maximum: number | null;
-  uom: string | null;
   status: RuleStatus;
+  rule_source: RuleSource;
+  nl_prompt: string | null;
+  nl_summary: string | null;
+  rule_definition: string | null;
+  python_source: string | null;
+  python_entrypoint: string | null;
   last_updated_by: string | null;
 }
 

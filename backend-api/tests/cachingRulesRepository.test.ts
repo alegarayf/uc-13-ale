@@ -7,11 +7,13 @@ const sample = new Rule({
   id: 1,
   name: "Cached",
   description: null,
-  comparison: ">=",
-  minimum: 1,
-  maximum: null,
-  uom: null,
   status: "active",
+  rule_source: "form",
+  nl_prompt: null,
+  nl_summary: null,
+  rule_definition: null,
+  python_source: null,
+  python_entrypoint: null,
   created_at: "2026-01-01T00:00:00.000Z",
   updated_at: "2026-01-01T00:00:00.000Z",
   last_updated_by: null,
@@ -67,11 +69,13 @@ describe("createCachingRulesRepository", () => {
     await repo.create({
       name: "N",
       description: null,
-      comparison: null,
-      minimum: null,
-      maximum: null,
-      uom: null,
       status: "active",
+      rule_source: "form",
+      nl_prompt: null,
+      nl_summary: null,
+      rule_definition: null,
+      python_source: null,
+      python_entrypoint: null,
       last_updated_by: null,
     });
     await repo.findAll();
@@ -84,7 +88,7 @@ describe("createCachingRulesRepository", () => {
     const repo = createCachingRulesRepository(inner, { ttlMs: 60_000 });
 
     await repo.findAll();
-    await repo.update(1, { minimum: 99 });
+    await repo.update(1, { nl_summary: "updated" });
     await repo.findAll();
 
     expect(inner.findAll).toHaveBeenCalledTimes(2);

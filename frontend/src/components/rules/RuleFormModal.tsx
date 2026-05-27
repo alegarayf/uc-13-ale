@@ -6,8 +6,8 @@ import type { Rule } from "../../types/rule.js";
 import { RuleFormFields } from "./RuleFormFields.js";
 import {
   EMPTY_RULE_FORM,
-  formStateToCreateInput,
-  formStateToReplaceInput,
+  buildCreatePayload,
+  buildReplacePayload,
   ruleToFormState,
 } from "./ruleForm.js";
 
@@ -56,14 +56,14 @@ export function RuleFormModal({ open, mode, rule, onClose, onSaved }: RuleFormMo
 
     if (isEdit) {
       if (!rule) return;
-      const payload = formStateToReplaceInput(form, lastUpdatedBy);
-      if ("error" in payload) {
-        setError(payload.error);
+      const result = buildReplacePayload(form, lastUpdatedBy);
+      if (result.error || !result.payload) {
+        setError(result.error ?? "Invalid form.");
         return;
       }
       setSubmitting(true);
       try {
-        const updated = await replaceRule(rule.id, payload);
+        const updated = await replaceRule(rule.id, result.payload);
         onSaved(updated);
         onClose();
       } catch (err: unknown) {
@@ -74,15 +74,15 @@ export function RuleFormModal({ open, mode, rule, onClose, onSaved }: RuleFormMo
       return;
     }
 
-    const payload = formStateToCreateInput(form, lastUpdatedBy);
-    if ("error" in payload) {
-      setError(payload.error);
+    const result = buildCreatePayload(form, lastUpdatedBy);
+    if (result.error || !result.payload) {
+      setError(result.error ?? "Invalid form.");
       return;
     }
 
     setSubmitting(true);
     try {
-      const created = await createRule(payload);
+      const created = await createRule(result.payload);
       onSaved(created);
       onClose();
     } catch (err: unknown) {
@@ -128,9 +128,8 @@ export function RuleFormModal({ open, mode, rule, onClose, onSaved }: RuleFormMo
           <RuleFormFields
             idPrefix={titleId}
             form={form}
-            onChange={setForm}
+            set={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             disabled={submitting}
-            autoFocusName
           />
         </div>
 
