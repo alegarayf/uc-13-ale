@@ -10,4 +10,7 @@ python-docx>=1.1.0
 openpyxl>=3.1.0
 
 # Model serving client (document_classifier.py)
+# typing_extensions must be upgraded first — older DBR clusters ship a version
+# that is missing Sentinel, which mlflow 2.13+ requires.
+typing_extensions>=4.6.0
 mlflow>=2.13.0
