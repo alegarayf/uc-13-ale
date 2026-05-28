@@ -29,10 +29,29 @@ from pathlib import Path
 # Secrets / params helpers
 # ---------------------------------------------------------------------------
 
-def _load_dotenv_if_local():
+def _get_dbutils():
+    """Return the Databricks dbutils object from any execution context.
+
+    Works whether the code runs directly in a notebook cell or is called from
+    an imported module (where dbutils is not a direct global but is reachable
+    via the IPython user namespace injected by Databricks).
+    """
     try:
-        dbutils  # noqa: F821
+        return dbutils  # noqa: F821
     except NameError:
+        pass
+    try:
+        import IPython
+        user_ns = IPython.get_ipython().user_ns
+        if "dbutils" in user_ns:
+            return user_ns["dbutils"]
+    except Exception:
+        pass
+    return None
+
+
+def _load_dotenv_if_local():
+    if _get_dbutils() is None:
         try:
             from dotenv import load_dotenv
             load_dotenv()
@@ -43,26 +62,31 @@ _load_dotenv_if_local()
 
 
 def get_secret(key: str) -> str:
-    try:
-        return dbutils.secrets.get("uc13", key)  # noqa: F821
-    except NameError:
-        value = os.environ.get(key)
-        if value is None:
-            raise RuntimeError(
-                f"Secret '{key}' not found. "
-                "On Databricks: add it to the 'uc13' secrets scope. "
-                "Locally: add it to your .env file or export it as an env var."
-            )
-        return value
+    _dbutils = _get_dbutils()
+    if _dbutils is not None:
+        try:
+            return _dbutils.secrets.get("uc13", key)
+        except Exception:
+            pass
+    value = os.environ.get(key)
+    if value is None:
+        raise RuntimeError(
+            f"Secret '{key}' not found. "
+            "On Databricks: add it to the 'uc13' secrets scope. "
+            "Locally: add it to your .env file or export it as an env var."
+        )
+    return value
 
 
 def get_param(key: str, default: str = None) -> str:
-    try:
-        value = dbutils.widgets.get(key)  # noqa: F821
-        if value:
-            return value
-    except Exception:
-        pass
+    _dbutils = _get_dbutils()
+    if _dbutils is not None:
+        try:
+            value = _dbutils.widgets.get(key)
+            if value:
+                return value
+        except Exception:
+            pass
     value = os.environ.get(key, default)
     if value is None:
         raise RuntimeError(
