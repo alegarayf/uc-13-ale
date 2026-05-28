@@ -278,46 +278,69 @@ def upload_batch(
 # ---------------------------------------------------------------------------
 
 
-def upload_from_directory(local_dir: str) -> UploadSummary:
+def upload_from_directory(local_dir: str, batch_size: int = 50) -> UploadSummary:
     """Walk *local_dir* recursively and upload every allowed file to the UC Volume.
+
+    Files are processed in batches of *batch_size* to bound peak memory usage.
+    Each batch is read into memory, uploaded, then freed before the next batch
+    is loaded — safe for large data rooms (1 000+ files).
 
     - Hidden files (names starting with ``.``) are skipped.
     - Only files with extensions in ``_ALLOWED_EXTENSIONS`` are included.
     - The relative path from *local_dir* is preserved verbatim in the Volume.
-
-    This function is a convenience shim for today's local-first workflow.
-    Once connector.py streams FilePayload objects directly, callers can bypass
-    this function and call upload_batch instead.
     """
     root = Path(local_dir).resolve()
     if not root.exists():
         raise FileNotFoundError(f"Source directory does not exist: {root}")
 
-    payloads: list[FilePayload] = []
-    for file_path in root.rglob("*"):
-        if not file_path.is_file():
-            continue
-        if file_path.name.startswith("."):
-            continue
-        if file_path.suffix.lower() not in _ALLOWED_EXTENSIONS:
-            logger.debug("Skipping %s (extension not allowed)", file_path.name)
-            continue
+    # Collect file paths first (metadata only — no bytes loaded yet).
+    file_paths = [
+        fp for fp in root.rglob("*")
+        if fp.is_file()
+        and not fp.name.startswith(".")
+        and fp.suffix.lower() in _ALLOWED_EXTENSIONS
+    ]
+    logger.info("Found %d uploadable files in %s", len(file_paths), local_dir)
 
-        rel = file_path.relative_to(root)
-        content = file_path.read_bytes()
-        payloads.append(
-            FilePayload(
-                file_name=file_path.name,
-                relative_path=str(rel),
-                content=content,
-                size_bytes=len(content),
+    all_results: list[UploadResult] = []
+    started = time.monotonic()
+
+    for batch_start in range(0, len(file_paths), batch_size):
+        batch_paths = file_paths[batch_start : batch_start + batch_size]
+        payloads: list[FilePayload] = []
+
+        for file_path in batch_paths:
+            rel = file_path.relative_to(root)
+            content = file_path.read_bytes()
+            payloads.append(
+                FilePayload(
+                    file_name=file_path.name,
+                    relative_path=str(rel),
+                    content=content,
+                    size_bytes=len(content),
+                )
             )
+
+        batch_summary = upload_batch(payloads)
+        all_results.extend(batch_summary.results)
+
+        batch_end = min(batch_start + batch_size, len(file_paths))
+        logger.info(
+            "Uploaded batch %d-%d / %d",
+            batch_start + 1, batch_end, len(file_paths),
         )
 
-    logger.info(
-        "Found %d uploadable files in %s", len(payloads), local_dir
+        # Explicitly release batch memory before loading the next one.
+        del payloads
+
+    succeeded = sum(1 for r in all_results if r.status == "success")
+    return UploadSummary(
+        total_files=len(all_results),
+        successful=succeeded,
+        failed=len(all_results) - succeeded,
+        results=all_results,
+        duration_seconds=time.monotonic() - started,
     )
-    return upload_batch(payloads)
 
 
 # ---------------------------------------------------------------------------
