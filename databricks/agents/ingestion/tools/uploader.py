@@ -153,37 +153,40 @@ def _is_databricks_env() -> bool:
 
 
 def _uc_makedirs(path: Path) -> None:
-    """Create *path* and all missing parents, safe for UC Volume FUSE mounts.
+    """Create *path* and missing parents, safe for UC Volume FUSE mounts.
 
-    Standard ``Path.mkdir(parents=True)`` fails with ``[Errno 95] Operation not
-    supported`` when it walks up to the Volume mount point itself
-    (``/Volumes/<catalog>/<schema>``), because the FUSE layer returns
-    ``EOPNOTSUPP`` instead of ``EEXIST``.  This helper finds the deepest
-    already-existing ancestor and creates each missing sub-directory one level
-    at a time, skipping the mount-point level where the error occurs.
+    ``Path.mkdir(parents=True)`` fails with ``[Errno 95] EOPNOTSUPP`` when it
+    tries to mkdir the UC Volume root or its catalog/schema ancestors — those
+    paths are owned by Unity Catalog and cannot be created via FUSE syscalls.
+
+    This helper creates only the subdirectories that live **inside** the
+    volume root (``UC_VOLUME_PATH``), where mkdir is fully supported,
+    and never touches the catalog/schema/volume-root levels above it.
     """
+    # Determine the volume root so we know the safe mkdir boundary.
     try:
+        volume_root = Path(_uc_volume_path())
+    except Exception:
+        # UC_VOLUME_PATH not set — best-effort fallback.
         path.mkdir(parents=True, exist_ok=True)
         return
-    except OSError as exc:
-        if exc.errno != 95:
-            raise
 
-    # Walk upward to find the deepest path that already exists.
-    to_create: list[Path] = []
-    current = path
-    while current != current.parent:
-        if current.exists():
-            break
-        to_create.append(current)
-        current = current.parent
+    try:
+        rel = path.relative_to(volume_root)
+    except ValueError:
+        # path is not inside the volume — fall back to standard mkdir.
+        path.mkdir(parents=True, exist_ok=True)
+        return
 
-    # Create missing directories from shallowest to deepest.
-    for directory in reversed(to_create):
+    # Create each subdirectory level inside the volume one at a time.
+    # Never call mkdir on volume_root or its parents — Unity Catalog owns those.
+    current = volume_root
+    for part in rel.parts:
+        current = current / part
         try:
-            directory.mkdir(exist_ok=True)
+            current.mkdir(exist_ok=True)
         except OSError as exc:
-            if exc.errno != 95:
+            if exc.errno != 17:  # 17 = EEXIST (already exists — fine)
                 raise
 
 
