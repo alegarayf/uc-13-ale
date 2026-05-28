@@ -310,6 +310,7 @@ def main():
     _spark.sql("CREATE SCHEMA IF NOT EXISTS uc13.classification")
     _spark.sql(f"""
         CREATE TABLE IF NOT EXISTS {table_relevance} (
+            company_name         STRING,
             document_id          STRING,
             filename             STRING,
             folder_path          STRING,
@@ -329,6 +330,7 @@ def main():
         rows = _spark.sql(f"""
             SELECT file_name, priority_tier, priority_reason, mod_date, format
             FROM {table_log}
+            WHERE company_name = '{company_name}'
         """).collect()
         upload_signals = {
             r.file_name: {
@@ -378,6 +380,7 @@ def main():
             for f, r in zip(batch, result):
                 sig = upload_signals.get(f["file_name"], {})
                 all_results.append({
+                    "company_name":         company_name,
                     "document_id":          str(uuid.uuid4()),
                     "filename":             f["file_name"],
                     "folder_path":          f["folder_path"],
@@ -399,6 +402,7 @@ def main():
                 if single and len(single) == 1:
                     r = single[0]
                     all_results.append({
+                        "company_name":         company_name,
                         "document_id":          str(uuid.uuid4()),
                         "filename":             single_file["file_name"],
                         "folder_path":          single_file["folder_path"],
@@ -412,6 +416,7 @@ def main():
                     })
                 else:
                     all_results.append({
+                        "company_name":         company_name,
                         "document_id":          str(uuid.uuid4()),
                         "filename":             single_file["file_name"],
                         "folder_path":          single_file["folder_path"],
@@ -439,6 +444,7 @@ def main():
     )
 
     schema_spark = StructType([
+        StructField("company_name",          StringType(),           False),
         StructField("document_id",           StringType(),           False),
         StructField("filename",              StringType(),           False),
         StructField("folder_path",           StringType(),           True),
@@ -453,9 +459,22 @@ def main():
 
     rows = [Row(**r) for r in final_results]
     df = _spark.createDataFrame(rows, schema=schema_spark)
-    df.write.mode("overwrite").saveAsTable(table_relevance)
 
-    print(f"✓ Saved {df.count()} classifications → {table_relevance}")
+    # Upsert: replace this company's rows, preserve all other companies.
+    from delta.tables import DeltaTable
+    delta_tbl = DeltaTable.forName(_spark, table_relevance)
+    (
+        delta_tbl.alias("t")
+        .merge(
+            df.alias("s"),
+            "t.company_name = s.company_name AND t.filename = s.filename",
+        )
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute()
+    )
+
+    print(f"✓ Saved {len(final_results)} classifications → {table_relevance}")
     print(f"\n  Priority Tier (True)  : {sum(1 for r in final_results if r['priority_tier'])}")
     print(f"  Will parse            : {len(final_results) - skipped}")
     print(f"  Will skip             : {skipped}")
