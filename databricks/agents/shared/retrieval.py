@@ -41,8 +41,9 @@ def semantic_search(
         workstream_filter: Keep only chunks whose workstream array contains at
             least one of these tags (e.g. ["BUSINESS_MODEL", "FINANCIAL"]).
             workstream is stored as ARRAY<STRING> in doc_relevance.
-        tier_filter: If provided, keep only chunks with priority_tier = True
-            (pass tier_filter=1 or True).  Passed as post-retrieval filter.
+        tier_filter: If provided, keep only chunks with priority_tier <= this
+            value. E.g. tier_filter=1 returns only Tier 1, tier_filter=2
+            returns Tier 1 and 2. Passed as post-retrieval filter.
         min_chunk_length: Discard chunks shorter than this many characters.
             Eliminates header-only or page-number chunks.
         index_name: Unity Catalog fully-qualified vector index name.
@@ -91,9 +92,9 @@ def semantic_search(
                 r.priority_tier
             FROM uc13.ingestion.chunks c
             JOIN uc13.classification.doc_relevance r
-                ON c.file_name = r.file_name
+                ON c.file_name = r.filename
             WHERE c.chunk_id IN ('{ids_str}')
-            ORDER BY r.priority_tier DESC
+            ORDER BY r.priority_tier ASC NULLS LAST
         """).collect()
 
     except Exception as e:
@@ -111,10 +112,10 @@ def semantic_search(
                 r.priority_tier
             FROM uc13.ingestion.chunks c
             JOIN uc13.classification.doc_relevance r
-                ON c.file_name = r.file_name
+                ON c.file_name = r.filename
             WHERE ({conditions})
                 AND r.should_parse = true
-            ORDER BY r.priority_tier DESC
+            ORDER BY r.priority_tier ASC NULLS LAST
             LIMIT {fetch_k}
         """).collect()
 
@@ -137,8 +138,9 @@ def semantic_search(
         ]
 
     if tier_filter is not None:
-        # priority_tier is BOOLEAN: True = priority tier document.
-        chunks = [c for c in chunks if c.priority_tier is True]
+        # priority_tier is INT: 1 = highest value, 2 = high, 3 = useful.
+        # Pass tier_filter=1 to restrict to Tier 1 only, tier_filter=2 for Tier 1+2, etc.
+        chunks = [c for c in chunks if c.priority_tier is not None and c.priority_tier <= tier_filter]
 
     # Cap to top_k.
     chunks = chunks[:top_k]
