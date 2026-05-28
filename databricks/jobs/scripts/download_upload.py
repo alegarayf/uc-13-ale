@@ -256,17 +256,19 @@ def main():
     print(f"SharePoint folder : {get_company_folder_path()}")
     print(f"UC Volume target  : {get_volume_company_path()}/")
 
-    # Ensure the raw_files UC Volume exists before any upload attempt.
-    # CREATE VOLUME is idempotent — safe to run on every execution.
+    # Ensure the schema and raw_files UC Volume exist before any upload attempt.
+    # All three statements are idempotent — safe to run on every execution.
     try:
         from pyspark.sql import SparkSession as _SparkSession
         _spark_vol = _SparkSession.getActiveSession()
         if _spark_vol is None:
             raise RuntimeError("No active Spark session.")
+        _spark_vol.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
         _spark_vol.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.{schema}.raw_files")
-        print(f"Volume: {catalog}.{schema}.raw_files — OK")
+        print(f"Schema : {catalog}.{schema} — OK")
+        print(f"Volume : {catalog}.{schema}.raw_files — OK")
     except Exception as e:
-        print(f"Warning: could not ensure volume exists ({e}). Continuing...")
+        print(f"Warning: could not ensure schema/volume exists ({e}). Continuing...")
 
     # Step 1: list files (deduplication handled inside list_files).
     print("\n[1/3] Listing files from SharePoint...")
