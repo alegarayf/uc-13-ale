@@ -152,6 +152,41 @@ def _is_databricks_env() -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _uc_makedirs(path: Path) -> None:
+    """Create *path* and all missing parents, safe for UC Volume FUSE mounts.
+
+    Standard ``Path.mkdir(parents=True)`` fails with ``[Errno 95] Operation not
+    supported`` when it walks up to the Volume mount point itself
+    (``/Volumes/<catalog>/<schema>``), because the FUSE layer returns
+    ``EOPNOTSUPP`` instead of ``EEXIST``.  This helper finds the deepest
+    already-existing ancestor and creates each missing sub-directory one level
+    at a time, skipping the mount-point level where the error occurs.
+    """
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        return
+    except OSError as exc:
+        if exc.errno != 95:
+            raise
+
+    # Walk upward to find the deepest path that already exists.
+    to_create: list[Path] = []
+    current = path
+    while current != current.parent:
+        if current.exists():
+            break
+        to_create.append(current)
+        current = current.parent
+
+    # Create missing directories from shallowest to deepest.
+    for directory in reversed(to_create):
+        try:
+            directory.mkdir(exist_ok=True)
+        except OSError as exc:
+            if exc.errno != 95:
+                raise
+
+
 def upload_file(payload: FilePayload) -> UploadResult:
     """Write a single FilePayload to the Unity Catalog Volume under the company subfolder.
 
@@ -171,7 +206,7 @@ def upload_file(payload: FilePayload) -> UploadResult:
     try:
         if _is_databricks_env():
             dest = Path(dest_volume_path)
-            dest.parent.mkdir(parents=True, exist_ok=True)
+            _uc_makedirs(dest.parent)
             dest.write_bytes(payload.content)
             logger.debug("DATABRICKS write: %s", dest_volume_path)
         else:

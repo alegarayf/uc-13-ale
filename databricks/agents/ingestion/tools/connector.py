@@ -196,10 +196,18 @@ def _base_name(file_name: str) -> str:
 
 
 def _deduplicate(files: list[FileMetadata]) -> list[FileMetadata]:
-    """Within each group sharing the same base name, keep the most recently modified file."""
+    """Within each folder+basename group, keep the most recently modified file.
+
+    The dedup key is ``"{folder}/{base_name}"`` so that files with the same
+    name in different folders (e.g. monthly payroll PDFs all named
+    ``2023_01.pdf``) are treated as distinct documents and never collapsed.
+    Only true version duplicates — same base name, same folder, different
+    version suffix — are deduplicated.
+    """
     groups: dict[str, list[FileMetadata]] = {}
     for f in files:
-        key = _base_name(f.name)
+        folder = str(Path(f.relative_path).parent)
+        key = f"{folder}|{_base_name(f.name)}"
         groups.setdefault(key, []).append(f)
 
     kept: list[FileMetadata] = []
