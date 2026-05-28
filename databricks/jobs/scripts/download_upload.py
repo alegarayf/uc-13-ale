@@ -256,6 +256,15 @@ def main():
     print(f"SharePoint folder : {get_company_folder_path()}")
     print(f"UC Volume target  : {get_volume_company_path()}/")
 
+    # Ensure the raw_files UC Volume exists before any upload attempt.
+    # CREATE VOLUME is idempotent — safe to run on every execution.
+    try:
+        _spark = spark  # noqa: F821
+        _spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.{schema}.raw_files")
+        print(f"Volume: {catalog}.{schema}.raw_files — OK")
+    except Exception as e:
+        print(f"Warning: could not ensure volume exists ({e}). Continuing...")
+
     # Step 1: list files (deduplication handled inside list_files).
     print("\n[1/3] Listing files from SharePoint...")
     files = list_files()
