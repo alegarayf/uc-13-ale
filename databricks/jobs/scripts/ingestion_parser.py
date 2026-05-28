@@ -717,6 +717,29 @@ def main():
     df_emb.write.mode("append").option("mergeSchema", "true").saveAsTable(table_embeddings)
     print(f"✓ Saved {df_emb.count()} embeddings → {table_embeddings}")
 
+    # --- Trigger vector search index sync ---
+    index_name = f"{catalog}.{schema}.embeddings_index"
+    try:
+        from databricks.sdk import WorkspaceClient
+        import time
+
+        w = WorkspaceClient()
+        w.vector_search_indexes.sync_index(index_name=index_name)
+        print(f"\nVector search sync triggered → {index_name}")
+        print("Waiting for sync to complete (checks every 30s)...")
+
+        while True:
+            idx    = w.vector_search_indexes.get_index(index_name=index_name)
+            ready  = idx.status.ready
+            msg    = idx.status.message or ""
+            print(f"  status: ready={ready}  {msg}")
+            if ready:
+                print(f"✓ Index ready — {index_name}")
+                break
+            time.sleep(30)
+    except Exception as e:
+        print(f"⚠ Could not sync vector index ({e}). Run sync manually before using semantic_search.")
+
 
 if __name__ == "__main__":
     main()
