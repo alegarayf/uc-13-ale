@@ -159,7 +159,7 @@ _PROFILING_QUERIES: dict[str, tuple[str, list[str], list[str]]] = {
 # Banked detection (pre-LLM, from doc_relevance)
 # ---------------------------------------------------------------------------
 
-def detect_banked(spark, table_relevance: str) -> tuple[bool, str | None]:
+def detect_banked(spark, table_relevance: str, company_name: str) -> tuple[bool, str | None]:
     """Check doc_relevance for CIM/OM presence before calling the LLM.
 
     Returns (banked: bool, note: str | None).
@@ -174,6 +174,7 @@ def detect_banked(spark, table_relevance: str) -> tuple[bool, str | None]:
             for row in spark.sql(f"""
                 SELECT filename FROM {table_relevance}
                 WHERE array_contains(workstream, 'BUSINESS_MODEL')
+                  AND company_name = '{company_name}'
             """).collect()
         ]
         if any(_CIM_KEYWORDS.search(f) for f in filenames):
@@ -253,7 +254,7 @@ def main():
     """)
 
     # --- Detect banked/non-banked from classifier output (no LLM needed) ---
-    banked, banked_note = detect_banked(_spark, table_relevance)
+    banked, banked_note = detect_banked(_spark, table_relevance, company_name)
     print(f"Banked: {banked}" + (f" — {banked_note}" if banked_note else ""))
 
     # --- Retrieve context for each profiling dimension ---
@@ -402,7 +403,17 @@ def main():
     )
 
     df = _spark.createDataFrame([row], schema=save_schema)
-    df.write.mode("overwrite").saveAsTable(table_profile)
+
+    # Upsert: replace this company's profile row, preserve all other companies.
+    from delta.tables import DeltaTable
+    delta_tbl = DeltaTable.forName(_spark, table_profile)
+    (
+        delta_tbl.alias("t")
+        .merge(df.alias("s"), "t.company_name = s.company_name")
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute()
+    )
     print(f"\n✓ Profile saved → {table_profile}")
 
     if data_room_gaps:

@@ -514,6 +514,7 @@ def main():
     _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
     _spark.sql(f"""
         CREATE TABLE IF NOT EXISTS {table_chunks} (
+            company_name   STRING,
             chunk_id       STRING,
             doc_id         STRING,
             file_name      STRING,
@@ -531,6 +532,7 @@ def main():
     """)
     _spark.sql(f"""
         CREATE TABLE IF NOT EXISTS {table_embeddings} (
+            company_name  STRING,
             chunk_id      STRING NOT NULL,
             doc_id        STRING,
             file_name     STRING,
@@ -550,6 +552,7 @@ def main():
         SELECT filename AS file_name, folder_path, workstream, priority_tier
         FROM {table_relevance}
         WHERE should_parse = true
+          AND company_name = '{company_name}'
         ORDER BY priority_tier DESC
     """).collect()
 
@@ -593,6 +596,7 @@ def main():
     now = datetime.now(timezone.utc)
 
     chunk_schema = StructType([
+        StructField("company_name",   StringType(),  False),
         StructField("chunk_id",       StringType(),  False),
         StructField("doc_id",         StringType(),  False),
         StructField("file_name",      StringType(),  False),
@@ -610,6 +614,7 @@ def main():
 
     chunk_rows = [
         Row(
+            company_name=company_name,
             chunk_id=c.chunk_id, doc_id=c.doc_id, file_name=c.file_name,
             file_type=c.file_type, relative_path=c.relative_path,
             chunk_index=int(c.chunk_index), chunk_text=c.chunk_text,
@@ -621,7 +626,12 @@ def main():
         for c in all_chunks
     ]
     df_chunks = _spark.createDataFrame(chunk_rows, schema=chunk_schema)
-    df_chunks.write.mode("append").saveAsTable(table_chunks)
+    # Replace this company's chunks so re-runs are idempotent.
+    try:
+        _spark.sql(f"DELETE FROM {table_chunks} WHERE company_name = '{company_name}'")
+    except Exception:
+        pass
+    df_chunks.write.mode("append").option("mergeSchema", "true").saveAsTable(table_chunks)
     print(f"✓ Saved {df_chunks.count()} chunks → {table_chunks}")
 
     # --- Generate and save embeddings ---
@@ -634,6 +644,7 @@ def main():
     print(f"Generated {len(embeddings)} embeddings")
 
     emb_schema = StructType([
+        StructField("company_name",  StringType(),           False),
         StructField("chunk_id",      StringType(),           False),
         StructField("doc_id",        StringType(),           False),
         StructField("file_name",     StringType(),           False),
@@ -645,6 +656,7 @@ def main():
 
     emb_rows = [
         Row(
+            company_name=company_name,
             chunk_id=all_chunks[i].chunk_id,
             doc_id=all_chunks[i].doc_id,
             file_name=all_chunks[i].file_name,
@@ -656,7 +668,12 @@ def main():
         for i in range(len(all_chunks))
     ]
     df_emb = _spark.createDataFrame(emb_rows, schema=emb_schema)
-    df_emb.write.mode("append").saveAsTable(table_embeddings)
+    # Replace this company's embeddings so re-runs are idempotent.
+    try:
+        _spark.sql(f"DELETE FROM {table_embeddings} WHERE company_name = '{company_name}'")
+    except Exception:
+        pass
+    df_emb.write.mode("append").option("mergeSchema", "true").saveAsTable(table_embeddings)
     print(f"✓ Saved {df_emb.count()} embeddings → {table_embeddings}")
 
 

@@ -273,6 +273,7 @@ def main():
             mod_date = None
 
         log_rows.append({
+            "company_name":   company_name,
             "file_name":      upload_result.file_name,
             "relative_path":  upload_result.relative_path,
             "folder_path":    folder_path,
@@ -299,6 +300,7 @@ def main():
         _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
         _spark.sql(f"""
             CREATE TABLE IF NOT EXISTS {table_log} (
+                company_name   STRING,
                 file_name      STRING,
                 relative_path  STRING,
                 folder_path    STRING,
@@ -312,9 +314,16 @@ def main():
             ) USING DELTA
         """)
 
+        # Replace this company's rows so re-runs are idempotent and
+        # other companies' rows are preserved.
+        try:
+            _spark.sql(f"DELETE FROM {table_log} WHERE company_name = '{company_name}'")
+        except Exception:
+            pass  # Column may not exist on an older table — mergeSchema below handles it.
+
         rows = [Row(**r) for r in log_rows]
         df = _spark.createDataFrame(rows)
-        df.write.mode("append").saveAsTable(table_log)
+        df.write.mode("append").option("mergeSchema", "true").saveAsTable(table_log)
         print(f"\n✓ Upload log saved: {len(log_rows)} rows → {table_log}")
 
     except NameError:
