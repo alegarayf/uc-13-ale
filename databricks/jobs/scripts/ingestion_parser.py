@@ -16,7 +16,7 @@ Chunking improvements (vs. original notebook):
 Phase 2b outputs:
   - Table uc13.ingestion.chunks
   - Table uc13.ingestion.embeddings  (CDF enabled, workstream ARRAY<STRING>,
-                                       priority_tier BOOLEAN)
+                                       priority_tier INT)
 
 Dependencies:
   - uc13.classification.doc_relevance (written by 02_document_classifier.py)
@@ -191,13 +191,18 @@ def parse_pdf(file_path: str, doc_id: str, file_name: str, spark) -> list[Chunk]
     header is carried forward so no chunk is context-free.
     """
     try:
-        row = spark.sql(f"""
+        _df = spark.sql(f"""
             SELECT to_json(ai_parse_document(
                 content,
                 map('version', '2.0')
             )) AS parsed
             FROM read_files('{file_path}', format => 'binaryFile')
-        """).collect()[0]["parsed"]
+        """)
+        _rows = _df.collect()
+        if not _rows:
+            print(f"  ⚠ Skipped (empty/unreadable file): {file_name}")
+            return []
+        row = _rows[0]["parsed"]
 
         result   = json.loads(row)
         elements = result["document"]["elements"]
@@ -521,6 +526,16 @@ def main():
     schema             = get_param("schema",   default="ingestion")
     embedding_endpoint = get_param("embedding_endpoint", default="databricks-bge-large-en")
 
+    # parse_priority_tiers: "all" | "1" | "2" | "3" | "1,2" | "1,2,3" etc.
+    parse_tiers_raw = get_param("parse_priority_tiers", default="all").strip().lower()
+    if parse_tiers_raw == "all":
+        tier_filter = ""
+        tier_label  = "all tiers"
+    else:
+        tiers = [t.strip() for t in parse_tiers_raw.split(",") if t.strip().isdigit()]
+        tier_filter = f"AND priority_tier IN ({', '.join(tiers)})"
+        tier_label  = f"tier(s) {', '.join(tiers)}"
+
     volume_path      = f"/Volumes/{catalog}/{schema}/raw_files/{company_name}"
     table_relevance  = f"{catalog}.classification.doc_relevance"
     table_chunks     = f"{catalog}.{schema}.chunks"
@@ -532,7 +547,8 @@ def main():
         raise RuntimeError("No active Spark session. This script must run on a Databricks cluster.")
 
     print(f"\n=== UC13 Phase 2b — Ingestion Parser ({company_name}) ===")
-    print(f"Volume: {volume_path}")
+    print(f"Volume     : {volume_path}")
+    print(f"Parsing    : {tier_label}")
 
     # --- Ensure output tables exist ---
     _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
@@ -561,7 +577,7 @@ def main():
             doc_id        STRING,
             file_name     STRING,
             workstream    ARRAY<STRING>,
-            priority_tier BOOLEAN,
+            priority_tier INT,
             embedding     ARRAY<FLOAT>,
             created_at    TIMESTAMP
         ) USING DELTA
@@ -571,17 +587,18 @@ def main():
         )
     """)
 
-    # --- Read files approved by classifier, Priority Tier first ---
+    # --- Read files approved by classifier, lowest tier number first (1 = highest value) ---
     approved_rows = _spark.sql(f"""
         SELECT filename AS file_name, folder_path, workstream, priority_tier
         FROM {table_relevance}
         WHERE should_parse = true
           AND company_name = '{company_name}'
-        ORDER BY priority_tier DESC
+          {tier_filter}
+        ORDER BY priority_tier ASC NULLS LAST
     """).collect()
 
     relevance_map = {
-        r.file_name: {"workstream": list(r.workstream or []), "priority_tier": bool(r.priority_tier)}
+        r.file_name: {"workstream": list(r.workstream or []), "priority_tier": r.priority_tier}
         for r in approved_rows
     }
 
@@ -673,7 +690,7 @@ def main():
         StructField("doc_id",        StringType(),           False),
         StructField("file_name",     StringType(),           False),
         StructField("workstream",    ArrayType(StringType()), True),
-        StructField("priority_tier", BooleanType(),          True),
+        StructField("priority_tier", IntegerType(),          True),
         StructField("embedding",     ArrayType(FloatType()), False),
         StructField("created_at",    TimestampType(),        False),
     ])
