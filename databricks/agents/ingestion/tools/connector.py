@@ -31,20 +31,24 @@ logger = logging.getLogger(__name__)
 # Environment variables — validated lazily on first use
 # ---------------------------------------------------------------------------
 
+# SP_COMPANY_NAME is optional here — it is only required by get_company_folder_path().
 _REQUIRED_ENV = (
     "SP_TENANT_ID",
     "SP_CLIENT_ID",
     "SP_CLIENT_SECRET",
     "SP_SITE_URL",
     "SP_FOLDER_PATH",
-    "SP_COMPANY_NAME",
 )
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 
 def _env() -> tuple[str, str, str, str, str, str]:
-    """Return (SP_TENANT_ID, SP_CLIENT_ID, SP_CLIENT_SECRET, SP_SITE_URL, SP_FOLDER_PATH, SP_COMPANY_NAME)."""
+    """Return (SP_TENANT_ID, SP_CLIENT_ID, SP_CLIENT_SECRET, SP_SITE_URL, SP_FOLDER_PATH, SP_COMPANY_NAME).
+
+    SP_COMPANY_NAME defaults to '' — validate it explicitly when needed via
+    get_company_folder_path().
+    """
     missing = [k for k in _REQUIRED_ENV if not os.environ.get(k)]
     if missing:
         raise ValueError(
@@ -57,7 +61,7 @@ def _env() -> tuple[str, str, str, str, str, str]:
         os.environ["SP_CLIENT_SECRET"],
         os.environ["SP_SITE_URL"],
         os.environ["SP_FOLDER_PATH"],
-        os.environ["SP_COMPANY_NAME"],
+        os.environ.get("SP_COMPANY_NAME", ""),
     )
 
 
@@ -215,6 +219,39 @@ def _deduplicate(files: list[FileMetadata]) -> list[FileMetadata]:
         kept.append(winner)
 
     return kept
+
+
+def list_companies() -> list[str]:
+    """Return a sorted list of company folder names under the Example Data Room.
+
+    Reads the immediate subfolders of ``{SP_FOLDER_PATH}/Example Data Room``
+    from SharePoint — no recursion, no file downloads.  Use this to discover
+    which companies are available before setting SP_COMPANY_NAME.
+
+    Example::
+
+        companies = list_companies()
+        # ['Clearsulting', 'Elder Care', 'GKF', 'SPG']
+    """
+    token = authenticate()
+    site_id = get_site_id(token)
+    _, _, _, _, sp_folder_path, _ = _env()
+
+    base_path = f"{sp_folder_path.rstrip('/')}/Example Data Room"
+    url = f"{GRAPH_BASE}/sites/{site_id}/drive/root:{base_path}:/children"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    companies: list[str] = []
+    while url:
+        resp = requests.get(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        for item in data.get("value", []):
+            if "folder" in item:
+                companies.append(item["name"])
+        url = data.get("@odata.nextLink")
+
+    return sorted(companies)
 
 
 def list_files(folder_path: str | None = None) -> list[FileMetadata]:

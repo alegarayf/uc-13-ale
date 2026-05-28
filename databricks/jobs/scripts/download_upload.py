@@ -261,17 +261,49 @@ def main():
     files = list_files()
     print(f"  {len(files)} files after deduplication")
 
-    # Step 2: download to a temp directory.
-    with tempfile.TemporaryDirectory(prefix="uc13_download_") as tmp_dir:
-        print(f"\n[2/3] Downloading to {tmp_dir}...")
-        download_results = download_batch(files, destination_root=tmp_dir)
-        succeeded_downloads = sum(1 for p in download_results.values() if p is not None)
-        print(f"  {succeeded_downloads}/{len(files)} files downloaded")
+    # Steps 2+3: download in batches → immediately upload → free memory → repeat.
+    # Processing BATCH_SIZE files at a time keeps both /tmp disk usage and peak
+    # RAM bounded regardless of total file count (safe for 1 000+ documents).
+    BATCH_SIZE = 100
+    total_files = len(files)
 
-        # Step 3: upload from temp dir to UC Volume.
-        print(f"\n[3/3] Uploading to UC Volume...")
-        summary = upload_from_directory(tmp_dir)
-        print(f"  {summary.successful}/{summary.total_files} files uploaded")
+    all_download_results: dict[str, str | None] = {}
+    all_upload_results = []
+
+    with tempfile.TemporaryDirectory(prefix="uc13_download_") as tmp_dir:
+        for batch_start in range(0, total_files, BATCH_SIZE):
+            batch = files[batch_start : batch_start + BATCH_SIZE]
+            batch_end = min(batch_start + BATCH_SIZE, total_files)
+            print(f"\n[2/3] Downloading batch {batch_start + 1}–{batch_end} / {total_files}...")
+
+            batch_dl = download_batch(batch, destination_root=tmp_dir)
+            all_download_results.update(batch_dl)
+            succeeded_dl = sum(1 for p in batch_dl.values() if p is not None)
+            print(f"  {succeeded_dl}/{len(batch)} downloaded")
+
+            print(f"[3/3] Uploading batch {batch_start + 1}–{batch_end} / {total_files}...")
+            batch_summary = upload_from_directory(tmp_dir)
+            all_upload_results.extend(batch_summary.results)
+            print(f"  {batch_summary.successful}/{batch_summary.total_files} uploaded")
+
+            # Remove already-uploaded files from /tmp before the next batch.
+            for fp in Path(tmp_dir).rglob("*"):
+                if fp.is_file():
+                    fp.unlink()
+
+    # Reconstruct a combined summary for the rest of main().
+    from dataclasses import dataclass as _dc
+    succeeded_uploads = sum(1 for r in all_upload_results if r.status == "success")
+    summary_results = all_upload_results
+
+    class _Summary:
+        results = all_upload_results
+        total_files = len(all_upload_results)
+        successful = succeeded_uploads
+        failed = len(all_upload_results) - succeeded_uploads
+
+    summary = _Summary()
+    print(f"\nTotal: {summary.successful}/{summary.total_files} files uploaded to UC Volume")
 
     # Build upload_log records — one per file, using FileMetadata for metadata.
     file_lookup = {f.name: f for f in files}
