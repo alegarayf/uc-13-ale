@@ -168,43 +168,73 @@ def classify_batch(
             f"{i+1}. [folder: {_sanitize(f['folder_path'])}] "
             f"{_sanitize(f['file_name'])}"
             + (
-                f" [Phase1: priority={upload_signals.get(f['file_name'], {}).get('priority_tier', False)},"
+                f" [Phase1: priority={upload_signals.get(f['file_name'], {}).get('priority_tier')},"
                 f" reason={upload_signals.get(f['file_name'], {}).get('priority_reason') or 'none'}]"
             )
         )
         for i, f in enumerate(files_batch)
     ])
 
-    prompt = """You are a private equity analyst classifying documents from a PE due diligence data room.
+    prompt = """Classify each file from a PE due diligence data room.
 
-WORKSTREAM TAGS (assign one or more per file — except BACKGROUND which is exclusive):
-  FINANCIAL       — P&L, balance sheet, cash flow, tax returns, audited financials, monthly management accounts
-  CUSTOMER        — Customer lists, revenue by customer, cohort analyses, churn schedules, NRR schedules
-  KPI_OPS         — KPI dashboards, utilization reports, headcount files, pipeline/backlog, operational metrics
-  LEGAL           — Contracts, MSAs, SOWs, leases, employment agreements, litigation files, IP documents
+IMPORTANT: Use ONLY these exact values for each field.
+
+workstream (assign one or more — BACKGROUND is exclusive, do NOT combine with others):
+  FINANCIAL        — P&L, balance sheet, cash flow, tax returns, audited financials, monthly management accounts
+  CUSTOMER         — Customer lists, revenue by customer, cohort analyses, churn schedules, NRR schedules
+  KPI_OPS          — KPI dashboards, utilization reports, headcount files, pipeline/backlog, operational metrics
+  LEGAL            — Contracts, MSAs, SOWs, leases, employment agreements, litigation files, IP documents
   QUALITY_EARNINGS — QofE reports, EBITDA bridges, addback schedules, revenue reconciliations
-  FORECAST        — Financial models, projection files, management presentations with forward guidance
-  BUSINESS_MODEL  — CIM, investor presentations, management decks, org charts, product/service descriptions
-  BACKGROUND      — Anything not matching above (individual employee contracts, payroll, insurance certs).
-                    BACKGROUND is mutually exclusive — do NOT combine with other tags.
+  FORECAST         — Financial models, projection files, management presentations with forward guidance
+  BUSINESS_MODEL   — CIM, investor presentations, management decks, org charts, product/service descriptions
+  BACKGROUND       — Anything not matching above (payroll detail, individual employee files, insurance certs).
+                     BACKGROUND is mutually exclusive — do NOT combine with other tags.
 
-PRIORITY TIER (Boolean):
-  true  — high-value documents: CIM, QofE, Financial Model, KPI dashboard, audited financials,
-          QofE/FDD databook, Revenue by customer, Cap Table, Primary contracts/MSAs,
-          Org chart, Company Tax returns, EBITDA bridge, Addbacks schedule.
-          Use the Phase1 signal as a strong hint; override only if the filename/folder
-          clearly contradicts it (e.g. Phase1 flagged a blank template).
-  false — everything else.
+priority_tier: 1, 2, 3, or null
+- Tier 1 (highest value, parse first — at least one per workstream):
+  FINANCIAL: CIM, QofE, Financial Model, Projection Model, audited P&L,
+             Balance Sheet, EBITDA bridge, Addbacks, Forecast model,
+             Internal KPI dashboard, FDD databook, company Tax returns,
+             Revenue by customer, CAP Table, Capitalization table
+  BUSINESS_MODEL: CIM, diligence workbooks, FDD databooks, investor presentations
+  LEGAL: primary service agreements, main customer contracts, key NDAs,
+         corporate governance docs, legal entity structure
+  KPI_OPS: primary SOP, company org chart, main operational KPI report
+  QUALITY_EARNINGS: QofE report, EBITDA bridge, addbacks schedule
 
-IMPORTANT RULES:
-  - priority_tier must be true when should_parse is true AND file is high-value.
-  - should_parse=false for: individual weekly payroll PDFs, I-9/W-4/onboarding forms,
-    blank templates, ZIP files, images (.jpeg/.png/.gif), binary Excel (.xlsb),
-    dozens of identical individual employee or caregiver contracts, background checks.
-  - extraction_confidence: "high" | "medium" | "low"
+- Tier 2 (high value):
+  FINANCIAL: pipeline report, backlog, secondary financial schedules
+  BUSINESS_MODEL: data trackers, index reports, deal materials
+  LEGAL: secondary contracts, vendor agreements, compliance docs
+  KPI_OPS: secondary SOPs, operational reports, process docs
+  CUSTOMER: customer contract summaries, revenue analyses
+
+- Tier 3 (useful but not critical):
+  Bank statements, reconciliations, payroll summaries, secondary employee policies,
+  operational checklists, individual certificates, asset lists
+
+- null: ONLY when should_parse=false.
+  RULE: if should_parse=true, priority_tier MUST be 1, 2, or 3. NEVER null when should_parse=true.
+
+should_parse=false — EXCLUSIONARY CRITERIA (do not parse these):
+  - Weekly or bi-weekly payroll detail PDFs
+  - Individual employee records, I-9, W-4, hiring packets, onboarding forms
+  - Blank form templates
+  - ZIP files, images (.jpeg, .png, .gif)
+  - Binary Excel files (.xlsb)
+  - Monthly individual bank statements (when there are dozens of them)
+  - Individual caregiver or staff contracts (when there are many identical ones)
+  - Personal employee files, medical records, background checks
+
+should_parse=true: all Tier 1, Tier 2, and Tier 3 documents
+
+Use the Phase1 signal as a strong hint for priority; override only if the filename/folder
+clearly contradicts it (e.g. Phase1 flagged a blank template).
+
+extraction_confidence must be "high", "medium", or "low" — never a number.
 
 Return ONLY a JSON array, no markdown, no explanation. One object per file, in order:
-[{"workstream":["FINANCIAL","QUALITY_EARNINGS"],"priority_tier":true,"should_parse":true,"extraction_confidence":"high","priority_reason":"QofE report"}]
+[{"workstream":["FINANCIAL","QUALITY_EARNINGS"],"should_parse":true,"priority_tier":1,"extraction_confidence":"high","priority_reason":"QofE report"}]
 
 Files:
 """ + file_list
@@ -237,8 +267,13 @@ Files:
                     ws_clean = [w for w in ws_clean if w != "BACKGROUND"]
                 r["workstream"] = ws_clean
 
-                # Normalise priority_tier to bool.
-                r["priority_tier"] = bool(r.get("priority_tier", False))
+                # Normalise priority_tier to int (1/2/3) or None.
+                tier = r.get("priority_tier")
+                r["priority_tier"] = int(tier) if tier in (1, 2, 3) else None
+
+                # Enforce: should_parse=true requires a tier.
+                if r.get("should_parse") and r["priority_tier"] is None:
+                    r["priority_tier"] = 3
 
                 # Normalise confidence.
                 conf = str(r.get("extraction_confidence", "low")).lower()
@@ -248,7 +283,7 @@ Files:
             while len(result) < len(files_batch):
                 result.append({
                     "workstream": ["BACKGROUND"],
-                    "priority_tier": False,
+                    "priority_tier": None,
                     "should_parse": False,
                     "extraction_confidence": "low",
                     "priority_reason": "missing from LLM response — needs manual review",
@@ -339,7 +374,7 @@ def main():
             filename             STRING,
             folder_path          STRING,
             workstream           ARRAY<STRING>,
-            priority_tier        BOOLEAN,
+            priority_tier        INT,
             priority_reason      STRING,
             should_parse         BOOLEAN,
             extraction_confidence STRING,
@@ -445,7 +480,7 @@ def main():
                         "filename":             single_file["file_name"],
                         "folder_path":          single_file["folder_path"],
                         "workstream":           ["BACKGROUND"],
-                        "priority_tier":        False,
+                        "priority_tier":        None,
                         "priority_reason":      None,
                         "should_parse":         False,
                         "extraction_confidence": "low",
@@ -464,7 +499,7 @@ def main():
     # --- Save to Delta ---
     from pyspark.sql import Row
     from pyspark.sql.types import (
-        StructType, StructField, StringType, BooleanType, ArrayType,
+        StructType, StructField, StringType, BooleanType, ArrayType, IntegerType,
     )
 
     schema_spark = StructType([
@@ -473,7 +508,7 @@ def main():
         StructField("filename",              StringType(),           False),
         StructField("folder_path",           StringType(),           True),
         StructField("workstream",            ArrayType(StringType()), True),
-        StructField("priority_tier",         BooleanType(),          True),
+        StructField("priority_tier",         IntegerType(),          True),
         StructField("priority_reason",       StringType(),           True),
         StructField("should_parse",          BooleanType(),          False),
         StructField("extraction_confidence", StringType(),           True),
@@ -499,7 +534,9 @@ def main():
     )
 
     print(f"✓ Saved {len(final_results)} classifications → {table_relevance}")
-    print(f"\n  Priority Tier (True)  : {sum(1 for r in final_results if r['priority_tier'])}")
+    print(f"\n  Tier 1 (highest value): {sum(1 for r in final_results if r['priority_tier'] == 1)}")
+    print(f"  Tier 2 (high value)   : {sum(1 for r in final_results if r['priority_tier'] == 2)}")
+    print(f"  Tier 3 (useful)       : {sum(1 for r in final_results if r['priority_tier'] == 3)}")
     print(f"  Will parse            : {len(final_results) - skipped}")
     print(f"  Will skip             : {skipped}")
 
