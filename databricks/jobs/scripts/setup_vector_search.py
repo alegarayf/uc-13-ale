@@ -147,7 +147,7 @@ def setup_embeddings_table(spark):
             doc_id        STRING,
             file_name     STRING,
             workstream    ARRAY<STRING>,
-            priority_tier BOOLEAN,
+            priority_tier INT,
             embedding     ARRAY<FLOAT>,
             created_at    TIMESTAMP
         ) USING DELTA
