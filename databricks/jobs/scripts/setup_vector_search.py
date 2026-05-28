@@ -133,6 +133,12 @@ def setup_schemas(spark):
     print("Schemas: uc13.ingestion and uc13.classification — OK")
 
 
+def setup_raw_files_volume(spark):
+    """Create the managed UC Volume that stores raw ingested files (idempotent)."""
+    spark.sql("CREATE VOLUME IF NOT EXISTS uc13.ingestion.raw_files")
+    print("Volume: uc13.ingestion.raw_files — OK")
+
+
 def setup_embeddings_table(spark):
     """Create embeddings table with CDF enabled (idempotent)."""
     spark.sql("""
@@ -235,6 +241,7 @@ def main():
 
     print("\n=== UC13 — Setup Vector Search ===")
     setup_schemas(_spark)
+    setup_raw_files_volume(_spark)
     setup_embeddings_table(_spark)
     setup_vector_search_endpoint(vs_endpoint_name)
     setup_vector_search_index(vs_endpoint_name, index_name)
