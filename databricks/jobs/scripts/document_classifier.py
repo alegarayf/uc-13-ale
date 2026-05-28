@@ -317,7 +317,7 @@ def deduplicate(results: list[dict]) -> list[dict]:
     """Mark older versions of the same document as should_parse=False."""
     groups: dict[str, list[dict]] = defaultdict(list)
     for r in results:
-        key = f"{r['folder_path']}|{_base_name(r['file_name'])}"
+        key = f"{r['folder_path']}|{_base_name(r['filename'])}"
         groups[key].append(r)
 
     final = []
@@ -333,7 +333,7 @@ def deduplicate(results: list[dict]) -> list[dict]:
             final.append({
                 **doc,
                 "should_parse": False,
-                "priority_reason": f"older version of: {canonical['file_name']}",
+                "priority_reason": f"older version of: {canonical['filename']}",
                 "extraction_confidence": "high",
             })
     return final
