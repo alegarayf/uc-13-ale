@@ -526,10 +526,10 @@ def main():
     table_chunks     = f"{catalog}.{schema}.chunks"
     table_embeddings = f"{catalog}.{schema}.embeddings"
 
-    try:
-        _spark = spark  # noqa: F821
-    except NameError:
-        raise RuntimeError("'spark' is not defined. This script must run on a Databricks cluster.")
+    from pyspark.sql import SparkSession as _SparkSession
+    _spark = _SparkSession.getActiveSession()
+    if _spark is None:
+        raise RuntimeError("No active Spark session. This script must run on a Databricks cluster.")
 
     print(f"\n=== UC13 Phase 2b — Ingestion Parser ({company_name}) ===")
     print(f"Volume: {volume_path}")

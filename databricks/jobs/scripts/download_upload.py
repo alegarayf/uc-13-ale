@@ -259,8 +259,11 @@ def main():
     # Ensure the raw_files UC Volume exists before any upload attempt.
     # CREATE VOLUME is idempotent — safe to run on every execution.
     try:
-        _spark = spark  # noqa: F821
-        _spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.{schema}.raw_files")
+        from pyspark.sql import SparkSession as _SparkSession
+        _spark_vol = _SparkSession.getActiveSession()
+        if _spark_vol is None:
+            raise RuntimeError("No active Spark session.")
+        _spark_vol.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.{schema}.raw_files")
         print(f"Volume: {catalog}.{schema}.raw_files — OK")
     except Exception as e:
         print(f"Warning: could not ensure volume exists ({e}). Continuing...")
@@ -353,7 +356,10 @@ def main():
 
     # Save upload_log to Delta.
     try:
-        _spark = spark  # noqa: F821
+        from pyspark.sql import SparkSession as _SparkSession
+        _spark = _SparkSession.getActiveSession()
+        if _spark is None:
+            raise NameError("no active session")
 
         from pyspark.sql import Row
         from pyspark.sql.types import (

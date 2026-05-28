@@ -250,10 +250,10 @@ def main():
     table_relevance = f"{catalog}.classification.doc_relevance"
     table_profile   = f"{catalog}.classification.company_profile"
 
-    try:
-        _spark = spark  # noqa: F821
-    except NameError:
-        raise RuntimeError("'spark' is not defined. This script must run on a Databricks cluster.")
+    from pyspark.sql import SparkSession as _SparkSession
+    _spark = _SparkSession.getActiveSession()
+    if _spark is None:
+        raise RuntimeError("No active Spark session. This script must run on a Databricks cluster.")
 
     print(f"\n=== UC13 Phase 2b — Company Profiler ({company_name}) ===")
 
