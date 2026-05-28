@@ -234,10 +234,10 @@ def main():
     vs_endpoint_name = get_param("vs_endpoint_name", default="uc13-vector-search")
     index_name = f"{catalog}.ingestion.embeddings_index"
 
-    try:
-        _spark = spark  # noqa: F821
-    except NameError:
-        raise RuntimeError("'spark' is not defined. This script must run on a Databricks cluster.")
+    from pyspark.sql import SparkSession as _SparkSession
+    _spark = _SparkSession.getActiveSession()
+    if _spark is None:
+        raise RuntimeError("No active Spark session. This script must run on a Databricks cluster.")
 
     print("\n=== UC13 — Setup Vector Search ===")
     setup_schemas(_spark)
