@@ -220,14 +220,18 @@ def _is_financial_sheet(sheet_name: str, file_name: str) -> bool:
 
 
 def _is_valid_chunk(chunk_text: str) -> bool:
-    """Return False for chunks whose actual content is below MIN_CHUNK_CHARS.
-    Logs a warning for chunks that somehow exceed MAX_CHUNK_CHARS."""
+    """Return False for chunks below MIN_CHUNK_CHARS or above MAX_CHUNK_CHARS.
+
+    Oversized chunks are dropped (with a warning) rather than forwarded to
+    get_embeddings_batch, which raises ValueError on them.
+    """
     stripped = chunk_text.strip()
     content  = _PREFIX_RE.sub("", stripped).strip()
     if len(content) < MIN_CHUNK_CHARS:
         return False
     if len(stripped) > MAX_CHUNK_CHARS:
-        print(f"  ⚠ Chunk exceeds MAX_CHUNK_CHARS ({len(stripped):,} chars).")
+        print(f"  ⚠ Dropping oversized chunk ({len(stripped):,} chars — exceeds MAX_CHUNK_CHARS {MAX_CHUNK_CHARS:,}).")
+        return False
     return True
 
 
@@ -349,27 +353,27 @@ def parse_pdf(file_path: str, doc_id: str, file_name: str, spark) -> list[Chunk]
                 current_pages     = []
 
             elif el_type == "table":
-                # Flush any accumulated prose first, then emit the table as its own chunk.
+                # Flush prose first, then split the table content and emit each piece.
                 flush_prose()
                 current_texts = []
                 current_pages = []
-                prefix    = _make_prefix()
-                table_txt = f"{prefix}\n\n{content}"
-                if _is_valid_chunk(table_txt):
-                    h = current_header or last_known_header or "Document body"
-                    chunks.append(Chunk(
-                        chunk_id=str(uuid.uuid4()),
-                        doc_id=doc_id,
-                        file_name=file_name,
-                        file_type="pdf",
-                        relative_path=file_path,
-                        chunk_index=chunk_index,
-                        chunk_text=table_txt,
-                        section_header=h,
-                        page_start=page_id + 1 if page_id is not None else None,
-                        page_end=page_id + 1 if page_id is not None else None,
-                    ))
-                    chunk_index += 1
+                prefix = _make_prefix()
+                h      = current_header or last_known_header or "Document body"
+                for ct in _split_long_text(content, prefix):
+                    if _is_valid_chunk(ct):
+                        chunks.append(Chunk(
+                            chunk_id=str(uuid.uuid4()),
+                            doc_id=doc_id,
+                            file_name=file_name,
+                            file_type="pdf",
+                            relative_path=file_path,
+                            chunk_index=chunk_index,
+                            chunk_text=ct,
+                            section_header=h,
+                            page_start=page_id + 1 if page_id is not None else None,
+                            page_end=page_id + 1 if page_id is not None else None,
+                        ))
+                        chunk_index += 1
 
             else:
                 current_texts.append(content)
@@ -443,20 +447,20 @@ def _chunk_financial_sheet(
             f" [Section: {section_label}]"
         )
         body = period_label_line + "\n" + "\n".join(line_buffer)
-        chunk_text = f"{prefix}\n\n{body}"
-        if _is_valid_chunk(chunk_text):
-            chunks.append(Chunk(
-                chunk_id=str(uuid.uuid4()),
-                doc_id=doc_id,
-                file_name=file_name,
-                file_type="xlsx",
-                relative_path=file_path,
-                chunk_index=chunk_index,
-                chunk_text=chunk_text[:MAX_CHUNK_CHARS],
-                section_header=f"{sheet_name} — {section_label}",
-                tab=sheet_name,
-            ))
-            chunk_index += 1
+        for ct in _split_long_text(body, prefix):
+            if _is_valid_chunk(ct):
+                chunks.append(Chunk(
+                    chunk_id=str(uuid.uuid4()),
+                    doc_id=doc_id,
+                    file_name=file_name,
+                    file_type="xlsx",
+                    relative_path=file_path,
+                    chunk_index=chunk_index,
+                    chunk_text=ct,
+                    section_header=f"{sheet_name} — {section_label}",
+                    tab=sheet_name,
+                ))
+                chunk_index += 1
         line_buffer.clear()
 
     current_section = "Summary"
@@ -489,7 +493,9 @@ def _chunk_financial_sheet(
         if period_vals:
             line_buffer.append(f"{label}: {period_vals}")
 
-        if len(line_buffer) >= FINANCIAL_LINES_PER_CHUNK:
+        # Flush on line count OR char budget (whichever comes first).
+        buffer_chars = sum(len(l) for l in line_buffer) + len(period_label_line)
+        if len(line_buffer) >= FINANCIAL_LINES_PER_CHUNK or buffer_chars >= MAX_CHUNK_CHARS - 300:
             flush_financial(current_section)
 
     flush_financial(current_section)
@@ -522,20 +528,20 @@ def _chunk_operational_sheet(
             f" [Section: {current_section} Rows {row_start}–{end_row}]"
         )
         body = "Columns: " + " | ".join(h for h in headers if h) + "\n" + "\n".join(row_buffer)
-        chunk_text = f"{prefix}\n\n{body}"
-        if _is_valid_chunk(chunk_text):
-            chunks.append(Chunk(
-                chunk_id=str(uuid.uuid4()),
-                doc_id=doc_id,
-                file_name=file_name,
-                file_type="xlsx",
-                relative_path=file_path,
-                chunk_index=chunk_index,
-                chunk_text=chunk_text[:MAX_CHUNK_CHARS],
-                section_header=f"{sheet_name} — {current_section}",
-                tab=sheet_name,
-            ))
-            chunk_index += 1
+        for ct in _split_long_text(body, prefix):
+            if _is_valid_chunk(ct):
+                chunks.append(Chunk(
+                    chunk_id=str(uuid.uuid4()),
+                    doc_id=doc_id,
+                    file_name=file_name,
+                    file_type="xlsx",
+                    relative_path=file_path,
+                    chunk_index=chunk_index,
+                    chunk_text=ct,
+                    section_header=f"{sheet_name} — {current_section}",
+                    tab=sheet_name,
+                ))
+                chunk_index += 1
         row_buffer.clear()
         row_start = end_row + 1
 
@@ -714,19 +720,19 @@ def parse_csv(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
                     return
                 prefix = f"[Document: {file_name}] [Section: {section}]"
                 body   = period_label_line + "\n" + "\n".join(line_buffer)
-                ct     = f"{prefix}\n\n{body}"
-                if _is_valid_chunk(ct):
-                    chunks.append(Chunk(
-                        chunk_id=str(uuid.uuid4()),
-                        doc_id=doc_id,
-                        file_name=file_name,
-                        file_type="csv",
-                        relative_path=file_path,
-                        chunk_index=chunk_index,
-                        chunk_text=ct[:MAX_CHUNK_CHARS],
-                        section_header=section,
-                    ))
-                    chunk_index += 1
+                for ct in _split_long_text(body, prefix):
+                    if _is_valid_chunk(ct):
+                        chunks.append(Chunk(
+                            chunk_id=str(uuid.uuid4()),
+                            doc_id=doc_id,
+                            file_name=file_name,
+                            file_type="csv",
+                            relative_path=file_path,
+                            chunk_index=chunk_index,
+                            chunk_text=ct,
+                            section_header=section,
+                        ))
+                        chunk_index += 1
                 line_buffer.clear()
 
             current_section = "Summary"
@@ -745,7 +751,8 @@ def parse_csv(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
                 )
                 if period_vals:
                     line_buffer.append(f"{label}: {period_vals}")
-                if len(line_buffer) >= FINANCIAL_LINES_PER_CHUNK:
+                buffer_chars = sum(len(l) for l in line_buffer) + len(period_label_line)
+                if len(line_buffer) >= FINANCIAL_LINES_PER_CHUNK or buffer_chars >= MAX_CHUNK_CHARS - 300:
                     flush_csv_financial(current_section)
             flush_csv_financial(current_section)
 
@@ -767,19 +774,20 @@ def parse_csv(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
                     )
                     if row_str:
                         lines.append(row_str)
-                ct = f"{prefix}\n\n" + "\n".join(lines)
-                if _is_valid_chunk(ct):
-                    chunks.append(Chunk(
-                        chunk_id=str(uuid.uuid4()),
-                        doc_id=doc_id,
-                        file_name=file_name,
-                        file_type="csv",
-                        relative_path=file_path,
-                        chunk_index=chunk_index,
-                        chunk_text=ct[:MAX_CHUNK_CHARS],
-                        section_header=f"Rows {start + 1}–{end_row}",
-                    ))
-                    chunk_index += 1
+                body = "\n".join(lines)
+                for ct in _split_long_text(body, prefix):
+                    if _is_valid_chunk(ct):
+                        chunks.append(Chunk(
+                            chunk_id=str(uuid.uuid4()),
+                            doc_id=doc_id,
+                            file_name=file_name,
+                            file_type="csv",
+                            relative_path=file_path,
+                            chunk_index=chunk_index,
+                            chunk_text=ct,
+                            section_header=f"Rows {start + 1}–{end_row}",
+                        ))
+                        chunk_index += 1
 
         print(f"  ✓ {file_name}: {len(chunks)} CSV chunks ({len(data)} rows)")
     except Exception as exc:
