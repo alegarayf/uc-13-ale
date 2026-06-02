@@ -27,41 +27,75 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Environment variables — validated lazily on first use
-# ---------------------------------------------------------------------------
-
-# SP_COMPANY_NAME is optional here — it is only required by get_company_folder_path().
-_REQUIRED_ENV = (
-    "SP_TENANT_ID",
-    "SP_CLIENT_ID",
-    "SP_CLIENT_SECRET",
-    "SP_SITE_URL",
-    "SP_FOLDER_PATH",
-)
-
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
+# ---------------------------------------------------------------------------
+# Secret / env helpers — Databricks-first, .env fallback for local dev
+# ---------------------------------------------------------------------------
+
+def _get_dbutils():
+    """Return the Databricks dbutils object from any execution context."""
+    try:
+        return dbutils  # noqa: F821
+    except NameError:
+        pass
+    try:
+        import IPython
+        user_ns = IPython.get_ipython().user_ns
+        if "dbutils" in user_ns:
+            return user_ns["dbutils"]
+    except Exception:
+        pass
+    return None
+
+
+def _load_dotenv_if_local():
+    if _get_dbutils() is None:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass
+
+_load_dotenv_if_local()
+
+
+def _get_secret(key: str) -> str:
+    """Read a secret from the Databricks 'uc13' scope, falling back to os.environ / .env."""
+    dbu = _get_dbutils()
+    if dbu is not None:
+        try:
+            return dbu.secrets.get("uc13", key)
+        except Exception:
+            pass
+    value = os.environ.get(key.upper()) or os.environ.get(key.lower())
+    if not value:
+        raise RuntimeError(
+            f"Secret '{key}' not found. "
+            "On Databricks: add it to the 'uc13' secrets scope. "
+            "Locally: set it in your .env file or export as an env var."
+        )
+    return value
+
+
+# ---------------------------------------------------------------------------
+# Credential accessor — validated lazily on first use
+# ---------------------------------------------------------------------------
 
 def _env() -> tuple[str, str, str, str, str, str]:
-    """Return (SP_TENANT_ID, SP_CLIENT_ID, SP_CLIENT_SECRET, SP_SITE_URL, SP_FOLDER_PATH, SP_COMPANY_NAME).
+    """Return (tenant_id, client_id, client_secret, site_url, folder_path, company_name).
 
-    SP_COMPANY_NAME defaults to '' — validate it explicitly when needed via
-    get_company_folder_path().
+    Reads from Databricks secrets scope 'uc13' when running on Databricks,
+    otherwise falls back to environment variables / .env file.
+    SP_COMPANY_NAME defaults to '' — validate it explicitly via get_company_folder_path().
     """
-    missing = [k for k in _REQUIRED_ENV if not os.environ.get(k)]
-    if missing:
-        raise ValueError(
-            f"Missing required environment variables: {', '.join(missing)}. "
-            "Ensure .env is loaded (e.g. via python-dotenv) before calling any connector function."
-        )
     return (
-        os.environ["SP_TENANT_ID"],
-        os.environ["SP_CLIENT_ID"],
-        os.environ["SP_CLIENT_SECRET"],
-        os.environ["SP_SITE_URL"],
-        os.environ["SP_FOLDER_PATH"],
-        os.environ.get("SP_COMPANY_NAME", ""),
+        _get_secret("sp_tenant_id"),
+        _get_secret("sp_client_id"),
+        _get_secret("sp_client_secret"),
+        _get_secret("sp_site_url"),
+        _get_secret("sp_folder_path"),
+        os.environ.get("sp_company_name") or os.environ.get("SP_COMPANY_NAME", ""),
     )
 
 
