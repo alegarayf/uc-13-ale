@@ -230,3 +230,12 @@ frontend/node_modules/.tmp/
 
 # AI-generated rule JSON (experiment; directory kept via rules-config/.gitkeep)
 rules-config/rule-*.json
+
+#databricks project specific
+databricks/.env
+databricks/tmp
+databricks/context_docs
+
+# Mac files
+.DS_Store
+**/.DS_Store
