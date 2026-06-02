@@ -199,6 +199,74 @@ resources:
           max_retries: 1
           retry_on_timeout: true
 
+        # ------------------------------------------------------------------
+        # Task 5 — Phase 3a: Business Model Agent
+        # Runs after company_profiler; extracts revenue model + durability
+        # rating from BUSINESS_MODEL-tagged documents.
+        # ------------------------------------------------------------------
+        - task_key: business_model_agent
+          description: >
+            Semantic retrieval over BUSINESS_MODEL chunks + single LLM call to
+            extract revenue model tag, products/services, sales motion, and
+            revenue visibility. Applies deterministic revenue durability flag
+            (Green/Yellow/Red) and overlay conflict check.
+            Writes uc13.analysis.business_model.
+          depends_on:
+            - task_key: company_profiler
+          spark_python_task:
+            python_file: "databricks/jobs/scripts/business_model_agent.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.schema}}"
+              - "{{job.parameters.llm_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 6 — Phase 3b: Financial Trends Agent
+        # Runs after company_profiler; extracts financial metrics and applies
+        # Austin Hough's investment thresholds. Runs in parallel with Task 5.
+        # ------------------------------------------------------------------
+        - task_key: financial_trends_agent
+          description: >
+            Semantic retrieval over FINANCIAL and QUALITY_EARNINGS chunks +
+            single LLM call to extract revenue trend, gross margin, EBITDA,
+            addback schedule, working capital, and budget vs. actual.
+            Applies tech and healthcare services thresholds deterministically.
+            Writes uc13.analysis.financial_trends.
+          depends_on:
+            - task_key: company_profiler
+          spark_python_task:
+            python_file: "databricks/jobs/scripts/financial_trends_agent.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.schema}}"
+              - "{{job.parameters.llm_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
       # Notify on failure (configure email or webhook in workspace settings).
       email_notifications:
         on_failure: []
