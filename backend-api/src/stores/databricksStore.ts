@@ -1,3 +1,4 @@
+import { getSharedDatabricksClient } from "../db/databricksClient.js";
 import type { DataStore } from "./DataStore.js";
 
 export interface DatabricksStoreConfig {
@@ -8,15 +9,13 @@ export interface DatabricksStoreConfig {
   schema: string;
 }
 
-/**
- * Placeholder for Databricks connectivity (SQL warehouse, Unity Catalog, etc.).
- * Wire the official Databricks SQL driver or SDK here when credentials are present.
- */
 export function createDatabricksStore(cfg: DatabricksStoreConfig): DataStore {
   const missing: string[] = [];
   if (!cfg.serverHostname) missing.push("DATABRICKS_SERVER_HOSTNAME");
   if (!cfg.httpPath) missing.push("DATABRICKS_HTTP_PATH");
   if (!cfg.token) missing.push("DATABRICKS_TOKEN");
+  if (!cfg.catalog) missing.push("DATABRICKS_CATALOG");
+  if (!cfg.schema) missing.push("DATABRICKS_SCHEMA");
 
   return {
     label: "databricks",
@@ -27,10 +26,18 @@ export function createDatabricksStore(cfg: DatabricksStoreConfig): DataStore {
           detail: `Missing env: ${missing.join(", ")}`,
         };
       }
-      return {
-        ok: true,
-        detail: `catalog=${cfg.catalog || "(default)"} schema=${cfg.schema || "(default)"}`,
-      };
+      try {
+        await getSharedDatabricksClient(cfg).ping();
+        return {
+          ok: true,
+          detail: `catalog=${cfg.catalog} schema=${cfg.schema}`,
+        };
+      } catch (err: unknown) {
+        return {
+          ok: false,
+          detail: err instanceof Error ? err.message : String(err),
+        };
+      }
     },
   };
 }
