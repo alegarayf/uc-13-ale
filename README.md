@@ -16,12 +16,12 @@ Rallyday/
 ├── .env.example          # Copy to `.env` at repo root (see Environment)
 ├── package.json          # Workspaces + concurrent dev scripts
 ├── tsconfig.base.json
-├── frontend/
-├── backend-api/
+├── frontend/             # React UI (My Garden, Garden rules with AI)
+├── backend-api/          # Express REST API + docs in backend-api/docs/
 ├── backend-ai/
 └── databricks/
     ├── jobs/
-    │   └── scripts/      # Example job entrypoints (notebooks/wheels can live alongside)
+    │   └── sql/          # Table DDL + seed data (e.g. garden.rules)
     └── agents/           # Databricks Agents definitions / code
 ```
 
@@ -61,6 +61,7 @@ Create a **`.env` in the repository root** (gitignored). `npm run dev` loads it 
 | `FRONTEND_PORT`, `BACKEND_API_PORT`, `BACKEND_AI_PORT` | Local ports |
 | `VITE_*` | Frontend env (Vite `envDir` is the repo root) |
 | `DATABRICKS_*` | Required when `DATA_STORE=databricks` (see `.env.example`) |
+| `API_CACHE_TTL_SECONDS` | TTL for cached API reads — rules and companies (default `60`; `0` disables) |
 
 `backend-api` also loads `backend-api/.env` if present (overrides root).
 
@@ -72,9 +73,27 @@ npm run build
 
 Produces `frontend/dist` and `backend-api/dist`.
 
+## Tests & docs
+
+```bash
+npm run test                  # backend-api + frontend unit tests
+npm run test:api              # backend only (Vitest + Supertest)
+npm run test:api:coverage     # backend coverage report (backend-api/coverage/)
+npm run test:frontend         # frontend unit tests (form helpers, formatting)
+```
+
+| Area | Documentation |
+|------|----------------|
+| Backend API | [`backend-api/docs/`](backend-api/docs/README.md) — architecture, [rules](backend-api/docs/api/rules.md) and [companies](backend-api/docs/api/companies.md) REST APIs, caching |
+| Frontend | [`frontend/docs/`](frontend/docs/README.md) — My Garden and Garden rules UI |
+
+**My Garden** (local): open `/my-garden` after `npm run dev`. With `DATA_STORE=memory`, fifteen seed opportunities (full field coverage) are returned for the configured owner email. With `DATA_STORE=databricks`, data comes from `salesforce_silver.opportunity_silver`.
+
+**Garden rules** (local): open `/garden-rules` after `npm run dev`. Use `DATA_STORE=memory` for seeded sample rules, or `DATA_STORE=databricks` with SQL in `databricks/jobs/sql/`.
+
 ## Databricks
 
-The **`databricks/jobs/`** tree holds code packaged or referenced by Databricks Jobs (Python scripts, notebooks, SQL files, or future Scala/JAR tasks). It does not run automatically with `npm run dev`; deploy and schedule those tasks in Databricks.
+The **`databricks/jobs/`** tree holds code packaged or referenced by Databricks Jobs (Python scripts, notebooks, SQL files, or future Scala/JAR tasks). SQL under `databricks/jobs/sql/` includes `create_rules_table.sql` and optional `seed_rules.sql` for the rules API. Jobs do not run automatically with `npm run dev`; deploy and schedule them in Databricks.
 
 The **`databricks/agents/`** tree is reserved for Databricks Agents (definitions, prompts, tools, or supporting code you deploy with Agent Framework / workspace assets).
 

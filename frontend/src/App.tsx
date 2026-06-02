@@ -1,39 +1,24 @@
-import { useEffect, useState } from "react";
-
-const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
-const aiBase = import.meta.env.VITE_AI_API_BASE_URL ?? "";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AppLayout } from "./components/layout/AppLayout";
+import { Dashboard } from "./pages/Dashboard";
+import { GardenRules } from "./pages/GardenRules";
+import { GardenRulesExperiment } from "./pages/GardenRulesExperiment";
+import { MyGarden } from "./pages/MyGarden";
+import { Profile } from "./pages/Profile";
 
 export default function App() {
-  const [apiHealth, setApiHealth] = useState<string>("…");
-  const [aiHealth, setAiHealth] = useState<string>("…");
-
-  useEffect(() => {
-    if (!apiBase) {
-      setApiHealth("Set VITE_API_BASE_URL in root .env");
-      return;
-    }
-    fetch(`${apiBase}/health`)
-      .then((r) => r.json())
-      .then((j) => setApiHealth(JSON.stringify(j)))
-      .catch(() => setApiHealth("unreachable"));
-  }, []);
-
-  useEffect(() => {
-    if (!aiBase) {
-      setAiHealth("optional");
-      return;
-    }
-    fetch(`${aiBase}/health`)
-      .then((r) => r.json())
-      .then((j) => setAiHealth(JSON.stringify(j)))
-      .catch(() => setAiHealth("unreachable"));
-  }, []);
-
   return (
-    <main className="app">
-      <h1>Rallyday</h1>
-      <p>API: {apiHealth}</p>
-      <p>AI: {aiHealth}</p>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="my-garden" element={<MyGarden />} />
+          <Route path="garden-rules" element={<GardenRules />} />
+          <Route path="garden-rules/ai" element={<GardenRulesExperiment />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
