@@ -1,0 +1,16 @@
+[project]
+name = "rallyday-uc13-databricks"
+version = "0.1.0"
+description = "UC13 agentic ingestion pipeline for Rallyday Partners - Databricks modules"
+requires-python = ">=3.11"
+dependencies = [
+    "msal>=1.28.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+]
