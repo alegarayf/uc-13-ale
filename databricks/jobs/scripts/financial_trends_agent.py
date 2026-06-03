@@ -144,7 +144,32 @@ from due diligence documents. Rules:
 4. Mark computed_from_stated=true ONLY when you derive a % from two explicitly
    stated numbers in the SAME document. Never cross-document compute.
 5. Every value must have a citation: document name, location, ≤30-word quote.
-6. Return ONLY valid JSON with no preamble and no markdown fences.\
+6. Return ONLY valid JSON with no preamble and no markdown fences.
+7. SUBORDINATE MARGIN ROWS: PE financial statements routinely print a metric
+   (e.g. Gross Profit, EBITDA) on one row in dollars, then print its margin %
+   on the very next row labelled "Margin" in italics. These two rows describe
+   the SAME metric and the SAME periods. When you see this pattern, read the
+   "Margin" row values into the ebitda_margin_pct or gm_pct_stated fields of
+   the parent row — do NOT create a separate record for the Margin row itself.
+   Example: "PF Adj. EBITDA: 2,104 / 3,157 / 4,016 / 6,677 / 9,239" followed
+   by "Margin: 23.5% / 22.3% / 19.3% / 19.5% / 19.9%" → the margin percentages
+   belong to the PF Adj. EBITDA records for each period.
+8. SUBORDINATE GROWTH ROWS: Similarly, a "Growth" row printed below a revenue
+   row contains the YoY growth % for each period. Read these directly into the
+   yoy_growth_pct field of the parent revenue row. Do NOT compute growth —
+   extract the stated %. "N/A" for the first period means no prior year exists;
+   set that period's yoy_growth_pct to null.
+9. PERIOD COLUMN HEADERS — TIME PERIODS ONLY: The "period" field must always
+   be a time period: FY20A, FY21A, FY22A, FY23A, TTM, LTM, Q1 2024, etc.
+   If column headers are geographic names (NY, MA, CT, NJ, PA, DC) or any
+   non-time label, those are NOT financial periods — they are segments or
+   acquisition targets. Do NOT write geographic abbreviations into the period
+   field. Instead, treat that table as revenue_by_segment data.
+10. MULTIPLE NAMED EBITDA CONCEPTS: A single document may present multiple
+    distinct EBITDA lines (e.g. "PF Adjusted Clinic-Level EBITDA" which excludes
+    corporate overhead, and "PF Adj. EBITDA" which includes it). Extract each
+    as a SEPARATE set of records, one per time period, using the exact row label
+    in the "label" field. Do not collapse them into one record.\
 """
 
 _USER_PROMPT_TEMPLATE = """\
@@ -158,32 +183,35 @@ Extract all available financial metrics. Return this exact JSON structure:
 {{
   "revenue_trend": [
     {{
-      "period": "<FY2021 | FY2022 | FY2023 | TTM | LTM | etc.>",
+      "period": "<FY20A | FY21A | FY22A | FY23A | TTM | LTM | etc. — time periods ONLY, never geographies or states>",
+      "label": "<exact row label from the document, e.g. 'Pro Forma Adjusted Revenue' or 'Reported Net Revenue'>",
       "revenue_stated": "<$ amount exactly as written>",
-      "yoy_growth_pct": "<% as stated, or computed only from adjacent stated values in same doc>",
+      "yoy_growth_pct": "<% from the 'Growth' row immediately below this revenue row — this is the YoY growth rate for this period. Extract it directly — do NOT compute it.>",
       "computed_yoy": false,
       "source_doc": "<exact filename>",
-      "source_location": "<page number, tab name, or section title>"
+      "source_location": "<tab name or section title>"
     }}
   ],
   "gross_margin": [
     {{
-      "period": "<period>",
-      "gm_pct_stated": "<% as stated or null>",
-      "gm_dollars_stated": "<$ as stated or null>",
+      "period": "<FY20A | FY21A | FY22A | FY23A | TTM | LTM | etc. — time periods ONLY>",
+      "label": "<exact row label from the document, e.g. 'Gross Profit' or 'Pro Forma Adjusted Gross Profit'>",
+      "gm_pct_stated": "<% from the 'Margin' row immediately below the Gross Profit row, or null if no such row>",
+      "gm_dollars_stated": "<$ as stated on the Gross Profit row>",
       "computed_from_stated": false,
       "source_doc": "<filename>",
-      "source_location": "<location>"
+      "source_location": "<tab name or section title>"
     }}
   ],
   "ebitda": [
     {{
-      "period": "<period>",
-      "version": "<reported | mgmt_adjusted | qofe_adjusted | other>",
+      "period": "<FY20A | FY21A | FY22A | FY23A | TTM | LTM | etc. — time periods ONLY, never geographies or states>",
+      "label": "<exact row label from the document, e.g. 'PF Adjusted Clinic-Level EBITDA' or 'PF Adj. EBITDA' or 'Reported EBITDA'>",
+      "version": "<reported | mgmt_adjusted | clinic_level_adjusted | qofe_adjusted | other>",
       "ebitda_dollars": "<$ as stated>",
-      "ebitda_margin_pct": "<% as stated or null>",
+      "ebitda_margin_pct": "<% from the 'Margin' row immediately below this EBITDA row, or null if absent>",
       "source_doc": "<filename>",
-      "source_location": "<location>"
+      "source_location": "<tab name or section title>"
     }}
   ],
   "revenue_by_segment": [
@@ -276,6 +304,89 @@ def _most_recent_value(records: list[dict], value_key: str) -> tuple[Optional[fl
         if num is not None:
             return num, raw, rec.get("source_doc", "")
     return None, None, None
+
+
+def _compute_margin_from_dollars(
+    ebitda_records: list[dict],
+    revenue_records: list[dict],
+) -> tuple[Optional[float], Optional[str], Optional[str]]:
+    """Compute EBITDA (or gross) margin % from dollar amounts when a margin % row is absent.
+
+    Matches records by period string (case-insensitive) and picks the most recent
+    matched period. Returns (margin_float, margin_str, source_doc).
+
+    Only used as a fallback when the stated margin % is null for all periods.
+    The computation is single-document-safe because both values come from the same
+    extracted context — period matching ensures they belong to the same column.
+    """
+    def period_rank(period_str: str) -> int:
+        p = (period_str or "").upper()
+        if "TTM" in p or "LTM" in p:
+            return 9999
+        m = re.search(r"(\d{4})", p)
+        return int(m.group(1)) if m else 0
+
+    rev_by_period: dict[str, tuple[float, str]] = {}
+    for r in revenue_records:
+        period = (r.get("period") or "").strip().upper()
+        if not period:
+            continue
+        rev_num = _parse_numeric(r.get("revenue_stated"))
+        if rev_num is not None and rev_num != 0:
+            rev_by_period[period] = (rev_num, r.get("source_doc", ""))
+
+    candidates = []
+    for e in ebitda_records:
+        period = (e.get("period") or "").strip().upper()
+        ebitda_num = _parse_numeric(e.get("ebitda_dollars"))
+        if period and ebitda_num is not None and period in rev_by_period:
+            rev_num, rev_doc = rev_by_period[period]
+            margin = (ebitda_num / rev_num) * 100
+            candidates.append((period_rank(period), margin, e.get("source_doc", ""), period))
+
+    if not candidates:
+        return None, None, None
+
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    _, margin, source_doc, period = candidates[0]
+    margin_str = f"{round(margin, 1)}% (computed from stated dollars, period={period})"
+    return round(margin, 1), margin_str, source_doc
+
+
+def _compute_yoy_growth(
+    revenue_records: list[dict],
+) -> tuple[Optional[float], Optional[str], Optional[str]]:
+    """Compute the most recent YoY growth % from consecutive stated revenue values.
+
+    Only used as a fallback when yoy_growth_pct is null for the most recent period.
+    Requires at least two periods with parseable revenue_stated values.
+    Returns (growth_float, growth_str, source_doc).
+    """
+    def period_rank(rec: dict) -> int:
+        p = (rec.get("period") or "").upper()
+        if "TTM" in p or "LTM" in p:
+            return 9999
+        m = re.search(r"(\d{4})", p)
+        return int(m.group(1)) if m else 0
+
+    sorted_recs = sorted(revenue_records, key=period_rank)
+    parseable = [
+        (period_rank(r), _parse_numeric(r.get("revenue_stated")), r.get("source_doc", ""), r.get("period", ""))
+        for r in sorted_recs
+        if _parse_numeric(r.get("revenue_stated")) is not None
+    ]
+    if len(parseable) < 2:
+        return None, None, None
+
+    _, prev_val, _, _       = parseable[-2]
+    _, curr_val, doc, period = parseable[-1]
+
+    if prev_val == 0:
+        return None, None, None
+
+    growth = ((curr_val - prev_val) / abs(prev_val)) * 100
+    growth_str = f"{round(growth, 1)}% (computed from consecutive stated revenue values, period={period})"
+    return round(growth, 1), growth_str, doc
 
 
 # ---------------------------------------------------------------------------
@@ -488,51 +599,100 @@ class FinancialTrendsAgent:
         growth_num, growth_str, growth_doc = _most_recent_value(revenue_records, "yoy_growth_pct")
 
         if apply_tech:
-            if growth_num is None:
+            tech_growth_num, tech_growth_str, tech_growth_doc = growth_num, growth_str, growth_doc
+            if tech_growth_num is None and revenue_records:
+                tech_growth_num, tech_growth_str, tech_growth_doc = _compute_yoy_growth(revenue_records)
+                if tech_growth_num is not None:
+                    step = len(self._base._trace) + 1
+                    self._base._trace.append({
+                        "step":       step,
+                        "tool":       "compute_yoy_growth_fallback",
+                        "input":      "yoy_growth_pct not stated; computing from consecutive stated revenue values (tech)",
+                        "output":     f"Computed YoY growth: {tech_growth_str}",
+                        "confidence": "medium",
+                        "sources":    [tech_growth_doc] if tech_growth_doc else [],
+                    })
+                    print(f"  Step {step} [compute_yoy_growth_fallback]: {tech_growth_str}")
+
+            if tech_growth_num is None:
                 if revenue_records:
-                    self._add_gap("Organic revenue growth % not stated — required for tech services threshold evaluation")
-            elif growth_num < 10:
+                    self._add_gap("Organic revenue growth % not stated and could not be computed — required for tech services threshold evaluation")
+            elif tech_growth_num < 10:
                 self._add_flag(
                     metric="organic_revenue_growth_yoy_pct",
-                    value=growth_str,
+                    value=tech_growth_str,
                     threshold="<~10–15% (tech services)",
                     severity="Red",
                     note=(
-                        f"Revenue growth of {growth_str} is below the ~10–15% threshold, "
+                        f"Revenue growth of {tech_growth_str} is below the ~10–15% threshold, "
                         "which may suggest questions about market positioning, sales engine "
                         "maturity, and customer demand for a premium tech services platform. "
-                        f"Source: {growth_doc}."
+                        f"Source: {tech_growth_doc}."
                     ),
-                    source_doc=growth_doc,
-                    confidence="high" if growth_str else "medium",
+                    source_doc=tech_growth_doc,
+                    confidence="medium" if "computed" in (tech_growth_str or "") else "high",
                 )
             else:
-                self._log_no_flag("organic_revenue_growth_yoy_pct (tech)", growth_str, "≥~10–15%")
+                self._log_no_flag("organic_revenue_growth_yoy_pct (tech)", tech_growth_str, "≥~10–15%")
 
         if apply_healthcare:
-            if growth_num is None:
+            hc_growth_num, hc_growth_str, hc_growth_doc = growth_num, growth_str, growth_doc
+            if hc_growth_num is None and revenue_records:
+                hc_growth_num, hc_growth_str, hc_growth_doc = _compute_yoy_growth(revenue_records)
+                if hc_growth_num is not None:
+                    step = len(self._base._trace) + 1
+                    self._base._trace.append({
+                        "step":       step,
+                        "tool":       "compute_yoy_growth_fallback",
+                        "input":      "yoy_growth_pct not stated; computing from consecutive stated revenue values (healthcare)",
+                        "output":     f"Computed YoY growth: {hc_growth_str}",
+                        "confidence": "medium",
+                        "sources":    [hc_growth_doc] if hc_growth_doc else [],
+                    })
+                    print(f"  Step {step} [compute_yoy_growth_fallback]: {hc_growth_str}")
+
+            if hc_growth_num is None:
                 if revenue_records:
-                    self._add_gap("Same-store revenue growth % not stated — required for healthcare services threshold evaluation")
-            elif growth_num < 5:
+                    self._add_gap("Same-store revenue growth % not stated and could not be computed — required for healthcare services threshold evaluation")
+            elif hc_growth_num < 5:
                 self._add_flag(
                     metric="revenue_growth_same_store_yoy_pct",
-                    value=growth_str,
+                    value=hc_growth_str,
                     threshold="<~5–10% (healthcare services)",
                     severity="Red",
                     note=(
-                        f"Revenue growth of {growth_str} is below the ~5–10% threshold, "
+                        f"Revenue growth of {hc_growth_str} is below the ~5–10% threshold, "
                         "which may prompt questions on referral trends, reimbursement "
-                        f"pressure, and provider availability. Source: {growth_doc}."
+                        f"pressure, and provider availability. Source: {hc_growth_doc}."
                     ),
-                    source_doc=growth_doc,
-                    confidence="high" if growth_str else "medium",
+                    source_doc=hc_growth_doc,
+                    confidence="medium" if "computed" in (hc_growth_str or "") else "high",
                 )
             else:
-                self._log_no_flag("revenue_growth_same_store_yoy_pct (healthcare)", growth_str, "≥~5–10%")
+                self._log_no_flag("revenue_growth_same_store_yoy_pct (healthcare)", hc_growth_str, "≥~5–10%")
 
         # ── Gross margin ───────────────────────────────────────────────
         gm_records = extracted.get("gross_margin") or []
         gm_num, gm_str, gm_doc = _most_recent_value(gm_records, "gm_pct_stated")
+
+        # Fallback: compute from gm_dollars_stated ÷ revenue_stated for the same period.
+        if gm_num is None and gm_records and revenue_records:
+            gm_num, gm_str, gm_doc = _compute_margin_from_dollars(
+                [{"period": r.get("period"), "ebitda_dollars": r.get("gm_dollars_stated"),
+                  "source_doc": r.get("source_doc")} for r in gm_records],
+                revenue_records,
+            )
+            if gm_num is not None:
+                step = len(self._base._trace) + 1
+                self._base._trace.append({
+                    "step":       step,
+                    "tool":       "compute_gm_margin_fallback",
+                    "input":      "gm_pct_stated not available; computing from gm_dollars_stated ÷ revenue_stated (same period)",
+                    "output":     f"Computed gross margin: {gm_str}",
+                    "confidence": "medium",
+                    "sources":    [gm_doc] if gm_doc else [],
+                })
+                print(f"  Step {step} [compute_gm_margin_fallback]: {gm_str}")
 
         if apply_tech:
             if gm_num is None:
@@ -579,14 +739,35 @@ class FinancialTrendsAgent:
 
         # ── EBITDA margin ──────────────────────────────────────────────
         ebitda_records = extracted.get("ebitda") or []
+
+        # Primary: use stated ebitda_margin_pct.
         ebitda_margin_num, ebitda_margin_str, ebitda_margin_doc = _most_recent_value(
             ebitda_records, "ebitda_margin_pct"
         )
 
+        # Fallback: compute from ebitda_dollars ÷ revenue_stated for the same period.
+        if ebitda_margin_num is None and ebitda_records and revenue_records:
+            ebitda_margin_num, ebitda_margin_str, ebitda_margin_doc = _compute_margin_from_dollars(
+                ebitda_records, revenue_records
+            )
+            if ebitda_margin_num is not None:
+                step = len(self._base._trace) + 1
+                self._base._trace.append({
+                    "step":       step,
+                    "tool":       "compute_ebitda_margin_fallback",
+                    "input":      "ebitda_margin_pct not stated; computing from ebitda_dollars ÷ revenue_stated (same period)",
+                    "output":     f"Computed EBITDA margin: {ebitda_margin_str} (source: {ebitda_margin_doc})",
+                    "confidence": "medium",
+                    "sources":    [ebitda_margin_doc] if ebitda_margin_doc else [],
+                })
+                print(f"  Step {step} [compute_ebitda_margin_fallback]: {ebitda_margin_str}")
+
+        _ebitda_margin_confidence = "medium" if "computed" in (ebitda_margin_str or "") else "high"
+
         if apply_tech:
             if ebitda_margin_num is None:
                 if ebitda_records:
-                    self._add_gap("EBITDA margin % not stated — required for tech services threshold evaluation")
+                    self._add_gap("EBITDA margin % not stated and could not be computed — required for tech services threshold evaluation")
             elif ebitda_margin_num < 10:
                 self._add_flag(
                     metric="ebitda_margin_pct",
@@ -599,7 +780,7 @@ class FinancialTrendsAgent:
                         f"Source: {ebitda_margin_doc}."
                     ),
                     source_doc=ebitda_margin_doc,
-                    confidence="high" if ebitda_margin_str else "medium",
+                    confidence=_ebitda_margin_confidence,
                 )
             else:
                 self._log_no_flag("ebitda_margin_pct (tech)", ebitda_margin_str, "≥~10–15%")
@@ -607,7 +788,7 @@ class FinancialTrendsAgent:
         if apply_healthcare:
             if ebitda_margin_num is None:
                 if ebitda_records:
-                    self._add_gap("EBITDA margin % not stated — required for healthcare services threshold evaluation")
+                    self._add_gap("EBITDA margin % not stated and could not be computed — required for healthcare services threshold evaluation")
             elif ebitda_margin_num < 10:
                 self._add_flag(
                     metric="ebitda_margin_pct",
@@ -621,7 +802,7 @@ class FinancialTrendsAgent:
                         f"Source: {ebitda_margin_doc}."
                     ),
                     source_doc=ebitda_margin_doc,
-                    confidence="high" if ebitda_margin_str else "medium",
+                    confidence=_ebitda_margin_confidence,
                 )
             else:
                 self._log_no_flag("ebitda_margin_pct (healthcare)", ebitda_margin_str, "≥~10%")
@@ -930,6 +1111,30 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
         "data_room_gaps":  result.get("data_room_gaps") or [],
         "citations":       citations,
     }
+
+    # ── Note any fields that were computed rather than directly stated ──
+    computed_notes = []
+    for item in ebitda:
+        if item.get("ebitda_margin_pct") and "computed" in str(item.get("ebitda_margin_pct", "")):
+            computed_notes.append(
+                f"EBITDA margin for '{item.get('label', 'EBITDA')}' "
+                f"period {item.get('period')} was computed from stated dollar values, "
+                "not extracted from a stated margin % row."
+            )
+    for item in gross_margin:
+        if item.get("gm_pct_stated") and "computed" in str(item.get("gm_pct_stated", "")):
+            computed_notes.append(
+                f"Gross margin for period {item.get('period')} was computed from stated "
+                "dollar values, not extracted from a stated margin % row."
+            )
+    for item in revenue_trend:
+        if item.get("yoy_growth_pct") and "computed" in str(item.get("yoy_growth_pct", "")):
+            computed_notes.append(
+                f"YoY growth for period {item.get('period')} was computed from "
+                "consecutive stated revenue values, not extracted from a stated Growth row."
+            )
+    if computed_notes:
+        report["computed_fields_notes"] = computed_notes
 
     # ── Render as YAML (preferred) or JSON fallback ────────────────────
     try:
