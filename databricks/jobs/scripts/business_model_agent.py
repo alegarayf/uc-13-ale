@@ -591,6 +591,90 @@ class BusinessModelAgent:
 
 
 # ---------------------------------------------------------------------------
+# Stakeholder report export
+# ---------------------------------------------------------------------------
+
+def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
+    """Write a clean, human-readable YAML report to a UC Volume.
+
+    Saves to /Volumes/{catalog}/analysis/reports/{company_name}/
+    business_model_report.yaml (or .json if PyYAML is unavailable).
+    Returns the full volume path of the written file.
+    """
+    company_name = result["company_name"]
+
+    # ── Parse JSON blobs back to Python objects for clean rendering ────
+    products = json.loads(result.get("products_services") or "[]")
+    citations = json.loads(result.get("citations") or "[]")
+
+    # ── Build the curated report dict ──────────────────────────────────
+    report = {
+        "report": {
+            "agent":        "business_model",
+            "company":      company_name,
+            "generated_at": result.get("created_at", ""),
+        },
+        "executive_summary": result.get("executive_summary"),
+        "revenue_model": {
+            "tag":              result.get("revenue_model_tag"),
+            "pct_split":        result.get("revenue_model_pct_split"),
+            "note":             result.get("revenue_model_note"),
+            "durability_rating": result.get("revenue_durability_flag"),
+            "flag_confidence":  result.get("flag_confidence"),
+            "flag_rule":        result.get("flag_rule_applied"),
+        },
+        "products_and_services": products,
+        "customer_segments": result.get("customer_segments"),
+        "sales_motion": {
+            "type": result.get("sales_motion"),
+            "note": result.get("sales_motion_note"),
+        },
+        "revenue_visibility": {
+            "contracted_pct_of_forward_12mo": result.get("revenue_visibility_contracted_pct"),
+            "backlog_coverage_months":        result.get("backlog_coverage_months"),
+        },
+        "key_dependencies":   result.get("key_dependencies") or [],
+        "recent_model_changes": result.get("recent_model_changes") or [],
+        "overlay_conflict": {
+            "detected": result.get("overlay_conflict", False),
+            "note":     result.get("overlay_conflict_note") or None,
+        },
+        "flags": result.get("flags") or [],
+        "data_room_gaps": result.get("data_room_gaps") or [],
+        "citations": citations,
+    }
+
+    # ── Render as YAML (preferred) or JSON fallback ────────────────────
+    try:
+        import yaml
+
+        def _str_representer(dumper, data):
+            if "\n" in data:
+                return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+        yaml.add_representer(str, _str_representer)
+        content  = yaml.dump(report, allow_unicode=True, sort_keys=False, width=120)
+        ext      = "yaml"
+    except ImportError:
+        content  = json.dumps(report, indent=2, ensure_ascii=False)
+        ext      = "json"
+
+    # ── Ensure the UC Volume and directory exist ───────────────────────
+    spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
+    safe_name = company_name.replace(" ", "_").replace("/", "_")
+    dir_path  = f"/Volumes/{catalog}/analysis/reports/{safe_name}"
+    import os
+    os.makedirs(dir_path, exist_ok=True)
+
+    file_path = f"{dir_path}/business_model_report.{ext}"
+    with open(file_path, "w", encoding="utf-8") as fh:
+        fh.write(content)
+
+    return file_path
+
+
+# ---------------------------------------------------------------------------
 # main()
 # ---------------------------------------------------------------------------
 
@@ -709,6 +793,12 @@ def main() -> dict:
     df.write.format("delta").mode("append").saveAsTable(table)
 
     print(f"\n✓ Saved business model output → {table}")
+
+    # ── Export stakeholder report ──────────────────────────────────────
+    report_path = _write_stakeholder_report(result, catalog, spark)
+    result["report_path"] = report_path
+    print(f"✓ Stakeholder report → {report_path}")
+
     return result
 
 
