@@ -879,6 +879,89 @@ class FinancialTrendsAgent:
 
 
 # ---------------------------------------------------------------------------
+# Stakeholder report export
+# ---------------------------------------------------------------------------
+
+def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
+    """Write a clean, human-readable YAML report to a UC Volume.
+
+    Saves to /Volumes/{catalog}/analysis/reports/{company_name}/
+    financial_trends_report.yaml (or .json if PyYAML is unavailable).
+    Returns the full volume path of the written file.
+    """
+    company_name = result["company_name"]
+
+    # ── Parse JSON blobs back to Python objects for clean rendering ────
+    revenue_trend    = json.loads(result.get("revenue_trend_json")       or "[]")
+    gross_margin     = json.loads(result.get("gross_margin_json")        or "[]")
+    ebitda           = json.loads(result.get("ebitda_json")              or "[]")
+    rev_by_segment   = json.loads(result.get("revenue_by_segment_json")  or "[]")
+    cost_structure   = json.loads(result.get("cost_structure_json")      or "{}")
+    working_capital  = json.loads(result.get("working_capital_json")     or "{}")
+    budget_vs_actual = json.loads(result.get("budget_vs_actual_json")    or "[]")
+    addbacks         = json.loads(result.get("addback_schedule_json")    or "[]")
+    discrepancies    = json.loads(result.get("discrepancies")            or "[]")
+    citations        = json.loads(result.get("citations")                or "[]")
+
+    addback_pct = result.get("addback_pct_of_ebitda")
+
+    # ── Build the curated report dict ──────────────────────────────────
+    report = {
+        "report": {
+            "agent":              "financial_trends",
+            "company":            company_name,
+            "generated_at":       result.get("created_at", ""),
+            "industry_overlay":   result.get("industry_overlay_used"),
+        },
+        "executive_summary": result.get("executive_summary"),
+        "revenue_trend":     revenue_trend,
+        "gross_margin":      gross_margin,
+        "ebitda":            ebitda,
+        "revenue_by_segment": rev_by_segment,
+        "cost_structure":    cost_structure,
+        "working_capital":   working_capital,
+        "budget_vs_actual":  budget_vs_actual,
+        "addback_schedule": {
+            "items":                addbacks,
+            "addback_pct_of_ebitda": addback_pct,
+        },
+        "flags":           result.get("flags") or [],
+        "discrepancies":   discrepancies,
+        "data_room_gaps":  result.get("data_room_gaps") or [],
+        "citations":       citations,
+    }
+
+    # ── Render as YAML (preferred) or JSON fallback ────────────────────
+    try:
+        import yaml
+
+        def _str_representer(dumper, data):
+            if "\n" in data:
+                return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+        yaml.add_representer(str, _str_representer)
+        content = yaml.dump(report, allow_unicode=True, sort_keys=False, width=120)
+        ext     = "yaml"
+    except ImportError:
+        content = json.dumps(report, indent=2, ensure_ascii=False)
+        ext     = "json"
+
+    # ── Ensure the UC Volume and directory exist ───────────────────────
+    spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
+    safe_name = company_name.replace(" ", "_").replace("/", "_")
+    dir_path  = f"/Volumes/{catalog}/analysis/reports/{safe_name}"
+    import os
+    os.makedirs(dir_path, exist_ok=True)
+
+    file_path = f"{dir_path}/financial_trends_report.{ext}"
+    with open(file_path, "w", encoding="utf-8") as fh:
+        fh.write(content)
+
+    return file_path
+
+
+# ---------------------------------------------------------------------------
 # main()
 # ---------------------------------------------------------------------------
 
@@ -984,6 +1067,12 @@ def main() -> dict:
     df.write.format("delta").mode("append").saveAsTable(table)
 
     print(f"\n✓ Saved financial trends output → {table}")
+
+    # ── Export stakeholder report ──────────────────────────────────────
+    report_path = _write_stakeholder_report(result, catalog, spark)
+    result["report_path"] = report_path
+    print(f"✓ Stakeholder report → {report_path}")
+
     return result
 
 
