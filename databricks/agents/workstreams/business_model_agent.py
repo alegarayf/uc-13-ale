@@ -230,6 +230,7 @@ class BusinessModelAgent:
         chunks = semantic_search(
             query="company overview business model products services what does this company do",
             spark=spark,
+            company_name=self._company_name,
             top_k=10,
             workstream_filter=["BUSINESS_MODEL"],
             file_name_filter=["CIM", "Business", "Overview", "Summary", "Profile",
@@ -252,6 +253,7 @@ class BusinessModelAgent:
         chunks = semantic_search(
             query="recurring revenue subscription contract retention repeat revenue percentage split",
             spark=spark,
+            company_name=self._company_name,
             top_k=8,
             workstream_filter=["BUSINESS_MODEL", "FINANCIAL"],
             file_name_filter=["CIM", "Business", "Model", "Revenue", "Contract"],
@@ -273,6 +275,7 @@ class BusinessModelAgent:
         chunks = semantic_search(
             query="sales motion go to market pipeline growth strategy new customers acquisition",
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["BUSINESS_MODEL", "KPI_OPS"],
             file_name_filter=["CIM", "Business", "Sales", "GTM", "Pipeline", "Growth"],
@@ -468,6 +471,7 @@ class BusinessModelAgent:
 
     def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
         self._reset_state()
+        self._company_name = company_name
 
         print(f"  Running {len(['tool1', 'tool2', 'tool3', 'tool4'])} tools ...")
 

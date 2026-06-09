@@ -297,6 +297,7 @@ class CustomerQualityAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=12,
             workstream_filter=["CUSTOMER"],
             file_name_filter=["Customer", "Revenue", "Concentration", "CIM", "QofE"],
@@ -319,6 +320,7 @@ class CustomerQualityAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=8,
             workstream_filter=["CUSTOMER", "QUALITY_EARNINGS"],
             min_chunk_length=150,
@@ -340,6 +342,7 @@ class CustomerQualityAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["CUSTOMER", "BUSINESS_MODEL"],
             min_chunk_length=150,
@@ -361,6 +364,7 @@ class CustomerQualityAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["CUSTOMER", "FINANCIAL"],
             min_chunk_length=150,
@@ -382,6 +386,7 @@ class CustomerQualityAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["CUSTOMER", "KPI_OPS"],
             min_chunk_length=150,
@@ -602,6 +607,7 @@ class CustomerQualityAgent(WorkstreamAgent):
 
     def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
         self._reset_state()
+        self._company_name = company_name
         print(f"  Running 6 tools ...")
 
         tr1 = self._tool_retrieve_customer_concentration(spark)

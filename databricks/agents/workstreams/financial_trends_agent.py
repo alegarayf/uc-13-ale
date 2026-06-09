@@ -425,6 +425,7 @@ class FinancialTrendsAgent:
         chunks = semantic_search(
             query="annual revenue gross profit EBITDA profit loss income statement financial results",
             spark=spark,
+            company_name=self._company_name,
             top_k=12,
             workstream_filter=["FINANCIAL"],
             file_name_filter=["P&L", "Profit", "Loss", "Income", "Financial", "Accounts",
@@ -450,6 +451,7 @@ class FinancialTrendsAgent:
         chunks = semantic_search(
             query="EBITDA margin gross margin adjusted EBITDA addback bridge earnings profitability",
             spark=spark,
+            company_name=self._company_name,
             top_k=10,
             workstream_filter=["FINANCIAL", "QUALITY_EARNINGS"],
             file_name_filter=["EBITDA", "Margin", "Addback", "Bridge", "Adjusted",
@@ -472,6 +474,7 @@ class FinancialTrendsAgent:
         chunks = semantic_search(
             query="revenue by segment product line geography service line revenue split breakdown",
             spark=spark,
+            company_name=self._company_name,
             top_k=8,
             workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
             file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM"],
@@ -493,6 +496,7 @@ class FinancialTrendsAgent:
         chunks = semantic_search(
             query="DSO DPO days sales outstanding accounts receivable aging working capital cash collection",
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["FINANCIAL"],
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "AR", "Aging", "Working Capital"],
@@ -514,6 +518,7 @@ class FinancialTrendsAgent:
         chunks = semantic_search(
             query="addback adjustments owner compensation one-time non-recurring expenses EBITDA bridge",
             spark=spark,
+            company_name=self._company_name,
             top_k=8,
             workstream_filter=["FINANCIAL", "QUALITY_EARNINGS"],
             file_name_filter=["Addback", "Bridge", "EBITDA", "QofE", "Quality", "Adjusted"],
@@ -979,6 +984,7 @@ class FinancialTrendsAgent:
 
     def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
         self._reset_state()
+        self._company_name = company_name
 
         print(f"  Running 6 tools ...")
 

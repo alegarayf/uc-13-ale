@@ -311,6 +311,7 @@ class KPIAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="KPI dashboard metrics scorecard utilization revenue per FTE headcount operating",
             spark=spark,
+            company_name=self._company_name,
             top_k=12,
             workstream_filter=["KPI_OPS"],
             file_name_filter=["KPI", "Dashboard", "Metrics", "Scorecard", "Operating", "Performance"],
@@ -332,6 +333,7 @@ class KPIAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="pipeline backlog weighted pipeline bookings conversion forecast coverage months",
             spark=spark,
+            company_name=self._company_name,
             top_k=8,
             workstream_filter=["KPI_OPS", "FINANCIAL"],
             min_chunk_length=150,
@@ -352,6 +354,7 @@ class KPIAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="contractor employee utilization bill rate delivery model geography offshore onshore",
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["KPI_OPS", "BUSINESS_MODEL"],
             min_chunk_length=150,
@@ -372,6 +375,7 @@ class KPIAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="caregiver clinician turnover attrition census patient headcount referral compliance credentialing",
             spark=spark,
+            company_name=self._company_name,
             top_k=8,
             workstream_filter=["KPI_OPS", "FINANCIAL"],
             min_chunk_length=150,
@@ -392,6 +396,7 @@ class KPIAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="headcount full time employees FTE attrition turnover rate hiring plan revenue per employee",
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["KPI_OPS", "FINANCIAL"],
             min_chunk_length=150,
@@ -636,6 +641,7 @@ class KPIAgent(WorkstreamAgent):
 
     def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
         self._reset_state()
+        self._company_name = company_name
         print(f"  Running 6 tools ...")
 
         tr1 = self._tool_retrieve_kpi_dashboard(spark)

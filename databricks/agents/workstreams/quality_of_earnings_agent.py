@@ -311,6 +311,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="quality of earnings QofE adjusted EBITDA addback schedule sell-side accounting due diligence",
             spark=spark,
+            company_name=self._company_name,
             top_k=12,
             workstream_filter=["QUALITY_EARNINGS"],
             file_name_filter=["QofE", "Quality", "Earnings", "Due Diligence", "Accounting", "Addback"],
@@ -332,6 +333,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="EBITDA bridge adjusted EBITDA reported EBITDA walkthrough reconciliation addback adjustment",
             spark=spark,
+            company_name=self._company_name,
             top_k=10,
             workstream_filter=["QUALITY_EARNINGS", "FINANCIAL"],
             min_chunk_length=150,
@@ -352,6 +354,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="revenue recognition deferred revenue bill and hold DSO period end spike one-time non-recurring",
             spark=spark,
+            company_name=self._company_name,
             top_k=8,
             workstream_filter=["QUALITY_EARNINGS", "FINANCIAL"],
             min_chunk_length=150,
@@ -372,6 +375,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="owner compensation above market salary family members payroll personal expenses comp survey",
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["QUALITY_EARNINGS", "FINANCIAL"],
             min_chunk_length=150,
@@ -392,6 +396,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query="revenue recognition policy footnote accounting policy change prior year restatement audit",
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["QUALITY_EARNINGS", "FINANCIAL"],
             min_chunk_length=150,
@@ -575,6 +580,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
 
     def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
         self._reset_state()
+        self._company_name = company_name
         print(f"  Loading addback passthrough from Financial Trends Agent ...")
         addback_passthrough = self._load_addback_passthrough(company_name, spark)
 

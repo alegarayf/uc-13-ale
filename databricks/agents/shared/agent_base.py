@@ -68,6 +68,7 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
         self._citations: list[Citation] = []
         self._data_room_gaps: list[str] = []
         self._llm_client = None
+        self._company_name: Optional[str] = None  # set at the top of each run()
 
     def _get_llm_client(self):
         if self._llm_client is None:
