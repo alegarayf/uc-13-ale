@@ -18,7 +18,9 @@ resources:
       name: "UC13 Ingestion Pipeline"
       description: >
         Phase 1 (SharePoint download + Priority Tier detection) →
-        Phase 2 (Document Classifier + Ingestion Parser + Company Profiler).
+        Phase 2 (Document Classifier + Ingestion Parser + Company Profiler) →
+        Phase 3 (Business Model · Financial Trends · Customer Quality · KPI ·
+        Legal Contracts · Quality of Earnings agents — all writing to uc13.analysis).
         Set sp_company_name to switch between companies without code changes.
 
       # Job-level parameters — visible in the Workflow UI Run Now dialog.
@@ -214,7 +216,7 @@ resources:
           depends_on:
             - task_key: company_profiler
           spark_python_task:
-            python_file: "databricks/jobs/scripts/business_model_agent.py"
+            python_file: "databricks/agents/workstreams/business_model_agent.py"
             parameters:
               - "{{job.parameters.sp_company_name}}"
               - "{{job.parameters.catalog}}"
@@ -248,11 +250,147 @@ resources:
           depends_on:
             - task_key: company_profiler
           spark_python_task:
-            python_file: "databricks/jobs/scripts/financial_trends_agent.py"
+            python_file: "databricks/agents/workstreams/financial_trends_agent.py"
             parameters:
               - "{{job.parameters.sp_company_name}}"
               - "{{job.parameters.catalog}}"
               - "{{job.parameters.schema}}"
+              - "{{job.parameters.llm_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 7 — Phase 3c: Customer Quality Agent
+        # Extracts customer concentration, retention, and payor mix.
+        # Generates contract_trigger_list for Legal Contracts Agent.
+        # Runs in parallel with Tasks 5 and 6 after company_profiler.
+        # ------------------------------------------------------------------
+        - task_key: customer_quality_agent
+          description: >
+            Semantic retrieval over CUSTOMER-tagged chunks + single LLM call to
+            extract top customer concentration, NRR/GRR, payor mix, and account
+            size. Applies tech and healthcare services concentration thresholds.
+            Generates contract_trigger_list for customers >20% of revenue.
+            Writes uc13.analysis.customer_quality.
+          depends_on:
+            - task_key: company_profiler
+          spark_python_task:
+            python_file: "databricks/agents/workstreams/customer_quality_agent.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.llm_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 8 — Phase 3d: KPI Agent
+        # Extracts overlay-specific operational KPIs.
+        # Runs in parallel with Tasks 5, 6, 7 after company_profiler.
+        # ------------------------------------------------------------------
+        - task_key: kpi_agent
+          description: >
+            Semantic retrieval over KPI_OPS-tagged chunks + single LLM call to
+            extract the overlay-specific KPI set (tech: utilization, bill rates,
+            contractor %; healthcare: census, turnover, compliance incidents).
+            Missing expected KPIs are returned as management questions.
+            Writes uc13.analysis.kpi.
+          depends_on:
+            - task_key: company_profiler
+          spark_python_task:
+            python_file: "databricks/agents/workstreams/kpi_agent.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.llm_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 9 — Phase 3e: Legal Contracts Agent
+        # Extracts contract terms and litigation from LEGAL-tagged documents.
+        # Depends on customer_quality_agent for contract review triggers.
+        # ------------------------------------------------------------------
+        - task_key: legal_contracts_agent
+          description: >
+            Reads contract_trigger_list from uc13.analysis.customer_quality.
+            Semantic retrieval over LEGAL-tagged chunks + single LLM call to
+            extract contract register (CoC clauses, termination, anti-assignment,
+            auto-renewal, pricing, liability caps, restrictive covenants) and
+            litigation register. Produces CoC consent list for deal team.
+            Writes uc13.analysis.legal_contracts.
+          depends_on:
+            - task_key: customer_quality_agent
+          spark_python_task:
+            python_file: "databricks/agents/workstreams/legal_contracts_agent.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.llm_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 7200
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 10 — Phase 3f: Quality of Earnings Agent
+        # Applies four-tier addback classification framework.
+        # Depends on financial_trends_agent for the addback passthrough.
+        # ------------------------------------------------------------------
+        - task_key: quality_of_earnings_agent
+          description: >
+            Reads addback_schedule_json from uc13.analysis.financial_trends.
+            Semantic retrieval over QUALITY_EARNINGS-tagged chunks + single LLM
+            call to classify each addback (Tier 1–4), detect revenue quality
+            flags (DSO, period-end spikes, policy changes), and produce
+            pre-QofE scope items for the accounting provider.
+            Computes three adjusted EBITDA scenarios deterministically.
+            Writes uc13.analysis.quality_of_earnings.
+          depends_on:
+            - task_key: financial_trends_agent
+          spark_python_task:
+            python_file: "databricks/agents/workstreams/quality_of_earnings_agent.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
               - "{{job.parameters.llm_endpoint}}"
           new_cluster:
             spark_version: "15.4.x-scala2.12"
