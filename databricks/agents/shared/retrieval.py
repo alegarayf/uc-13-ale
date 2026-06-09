@@ -18,6 +18,7 @@ def semantic_search(
     query: str,
     spark,
     top_k: int = 10,
+    company_name: str | None = None,
     file_name_filter: list[str] | None = None,
     workstream_filter: list[str] | None = None,
     tier_filter: int | None = None,
@@ -81,6 +82,7 @@ def semantic_search(
         chunk_ids = [row[0] for row in results.result.data_array]
         ids_str = "', '".join(chunk_ids)
 
+        company_filter = f"AND c.company_name = '{company_name}'" if company_name else ""
         chunks = spark.sql(f"""
             SELECT
                 c.chunk_id,
@@ -93,7 +95,9 @@ def semantic_search(
             FROM uc13.ingestion.chunks c
             JOIN uc13.classification.doc_relevance r
                 ON c.file_name = r.filename
+               AND c.company_name = r.company_name
             WHERE c.chunk_id IN ('{ids_str}')
+              {company_filter}
             ORDER BY r.priority_tier ASC NULLS LAST
         """).collect()
 
@@ -101,6 +105,7 @@ def semantic_search(
         print(f"Vector search failed: {e} — falling back to keyword search")
         keywords = query.replace("'", "").split()[:5]
         conditions = " OR ".join([f"c.chunk_text LIKE '%{k}%'" for k in keywords])
+        company_filter = f"AND c.company_name = '{company_name}'" if company_name else ""
         chunks = spark.sql(f"""
             SELECT
                 c.chunk_id,
@@ -113,8 +118,10 @@ def semantic_search(
             FROM uc13.ingestion.chunks c
             JOIN uc13.classification.doc_relevance r
                 ON c.file_name = r.filename
+               AND c.company_name = r.company_name
             WHERE ({conditions})
                 AND r.should_parse = true
+                {company_filter}
             ORDER BY r.priority_tier ASC NULLS LAST
             LIMIT {fetch_k}
         """).collect()

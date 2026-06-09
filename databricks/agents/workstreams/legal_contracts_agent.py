@@ -317,6 +317,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=12,
             workstream_filter=["LEGAL"],
             file_name_filter=["Contract", "MSA", "Agreement", "SOW", "Customer", "Client"],
@@ -342,6 +343,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=10,
             workstream_filter=["LEGAL"],
             min_chunk_length=150,
@@ -366,6 +368,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["LEGAL"],
             min_chunk_length=150,
@@ -390,6 +393,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=8,
             workstream_filter=["LEGAL"],
             min_chunk_length=150,
@@ -414,6 +418,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks = semantic_search(
             query=query,
             spark=spark,
+            company_name=self._company_name,
             top_k=6,
             workstream_filter=["LEGAL"],
             min_chunk_length=150,
@@ -679,6 +684,7 @@ class LegalContractsAgent(WorkstreamAgent):
 
     def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
         self._reset_state()
+        self._company_name = company_name
         print(f"  Loading contract triggers ...")
         contract_triggers = self._load_contract_triggers(company_name, spark)
 
