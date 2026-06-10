@@ -235,6 +235,7 @@ rules-config/rule-*.json
 databricks/.env
 databricks/tmp
 databricks/context_docs
+docs/
 
 # Mac files
 .DS_Store
