@@ -85,19 +85,100 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
                     {"role": "system", "content": system_prompt},
                     {"role": "user",   "content": user_prompt},
                 ],
-                "max_tokens": 4000,
+                "max_tokens": 8000,
                 "temperature": 0.0,  # deterministic extraction
             },
         )
         return response["choices"][0]["message"]["content"]
 
+    @staticmethod
+    def _recover_truncated_json(cleaned: str) -> Optional[dict]:
+        """Attempt to recover a JSON response truncated mid-stream by the token limit.
+
+        Strategy: scan forward tracking bracket depth and string state to find the
+        last position where a complete top-level list item was closed (depth == 1),
+        truncate there, then append the minimum closing brackets needed to produce
+        valid JSON. Returns None if recovery is not possible.
+        """
+        last_item_end = -1
+        depth = 0
+        in_string = False
+        escape_next = False
+
+        for i, ch in enumerate(cleaned):
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == "\\" and in_string:
+                escape_next = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch in ("{", "["):
+                depth += 1
+            elif ch in ("}", "]"):
+                depth -= 1
+                if depth == 1:
+                    last_item_end = i + 1
+
+        if last_item_end <= 0:
+            return None
+
+        truncated = cleaned[:last_item_end].rstrip().rstrip(",")
+
+        # Re-scan truncated portion to find unclosed brackets.
+        stack: list[str] = []
+        in_string = False
+        escape_next = False
+        for ch in truncated:
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == "\\" and in_string:
+                escape_next = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch in ("{", "["):
+                stack.append(ch)
+            elif ch in ("}", "]"):
+                if stack:
+                    stack.pop()
+
+        closing = "".join("}" if c == "{" else "]" for c in reversed(stack))
+        try:
+            return json.loads(truncated + "\n" + closing)
+        except json.JSONDecodeError:
+            return None
+
     def _parse_json_response(self, raw: str) -> dict:
-        """Strip markdown fences and parse JSON. Raises ValueError on failure."""
+        """Strip markdown fences and parse JSON.
+
+        If parsing fails due to token-limit truncation, attempts structural recovery
+        (salvaging all complete records) before raising. Logs a gap when recovery
+        is used so the caller knows the response was cut short.
+        """
         cleaned = re.sub(r"```(?:json)?|```", "", raw).strip()
         try:
             return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"LLM returned invalid JSON: {e}\nRaw response:\n{raw[:500]}")
+        except json.JSONDecodeError as primary_err:
+            recovered = self._recover_truncated_json(cleaned)
+            if recovered is not None:
+                self._add_gap(
+                    f"LLM response was truncated by the token limit ({primary_err}). "
+                    "Partial JSON was recovered — records cut off mid-stream are excluded. "
+                    "Consider raising max_tokens or reducing retrieved context size."
+                )
+                return recovered
+            raise ValueError(
+                f"LLM returned invalid JSON: {primary_err}\nRaw response:\n{raw[:500]}"
+            )
 
     def _tool_call(
         self,
