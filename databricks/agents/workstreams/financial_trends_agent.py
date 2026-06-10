@@ -1293,6 +1293,407 @@ class FinancialTrendsAgent:
 # Stakeholder report export
 # ---------------------------------------------------------------------------
 
+def generate_financial_assessment(
+    result: dict,
+    spark,
+    llm_endpoint: str,
+    catalog: str = "uc13",
+    write_to_volume: bool = True,
+) -> str:
+    """Generate a structured markdown financial-story assessment from agent output.
+
+    Answers 12 diligence questions by combining deterministic table construction
+    (revenue bridge, margin deltas, EBITDA multi-version, addback quality, budget
+    variance) with a single LLM call that writes narrative for each section.
+
+    Args:
+        result:          Output dict from FinancialTrendsAgent.run().
+        spark:           Active SparkSession (needed only when write_to_volume=True).
+        llm_endpoint:    Databricks model-serving endpoint name.
+        catalog:         UC catalog for volume write (default 'uc13').
+        write_to_volume: If True, also writes the markdown to the reports volume.
+
+    Returns:
+        Markdown string.
+    """
+
+    company_name     = result.get("company_name", "Company")
+    generated_at     = result.get("created_at", "")
+    overlay          = result.get("industry_overlay_used", "")
+    exec_summary     = result.get("executive_summary") or ""
+    addback_pct      = result.get("addback_pct_of_ebitda")
+    flags            = result.get("flags") or []
+    data_room_gaps   = result.get("data_room_gaps") or []
+
+    revenue_trend    = json.loads(result.get("revenue_trend_json")      or "[]")
+    gross_margin     = json.loads(result.get("gross_margin_json")       or "[]")
+    ebitda           = json.loads(result.get("ebitda_json")             or "[]")
+    rev_by_segment   = json.loads(result.get("revenue_by_segment_json") or "[]")
+    cost_structure   = json.loads(result.get("cost_structure_json")     or "{}")
+    working_capital  = json.loads(result.get("working_capital_json")    or "{}")
+    budget_vs_actual = json.loads(result.get("budget_vs_actual_json")   or "[]")
+    addbacks         = json.loads(result.get("addback_schedule_json")   or "[]")
+    discrepancies    = json.loads(result.get("discrepancies")           or "[]")
+
+    # ── Helper: period sort key ────────────────────────────────────────────
+    def _period_rank(period_str: str) -> int:
+        p = (period_str or "").upper()
+        if "TTM" in p or "LTM" in p:
+            return 9999
+        m = re.search(r"(\d{4})", p)
+        return int(m.group(1)) if m else 0
+
+    # ── Helper: format a markdown table from list-of-dicts ────────────────
+    def _md_table(headers: list[str], rows: list[list]) -> str:
+        if not rows:
+            return "_No data extracted._\n"
+        col_w = [max(len(str(h)), max((len(str(r[i])) for r in rows), default=0))
+                 for i, h in enumerate(headers)]
+        sep = "| " + " | ".join("-" * w for w in col_w) + " |"
+        head = "| " + " | ".join(str(h).ljust(col_w[i]) for i, h in enumerate(headers)) + " |"
+        body = "\n".join(
+            "| " + " | ".join(str(r[i] if i < len(r) else "").ljust(col_w[i]) for i in range(len(headers))) + " |"
+            for r in rows
+        )
+        return "\n".join([head, sep, body]) + "\n"
+
+    # ── Helper: delta arrow ───────────────────────────────────────────────
+    def _arrow(current, previous) -> str:
+        if current is None or previous is None:
+            return ""
+        try:
+            diff = float(str(current).replace("%", "").replace(",", "").replace("(", "-").replace(")", ""))
+            prev = float(str(previous).replace("%", "").replace(",", "").replace("(", "-").replace(")", ""))
+            d = diff - prev
+            return f" ▲{round(d,1)}" if d > 0 else (f" ▼{abs(round(d,1))}" if d < 0 else " →0")
+        except (ValueError, TypeError):
+            return ""
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 1 — Revenue trend (all named lines, all periods + YoY)
+    # ══════════════════════════════════════════════════════════════════════
+    rev_sorted = sorted(revenue_trend, key=lambda r: (_period_rank(r.get("period", "")), r.get("label", "")))
+    rev_rows = []
+    for r in rev_sorted:
+        rev_rows.append([
+            r.get("period", ""),
+            r.get("label", ""),
+            r.get("revenue_stated", ""),
+            r.get("yoy_growth_pct") or "n/a",
+        ])
+    tbl_revenue = _md_table(["Period", "Revenue Line", "Revenue ($K)", "YoY Growth %"], rev_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 2 — Gross margin (with period-over-period margin delta)
+    # ══════════════════════════════════════════════════════════════════════
+    gm_sorted = sorted(gross_margin, key=lambda r: _period_rank(r.get("period", "")))
+    gm_rows = []
+    prev_gm_pct = None
+    for r in gm_sorted:
+        pct   = r.get("gm_pct_stated")
+        delta = _arrow(pct, prev_gm_pct) if prev_gm_pct is not None else ""
+        gm_rows.append([
+            r.get("period", ""),
+            r.get("label", ""),
+            r.get("gm_dollars_stated", ""),
+            pct or "n/a",
+            delta or "—",
+        ])
+        prev_gm_pct = pct
+    tbl_gm = _md_table(["Period", "Label", "GP ($K)", "GM %", "ΔMargin (pp)"], gm_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 3 — EBITDA multi-version pivot
+    # Rows = periods; columns = distinct EBITDA versions
+    # ══════════════════════════════════════════════════════════════════════
+    ebitda_sorted = sorted(ebitda, key=lambda r: (_period_rank(r.get("period", "")), r.get("label", "")))
+    ebitda_labels = list(dict.fromkeys(r.get("label", "") for r in ebitda_sorted))
+    ebitda_periods = list(dict.fromkeys(r.get("period", "") for r in ebitda_sorted))
+    ebitda_lookup: dict[tuple, dict] = {
+        (r.get("period", ""), r.get("label", "")): r for r in ebitda_sorted
+    }
+    ebitda_rows = []
+    for period in ebitda_periods:
+        row = [period]
+        for label in ebitda_labels:
+            rec = ebitda_lookup.get((period, label))
+            if rec:
+                dollars = rec.get("ebitda_dollars", "")
+                margin  = rec.get("ebitda_margin_pct")
+                cell    = f"{dollars}" + (f" ({margin})" if margin else "")
+            else:
+                cell = "—"
+            row.append(cell)
+        ebitda_rows.append(row)
+    tbl_ebitda = _md_table(["Period"] + [lbl[:35] for lbl in ebitda_labels], ebitda_rows)
+    # Margin-only sub-table
+    ebitda_margin_rows = []
+    for period in ebitda_periods:
+        row = [period]
+        for label in ebitda_labels:
+            rec = ebitda_lookup.get((period, label))
+            row.append(rec.get("ebitda_margin_pct") or "—" if rec else "—")
+        ebitda_margin_rows.append(row)
+    tbl_ebitda_margin = _md_table(["Period"] + [lbl[:35] for lbl in ebitda_labels], ebitda_margin_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 4 — Revenue by segment
+    # ══════════════════════════════════════════════════════════════════════
+    seg_rows = [[
+        r.get("segment", ""), r.get("revenue_dollars", ""), r.get("revenue_pct") or "—", r.get("period", "")
+    ] for r in rev_by_segment]
+    tbl_segment = _md_table(["Segment / Line", "Revenue ($K)", "% of Total", "Period"], seg_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 5 — Addback quality
+    # ══════════════════════════════════════════════════════════════════════
+    ab_rows = [[
+        a.get("description", "")[:60],
+        a.get("amount_stated", ""),
+        a.get("period", ""),
+        a.get("supporting_doc_referenced", "not referenced"),
+    ] for a in addbacks]
+    tbl_addbacks = _md_table(["Addback Item", "Amount ($K)", "Period", "Supporting Doc"], ab_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 6 — Budget vs. actual variance
+    # ══════════════════════════════════════════════════════════════════════
+    bva_rows = []
+    for item in budget_vs_actual:
+        budget_num = _parse_numeric(item.get("budget_stated"))
+        actual_num = _parse_numeric(item.get("actual_stated"))
+        if budget_num and actual_num:
+            var_abs = round(actual_num - budget_num, 0)
+            var_pct = round((actual_num - budget_num) / abs(budget_num) * 100, 1) if budget_num else None
+            var_str = f"{'+' if var_abs >= 0 else ''}{int(var_abs)}"
+            var_pct_str = f"{'+' if (var_pct or 0) >= 0 else ''}{var_pct}%" if var_pct is not None else "—"
+        else:
+            var_str = var_pct_str = "—"
+        bva_rows.append([
+            item.get("period", ""), item.get("metric", ""),
+            item.get("budget_stated", ""), item.get("actual_stated", ""),
+            var_str, var_pct_str,
+        ])
+    tbl_bva = _md_table(["Period", "Metric", "Budget", "Actual", "Variance $", "Variance %"], bva_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 7 — Flags summary
+    # ══════════════════════════════════════════════════════════════════════
+    flag_rows = [[
+        {"Red": "🔴", "Yellow": "🟡", "Green": "🟢"}.get(f.get("severity", ""), "⚪") + " " + f.get("severity", ""),
+        f.get("metric", ""),
+        f.get("value", ""),
+        f.get("threshold", ""),
+    ] for f in flags]
+    tbl_flags = _md_table(["Severity", "Metric", "Value", "Threshold"], flag_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Assemble data summary passed to the LLM for narrative generation
+    # ══════════════════════════════════════════════════════════════════════
+    data_summary = f"""
+COMPANY: {company_name}
+INDUSTRY OVERLAY: {overlay}
+EXECUTIVE SUMMARY: {exec_summary}
+ADDBACK % OF EBITDA: {f"{addback_pct}%" if addback_pct is not None else "not computed"}
+
+REVENUE TREND TABLE:
+{tbl_revenue}
+
+GROSS MARGIN TABLE:
+{tbl_gm}
+
+EBITDA MULTI-VERSION TABLE (dollars + margin %):
+{tbl_ebitda}
+
+EBITDA MARGIN % TABLE:
+{tbl_ebitda_margin}
+
+REVENUE BY SEGMENT TABLE:
+{tbl_segment}
+
+ADDBACK SCHEDULE TABLE:
+{tbl_addbacks}
+
+BUDGET VS. ACTUAL TABLE:
+{tbl_bva}
+
+COST STRUCTURE:
+{json.dumps(cost_structure, indent=2)}
+
+WORKING CAPITAL:
+{json.dumps(working_capital, indent=2)}
+
+DISCREPANCIES:
+{json.dumps(discrepancies, indent=2)}
+
+INVESTMENT FLAGS:
+{json.dumps(flags, indent=2)}
+
+DATA ROOM GAPS:
+{chr(10).join("- " + g for g in data_room_gaps) if data_room_gaps else "None"}
+""".strip()
+
+    # ══════════════════════════════════════════════════════════════════════
+    # LLM call — financial story narrative
+    # ══════════════════════════════════════════════════════════════════════
+    _ASSESS_SYS = """\
+You are a senior PE investment analyst writing a financial story assessment section
+of an internal diligence memo. Your task is to synthesize the structured financial
+data provided and answer 12 specific questions about whether the financial story is
+improving, deteriorating, or being distorted by mix, timing, addbacks, or accounting.
+
+Rules:
+1. Write only what the data supports. Do not invent facts.
+2. If a section cannot be assessed because data is missing, write one sentence
+   explaining what is missing and why it matters.
+3. Use concrete numbers from the tables when making observations.
+4. Be direct and use PE language (e.g. "compressed", "diluted", "held back by",
+   "inflated by addbacks", "ahead of revenue growth", "operating leverage not yet
+   visible", "not achievable without acceleration").
+5. Return your response as pure markdown only — no preamble, no code fences.
+6. Structure your response with exactly these 12 section headers (H3):
+   ### 1. Revenue Growth
+   ### 2. Gross Margin Expansion or Compression
+   ### 3. EBITDA Margin Trends
+   ### 4. Contribution Margin by Dimension
+   ### 5. Revenue Bridge (Price / Volume / Mix / New Logos / Churn / Expansion)
+   ### 6. Cost Structure and Operating Leverage
+   ### 7. Addback Quality and Recurrence
+   ### 8. Seasonality and Timing Effects
+   ### 9. Working Capital Trends
+   ### 10. Cash Conversion and EBITDA-to-Cash Flow Bridge
+   ### 11. Budget vs. Actual Performance
+   ### 12. Forecast Achievability vs. Historical Run-Rate
+7. For each section use at most 4 bullet points followed by a 1–2 sentence
+   "**Analyst take:**" line that states the signal and what it means for underwriting.
+"""
+
+    _ASSESS_USER = f"""\
+Use the financial data below to answer all 12 assessment questions.
+Write the markdown narrative only — no extra commentary.
+
+{data_summary}
+"""
+
+    import mlflow.deployments
+    _client = mlflow.deployments.get_deploy_client("databricks")
+    _response = _client.predict(
+        endpoint=llm_endpoint,
+        inputs={
+            "messages": [
+                {"role": "system", "content": _ASSESS_SYS},
+                {"role": "user",   "content": _ASSESS_USER},
+            ],
+            "max_tokens": 4000,
+            "temperature": 0.1,
+        },
+    )
+    narrative = _response["choices"][0]["message"]["content"].strip()
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Assemble final markdown
+    # ══════════════════════════════════════════════════════════════════════
+    flag_severity_order = {"Red": 0, "Yellow": 1, "Green": 2}
+    flags_sorted = sorted(flags, key=lambda f: flag_severity_order.get(f.get("severity", ""), 3))
+
+    md_parts: list[str] = []
+
+    md_parts.append(f"# {company_name} — Financial Story Assessment")
+    md_parts.append(f"**Generated:** {generated_at}  \n**Industry Overlay:** {overlay}\n")
+
+    if exec_summary:
+        md_parts.append(f"> {exec_summary}\n")
+
+    md_parts.append("---\n")
+
+    # ── Investment flags quick-reference ──────────────────────────────────
+    if flags_sorted:
+        md_parts.append("## Investment Flags\n")
+        md_parts.append(tbl_flags)
+        md_parts.append("")
+
+    # ── Supporting data tables ─────────────────────────────────────────────
+    md_parts.append("---\n")
+    md_parts.append("## Supporting Data\n")
+
+    md_parts.append("### Revenue Trend\n")
+    md_parts.append(tbl_revenue)
+
+    md_parts.append("### Gross Margin\n")
+    md_parts.append(tbl_gm)
+
+    md_parts.append("### EBITDA — All Named Versions\n")
+    md_parts.append("> Cells show `dollars (margin %)` where available.\n")
+    md_parts.append(tbl_ebitda)
+
+    md_parts.append("### EBITDA Margin % by Version\n")
+    md_parts.append(tbl_ebitda_margin)
+
+    if rev_by_segment:
+        md_parts.append("### Revenue by Segment / Geography\n")
+        md_parts.append(tbl_segment)
+
+    if addbacks:
+        md_parts.append(f"### Addback Schedule  _(Addback % of Reported EBITDA: {f'{addback_pct}%' if addback_pct is not None else 'n/a'})_\n")
+        md_parts.append(tbl_addbacks)
+
+    if budget_vs_actual:
+        md_parts.append("### Budget vs. Actual\n")
+        md_parts.append(tbl_bva)
+
+    if working_capital.get("dso_days") or working_capital.get("dpo_days") or working_capital.get("ar_aging_note"):
+        md_parts.append("### Working Capital\n")
+        wc_rows = [
+            ["DSO (days)", working_capital.get("dso_days") or "n/a"],
+            ["DPO (days)", working_capital.get("dpo_days") or "n/a"],
+            ["AR Aging Note", working_capital.get("ar_aging_note") or "n/a"],
+        ]
+        md_parts.append(_md_table(["Metric", "Value"], wc_rows))
+
+    if cost_structure.get("headcount_pct_of_revenue") or cost_structure.get("fixed_vs_variable_note"):
+        md_parts.append("### Cost Structure\n")
+        cs_rows = [
+            ["Headcount % of Revenue", cost_structure.get("headcount_pct_of_revenue") or "n/a"],
+            ["Fixed vs. Variable", cost_structure.get("fixed_vs_variable_note") or "n/a"],
+            ["Key Categories", ", ".join(cost_structure.get("key_categories") or []) or "n/a"],
+        ]
+        md_parts.append(_md_table(["Item", "Detail"], cs_rows))
+
+    if discrepancies:
+        md_parts.append("### Discrepancies Found\n")
+        disc_rows = [[d.get("metric", ""), " vs ".join(d.get("conflicting_values") or []), d.get("note", "")] for d in discrepancies]
+        md_parts.append(_md_table(["Metric", "Conflicting Values", "Note"], disc_rows))
+
+    # ── LLM narrative ─────────────────────────────────────────────────────
+    md_parts.append("---\n")
+    md_parts.append("## Financial Story Assessment\n")
+    md_parts.append(narrative)
+    md_parts.append("")
+
+    # ── Data room gaps ─────────────────────────────────────────────────────
+    if data_room_gaps:
+        md_parts.append("---\n")
+        md_parts.append("## Data Room Gaps\n")
+        for gap in data_room_gaps:
+            md_parts.append(f"- {gap}")
+        md_parts.append("")
+
+    final_markdown = "\n".join(md_parts)
+
+    # ── Optional volume write ──────────────────────────────────────────────
+    if write_to_volume:
+        spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
+        safe_name = company_name.replace(" ", "_").replace("/", "_")
+        dir_path  = f"/Volumes/{catalog}/analysis/reports/{safe_name}"
+        os.makedirs(dir_path, exist_ok=True)
+        file_path = f"{dir_path}/financial_assessment.md"
+        with open(file_path, "w", encoding="utf-8") as fh:
+            fh.write(final_markdown)
+        print(f"✓ Financial assessment → {file_path}")
+
+    return final_markdown
+
+
 def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
     """Write a clean, human-readable YAML report to a UC Volume.
 
