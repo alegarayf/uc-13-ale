@@ -85,7 +85,7 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
                     {"role": "system", "content": system_prompt},
                     {"role": "user",   "content": user_prompt},
                 ],
-                "max_tokens": 8000,
+                "max_tokens": 6000,
                 "temperature": 0.0,  # deterministic extraction
             },
         )
