@@ -1224,6 +1224,34 @@ def main() -> dict:
     # ── Save to Delta ─────────────────────────────────────────────────
     table = f"{catalog}.analysis.business_model"
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
+
+    # Schema migration guard: compare live column names against the expected set.
+    # When they diverge (schema was updated), DROP and recreate so the new columns
+    # are picked up cleanly. All prior rows are lost on a migration — intentional
+    # in development. Production deployments should use ALTER TABLE instead.
+    _EXPECTED_COLS = {
+        "company_name", "cim_detected", "executive_summary",
+        "revenue_model_tag", "revenue_model_pct_split", "revenue_model_note",
+        "revenue_durability_flag", "flag_confidence", "flag_rule_applied",
+        "products_services_json", "customer_profile_json",
+        "sales_motion_tag", "sales_motion_json", "revenue_visibility_json",
+        "key_dependencies_json", "recent_model_changes_json",
+        "overlay_conflict", "overlay_conflict_note", "overlay_conflict_evidence",
+        "data_room_gaps", "citations", "reasoning_trace",
+        "flags", "report_path", "created_at",
+    }
+    try:
+        _live_cols = {f.name for f in spark.table(table).schema.fields}
+        if not _EXPECTED_COLS.issubset(_live_cols):
+            _missing = _EXPECTED_COLS - _live_cols
+            print(
+                f"  [schema_migration] {table} has stale schema — dropping and "
+                f"recreating. Missing columns: {sorted(_missing)}"
+            )
+            spark.sql(f"DROP TABLE IF EXISTS {table}")
+    except Exception:
+        pass  # Table doesn't exist yet — CREATE below handles it.
+
     spark.sql(_CREATE_TABLE_SQL.format(table=table))
     spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
