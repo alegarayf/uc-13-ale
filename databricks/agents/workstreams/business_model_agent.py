@@ -1168,6 +1168,403 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Business model assessment report (rich markdown with LLM narrative)
+# ---------------------------------------------------------------------------
+
+def generate_business_model_assessment(
+    result: dict,
+    spark,
+    llm_endpoint: str,
+    catalog: str = "uc13",
+    write_to_volume: bool = True,
+) -> str:
+    """Generate a structured markdown business model assessment from agent output.
+
+    Builds deterministic tables (products/services, customer profile, sales motion,
+    revenue visibility, key dependencies, recent changes) then makes a single LLM
+    call to write narrative for each section.
+
+    Args:
+        result:          Output dict from BusinessModelAgent.run() or bma.main().
+        spark:           Active SparkSession (needed only when write_to_volume=True).
+        llm_endpoint:    Databricks model-serving endpoint name.
+        catalog:         UC catalog for volume write (default 'uc13').
+        write_to_volume: If True, also writes the markdown to the reports volume.
+
+    Returns:
+        Markdown string.
+    """
+    import mlflow.deployments
+
+    company_name   = result.get("company_name", "Company")
+    generated_at   = result.get("created_at", "")
+    cim_detected   = result.get("cim_detected", False)
+    exec_summary   = result.get("executive_summary") or ""
+    rm_tag         = result.get("revenue_model_tag") or ""
+    rm_split       = result.get("revenue_model_pct_split") or ""
+    rm_note        = result.get("revenue_model_note") or ""
+    rm_flag        = result.get("revenue_durability_flag") or ""
+    rm_flag_rule   = result.get("flag_rule_applied") or ""
+    sm_tag         = result.get("sales_motion_tag") or ""
+    flags          = result.get("flags") or []
+    data_room_gaps = result.get("data_room_gaps") or []
+
+    products        = json.loads(result.get("products_services_json")    or "[]")
+    cp              = json.loads(result.get("customer_profile_json")     or "{}")
+    sm              = json.loads(result.get("sales_motion_json")         or "{}")
+    rv              = json.loads(result.get("revenue_visibility_json")   or "{}")
+    key_deps        = json.loads(result.get("key_dependencies_json")     or "[]")
+    model_changes   = json.loads(result.get("recent_model_changes_json") or "[]")
+
+    # ── Helper: markdown table ─────────────────────────────────────────────
+    def _md_table(headers: list[str], rows: list[list]) -> str:
+        if not rows:
+            return "_No data extracted._\n"
+        col_w = [
+            max(len(str(h)), max((len(str(r[i] if i < len(r) else "")) for r in rows), default=0))
+            for i, h in enumerate(headers)
+        ]
+        sep  = "| " + " | ".join("-" * w for w in col_w) + " |"
+        head = "| " + " | ".join(str(h).ljust(col_w[i]) for i, h in enumerate(headers)) + " |"
+        body = "\n".join(
+            "| " + " | ".join(str(r[i] if i < len(r) else "").ljust(col_w[i]) for i in range(len(headers))) + " |"
+            for r in rows
+        )
+        return "\n".join([head, sep, body]) + "\n"
+
+    # ── Helper: severity emoji ─────────────────────────────────────────────
+    def _flag_emoji(severity: str) -> str:
+        return {"Red": "🔴", "Yellow": "🟡", "Green": "🟢"}.get(severity, "⚪")
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 1 — Products & Services (margin by offering)
+    # ══════════════════════════════════════════════════════════════════════
+    ps_rows = []
+    for p in products:
+        ps_rows.append([
+            p.get("name") or "—",
+            p.get("revenue_pct") or "—",
+            p.get("gm_pct_stated") or "—",
+            p.get("avg_price_or_rate") or "—",
+            (p.get("gm_pct_note") or "")[:60],
+        ])
+    tbl_products = _md_table(
+        ["Offering", "Rev %", "GM %", "Avg Price / Rate", "Margin Note"],
+        ps_rows,
+    )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 2 — Revenue visibility
+    # ══════════════════════════════════════════════════════════════════════
+    rv_rows = []
+    rv_field_labels = {
+        "contracted_pct_of_forward_12mo": "Contracted % (fwd 12mo)",
+        "backlog_coverage_months":         "Backlog (months)",
+        "backlog_dollars":                 "Backlog ($)",
+        "pipeline_description":            "Pipeline",
+        "renewal_cadence_note":            "Renewal / Retention",
+        "msa_sow_coverage_note":           "MSA / SOW Coverage",
+        "recurring_revenue_proxy":         "Recurring Proxy",
+    }
+    for field, label in rv_field_labels.items():
+        val = rv.get(field)
+        if val:
+            rv_rows.append([label, str(val)[:120]])
+    tbl_visibility = _md_table(["Signal", "Detail"], rv_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 3 — Key dependencies
+    # ══════════════════════════════════════════════════════════════════════
+    dep_rows = []
+    for d in key_deps:
+        risk = "⚠ Yes" if str(d.get("concentration_risk")).lower() == "true" else "—"
+        dep_rows.append([
+            d.get("dependency_type") or "—",
+            d.get("name") or "—",
+            (d.get("description") or "")[:80],
+            risk,
+        ])
+    tbl_deps = _md_table(["Type", "Name", "Description", "Conc. Risk"], dep_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 4 — Recent model changes
+    # ══════════════════════════════════════════════════════════════════════
+    chg_rows = []
+    for c in model_changes:
+        chg_rows.append([
+            c.get("change_type") or "—",
+            c.get("approximate_date") or "—",
+            (c.get("description") or "")[:90],
+        ])
+    tbl_changes = _md_table(["Type", "Date", "Description"], chg_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE 5 — Flags summary
+    # ══════════════════════════════════════════════════════════════════════
+    flag_rows = [
+        [
+            _flag_emoji(f.get("severity", "")) + " " + f.get("severity", ""),
+            f.get("metric", ""),
+            f.get("value", "")[:60],
+            f.get("threshold", "")[:60],
+        ]
+        for f in flags
+    ]
+    tbl_flags = _md_table(["Severity", "Metric", "Value", "Threshold"], flag_rows)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Customer profile sub-sections
+    # ══════════════════════════════════════════════════════════════════════
+    ov_specific = cp.get("overlay_specific") or {}
+    hc          = ov_specific.get("healthcare") or {}
+    tech        = ov_specific.get("tech_services") or {}
+    saas        = ov_specific.get("b2b_saas") or {}
+
+    ref_rows = [
+        [r.get("source_type") or "—", r.get("pct_of_volume_or_profit") or "—", r.get("period") or "—"]
+        for r in (hc.get("referral_source_breakdown") or [])
+    ]
+    tbl_referrals = _md_table(["Referral Source", "% of Volume / Profit", "Period"], ref_rows) if ref_rows else ""
+
+    payor_rows = [
+        [p.get("payor_type") or "—", p.get("pct_of_revenue") or "—"]
+        for p in (hc.get("payor_mix") or [])
+    ]
+    tbl_payor = _md_table(["Payor Type", "% of Revenue"], payor_rows) if payor_rows else ""
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Assemble data context passed to the LLM for narrative
+    # ══════════════════════════════════════════════════════════════════════
+    tenure = cp.get("client_tenure") or {}
+
+    data_summary = f"""
+COMPANY: {company_name}
+CIM DETECTED: {cim_detected}
+EXECUTIVE SUMMARY: {exec_summary}
+
+REVENUE MODEL:
+  Tag: {rm_tag}
+  Pct Split: {rm_split or 'not stated'}
+  Note: {rm_note}
+  Durability Flag: {rm_flag} — {rm_flag_rule}
+
+SALES MOTION:
+  Tag: {sm_tag}
+  Description: {sm.get('description') or 'not stated'}
+  Key Roles: {sm.get('key_roles') or []}
+  Process Note: {sm.get('process_note') or 'not stated'}
+  Compensation: {sm.get('compensation_model') or 'not stated'}
+
+CUSTOMER PROFILE:
+  Segments: {cp.get('segments_description') or 'not stated'}
+  End Markets: {cp.get('end_markets') or []}
+  Geographic Concentration: {cp.get('geographic_concentration') or 'not stated'}
+  Client Tenure: {tenure.get('avg_tenure_stated') or 'not stated'} — {tenure.get('tenure_distribution_note') or ''}
+  Customer Size Mix (tech): {tech.get('customer_size_mix') or 'n/a'}
+  Vertical Concentration (tech): {tech.get('vertical_concentration') or 'n/a'}
+  ICP (SaaS): {saas.get('icp_description') or 'n/a'}
+
+PRODUCTS & SERVICES TABLE:
+{tbl_products}
+
+REVENUE VISIBILITY TABLE:
+{tbl_visibility}
+
+KEY DEPENDENCIES TABLE:
+{tbl_deps}
+
+RECENT MODEL CHANGES TABLE:
+{tbl_changes}
+
+{"REFERRAL SOURCE BREAKDOWN:" + chr(10) + tbl_referrals if tbl_referrals else ""}
+{"PAYOR MIX:" + chr(10) + tbl_payor if tbl_payor else ""}
+
+OVERLAY CONFLICT: {result.get("overlay_conflict", False)}
+{"CONFLICT NOTE: " + result.get("overlay_conflict_note", "") if result.get("overlay_conflict") else ""}
+
+INVESTMENT FLAGS:
+{json.dumps(flags, indent=2)}
+
+DATA ROOM GAPS:
+{chr(10).join("- " + g for g in data_room_gaps) if data_room_gaps else "None"}
+""".strip()
+
+    # ══════════════════════════════════════════════════════════════════════
+    # LLM call — business model narrative
+    # ══════════════════════════════════════════════════════════════════════
+    _ASSESS_SYS = """\
+You are a senior PE investment analyst writing the Business Model section of an
+internal diligence memo. Use the structured data provided to answer 7 specific
+questions about the company's revenue model, go-to-market, customer profile,
+revenue visibility, key risks, and recent changes.
+
+Rules:
+1. Write only what the data supports. Do not invent facts.
+2. If a section cannot be assessed because data is missing, write one sentence
+   explaining what is missing and why it matters for underwriting.
+3. Use concrete details from the tables (names, percentages, dates).
+4. Be direct and use PE language (e.g. "referral-dependent", "low contractual
+   visibility", "single-vendor dependency", "model in transition").
+5. Return pure markdown only — no preamble, no code fences.
+6. Structure your response with exactly these 7 section headers (H3):
+   ### 1. Revenue Model & Durability
+   ### 2. Products, Services & Margin Profile
+   ### 3. Customer Profile & Acquisition
+   ### 4. Sales Motion & Go-to-Market
+   ### 5. Revenue Visibility & Forward Signals
+   ### 6. Key Dependencies & Concentration Risks
+   ### 7. Recent Business Model Changes & Trajectory
+7. For each section use at most 4 bullet points followed by a 1–2 sentence
+   "**Analyst take:**" line that states the signal and what it means for underwriting.
+"""
+
+    _ASSESS_USER = f"""\
+Use the business model data below to answer all 7 assessment questions.
+Write the markdown narrative only — no extra commentary.
+
+{data_summary}
+"""
+
+    _client   = mlflow.deployments.get_deploy_client("databricks")
+    _response = _client.predict(
+        endpoint=llm_endpoint,
+        inputs={
+            "messages": [
+                {"role": "system", "content": _ASSESS_SYS},
+                {"role": "user",   "content": _ASSESS_USER},
+            ],
+            "max_tokens": 3000,
+            "temperature": 0.1,
+        },
+    )
+    narrative = _response["choices"][0]["message"]["content"].strip()
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Assemble final markdown
+    # ══════════════════════════════════════════════════════════════════════
+    flag_order = {"Red": 0, "Yellow": 1, "Green": 2}
+    flags_sorted = sorted(flags, key=lambda f: flag_order.get(f.get("severity", ""), 3))
+
+    md: list[str] = []
+
+    md.append(f"# {company_name} — Business Model Assessment")
+    md.append(
+        f"**Generated:** {generated_at}  \n"
+        f"**CIM / Banker Document Detected:** {'Yes' if cim_detected else 'No — non-banked deal; confidence reduced'}\n"
+    )
+
+    if exec_summary:
+        md.append(f"> {exec_summary}\n")
+
+    md.append("---\n")
+
+    # ── Investment flags quick-reference ──────────────────────────────────
+    if flags_sorted:
+        md.append("## Investment Flags\n")
+        md.append(tbl_flags)
+        md.append("")
+
+    # ── Supporting data tables ─────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Supporting Data\n")
+
+    md.append("### Revenue Model\n")
+    md.append(_md_table(
+        ["Field", "Value"],
+        [
+            ["Tag",              rm_tag or "—"],
+            ["Pct Split",        rm_split or "not stated"],
+            ["Note",             (rm_note or "—")[:120]],
+            ["Durability Flag",  f"{_flag_emoji(rm_flag)} {rm_flag}"],
+            ["Flag Rule",        (rm_flag_rule or "—")[:100]],
+        ],
+    ))
+
+    md.append("### Products & Services\n")
+    md.append(tbl_products)
+
+    md.append("### Sales Motion\n")
+    md.append(_md_table(
+        ["Field", "Detail"],
+        [
+            ["Tag",           sm_tag or "—"],
+            ["Description",   (sm.get("description") or "—")[:120]],
+            ["Key Roles",     ", ".join(sm.get("key_roles") or []) or "—"],
+            ["Process Note",  (sm.get("process_note") or "—")[:120]],
+            ["Compensation",  sm.get("compensation_model") or "—"],
+        ],
+    ))
+
+    md.append("### Revenue Visibility\n")
+    md.append(tbl_visibility)
+
+    md.append("### Customer Profile\n")
+    cp_rows = [
+        ["Segments",              (cp.get("segments_description") or "—")[:120]],
+        ["End Markets",           ", ".join(cp.get("end_markets") or []) or "—"],
+        ["Geographic Conc.",      (cp.get("geographic_concentration") or "—")[:120]],
+        ["Avg Client Tenure",     tenure.get("avg_tenure_stated") or "—"],
+        ["Tenure Distribution",   (tenure.get("tenure_distribution_note") or "—")[:100]],
+    ]
+    if tech.get("customer_size_mix"):
+        cp_rows.append(["Customer Size Mix (tech)", tech["customer_size_mix"][:100]])
+    if saas.get("icp_description"):
+        cp_rows.append(["ICP (SaaS)", saas["icp_description"][:100]])
+    md.append(_md_table(["Field", "Detail"], cp_rows))
+
+    if tbl_referrals:
+        md.append("### Referral Source Breakdown\n")
+        md.append(tbl_referrals)
+
+    if tbl_payor:
+        md.append("### Payor Mix\n")
+        md.append(tbl_payor)
+
+    if dep_rows:
+        md.append("### Key Dependencies\n")
+        md.append(tbl_deps)
+
+    if chg_rows:
+        md.append("### Recent Model Changes\n")
+        md.append(tbl_changes)
+
+    if result.get("overlay_conflict"):
+        md.append("### Overlay Conflict\n")
+        md.append(f"> ⚠ {result.get('overlay_conflict_note')}\n")
+        if result.get("overlay_conflict_evidence"):
+            md.append(f"\n**Evidence:** {result.get('overlay_conflict_evidence')}\n")
+
+    # ── LLM narrative ─────────────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Business Model Assessment\n")
+    md.append(narrative)
+    md.append("")
+
+    # ── Data room gaps ─────────────────────────────────────────────────────
+    if data_room_gaps:
+        md.append("---\n")
+        md.append("## Data Room Gaps\n")
+        for gap in data_room_gaps:
+            md.append(f"- {gap}")
+        md.append("")
+
+    final_markdown = "\n".join(md)
+
+    # ── Optional volume write ──────────────────────────────────────────────
+    if write_to_volume:
+        spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
+        safe_name = company_name.replace(" ", "_").replace("/", "_")
+        dir_path  = f"/Volumes/{catalog}/analysis/reports/{safe_name}"
+        os.makedirs(dir_path, exist_ok=True)
+        file_path = f"{dir_path}/business_model_assessment.md"
+        with open(file_path, "w", encoding="utf-8") as fh:
+            fh.write(final_markdown)
+        print(f"✓ Business model assessment → {file_path}")
+
+    return final_markdown
+
+
+# ---------------------------------------------------------------------------
 # main()
 # ---------------------------------------------------------------------------
 
