@@ -342,6 +342,63 @@ def _parse_numeric(value_str: Optional[str]) -> Optional[float]:
         return None
 
 
+def _normalize_pct_for_threshold(value: Optional[float]) -> Optional[float]:
+    """Convert decimal-fraction percentages to 0–100 scale before threshold comparison.
+
+    Excel workbooks routinely store percentages as decimal fractions
+    (e.g. 0.4093 meaning 40.93%).  When these values reach the threshold
+    evaluation layer as-is, comparisons like `0.4093 < 30` fire false Red
+    flags.  Heuristic: any value in (0, 1) exclusive is almost certainly a
+    decimal fraction representing a percentage — multiply by 100.
+
+    Values ≥ 1 (e.g. 40.93 already on a 0–100 scale) or ≤ 0 are returned
+    unchanged.  Values exactly equal to 0 or 1 are ambiguous edge cases and
+    are also returned unchanged to avoid inflating true 0% or 100% readings.
+    """
+    if value is None:
+        return None
+    return value * 100 if 0.0 < value < 1.0 else value
+
+
+def _fmt_pct(value_str: Optional[str]) -> str:
+    """Format a percentage value for display, handling decimal fractions.
+
+    '0.4093201323802183' → '40.9%'
+    '42.1%'             → '42.1%'
+    '42.1'              → '42.1%'
+    None / unparseable  → 'n/a'
+    """
+    if value_str is None:
+        return "n/a"
+    num = _parse_numeric(str(value_str))
+    if num is None:
+        return str(value_str)
+    num = _normalize_pct_for_threshold(num)
+    return f"{round(num, 1)}%"
+
+
+def _fmt_dollars(value_str: Optional[str]) -> str:
+    """Format a dollar/number value for display, removing float noise.
+
+    '159.94150000000002' → '159.9'
+    '9,027'             → '9,027'
+    '(342)'             → '(342)'
+    None / unparseable  → 'n/a'
+    """
+    if value_str is None:
+        return "n/a"
+    s = str(value_str).strip()
+    # Already nicely formatted (contains comma or parens)
+    if "," in s or "(" in s:
+        return s
+    num = _parse_numeric(s)
+    if num is None:
+        return s
+    # Drop floating-point noise: show up to 1 decimal place, strip trailing .0
+    formatted = f"{num:,.1f}".rstrip("0").rstrip(".")
+    return formatted
+
+
 def _most_recent_value(records: list[dict], value_key: str) -> tuple[Optional[float], Optional[str], Optional[str]]:
     """Return (numeric_value, stated_string, source_doc) for the most recent period.
 
@@ -746,6 +803,11 @@ class FinancialTrendsAgent:
         # Attempt to find the most recent stated YoY growth %.
         growth_num, growth_str, growth_doc = _most_recent_value(revenue_records, "yoy_growth_pct")
 
+        # Normalize decimal-fraction percentages (Excel stores 0.6917 meaning 69.17%)
+        # before any threshold comparison.  Applied once here; both tech and
+        # healthcare branches read from the same growth_num variable.
+        growth_num = _normalize_pct_for_threshold(growth_num)
+
         if apply_tech:
             tech_growth_num, tech_growth_str, tech_growth_doc = growth_num, growth_str, growth_doc
             if tech_growth_num is None and revenue_records:
@@ -822,6 +884,7 @@ class FinancialTrendsAgent:
         # ── Gross margin ───────────────────────────────────────────────
         gm_records = extracted.get("gross_margin") or []
         gm_num, gm_str, gm_doc = _most_recent_value(gm_records, "gm_pct_stated")
+        gm_num = _normalize_pct_for_threshold(gm_num)
 
         # Fallback: compute from gm_dollars_stated ÷ revenue_stated for the same period.
         if gm_num is None and gm_records and revenue_records:
@@ -892,6 +955,7 @@ class FinancialTrendsAgent:
         ebitda_margin_num, ebitda_margin_str, ebitda_margin_doc = _most_recent_value(
             ebitda_records, "ebitda_margin_pct"
         )
+        ebitda_margin_num = _normalize_pct_for_threshold(ebitda_margin_num)
 
         # Fallback: compute from ebitda_dollars ÷ revenue_stated for the same period.
         if ebitda_margin_num is None and ebitda_records and revenue_records:
@@ -1149,65 +1213,81 @@ class FinancialTrendsAgent:
                     seen_texts.add(chunk.chunk_text)
                     all_chunks.append(chunk)
 
-        # ── Context budget: differentiated truncation by Priority Tier ───
+        # ── Context budget: three-tier truncation strategy ───────────────
         #
-        # Problem: PDF financial table pages are large (3,000–8,000 chars each).
-        # A flat 800-char truncation cuts off the EBITDA rows that sit at the
-        # bottom of a typical P&L table, causing "reported EBITDA not found" gaps.
+        # Root cause of wrong-source extraction: Excel model sheets are Priority
+        # Tier 1 (financial documents) and consume the entire context budget,
+        # crowding out the CIM PDF that contains the definitive historical P&L.
         #
-        # Solution: differentiated per-chunk limit based on Priority Tier.
-        #   - Priority Tier 1 chunks (the actual P&L/CIM pages with tables):
-        #     2,500 chars — enough to capture a full 20-row P&L including all
-        #     named EBITDA lines, Gross Profit, and their subordinate Margin rows.
-        #   - All other chunks (narrative, supporting docs, addback detail pages):
-        #     600 chars — contextual signal only; table rows don't apply here.
+        # Three tiers — evaluated in order, each filling before the next:
         #
-        # Budget arithmetic (worst case: 10 PT + 40 other chunks):
-        #   10 × 2,500 = 25,000  +  40 × 600 = 24,000  →  ~49,000 chars total
-        # Hard cap at 42,000 chars (≈10,500 input tokens) prevents timeout on
-        # clusters with slower Llama 70B throughput.  PT chunks are added first
-        # so they are never the ones excluded if the cap is hit.
-        _PT_CHUNK_CHARS    = 2_500   # Priority Tier 1: full P&L table coverage
-        _OTHER_CHUNK_CHARS = 600     # Other chunks: contextual signal only
-        _MAX_CONTEXT_CHARS = 42_000  # hard total cap (≈10,500 input tokens)
+        #   Tier A — CIM documents (2,500 chars):
+        #     Any chunk from a file whose name contains "CIM".  These are the
+        #     banker-prepared Confidential Information Memoranda containing the
+        #     authoritative multi-year P&L summary (e.g. p.49 Historical P&L).
+        #     Always included first regardless of assigned priority_tier.
+        #
+        #   Tier B — Priority Tier 1, non-CIM (1,500 chars):
+        #     Excel models, QofE reports, audited financials.  Important but
+        #     typically cover a single period or geographic slice; shorter limit
+        #     is sufficient for extracting that slice's key metrics.
+        #
+        #   Tier C — All other chunks (500 chars):
+        #     Narrative context, supporting appendices, addback detail pages.
+        #     Short excerpts are enough for contextual signal.
+        #
+        # Total cap raised to 50,000 chars (≈12,500 input tokens).  With 6,000
+        # max output tokens → ~18,500 total tokens → ~4–5 min on Llama 70B.
 
-        _pt_chunks    = [c for c in all_chunks if getattr(c, "priority_tier", None) == 1]
-        _other_chunks = [c for c in all_chunks if getattr(c, "priority_tier", None) != 1]
+        _CIM_CHUNK_CHARS   = 2_500   # Tier A: full CIM P&L table coverage
+        _PT_CHUNK_CHARS    = 1_500   # Tier B: PT1 non-CIM (single-period models)
+        _OTHER_CHUNK_CHARS = 500     # Tier C: narrative / supporting context
+        _MAX_CONTEXT_CHARS = 50_000
+
+        def _chunk_tier(c) -> int:
+            """0 = CIM, 1 = PT1 non-CIM, 2 = other."""
+            if "CIM" in (getattr(c, "file_name", "") or "").upper():
+                return 0
+            if getattr(c, "priority_tier", None) == 1:
+                return 1
+            return 2
+
+        _tier_limit = {0: _CIM_CHUNK_CHARS, 1: _PT_CHUNK_CHARS, 2: _OTHER_CHUNK_CHARS}
+        _sorted_chunks = sorted(all_chunks, key=_chunk_tier)
 
         _context_parts: list[str] = []
         _truncated_count = 0
         _excluded_count  = 0
         _total_chars     = 0
+        _tier_counts     = {0: 0, 1: 0, 2: 0}
 
-        for _c, _limit in (
-            [(c, _PT_CHUNK_CHARS)    for c in _pt_chunks] +
-            [(c, _OTHER_CHUNK_CHARS) for c in _other_chunks]
-        ):
-            _raw = _c.chunk_text
+        for _c in _sorted_chunks:
+            _tier  = _chunk_tier(_c)
+            _limit = _tier_limit[_tier]
+            _raw   = _c.chunk_text
             _was_truncated = len(_raw) > _limit
-            _text = _raw[:_limit] + (" …[truncated]" if _was_truncated else "")
-            _part = f"[File: {_c.file_name}] [Section: {_c.section_header}]\n{_text}"
+            _text  = _raw[:_limit] + (" …[truncated]" if _was_truncated else "")
+            _part  = f"[File: {_c.file_name}] [Section: {_c.section_header}]\n{_text}"
             if _total_chars + len(_part) + 8 > _MAX_CONTEXT_CHARS:
                 _excluded_count += 1
                 continue
             _context_parts.append(_part)
             _total_chars += len(_part) + 8
+            _tier_counts[_tier] += 1
             if _was_truncated:
                 _truncated_count += 1
 
-        _pt_included = sum(1 for c in _pt_chunks
-                          if any(f"[File: {c.file_name}]" in p for p in _context_parts))
-        print(f"  [context_budget] {len(_context_parts)} chunks included "
-              f"({_pt_included} Priority Tier @ {_PT_CHUNK_CHARS} chars, "
-              f"{len(_context_parts) - _pt_included} other @ {_OTHER_CHUNK_CHARS} chars) "
+        print(f"  [context_budget] {len(_context_parts)}/{len(all_chunks)} chunks included "
+              f"| CIM={_tier_counts[0]}@{_CIM_CHUNK_CHARS}c "
+              f"PT1={_tier_counts[1]}@{_PT_CHUNK_CHARS}c "
+              f"other={_tier_counts[2]}@{_OTHER_CHUNK_CHARS}c "
               f"| total={_total_chars:,} chars"
               + (f" | {_truncated_count} truncated" if _truncated_count else "")
               + (f" | {_excluded_count} excluded" if _excluded_count else ""))
         if _excluded_count:
             self._add_gap(
                 f"Context budget: {_excluded_count} of {len(all_chunks)} chunks excluded "
-                f"after truncation (total cap={_MAX_CONTEXT_CHARS:,} chars). "
-                f"Priority Tier chunks were retained first."
+                f"(cap={_MAX_CONTEXT_CHARS:,} chars). CIM → PT1 → other priority order applied."
             )
 
         combined_chunk_text = "\n\n---\n\n".join(_context_parts)
@@ -1436,8 +1516,8 @@ def generate_financial_assessment(
         rev_rows.append([
             r.get("period", ""),
             r.get("label", ""),
-            r.get("revenue_stated", ""),
-            r.get("yoy_growth_pct") or "n/a",
+            _fmt_dollars(r.get("revenue_stated")),
+            _fmt_pct(r.get("yoy_growth_pct")) if r.get("yoy_growth_pct") else "n/a",
         ])
     tbl_revenue = _md_table(["Period", "Revenue Line", "Revenue ($K)", "YoY Growth %"], rev_rows)
 
@@ -1448,16 +1528,20 @@ def generate_financial_assessment(
     gm_rows = []
     prev_gm_pct = None
     for r in gm_sorted:
-        pct   = r.get("gm_pct_stated")
-        delta = _arrow(pct, prev_gm_pct) if prev_gm_pct is not None else ""
+        pct_raw = r.get("gm_pct_stated")
+        pct_fmt = _fmt_pct(pct_raw) if pct_raw else "n/a"
+        delta   = _arrow(
+            _normalize_pct_for_threshold(_parse_numeric(str(pct_raw))) if pct_raw else None,
+            _normalize_pct_for_threshold(_parse_numeric(str(prev_gm_pct))) if prev_gm_pct else None,
+        ) if prev_gm_pct is not None else ""
         gm_rows.append([
             r.get("period", ""),
             r.get("label", ""),
-            r.get("gm_dollars_stated", ""),
-            pct or "n/a",
+            _fmt_dollars(r.get("gm_dollars_stated")),
+            pct_fmt,
             delta or "—",
         ])
-        prev_gm_pct = pct
+        prev_gm_pct = pct_raw
     tbl_gm = _md_table(["Period", "Label", "GP ($K)", "GM %", "ΔMargin (pp)"], gm_rows)
 
     # ══════════════════════════════════════════════════════════════════════
@@ -1476,9 +1560,9 @@ def generate_financial_assessment(
         for label in ebitda_labels:
             rec = ebitda_lookup.get((period, label))
             if rec:
-                dollars = rec.get("ebitda_dollars", "")
+                dollars = _fmt_dollars(rec.get("ebitda_dollars"))
                 margin  = rec.get("ebitda_margin_pct")
-                cell    = f"{dollars}" + (f" ({margin})" if margin else "")
+                cell    = dollars + (f" ({_fmt_pct(margin)})" if margin else "")
             else:
                 cell = "—"
             row.append(cell)
@@ -1490,7 +1574,7 @@ def generate_financial_assessment(
         row = [period]
         for label in ebitda_labels:
             rec = ebitda_lookup.get((period, label))
-            row.append(rec.get("ebitda_margin_pct") or "—" if rec else "—")
+            row.append(_fmt_pct(rec.get("ebitda_margin_pct")) if rec and rec.get("ebitda_margin_pct") else "—")
         ebitda_margin_rows.append(row)
     tbl_ebitda_margin = _md_table(["Period"] + [lbl[:35] for lbl in ebitda_labels], ebitda_margin_rows)
 
@@ -1498,7 +1582,10 @@ def generate_financial_assessment(
     # TABLE 4 — Revenue by segment
     # ══════════════════════════════════════════════════════════════════════
     seg_rows = [[
-        r.get("segment", ""), r.get("revenue_dollars", ""), r.get("revenue_pct") or "—", r.get("period", "")
+        r.get("segment", ""),
+        _fmt_dollars(r.get("revenue_dollars")),
+        _fmt_pct(r.get("revenue_pct")) if r.get("revenue_pct") else "—",
+        r.get("period", ""),
     ] for r in rev_by_segment]
     tbl_segment = _md_table(["Segment / Line", "Revenue ($K)", "% of Total", "Period"], seg_rows)
 
@@ -1507,7 +1594,7 @@ def generate_financial_assessment(
     # ══════════════════════════════════════════════════════════════════════
     ab_rows = [[
         a.get("description", "")[:60],
-        a.get("amount_stated", ""),
+        _fmt_dollars(a.get("amount_stated")),
         a.get("period", ""),
         a.get("supporting_doc_referenced", "not referenced"),
     ] for a in addbacks]
