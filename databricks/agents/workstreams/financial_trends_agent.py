@@ -136,135 +136,193 @@ def find_repo_root(marker="agents"):
 
 _SYSTEM_PROMPT = """\
 You are a senior PE investment analyst extracting structured financial metrics
-from due diligence documents. Rules:
-1. Extract ONLY what is explicitly stated in the provided context.
-2. Do NOT recompute, reconcile, or choose between conflicting figures.
-   If two documents show different EBITDA values, extract both.
+from due diligence documents. You must follow all rules below precisely.
+
+EXTRACTION RULES:
+1. Extract ONLY what is explicitly stated in the provided context. Never infer,
+   compute, or hallucinate a value.
+2. Do NOT recompute, reconcile, or choose between conflicting figures. If two
+   documents show different EBITDA values, extract both and flag the discrepancy.
 3. If a metric is absent from the context, return null for that field.
 4. Mark computed_from_stated=true ONLY when you derive a % from two explicitly
    stated numbers in the SAME document. Never cross-document compute.
-5. Every value must have a citation: document name, location, ≤30-word quote.
-6. Return ONLY valid JSON with no preamble and no markdown fences.
-7. SUBORDINATE MARGIN ROWS: PE financial statements routinely print a metric
-   (e.g. Gross Profit, EBITDA) on one row in dollars, then print its margin %
-   on the very next row labelled "Margin" in italics. These two rows describe
-   the SAME metric and the SAME periods. When you see this pattern, read the
-   "Margin" row values into the ebitda_margin_pct or gm_pct_stated fields of
-   the parent row — do NOT create a separate record for the Margin row itself.
-   Example: "PF Adj. EBITDA: 2,104 / 3,157 / 4,016 / 6,677 / 9,239" followed
-   by "Margin: 23.5% / 22.3% / 19.3% / 19.5% / 19.9%" → the margin percentages
-   belong to the PF Adj. EBITDA records for each period.
-8. SUBORDINATE GROWTH ROWS: Similarly, a "Growth" row printed below a revenue
-   row contains the YoY growth % for each period. Read these directly into the
-   yoy_growth_pct field of the parent revenue row. Do NOT compute growth —
-   extract the stated %. "N/A" for the first period means no prior year exists;
-   set that period's yoy_growth_pct to null.
-9. PERIOD COLUMN HEADERS — TIME PERIODS ONLY: The "period" field must always
-   be a time period: FY20A, FY21A, FY22A, FY23A, TTM, LTM, Q1 2024, etc.
-   If column headers are geographic names (NY, MA, CT, NJ, PA, DC) or any
-   non-time label, those are NOT financial periods — they are segments or
-   acquisition targets. Do NOT write geographic abbreviations into the period
-   field. Instead, treat that table as revenue_by_segment data.
-10. MULTIPLE NAMED EBITDA CONCEPTS: A single document may present multiple
-    distinct EBITDA lines (e.g. "PF Adjusted Clinic-Level EBITDA" which excludes
-    corporate overhead, and "PF Adj. EBITDA" which includes it). Extract each
-    as a SEPARATE set of records, one per time period, using the exact row label
-    in the "label" field. Do not collapse them into one record.\
+5. Every extracted value must have a citation: document name, location (page or
+   section title), and a ≤30-word quote from the source.
+6. Return ONLY valid JSON with no preamble, no commentary, and no markdown fences.
+7. COMPANY PROFILE BLOCK IS METADATA ONLY: The block labelled "COMPANY PROFILE"
+   at the top of the user prompt is metadata used to configure thresholds. It is
+   NOT a financial source. Never extract revenue, EBITDA, gross margin, or addback
+   values from the company profile block. All financial data must come exclusively
+   from the RETRIEVED FINANCIAL DOCUMENT CONTEXT section.
+
+READING FINANCIAL TABLES — LAYOUT-AGNOSTIC RULES:
+Financial statements appear in many formats across different data rooms. These
+rules apply regardless of layout:
+
+8. MARGIN VALUES: For each dollar metric (Revenue, Gross Profit, EBITDA), find
+   its corresponding margin % by any means present in the document — it may appear
+   as a subordinate row labelled "Margin" immediately below the dollar row (common
+   in banker CIMs), as an inline column, as a separate summary table, or as a
+   narrative sentence (e.g. "Gross margin was 42% in FY2023"). Extract the margin %
+   wherever it is stated. Do NOT skip a record because the margin % isn't in a
+   subordinate row.
+   When a "Margin" row does appear immediately below a dollar row, read its values
+   directly into the parent row's margin field — do NOT create a separate record.
+   Example: Row "PF Adj. EBITDA: 2,104 / 3,157 / 4,016 / 6,677 / 9,239" followed
+   by "Margin: 23.5% / 22.3% / 19.3% / 19.5% / 19.9%" → margin % values belong
+   in ebitda_margin_pct for each period's PF Adj. EBITDA record.
+
+9. GROWTH VALUES: Find each revenue line's YoY growth % by any means present —
+   subordinate "Growth" row, inline percentage, or bridge narrative. Do NOT compute
+   growth. Extract the stated %. "N/A" for the first period means no prior year —
+   return null for that period.
+   Example: Row "Revenue: 8,955 / 14,176 / 20,846 / 34,160 / 46,423" followed by
+   "Growth: N/A / 58.3% / 47.1% / 63.9% / 35.9%" → yoy_growth_pct values:
+   null, "58.3%", "47.1%", "63.9%", "35.9%".
+
+10. PERIOD LABELS — TIME ONLY: The "period" field must always be a time period:
+    FY20A, FY21A, 2023A, TTM Aug-24, Q1-2024, LTM, H1 2024, etc. Geographic
+    names (NY, MA, CT, states, countries) and entity names (company names,
+    division names) are NOT time periods. If a table's column headers are
+    geographies or entities, treat that table as revenue_by_segment data, not
+    as revenue_trend or ebitda data.
+
+EXTRACTING MULTIPLE NAMED EBITDA LINES:
+11. A single document frequently presents MULTIPLE distinct named EBITDA lines.
+    Each named EBITDA line is a SEPARATE concept and requires SEPARATE records —
+    one record per period per named line.
+    Common patterns (not exhaustive — labels vary by banker and company):
+    - Raw/unadjusted: "Reported EBITDA", "EBITDA as reported", "Statutory EBITDA"
+    - Accounting-adjusted: "Diligence Adjusted EBITDA", "Normalized EBITDA",
+      "Adjusted EBITDA"
+    - Sub-entity: "Clinic-Level EBITDA", "Store-Level EBITDA", "Location EBITDA"
+    - Full pro forma: "PF Adj. EBITDA", "Pro Forma EBITDA", "Management EBITDA"
+    Do NOT collapse these. Use the exact label from the document in the "label"
+    field. A P&L with 5 periods and 4 named EBITDA lines must produce 20 records.
+
+EXTRACTING ADDBACK AND ADJUSTMENT TABLES:
+12. An addback table (may be titled "EBITDA Adjustment Detail", "Addback Schedule",
+    "Management Adjustments", "Normalizing Adjustments", or similar) lists
+    adjustment items as rows with fiscal periods as columns. Extract one record per
+    ROW (one per adjustment item), using the most recent period's dollar value as
+    amount_stated. Record the period that value comes from. Each row is a distinct
+    item regardless of how it is labelled ([A], [1], a description, etc.).\
 """
 
 _USER_PROMPT_TEMPLATE = """\
-COMPANY PROFILE (from Phase 2 output):
+COMPANY PROFILE (metadata only — do NOT extract financial figures from this block):
 {company_profile_json}
 
-RETRIEVED FINANCIAL DOCUMENT CONTEXT:
+RETRIEVED FINANCIAL DOCUMENT CONTEXT (extract ALL financial figures from here only):
 {combined_chunk_text}
 
-Extract all available financial metrics. Return this exact JSON structure:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXTRACTION TASK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Extract all available financial metrics from the RETRIEVED FINANCIAL DOCUMENT
+CONTEXT above. Apply all system prompt rules. Return ONLY the JSON object below.
+
+BEFORE YOU WRITE THE JSON: Scan the context for how many distinct named revenue
+lines and EBITDA lines are present. For each named line × each period, you must
+produce one record. A document with 5 fiscal periods and 4 named EBITDA lines
+must produce 20 EBITDA records. Do not abbreviate.
+
 {{
   "revenue_trend": [
     {{
-      "period": "<FY20A | FY21A | FY22A | FY23A | TTM | LTM | etc. — time periods ONLY, never geographies or states>",
-      "label": "<exact row label from the document, e.g. 'Pro Forma Adjusted Revenue' or 'Reported Net Revenue'>",
-      "revenue_stated": "<$ amount exactly as written>",
-      "yoy_growth_pct": "<% from the 'Growth' row immediately below this revenue row — this is the YoY growth rate for this period. Extract it directly — do NOT compute it.>",
+      "period": "<time period ONLY: FY20A | FY21A | 2023A | TTM Aug-24 | Q1-2024 | etc. — NEVER a geography, state, or entity name>",
+      "label": "<exact row label from the document — e.g. 'Pro Forma Adjusted Revenue' or 'Reported Net Revenue' or 'Total Revenue'>",
+      "revenue_stated": "<$ amount exactly as written — e.g. '8,955' or '46,423' or '$14.2M'>",
+      "yoy_growth_pct": "<YoY growth % for this period, extracted from wherever it is stated in the document (Growth row, inline %, narrative). E.g. '58.3%' or '35.9%'. Return null if N/A or absent.>",
       "computed_yoy": false,
-      "source_doc": "<exact filename>",
-      "source_location": "<tab name or section title>"
+      "source_doc": "<exact filename of the VDR document — must NOT be 'COMPANY PROFILE'>",
+      "source_location": "<page number or section title — e.g. 'p.49 Historical P&L Summary'>"
     }}
   ],
+
   "gross_margin": [
     {{
-      "period": "<FY20A | FY21A | FY22A | FY23A | TTM | LTM | etc. — time periods ONLY>",
-      "label": "<exact row label from the document, e.g. 'Gross Profit' or 'Pro Forma Adjusted Gross Profit'>",
-      "gm_pct_stated": "<% from the 'Margin' row immediately below the Gross Profit row, or null if no such row>",
-      "gm_dollars_stated": "<$ as stated on the Gross Profit row>",
+      "period": "<time period ONLY>",
+      "label": "<exact row label — e.g. 'Gross Profit' or 'Pro Forma Adjusted Gross Profit'>",
+      "gm_dollars_stated": "<$ amount from the Gross Profit row for this period — e.g. '3,770' or '20,170'>",
+      "gm_pct_stated": "<gross margin % for this period, found anywhere in the document: subordinate Margin row, inline column, summary table, or narrative. E.g. '42.1%' or '44.3%'. Return null only if genuinely absent from the document.>",
       "computed_from_stated": false,
-      "source_doc": "<filename>",
-      "source_location": "<tab name or section title>"
+      "source_doc": "<exact filename — must NOT be 'COMPANY PROFILE'>",
+      "source_location": "<page number or section title>"
     }}
   ],
+
   "ebitda": [
     {{
-      "period": "<FY20A | FY21A | FY22A | FY23A | TTM | LTM | etc. — time periods ONLY, never geographies or states>",
-      "label": "<exact row label from the document, e.g. 'PF Adjusted Clinic-Level EBITDA' or 'PF Adj. EBITDA' or 'Reported EBITDA'>",
-      "version": "<reported | mgmt_adjusted | clinic_level_adjusted | qofe_adjusted | other>",
-      "ebitda_dollars": "<$ as stated>",
-      "ebitda_margin_pct": "<% from the 'Margin' row immediately below this EBITDA row, or null if absent>",
-      "source_doc": "<filename>",
-      "source_location": "<tab name or section title>"
+      "period": "<time period ONLY — NEVER a geography, state, or entity name>",
+      "label": "<FULL exact label from the document — e.g. 'PF Adjusted Clinic-Level EBITDA' or 'PF Adj. EBITDA' or 'Reported EBITDA' or 'Diligence Adjusted EBITDA' or 'Adjusted EBITDA' or 'Normalized EBITDA'>",
+      "version": "<classify the version: 'reported' for raw/as-reported | 'diligence_adjusted' for accounting-adjusted | 'clinic_level_adjusted' for location/unit-level | 'pf_adjusted' for full pro forma | 'mgmt_adjusted' for management-adjusted | 'other' for anything else>",
+      "ebitda_dollars": "<$ as stated — e.g. '(342)' for a loss, '9,239' for profit>",
+      "ebitda_margin_pct": "<EBITDA margin % for this period, found anywhere in the document for THIS specific EBITDA line: subordinate Margin row, inline column, summary table, or narrative. E.g. '23.5%'. Each named EBITDA line has its own margin. Return null if genuinely absent.>",
+      "source_doc": "<exact VDR document filename — must NOT be 'COMPANY PROFILE'>",
+      "source_location": "<page number or section title>"
     }}
   ],
+
   "revenue_by_segment": [
     {{
-      "segment": "<segment name>",
-      "revenue_pct": "<% as stated or null>",
-      "revenue_dollars": "<$ as stated or null>",
-      "period": "<period>",
-      "source_doc": "<filename>"
+      "segment": "<segment, geography, service line, or location name — e.g. 'NYC' or 'Home Health Aides' or 'Northeast'>",
+      "revenue_pct": "<% of total revenue as stated, or null>",
+      "revenue_dollars": "<$ as stated — e.g. '$25M' or '13,588'>",
+      "period": "<time period for this figure>",
+      "source_doc": "<exact filename>"
     }}
   ],
+
   "cost_structure": {{
     "headcount_pct_of_revenue": "<% as stated or null>",
-    "fixed_vs_variable_note": "<description as stated or null>",
-    "key_categories": ["<category 1>", "<category 2>"],
-    "source_doc": "<filename>"
+    "fixed_vs_variable_note": "<description of fixed vs. variable cost split as stated, or null>",
+    "key_categories": ["<e.g. 'Payroll expenses'>", "<e.g. 'Rent expense'>"],
+    "source_doc": "<filename or null>"
   }},
+
   "working_capital": {{
     "dso_days": "<days as stated or null>",
     "dpo_days": "<days as stated or null>",
-    "ar_aging_note": "<description as stated or null>",
-    "source_doc": "<filename>"
+    "ar_aging_note": "<AR aging or cash collection description as stated, or null>",
+    "source_doc": "<filename or null>"
   }},
+
   "budget_vs_actual": [
     {{
       "period": "<period>",
       "metric": "<Revenue | EBITDA>",
       "budget_stated": "<$ as stated>",
       "actual_stated": "<$ as stated>",
-      "variance_note": "<description of variance>",
+      "variance_note": "<description of variance as stated in the document>",
       "source_doc": "<filename>"
     }}
   ],
+
   "addback_schedule": [
     {{
-      "description": "<addback item description>",
-      "amount_stated": "<$ as stated>",
-      "period": "<period>",
-      "supporting_doc_referenced": "<doc name referenced in schedule, or 'not referenced'>",
-      "source_doc": "<filename>",
-      "source_location": "<location>",
-      "raw_text": "<≤30 word quote>"
+      "description": "<exact label of this adjustment item as written — e.g. '[G] Run-rate executive compensation' or 'Owner compensation normalization' or 'Non-recurring legal fees'>",
+      "amount_stated": "<$ for the most recent period as stated>",
+      "period": "<the period this amount_stated value comes from>",
+      "supporting_doc_referenced": "<name of any supporting document cited in the schedule for this item, or 'not referenced'>",
+      "source_doc": "<exact VDR document filename>",
+      "source_location": "<page number or section title — e.g. 'p.50 EBITDA Adjustment Detail'>",
+      "raw_text": "<≤30 word direct quote>"
     }}
   ],
+
   "discrepancies_found": [
     {{
       "metric": "<metric name>",
-      "conflicting_values": ["<doc A filename: $X>", "<doc B filename: $Y>"],
-      "note": "<brief description of the discrepancy>"
+      "conflicting_values": ["<doc A: $X>", "<doc B: $Y>"],
+      "note": "<brief description>"
     }}
   ],
-  "executive_summary": "<2-3 sentence factual summary covering revenue scale and trend, margin profile, and the most notable financial characteristic visible in the documents. Write only what is stated. Do not render a verdict — describe what the numbers show so a reader understands the financial picture at a glance.>",
-  "extraction_notes": "<ambiguities, missing data, or anything requiring attention>"
+
+  "executive_summary": "<3–4 sentence factual summary covering: (1) revenue scale and growth trajectory if visible, (2) gross margin level and trend, (3) EBITDA profile across the versions present, (4) most notable financial risk or pattern. Write only what is stated in the documents. Do not render a verdict.>",
+
+  "extraction_notes": "<List: fields returned as null because absent from documents; tables present but only partially readable; multiple versions of the same metric found; any ambiguity in how margin rows were assigned to parent rows; any layout patterns that differ from the rules above.>"
 }}\
 """
 
@@ -417,29 +475,93 @@ class FinancialTrendsAgent:
         self._citations_as_dicts = self._base._citations_as_dicts
 
     # ------------------------------------------------------------------
+    # Retrieval helper
+    # ------------------------------------------------------------------
+
+    def _semantic_search_with_fallback(
+        self,
+        spark,
+        query: str,
+        workstream_filter: list,
+        top_k: int,
+        file_name_filter,
+        min_chunk_length: int = 150,
+        min_results: int = 3,
+    ) -> list:
+        """Semantic search with automatic fallback when the filename filter is too narrow.
+
+        Strategy:
+          1. Try with file_name_filter (preferred — focuses on high-signal docs).
+          2. If result count < min_results, retry without file_name_filter so documents
+             with non-standard filenames (e.g. 'Project Maple Model vF.xlsx') are not
+             silently excluded.
+
+        This makes retrieval portable across data rooms without needing to know each
+        banker's or management team's document naming conventions in advance.
+        """
+        from agents.shared.retrieval import semantic_search
+
+        chunks = semantic_search(
+            query=query,
+            spark=spark,
+            company_name=self._company_name,
+            top_k=top_k,
+            workstream_filter=workstream_filter,
+            file_name_filter=file_name_filter,
+            min_chunk_length=min_chunk_length,
+        )
+
+        if len(chunks) < min_results and file_name_filter is not None:
+            step = len(self._base._trace) + 1
+            self._base._trace.append({
+                "step":       step,
+                "tool":       "retrieval_fallback",
+                "input":      f"file_name_filter returned {len(chunks)} chunks (< {min_results}); retrying without filter",
+                "output":     "fallback retrieval active — all workstream-tagged documents searched",
+                "confidence": "medium",
+                "sources":    [],
+            })
+            print(f"  Step {step} [retrieval_fallback]: filter returned {len(chunks)} chunks, retrying without filename filter")
+            chunks = semantic_search(
+                query=query,
+                spark=spark,
+                company_name=self._company_name,
+                top_k=top_k,
+                workstream_filter=workstream_filter,
+                file_name_filter=None,
+                min_chunk_length=min_chunk_length,
+            )
+
+        return chunks
+
+    # ------------------------------------------------------------------
     # Tools
     # ------------------------------------------------------------------
 
     def _tool_retrieve_financial_statements(self, spark):
-        from agents.shared.retrieval import semantic_search
-        chunks = semantic_search(
-            query="annual revenue gross profit EBITDA profit loss income statement financial results",
+        chunks = self._semantic_search_with_fallback(
             spark=spark,
-            company_name=self._company_name,
-            top_k=12,
+            query=(
+                "annual revenue gross profit EBITDA profit loss income statement "
+                "financial results reported net revenue pro forma adjusted revenue "
+                "management accounts P&L summary historical financials"
+            ),
             workstream_filter=["FINANCIAL"],
-            file_name_filter=["P&L", "Profit", "Loss", "Income", "Financial", "Accounts",
-                              "Financials", "Audited", "Management", "QofE", "Quality"],
+            top_k=15,
+            file_name_filter=[
+                "P&L", "Profit", "Loss", "Income", "Financial", "Accounts",
+                "Financials", "Audited", "Management", "QofE", "Quality", "CIM",
+            ],
             min_chunk_length=150,
+            min_results=3,
         )
         source_docs = list({c.file_name for c in chunks})
-        # Report Priority Tier breakdown.
         pt_count = sum(1 for c in chunks if getattr(c, "priority_tier", None) == 1)
         print(f"    Priority Tier chunks: {pt_count} / {len(chunks)}")
         confidence = "high" if pt_count > 0 else ("medium" if chunks else "low")
         return self._tool_call(
             tool_name="retrieve_financial_statements",
-            input_summary="query=annual revenue gross profit EBITDA income statement; workstream=FINANCIAL; top_k=12",
+            input_summary="query=revenue gross profit EBITDA income statement; workstream=FINANCIAL; top_k=15 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks ({pt_count} Priority Tier) from {len(source_docs)} files",
             confidence=confidence,
@@ -447,22 +569,27 @@ class FinancialTrendsAgent:
         )
 
     def _tool_retrieve_ebitda_and_margins(self, spark):
-        from agents.shared.retrieval import semantic_search
-        chunks = semantic_search(
-            query="EBITDA margin gross margin adjusted EBITDA addback bridge earnings profitability",
+        chunks = self._semantic_search_with_fallback(
             spark=spark,
-            company_name=self._company_name,
-            top_k=10,
+            query=(
+                "EBITDA margin gross margin adjusted EBITDA addback bridge earnings profitability "
+                "clinic level EBITDA diligence adjusted pro forma margin operating income "
+                "adjusted operating profit contribution margin"
+            ),
             workstream_filter=["FINANCIAL", "QUALITY_EARNINGS"],
-            file_name_filter=["EBITDA", "Margin", "Addback", "Bridge", "Adjusted",
-                              "QofE", "Quality", "P&L"],
+            top_k=12,
+            file_name_filter=[
+                "EBITDA", "Margin", "Addback", "Bridge", "Adjusted",
+                "QofE", "Quality", "P&L", "CIM", "Financial",
+            ],
             min_chunk_length=150,
+            min_results=3,
         )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
             tool_name="retrieve_ebitda_and_margins",
-            input_summary="query=EBITDA margin gross margin adjusted addback bridge; workstream=FINANCIAL,QUALITY_EARNINGS; top_k=10",
+            input_summary="query=EBITDA margin gross margin adjusted pro forma; workstream=FINANCIAL,QUALITY_EARNINGS; top_k=12 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
             confidence=confidence,
@@ -470,21 +597,25 @@ class FinancialTrendsAgent:
         )
 
     def _tool_retrieve_revenue_by_segment(self, spark):
-        from agents.shared.retrieval import semantic_search
-        chunks = semantic_search(
-            query="revenue by segment product line geography service line revenue split breakdown",
+        chunks = self._semantic_search_with_fallback(
             spark=spark,
-            company_name=self._company_name,
-            top_k=8,
+            query=(
+                "revenue by segment product line geography service line revenue split breakdown "
+                "revenue by location revenue by office revenue by division revenue by customer type"
+            ),
             workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
-            file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM"],
+            top_k=8,
+            file_name_filter=[
+                "P&L", "Financial", "Revenue", "Segment", "CIM",
+            ],
             min_chunk_length=150,
+            min_results=3,
         )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
             tool_name="retrieve_revenue_by_segment",
-            input_summary="query=revenue by segment product line service line breakdown; workstream=FINANCIAL,BUSINESS_MODEL; top_k=8",
+            input_summary="query=revenue by segment product geography service; workstream=FINANCIAL,BUSINESS_MODEL; top_k=8 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
             confidence=confidence,
@@ -492,21 +623,26 @@ class FinancialTrendsAgent:
         )
 
     def _tool_retrieve_working_capital(self, spark):
-        from agents.shared.retrieval import semantic_search
-        chunks = semantic_search(
-            query="DSO DPO days sales outstanding accounts receivable aging working capital cash collection",
+        chunks = self._semantic_search_with_fallback(
             spark=spark,
-            company_name=self._company_name,
-            top_k=6,
+            query=(
+                "DSO DPO days sales outstanding accounts receivable aging working capital "
+                "cash collection cash conversion cycle AR balance sheet current assets"
+            ),
             workstream_filter=["FINANCIAL"],
-            file_name_filter=["Balance Sheet", "Financial", "Accounts", "AR", "Aging", "Working Capital"],
+            top_k=6,
+            file_name_filter=[
+                "Balance Sheet", "Financial", "Accounts", "AR", "Aging",
+                "Working Capital", "CIM",
+            ],
             min_chunk_length=150,
+            min_results=3,
         )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
             tool_name="retrieve_working_capital",
-            input_summary="query=DSO DPO accounts receivable aging working capital; workstream=FINANCIAL; top_k=6",
+            input_summary="query=DSO DPO AR aging working capital; workstream=FINANCIAL; top_k=6 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
             confidence=confidence,
@@ -514,15 +650,22 @@ class FinancialTrendsAgent:
         )
 
     def _tool_retrieve_addback_schedule(self, spark):
-        from agents.shared.retrieval import semantic_search
-        chunks = semantic_search(
-            query="addback adjustments owner compensation one-time non-recurring expenses EBITDA bridge",
+        chunks = self._semantic_search_with_fallback(
             spark=spark,
-            company_name=self._company_name,
-            top_k=8,
-            workstream_filter=["FINANCIAL", "QUALITY_EARNINGS"],
-            file_name_filter=["Addback", "Bridge", "EBITDA", "QofE", "Quality", "Adjusted"],
+            query=(
+                "addback adjustments owner compensation one-time non-recurring EBITDA bridge "
+                "diligence adjustment normalized expense run-rate executive compensation "
+                "EBITDA adjustment detail credit card allocation non-operating transactions "
+                "management addbacks seller adjustments earnings quality"
+            ),
+            workstream_filter=["FINANCIAL", "QUALITY_EARNINGS", "BUSINESS_MODEL"],
+            top_k=12,
+            file_name_filter=[
+                "Addback", "Bridge", "EBITDA", "QofE", "Quality", "Adjusted",
+                "CIM", "Adjustment", "Financial", "P&L",
+            ],
             min_chunk_length=100,
+            min_results=3,
         )
         if not chunks:
             self._add_gap("No addback schedule found — expected for QofE review")
@@ -530,7 +673,7 @@ class FinancialTrendsAgent:
         confidence = "high" if chunks else "low"
         return self._tool_call(
             tool_name="retrieve_addback_schedule",
-            input_summary="query=addback adjustments owner compensation one-time non-recurring EBITDA bridge; workstream=FINANCIAL,QUALITY_EARNINGS; top_k=8",
+            input_summary="query=addback EBITDA bridge adjustments normalized expense; workstream=FINANCIAL,QUALITY_EARNINGS,BUSINESS_MODEL; top_k=12 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
             confidence=confidence,
@@ -1022,6 +1165,86 @@ class FinancialTrendsAgent:
         )
         raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, llm_endpoint)
         extracted = self._parse_json_response(raw_response)
+
+        # ── Source doc validation: reject any record sourced from the company profile ──
+        _PROFILE_SENTINEL = "COMPANY PROFILE"
+        for _list_key in ("revenue_trend", "gross_margin", "ebitda", "addback_schedule"):
+            _clean = []
+            for _rec in (extracted.get(_list_key) or []):
+                if (_rec.get("source_doc") or "").upper().startswith(_PROFILE_SENTINEL):
+                    self._add_gap(
+                        f"{_list_key} record excluded: source_doc='{_rec.get('source_doc')}' "
+                        f"is the company profile metadata block, not a financial document. "
+                        f"label='{_rec.get('label') or _rec.get('description')}' "
+                        f"period='{_rec.get('period')}'. "
+                        f"Improve retrieval coverage so this value is found in the VDR."
+                    )
+                else:
+                    _clean.append(_rec)
+            extracted[_list_key] = _clean
+
+        # ── Post-extraction completeness check (portable — version-based, not label-based) ──
+        _ebitda_records  = extracted.get("ebitda") or []
+        _revenue_records = extracted.get("revenue_trend") or []
+        _versions_found  = {(r.get("version") or "").lower() for r in _ebitda_records}
+
+        # Check 1: at least one reported EBITDA version
+        if _ebitda_records and "reported" not in _versions_found:
+            self._add_gap(
+                "No 'reported' EBITDA version found — the as-reported/unadjusted EBITDA line "
+                "was not extracted. Check retrieval coverage of the P&L table."
+            )
+
+        # Check 2: at least one adjusted EBITDA version
+        _adjusted_versions = {"pf_adjusted", "mgmt_adjusted", "diligence_adjusted",
+                              "clinic_level_adjusted"}
+        if _ebitda_records and not _adjusted_versions.intersection(_versions_found):
+            self._add_gap(
+                "No adjusted EBITDA version found (pf_adjusted / mgmt_adjusted / "
+                "diligence_adjusted / clinic_level_adjusted). If an adjusted EBITDA concept "
+                "exists in the documents, check retrieval and extraction coverage."
+            )
+
+        # Check 3: EBITDA margin % populated for at least one adjusted record
+        _adjusted_with_margin = [
+            r for r in _ebitda_records
+            if (r.get("version") or "") in _adjusted_versions
+            and r.get("ebitda_margin_pct") is not None
+        ]
+        if _ebitda_records and _adjusted_versions.intersection(_versions_found) \
+                and not _adjusted_with_margin:
+            self._add_gap(
+                "Adjusted EBITDA records found but none have ebitda_margin_pct populated. "
+                "Margin % may be present in the document but was not extracted — check "
+                "whether a subordinate Margin row, inline column, or summary table was missed."
+            )
+
+        # Check 4: gross_margin array non-empty when financial statements were retrieved
+        if not extracted.get("gross_margin") and _revenue_records:
+            self._add_gap(
+                "gross_margin array is empty despite revenue records being present. "
+                "Gross Profit and its margin % were not extracted — check that the P&L "
+                "table pages were retrieved and that the Gross Profit row was identified."
+            )
+
+        # Check 5: at least some YoY growth % values populated when multiple periods exist
+        _revenue_with_growth = [
+            r for r in _revenue_records if r.get("yoy_growth_pct") is not None
+        ]
+        if len(_revenue_records) > 1 and not _revenue_with_growth:
+            self._add_gap(
+                "Multiple revenue periods found but no YoY growth % extracted. "
+                "The growth % row (subordinate row, inline column, or narrative) was not "
+                "identified — check system prompt rule 9 and retrieval coverage."
+            )
+
+        # Check 6: addback schedule has at least one item when financial docs were retrieved
+        if not extracted.get("addback_schedule") and _revenue_records:
+            self._add_gap(
+                "addback_schedule is empty. If an addback or EBITDA adjustment table exists "
+                "in the data room, check retrieval coverage — the addback tool may need "
+                "broader query terms or the document may not be workstream-tagged correctly."
+            )
 
         llm_step = len(self._base._trace) + 1
         self._base._trace.append({
