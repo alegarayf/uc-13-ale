@@ -1149,32 +1149,66 @@ class FinancialTrendsAgent:
                     seen_texts.add(chunk.chunk_text)
                     all_chunks.append(chunk)
 
-        # ── Cap context to avoid LLM timeout — Priority Tier chunks first ─
-        # Llama 70B prefill time scales with input tokens; uncapped contexts of
-        # 50+ chunks can push total processing over the 10-minute SDK timeout.
-        # Retaining Priority Tier chunks first ensures the highest-signal pages
-        # (the P&L summary, CIM financials) are never dropped by the cap.
-        _MAX_CONTEXT_CHARS = 25_000
+        # ── Context budget: differentiated truncation by Priority Tier ───
+        #
+        # Problem: PDF financial table pages are large (3,000–8,000 chars each).
+        # A flat 800-char truncation cuts off the EBITDA rows that sit at the
+        # bottom of a typical P&L table, causing "reported EBITDA not found" gaps.
+        #
+        # Solution: differentiated per-chunk limit based on Priority Tier.
+        #   - Priority Tier 1 chunks (the actual P&L/CIM pages with tables):
+        #     2,500 chars — enough to capture a full 20-row P&L including all
+        #     named EBITDA lines, Gross Profit, and their subordinate Margin rows.
+        #   - All other chunks (narrative, supporting docs, addback detail pages):
+        #     600 chars — contextual signal only; table rows don't apply here.
+        #
+        # Budget arithmetic (worst case: 10 PT + 40 other chunks):
+        #   10 × 2,500 = 25,000  +  40 × 600 = 24,000  →  ~49,000 chars total
+        # Hard cap at 42,000 chars (≈10,500 input tokens) prevents timeout on
+        # clusters with slower Llama 70B throughput.  PT chunks are added first
+        # so they are never the ones excluded if the cap is hit.
+        _PT_CHUNK_CHARS    = 2_500   # Priority Tier 1: full P&L table coverage
+        _OTHER_CHUNK_CHARS = 600     # Other chunks: contextual signal only
+        _MAX_CONTEXT_CHARS = 42_000  # hard total cap (≈10,500 input tokens)
+
         _pt_chunks    = [c for c in all_chunks if getattr(c, "priority_tier", None) == 1]
         _other_chunks = [c for c in all_chunks if getattr(c, "priority_tier", None) != 1]
+
         _context_parts: list[str] = []
-        _total_chars = 0
-        for _c in (_pt_chunks + _other_chunks):
-            _part = f"[File: {_c.file_name}] [Section: {_c.section_header}]\n{_c.chunk_text}"
+        _truncated_count = 0
+        _excluded_count  = 0
+        _total_chars     = 0
+
+        for _c, _limit in (
+            [(c, _PT_CHUNK_CHARS)    for c in _pt_chunks] +
+            [(c, _OTHER_CHUNK_CHARS) for c in _other_chunks]
+        ):
+            _raw = _c.chunk_text
+            _was_truncated = len(_raw) > _limit
+            _text = _raw[:_limit] + (" …[truncated]" if _was_truncated else "")
+            _part = f"[File: {_c.file_name}] [Section: {_c.section_header}]\n{_text}"
             if _total_chars + len(_part) + 8 > _MAX_CONTEXT_CHARS:
-                break
+                _excluded_count += 1
+                continue
             _context_parts.append(_part)
-            _total_chars += len(_part) + 8  # 8 = separator length
-        _excluded = len(all_chunks) - len(_context_parts)
-        if _excluded > 0:
+            _total_chars += len(_part) + 8
+            if _was_truncated:
+                _truncated_count += 1
+
+        _pt_included = sum(1 for c in _pt_chunks
+                          if any(f"[File: {c.file_name}]" in p for p in _context_parts))
+        print(f"  [context_budget] {len(_context_parts)} chunks included "
+              f"({_pt_included} Priority Tier @ {_PT_CHUNK_CHARS} chars, "
+              f"{len(_context_parts) - _pt_included} other @ {_OTHER_CHUNK_CHARS} chars) "
+              f"| total={_total_chars:,} chars"
+              + (f" | {_truncated_count} truncated" if _truncated_count else "")
+              + (f" | {_excluded_count} excluded" if _excluded_count else ""))
+        if _excluded_count:
             self._add_gap(
-                f"Context capped at {_MAX_CONTEXT_CHARS:,} chars to prevent LLM timeout "
-                f"({_excluded} of {len(all_chunks)} chunks excluded). "
-                f"Priority Tier chunks were retained first; increase _MAX_CONTEXT_CHARS "
-                f"or reduce top_k values if important pages are being dropped."
+                f"Context budget: {_excluded_count} of {len(all_chunks)} chunks excluded "
+                f"after truncation (total cap={_MAX_CONTEXT_CHARS:,} chars). "
+                f"Priority Tier chunks were retained first."
             )
-            print(f"  [context_cap] {len(_context_parts)} chunks included, {_excluded} excluded "
-                  f"(Priority Tier first, cap={_MAX_CONTEXT_CHARS:,} chars)")
 
         combined_chunk_text = "\n\n---\n\n".join(_context_parts)
 
