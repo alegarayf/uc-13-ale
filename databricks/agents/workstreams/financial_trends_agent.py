@@ -322,7 +322,7 @@ must produce 20 EBITDA records. Do not abbreviate.
 
   "executive_summary": "<3–4 sentence factual summary covering: (1) revenue scale and growth trajectory if visible, (2) gross margin level and trend, (3) EBITDA profile across the versions present, (4) most notable financial risk or pattern. Write only what is stated in the documents. Do not render a verdict.>",
 
-  "extraction_notes": "<List: fields returned as null because absent from documents; tables present but only partially readable; multiple versions of the same metric found; any ambiguity in how margin rows were assigned to parent rows; any layout patterns that differ from the rules above.>"
+  "extraction_notes": "<Single string. Enumerate separated by semicolons: fields returned as null because absent from documents; tables present but only partially readable; multiple versions of the same metric found; any ambiguity in how margin rows were assigned to parent rows; any layout patterns that differ from the rules above.>"
 }}\
 """
 
@@ -957,7 +957,8 @@ class FinancialTrendsAgent:
 
         # ── Healthcare episodic/event-driven revenue ───────────────────
         if apply_healthcare:
-            notes = (extracted.get("extraction_notes") or "").lower()
+            _raw_notes = extracted.get("extraction_notes") or ""
+            notes = (" ".join(_raw_notes) if isinstance(_raw_notes, list) else str(_raw_notes)).lower()
             episodic_keywords = ("episodic", "event-driven", "referral", "discrete event",
                                  "hard to forecast", "inconsistent referral")
             if any(k in notes for k in episodic_keywords):
