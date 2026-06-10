@@ -596,14 +596,19 @@ class FinancialTrendsAgent:
     # ------------------------------------------------------------------
 
     def _tool_retrieve_financial_statements(self, spark):
+        # BUSINESS_MODEL is intentionally included: banker CIMs containing the
+        # historical P&L summary are frequently classified as BUSINESS_MODEL by
+        # the document classifier, not FINANCIAL, so excluding it causes the CIM
+        # to return 0 chunks for financial queries.
         chunks = self._semantic_search_with_fallback(
             spark=spark,
             query=(
                 "annual revenue gross profit EBITDA profit loss income statement "
                 "financial results reported net revenue pro forma adjusted revenue "
-                "management accounts P&L summary historical financials"
+                "management accounts P&L summary historical financials "
+                "clinic level EBITDA diligence adjusted pro forma adjusted EBITDA"
             ),
-            workstream_filter=["FINANCIAL"],
+            workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
             top_k=15,
             file_name_filter=[
                 "P&L", "Profit", "Loss", "Income", "Financial", "Accounts",
@@ -614,26 +619,28 @@ class FinancialTrendsAgent:
         )
         source_docs = list({c.file_name for c in chunks})
         pt_count = sum(1 for c in chunks if getattr(c, "priority_tier", None) == 1)
-        print(f"    Priority Tier chunks: {pt_count} / {len(chunks)}")
+        cim_count = sum(1 for c in chunks if "CIM" in (c.file_name or "").upper())
+        print(f"    Priority Tier chunks: {pt_count} / {len(chunks)}  CIM chunks: {cim_count}")
         confidence = "high" if pt_count > 0 else ("medium" if chunks else "low")
         return self._tool_call(
             tool_name="retrieve_financial_statements",
-            input_summary="query=revenue gross profit EBITDA income statement; workstream=FINANCIAL; top_k=15 (with fallback)",
+            input_summary="query=revenue gross profit EBITDA income statement; workstream=FINANCIAL,BUSINESS_MODEL; top_k=15 (with fallback)",
             data=chunks,
-            output_summary=f"{len(chunks)} chunks ({pt_count} Priority Tier) from {len(source_docs)} files",
+            output_summary=f"{len(chunks)} chunks ({pt_count} Priority Tier, {cim_count} CIM) from {len(source_docs)} files",
             confidence=confidence,
             source_docs=source_docs,
         )
 
     def _tool_retrieve_ebitda_and_margins(self, spark):
+        # BUSINESS_MODEL included for same reason as _tool_retrieve_financial_statements.
         chunks = self._semantic_search_with_fallback(
             spark=spark,
             query=(
                 "EBITDA margin gross margin adjusted EBITDA addback bridge earnings profitability "
                 "clinic level EBITDA diligence adjusted pro forma margin operating income "
-                "adjusted operating profit contribution margin"
+                "adjusted operating profit contribution margin historical P&L summary"
             ),
-            workstream_filter=["FINANCIAL", "QUALITY_EARNINGS"],
+            workstream_filter=["FINANCIAL", "QUALITY_EARNINGS", "BUSINESS_MODEL"],
             top_k=12,
             file_name_filter=[
                 "EBITDA", "Margin", "Addback", "Bridge", "Adjusted",
@@ -1240,9 +1247,15 @@ class FinancialTrendsAgent:
         # max output tokens → ~18,500 total tokens → ~4–5 min on Llama 70B.
 
         _CIM_CHUNK_CHARS   = 2_500   # Tier A: full CIM P&L table coverage
-        _PT_CHUNK_CHARS    = 1_500   # Tier B: PT1 non-CIM (single-period models)
+        _PT_CHUNK_CHARS    = 1_000   # Tier B: PT1 non-CIM (single-period Excel models)
         _OTHER_CHUNK_CHARS = 500     # Tier C: narrative / supporting context
         _MAX_CONTEXT_CHARS = 50_000
+        # Cap on Tier B slots: Excel workbooks often produce 20-30 PT1 sheets,
+        # each as its own chunk.  Without a count cap, they exhaust the entire
+        # budget and crowd out CIM and other-tier chunks.
+        # 10 × 1,000 = 10,000 chars reserved for PT1 non-CIM; CIM + other fill
+        # the remaining ~40,000 chars.
+        _MAX_PT_CHUNKS = 10
 
         def _chunk_tier(c) -> int:
             """0 = CIM, 1 = PT1 non-CIM, 2 = other."""
@@ -1263,6 +1276,11 @@ class FinancialTrendsAgent:
 
         for _c in _sorted_chunks:
             _tier  = _chunk_tier(_c)
+            # Enforce PT1 count cap — demote excess PT1 chunks to Tier C limit
+            # rather than excluding them entirely, so their content still appears
+            # in context at a shorter length.
+            if _tier == 1 and _tier_counts[1] >= _MAX_PT_CHUNKS:
+                _tier  = 2
             _limit = _tier_limit[_tier]
             _raw   = _c.chunk_text
             _was_truncated = len(_raw) > _limit
