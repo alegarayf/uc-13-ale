@@ -1149,10 +1149,34 @@ class FinancialTrendsAgent:
                     seen_texts.add(chunk.chunk_text)
                     all_chunks.append(chunk)
 
-        combined_chunk_text = "\n\n---\n\n".join(
-            f"[File: {c.file_name}] [Section: {c.section_header}]\n{c.chunk_text}"
-            for c in all_chunks
-        )
+        # ── Cap context to avoid LLM timeout — Priority Tier chunks first ─
+        # Llama 70B prefill time scales with input tokens; uncapped contexts of
+        # 50+ chunks can push total processing over the 10-minute SDK timeout.
+        # Retaining Priority Tier chunks first ensures the highest-signal pages
+        # (the P&L summary, CIM financials) are never dropped by the cap.
+        _MAX_CONTEXT_CHARS = 25_000
+        _pt_chunks    = [c for c in all_chunks if getattr(c, "priority_tier", None) == 1]
+        _other_chunks = [c for c in all_chunks if getattr(c, "priority_tier", None) != 1]
+        _context_parts: list[str] = []
+        _total_chars = 0
+        for _c in (_pt_chunks + _other_chunks):
+            _part = f"[File: {_c.file_name}] [Section: {_c.section_header}]\n{_c.chunk_text}"
+            if _total_chars + len(_part) + 8 > _MAX_CONTEXT_CHARS:
+                break
+            _context_parts.append(_part)
+            _total_chars += len(_part) + 8  # 8 = separator length
+        _excluded = len(all_chunks) - len(_context_parts)
+        if _excluded > 0:
+            self._add_gap(
+                f"Context capped at {_MAX_CONTEXT_CHARS:,} chars to prevent LLM timeout "
+                f"({_excluded} of {len(all_chunks)} chunks excluded). "
+                f"Priority Tier chunks were retained first; increase _MAX_CONTEXT_CHARS "
+                f"or reduce top_k values if important pages are being dropped."
+            )
+            print(f"  [context_cap] {len(_context_parts)} chunks included, {_excluded} excluded "
+                  f"(Priority Tier first, cap={_MAX_CONTEXT_CHARS:,} chars)")
+
+        combined_chunk_text = "\n\n---\n\n".join(_context_parts)
 
         profile_dict = tr6.data
         company_profile_json = json.dumps(profile_dict, default=str) if profile_dict else "{}"
