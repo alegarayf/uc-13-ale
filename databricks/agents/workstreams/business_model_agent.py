@@ -189,7 +189,52 @@ OVERLAY-SPECIFIC FIELDS:
   The overlay_specific block contains fields that are only relevant for certain
   industry overlays. Only populate the sub-block that matches the confirmed
   overlay from the company profile. Return empty arrays for non-applicable blocks.
-  Do NOT omit the overlay_specific block entirely — return it with empty arrays.\
+  Do NOT omit the overlay_specific block entirely — return it with empty arrays.
+
+TABLE EXTRACTION RULES — apply to every table in the retrieved context:
+
+T1. EXTRACT EVERY ROW WITHOUT EXCEPTION: When a table has N rows of data, your
+    output array must have exactly N records. Never stop after the first row.
+    Never stop after 3 rows. Count the rows in the table, then produce that
+    many records. If a table has 8 functional areas, produce 8 records. If a
+    table has 6 locations, produce 6 records.
+
+T2. TWO-COLUMN TABLES (e.g. "North America | Global"): When a headcount table
+    has two workforce-type columns, create TWO records per functional area —
+    one with location_type="onsite" using the first column value, and one with
+    location_type="offshore" using the second column value. Do not merge the
+    columns into one record.
+    Example: "Coordination | 12 | 10" in a North America | Global table →
+    {function: "Coordination", headcount: "12", location_type: "onsite"} AND
+    {function: "Coordination", headcount: "10", location_type: "offshore"}
+
+T3. ROW-LABEL-AS-CATEGORY TABLES: When a comparison table uses row labels as
+    category names (e.g. "Employee | 52 | 64" and "Global Resource | 15 | 44"),
+    map each row label to the appropriate schema field:
+    - "Employee" or "US" or "Onsite" → us_or_onsite_headcount
+    - "Global" or "Global Resource" or "Offshore" or "Contract" → offshore_or_contract_headcount
+    - "Total" → total_headcount
+    Use the most recent period's value (rightmost column).
+
+T4. OWNERSHIP TABLES WITH OWNERS AS COLUMNS: Some ownership tables have entities
+    as rows and individual owners as column headers. Read each column header as
+    a separate owner and produce one record per COLUMN (per owner), not per row.
+    Example:
+    "                   Owner A   Owner B   Owner C"
+    "Entity 1 (S-Corp)   75%       15%       10%"
+    "Entity 2 (LLC)       70%       20%       10%"
+    → Three ownership records: Owner A owns 75% of Entity 1 and 70% of Entity 2
+      (combine into one record noting both entities), Owner B owns 15%/20%, etc.
+
+T5. MULTI-LOCATION REVENUE TABLES: When a revenue table has locations or segments
+    as rows and years as columns, produce one record per LOCATION ROW per PERIOD.
+    If there are 6 locations and 5 years, produce up to 30 records. At minimum,
+    produce one record per location for the most recent period.
+
+T6. UNSTRUCTURED PERCENTAGE LISTS: When percentage data appears as a list or
+    chart caption rather than a clean table (e.g. "13% 6% 8% 7% 5% 2% 1% 57%"
+    next to bucket labels), extract each percentage with its corresponding label.
+    Do not skip this data because the format is irregular.\
 """
 
 _USER_PROMPT_TEMPLATE = """\
@@ -224,68 +269,196 @@ j) Any headcount by functional area, location, or type → workforce_capacity.he
 k) Any hiring rate, workforce growth, or cost-per-hire data → workforce_capacity.hiring_and_growth
 l) Any US vs. offshore/outsourced/contract workforce split → workforce_capacity.workforce_model
 
-WORKED EXAMPLES — how to populate the most-missed fields.
-These examples use placeholder values. The FORMAT and extraction logic are what matter.
+WORKED EXAMPLES — generic placeholders, apply to any company.
+The FORMAT and extraction rules are what matter, not the specific values.
 
-Example: people_and_org.key_executives from any management section:
-  "Jane Smith joined as CEO in [Year], previously [Background]"
-  "John Doe, COO, [N] years with the company, prior role at [Company]"
-→ One record per named executive:
-  [{{"name": "Jane Smith", "title": "CEO", "tenure_with_company": "N years",
-     "background_note": "Previously [background]", "operational_role": true,
-     "source_doc": "filename.pdf", "source_location": "Management Team section"}}]
+CRITICAL BEFORE ALL EXAMPLES: Apply table rules T1–T6 from the system prompt.
+Every table must be fully read. Never produce fewer records than the table has rows.
 
-Example: people_and_org.ownership from an ownership/capitalization table:
-  "Founder A: 75%, Co-founder B: 15%, Key Employee C: 10%"
-→ One record per named owner:
-  [{{"owner_name": "Founder A", "ownership_pct": "75%", "operational_role": "CEO",
-     "source_doc": "filename.pdf"}}]
-Include operational role description — this identifies key-man risk.
+──────────────────────────────────────────────────────────────────────────────
+EXAMPLE A: workforce_capacity.headcount_by_function from a TWO-COLUMN table
+(Rule T2 applies — create separate onsite and offshore records per function)
 
-Example: workforce_capacity.headcount_by_function from any headcount table:
-  "Functional Area | Count | Avg Salary"
-  "Engineering     | 24    | $95,000"
-  "Sales           | 12    | $85,000"
-→ One record per functional area:
-  [{{"function": "Engineering", "headcount": "24", "avg_salary_stated": "$95,000",
-     "location_type": "onsite", "source_doc": "filename.pdf"}}]
+Document text:
+  "Functional Area  | North America | Global"
+  "Engineering      |     15        |   8"
+  "Sales            |     10        |   0"
+  "Operations       |      8        |  12"
 
-Example: workforce_capacity.workforce_model from any US vs. offshore/contract split:
-  "US employees: 64, Global/offshore resources: 44 (193% growth YoY)"
-→  {{"us_headcount": "64", "offshore_or_contract_headcount": "44",
-     "offshore_pct_of_total": "41%", "growth_note": "Global resources grew 193% YoY",
-     "cost_advantage_note": "stated cost advantage if described",
-     "source_doc": "filename.pdf"}}
+→ Produce 6 records (2 per function):
+  [{{"function": "Engineering", "headcount": "15", "location_type": "onsite", "source_doc": "filename.pdf"}},
+   {{"function": "Engineering", "headcount": "8",  "location_type": "offshore", "source_doc": "filename.pdf"}},
+   {{"function": "Sales",       "headcount": "10", "location_type": "onsite",   "source_doc": "filename.pdf"}},
+   {{"function": "Sales",       "headcount": "0",  "location_type": "offshore", "source_doc": "filename.pdf"}},
+   {{"function": "Operations",  "headcount": "8",  "location_type": "onsite",   "source_doc": "filename.pdf"}},
+   {{"function": "Operations",  "headcount": "12", "location_type": "offshore", "source_doc": "filename.pdf"}}]
 
-Example: customer_operational_metrics.by_location from any client metrics table:
-  "Location | Revenue/Client/Week | Units/Client | Clients Served"
-  "Region A | $2,500              | 65 hrs       | 150"
-  "Region B | $1,800              | 45 hrs       | 80"
-→ One record per location:
+──────────────────────────────────────────────────────────────────────────────
+EXAMPLE B: workforce_capacity.workforce_model from a comparison table with
+row labels as categories (Rule T3 applies)
+
+Document text:
+  "             Prior Period  Current Period  Growth"
+  "Employee           52           64        +18.5%"
+  "Global Resource    15           44       +193.3%"
+  "Total              67          108         +70%"
+
+→ Map row labels to schema fields:
+  {{"us_or_onsite_headcount": "64",
+   "offshore_or_contract_headcount": "44",
+   "offshore_pct_of_total": "41%",
+   "growth_note": "Total headcount grew +70% from 67 to 108; global resources +193.3%",
+   "source_doc": "filename.pdf"}}
+
+──────────────────────────────────────────────────────────────────────────────
+EXAMPLE C: people_and_org.ownership from a table with OWNERS AS COLUMNS
+(Rule T4 applies — read each column header as a separate owner record)
+
+Document text:
+  "                    Owner A   Owner B   Owner C   Owner D"
+  "Operating Entity    75.0%     15.0%     8.0%      2.0%"
+  "Holding Entity      70.0%     20.0%     10.0%     0.0%"
+
+→ Produce one ownership record per owner (column), noting all entities:
+  [{{"owner_name": "Owner A", "ownership_pct": "75% (Operating) / 70% (Holding)",
+    "entity": "Operating Entity and Holding Entity", "operational_role": "<from context>",
+    "source_doc": "filename.pdf"}},
+   {{"owner_name": "Owner B", "ownership_pct": "15% (Operating) / 20% (Holding)",
+    "entity": "Operating Entity and Holding Entity", "operational_role": "<from context>",
+    "source_doc": "filename.pdf"}},
+   {{"owner_name": "Owner C", "ownership_pct": "8% (Operating) / 10% (Holding)",
+    "entity": "Operating Entity and Holding Entity", "operational_role": "<from context>",
+    "source_doc": "filename.pdf"}},
+   {{"owner_name": "Owner D", "ownership_pct": "2% (Operating) / 0% (Holding)",
+    "entity": "Operating Entity and Holding Entity", "operational_role": "<from context>",
+    "source_doc": "filename.pdf"}}]
+RULE: Extract ALL column-header owners. Do not stop after the first owner.
+
+──────────────────────────────────────────────────────────────────────────────
+EXAMPLE D: customer_operational_metrics.by_location from a multi-row table
+(Rule T1 applies — extract EVERY row, not just the first)
+
+Document text:
+  "Location     | Metric A per Customer | Metric B per Customer"
+  "Region A     | $2,500/week           | 65 units/week"
+  "Region B     | $1,800/week           | 45 units/week"
+  "Region C     | $3,100/week           | 71 units/week"
+  "Region D     | $2,075/week           | 58 units/week"
+  "Region E     | $1,830/week           | 42 units/week"
+  "Region F     | $1,792/week           | 78 units/week"
+  "Location Avg | $1,927/week           | 60 units/week"
+
+→ Produce 7 records (one per row INCLUDING the average row):
   [{{"location": "Region A", "revenue_per_customer_per_period": "$2,500/week",
-     "utilization_per_customer": "65 hrs/week", "customer_count": "150",
-     "period": "TTM", "source_doc": "filename.pdf"}}]
+    "utilization_per_customer": "65 units/week", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Region B", "revenue_per_customer_per_period": "$1,800/week",
+    "utilization_per_customer": "45 units/week", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Region C", "revenue_per_customer_per_period": "$3,100/week",
+    "utilization_per_customer": "71 units/week", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Region D", "revenue_per_customer_per_period": "$2,075/week",
+    "utilization_per_customer": "58 units/week", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Region E", "revenue_per_customer_per_period": "$1,830/week",
+    "utilization_per_customer": "42 units/week", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Region F", "revenue_per_customer_per_period": "$1,792/week",
+    "utilization_per_customer": "78 units/week", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Location Average", "revenue_per_customer_per_period": "$1,927/week",
+    "utilization_per_customer": "60 units/week", "period": "TTM", "source_doc": "filename.pdf"}}]
+RULE: Every row in the table becomes one record. 7 rows → 7 records.
 
-Example: customer_operational_metrics.tenure_distribution from any cohort table:
-  "<1 month: 13%, 1–3 months: 14%, 3–12 months: 12%, 1–3 years: 3%, 3+ years: 58%"
-→  {{"distribution_buckets": [
-      {{"bucket": "<1 month", "pct": "13%"}},
-      {{"bucket": "1-3 months", "pct": "14%"}},
-      {{"bucket": "3-12 months", "pct": "12%"}},
-      {{"bucket": "1-3 years", "pct": "3%"}},
-      {{"bucket": "3+ years", "pct": "58%"}}
-    ],
-    "longest_bucket_pct": "58%",
-    "period_covered": "all customers since [date]",
-    "source_doc": "filename.pdf"}}
+──────────────────────────────────────────────────────────────────────────────
+EXAMPLE E: revenue_by_location from a multi-location revenue table
+(Rule T5 applies — one record per location for most recent period at minimum)
 
-Example: referral_source_breakdown (healthcare) from a table like:
-  "Channel Type A    45%    FY2023"
-  "Channel Type B    30%    FY2023"
-→ Extract as:
-  [{{"source_type": "Channel Type A", "pct_of_volume_or_profit": "45%", "period": "FY2023", "source_doc": "filename.pdf"}},
-   {{"source_type": "Channel Type B", "pct_of_volume_or_profit": "30%", "period": "FY2023", "source_doc": "filename.pdf"}}]
-RULE: MUST populate pct_of_volume_or_profit if a % is stated. Do NOT return null.
+Document text:
+  "$ in thousands      FY20    FY21    FY22    FY23   TTM"
+  "Location A          1,000   2,500   5,000  8,000  10,000"
+  "Location B          2,000   3,000   4,000  6,000   8,000"
+  "Location C              0       0     500  1,500   3,000"
+  "Total               3,000   5,500   9,500 15,500  21,000"
+
+→ Produce at minimum one record per location for the most recent period.
+  Produce records for ALL periods if the context supports it:
+  [{{"location": "Location A", "revenue_dollars": "10,000", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Location B", "revenue_dollars": "8,000",  "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Location C", "revenue_dollars": "3,000",  "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"location": "Location A", "revenue_dollars": "1,000",  "period": "FY20", "source_doc": "filename.pdf"}},
+   ...]
+RULE: Never produce only one location when the table has multiple. source_doc must
+be the VDR document filename, NEVER "COMPANY PROFILE".
+
+──────────────────────────────────────────────────────────────────────────────
+EXAMPLE F: customer_operational_metrics.tenure_distribution from an UNSTRUCTURED
+list of percentages (Rule T6 applies — extract even if format is irregular)
+
+Document text (from a chart caption or bullet list):
+  "<1 Month    13%"
+  "1-2 Months   6%"
+  "2-3 Months   8%"
+  "3-6 Months   7%"
+  "6-12 Months  5%"
+  "1-2 Years    2%"
+  "2-3 Years    1%"
+  "4+ Years    57%"
+
+→ Extract each label-percentage pair as a bucket:
+  {{"distribution_buckets": [
+    {{"bucket": "<1 Month",   "pct": "13%"}},
+    {{"bucket": "1-2 Months", "pct": "6%"}},
+    {{"bucket": "2-3 Months", "pct": "8%"}},
+    {{"bucket": "3-6 Months", "pct": "7%"}},
+    {{"bucket": "6-12 Months","pct": "5%"}},
+    {{"bucket": "1-2 Years",  "pct": "2%"}},
+    {{"bucket": "2-3 Years",  "pct": "1%"}},
+    {{"bucket": "4+ Years",   "pct": "57%"}}
+   ],
+   "longest_bucket_pct": "57%",
+   "period_covered": "all customers since [stated date]",
+   "source_doc": "filename.pdf"}}
+RULE: Do not return null for distribution_buckets when percentage data is present
+in the context, even if the format is a chart, donut diagram, or bulleted list.
+
+──────────────────────────────────────────────────────────────────────────────
+EXAMPLE G: people_and_org.key_executives — extract ALL stated facts about each
+executive, not just the first sentence of their bio
+
+Document text:
+  "Executive Name: [Name]
+   Title: [Title]
+   [N] years with Company
+   • Joined [Prior Company] in [Year] in [Role]
+   • Left [Prior Company] in [Year] to [action]
+   • Previously [credential or achievement]"
+
+→ One record capturing ALL stated facts:
+  {{"name": "[Name]", "title": "[Title]",
+   "tenure_with_company": "[N] years",
+   "background_note": "Joined [Prior Company] [Year] as [Role]; left [Year] to [action]; previously [credential]",
+   "operational_role": true,
+   "source_doc": "filename.pdf", "source_location": "[section]"}}
+RULE: background_note must capture ALL stated prior experience in one concatenated
+string, not just the most recent item. tenure_with_company must be populated
+whenever a year count ("N years") or join date is stated anywhere in the bio.
+
+──────────────────────────────────────────────────────────────────────────────
+EXAMPLE H: referral_source_breakdown — extract EVERY row with its stated percentage
+(Rule T1 applies)
+
+Document text:
+  "Referral Type         2022    2023   TTM"
+  "Channel A            23.7%   31.9%  42.3%"
+  "Channel B            33.5%   13.2%  26.9%"
+  "Channel C             0.0%    7.4%   9.8%"
+  "Channel D             3.0%    1.3%   9.5%"
+
+→ Extract one record per row using the most recent period (TTM):
+  [{{"source_type": "Channel A", "pct_of_volume_or_profit": "42.3%", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"source_type": "Channel B", "pct_of_volume_or_profit": "26.9%", "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"source_type": "Channel C", "pct_of_volume_or_profit": "9.8%",  "period": "TTM", "source_doc": "filename.pdf"}},
+   {{"source_type": "Channel D", "pct_of_volume_or_profit": "9.5%",  "period": "TTM", "source_doc": "filename.pdf"}}]
+RULE: 4 rows → 4 records. MUST populate pct_of_volume_or_profit. Never null when % is stated.
+
+──────────────────────────────────────────────────────────────────────────────
+ADDITIONAL RULES (apply to all fields):
 
 Example: payor_mix (healthcare) or revenue type breakdown (any overlay) from text like:
   "70% Payor Type A, 15% Payor Type B, 10% Payor Type C, 5% Other"
@@ -741,12 +914,15 @@ class BusinessModelAgent:
             query=(
                 "headcount employees staff workforce count by location by function "
                 "average salary compensation payroll cost by team by department "
-                "hiring rate hires per week time to fill recruiting capacity "
-                "US versus offshore global outsourced contract versus full-time "
-                "workforce growth headcount trend prior period current period "
+                "hires per week hires per year recruiting rate caregivers hired annually "
+                "hiring rate new hires per week per location average caregivers hired "
+                "US versus offshore global outsourced contract versus full-time employees "
+                "workforce growth headcount trend prior period current period growth rate "
                 "billable staff delivery team bench utilization per employee "
                 "caregiver count clinician count consultant count engineer count "
-                "scheduled workforce active workforce capacity by market by region"
+                "scheduled workforce active workforce capacity by market by region "
+                "North America global resources offshore team functional area count "
+                "remote recruiting time to fill cost per hire recruiting efficiency"
             ),
             workstream_filter=["BUSINESS_MODEL", "KPI_OPS", "FINANCIAL"],
             top_k=15,
@@ -1227,8 +1403,13 @@ class BusinessModelAgent:
         # Validate list fields
         for _list_path in (
             ("products_services",),
+            ("revenue_by_location",),
             ("key_dependencies",),
             ("recent_model_changes",),
+            ("people_and_org", "key_executives"),
+            ("people_and_org", "ownership"),
+            ("workforce_capacity", "headcount_by_function"),
+            ("customer_operational_metrics", "by_location"),
             ("customer_profile", "overlay_specific", "healthcare", "referral_source_breakdown"),
             ("customer_profile", "overlay_specific", "healthcare", "payor_mix"),
         ):
@@ -1259,6 +1440,73 @@ class BusinessModelAgent:
                         f"check retrieval coverage for this field."
                     )
                     _rec["source_doc"] = None
+
+        # Validate nested single-object fields
+        _wf_model = (extracted.get("workforce_capacity") or {}).get("workforce_model")
+        if isinstance(_wf_model, dict):
+            if (_wf_model.get("source_doc") or "").upper().startswith(_PROFILE_SENTINEL):
+                self._add_gap(
+                    "workforce_capacity.workforce_model.source_doc is COMPANY PROFILE — "
+                    "check retrieval of workforce comparison section."
+                )
+                _wf_model["source_doc"] = None
+
+        _tenure = (extracted.get("customer_operational_metrics") or {}).get("tenure_distribution")
+        if isinstance(_tenure, dict):
+            if (_tenure.get("source_doc") or "").upper().startswith(_PROFILE_SENTINEL):
+                self._add_gap(
+                    "customer_operational_metrics.tenure_distribution.source_doc is COMPANY PROFILE."
+                )
+                _tenure["source_doc"] = None
+
+        # ── Row count sanity checks — detect early-stopping on multi-row tables ──────
+        _hbf = (extracted.get("workforce_capacity") or {}).get("headcount_by_function") or []
+        if 0 < len(_hbf) < 5:
+            self._add_gap(
+                f"workforce_capacity.headcount_by_function has only {len(_hbf)} record(s). "
+                f"Most companies have more functional areas than this — the LLM may have "
+                f"stopped early. Review the retrieved headcount table and re-run if the "
+                f"document contains more rows."
+            )
+
+        _col = (extracted.get("customer_operational_metrics") or {}).get("by_location") or []
+        if 0 < len(_col) < 3:
+            self._add_gap(
+                f"customer_operational_metrics.by_location has only {len(_col)} record(s). "
+                f"If the document has a multi-location client metrics table, the LLM may "
+                f"have stopped after the first row. Review and re-run."
+            )
+
+        _rbl = extracted.get("revenue_by_location") or []
+        if 0 < len(_rbl) < 3:
+            self._add_gap(
+                f"revenue_by_location has only {len(_rbl)} record(s). "
+                f"If the document has a multi-location revenue table, the LLM may have "
+                f"stopped after the first location. Review and re-run."
+            )
+
+        _owners = (extracted.get("people_and_org") or {}).get("ownership") or []
+        if len(_owners) == 1 and (_owners[0].get("owner_name") is None):
+            # Clear the placeholder null record
+            (extracted.get("people_and_org") or {})["ownership"] = []
+            self._add_gap(
+                "people_and_org.ownership was not extracted. The ownership/capitalization "
+                "table may have owners as column headers rather than row labels — a format "
+                "the LLM can miss. Check retrieval of the transaction overview section."
+            )
+
+        _ref = (
+            (extracted.get("customer_profile") or {})
+            .get("overlay_specific", {})
+            .get("healthcare", {})
+            .get("referral_source_breakdown") or []
+        )
+        if 0 < len(_ref) < 3 and "healthcare" in (overlay or "").lower():
+            self._add_gap(
+                f"referral_source_breakdown has only {len(_ref)} record(s) for a healthcare "
+                f"company. Most healthcare businesses have 4+ referral source categories — "
+                f"the LLM may have stopped early. Review the retrieved referral table."
+            )
 
         # ── Post-extraction completeness check (overlay-gated) ──────────
         _ps  = extracted.get("products_services") or []
