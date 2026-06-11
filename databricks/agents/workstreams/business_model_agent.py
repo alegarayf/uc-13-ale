@@ -210,18 +210,74 @@ Extract the complete business model profile from the RETRIEVED DOCUMENT CONTEXT.
 Apply all system prompt rules. Return null for any field genuinely absent from
 the documents. Return ONLY the JSON object below.
 
-BEFORE WRITING THE JSON — read the entire retrieved context and identify:
+BEFORE WRITING THE JSON — scan the entire retrieved context and identify:
 a) All service/product lines with any stated price or margin → products_services
 b) All referral source types with stated % → referral_source_breakdown
 c) All payor types with stated % → payor_mix
-d) Any named technology systems (EMR, payroll, scheduling, etc.) → key_dependencies
+d) Any named technology systems (ERP, CRM, EMR, payroll, scheduling) → key_dependencies
 e) Any dated business changes (launches, acquisitions, hires, system changes) → recent_model_changes
-f) Any client tenure, billed hours, or census data → customer_profile.client_tenure + revenue_visibility
-g) Revenue by geography or location → customer_profile.geographic_concentration + revenue_model.note
+f) Any customer tenure, utilization, cohort, or retention data → customer_operational_metrics
+g) Revenue by geography, location, segment, or market → revenue_by_location
+h) Any named executives with title, tenure, or background → people_and_org.key_executives
+i) Any ownership table, equity %, or shareholder list → people_and_org.ownership
+j) Any headcount by functional area, location, or type → workforce_capacity.headcount_by_function
+k) Any hiring rate, workforce growth, or cost-per-hire data → workforce_capacity.hiring_and_growth
+l) Any US vs. offshore/outsourced/contract workforce split → workforce_capacity.workforce_model
 
 WORKED EXAMPLES — how to populate the most-missed fields.
-These examples use placeholder values. For any given company, substitute whatever
-the document actually states. The FORMAT and extraction logic are what matter.
+These examples use placeholder values. The FORMAT and extraction logic are what matter.
+
+Example: people_and_org.key_executives from any management section:
+  "Jane Smith joined as CEO in [Year], previously [Background]"
+  "John Doe, COO, [N] years with the company, prior role at [Company]"
+→ One record per named executive:
+  [{{"name": "Jane Smith", "title": "CEO", "tenure_with_company": "N years",
+     "background_note": "Previously [background]", "operational_role": true,
+     "source_doc": "filename.pdf", "source_location": "Management Team section"}}]
+
+Example: people_and_org.ownership from an ownership/capitalization table:
+  "Founder A: 75%, Co-founder B: 15%, Key Employee C: 10%"
+→ One record per named owner:
+  [{{"owner_name": "Founder A", "ownership_pct": "75%", "operational_role": "CEO",
+     "source_doc": "filename.pdf"}}]
+Include operational role description — this identifies key-man risk.
+
+Example: workforce_capacity.headcount_by_function from any headcount table:
+  "Functional Area | Count | Avg Salary"
+  "Engineering     | 24    | $95,000"
+  "Sales           | 12    | $85,000"
+→ One record per functional area:
+  [{{"function": "Engineering", "headcount": "24", "avg_salary_stated": "$95,000",
+     "location_type": "onsite", "source_doc": "filename.pdf"}}]
+
+Example: workforce_capacity.workforce_model from any US vs. offshore/contract split:
+  "US employees: 64, Global/offshore resources: 44 (193% growth YoY)"
+→  {{"us_headcount": "64", "offshore_or_contract_headcount": "44",
+     "offshore_pct_of_total": "41%", "growth_note": "Global resources grew 193% YoY",
+     "cost_advantage_note": "stated cost advantage if described",
+     "source_doc": "filename.pdf"}}
+
+Example: customer_operational_metrics.by_location from any client metrics table:
+  "Location | Revenue/Client/Week | Units/Client | Clients Served"
+  "Region A | $2,500              | 65 hrs       | 150"
+  "Region B | $1,800              | 45 hrs       | 80"
+→ One record per location:
+  [{{"location": "Region A", "revenue_per_customer_per_period": "$2,500/week",
+     "utilization_per_customer": "65 hrs/week", "customer_count": "150",
+     "period": "TTM", "source_doc": "filename.pdf"}}]
+
+Example: customer_operational_metrics.tenure_distribution from any cohort table:
+  "<1 month: 13%, 1–3 months: 14%, 3–12 months: 12%, 1–3 years: 3%, 3+ years: 58%"
+→  {{"distribution_buckets": [
+      {{"bucket": "<1 month", "pct": "13%"}},
+      {{"bucket": "1-3 months", "pct": "14%"}},
+      {{"bucket": "3-12 months", "pct": "12%"}},
+      {{"bucket": "1-3 years", "pct": "3%"}},
+      {{"bucket": "3+ years", "pct": "58%"}}
+    ],
+    "longest_bucket_pct": "58%",
+    "period_covered": "all customers since [date]",
+    "source_doc": "filename.pdf"}}
 
 Example: referral_source_breakdown (healthcare) from a table like:
   "Channel Type A    45%    FY2023"
@@ -243,15 +299,6 @@ Example: sales_motion.compensation_model from text like:
   OR "salespeople earn a commission tied to the lifetime value of accounts they close"
 → Extract as: "Sales reps earn X% of account revenue [or: commission tied to account LTV]"
 RULE: Do NOT return null if any compensation structure or incentive mechanism is described.
-
-Example: client_tenure / customer tenure from any stated distribution or average:
-  Healthcare: "57% of clients stay >3 months" or a length-of-stay table
-  SaaS: "median customer tenure of 3.2 years" or a cohort retention table
-  Services: "average engagement length of 18 months across active accounts"
-→ avg_tenure_stated: the stated average (e.g. "3.2 years"), or null if no average given
-  tenure_distribution_note: the distribution as described (e.g. "57% >3 months;
-  distribution by bucket: <1mo X%, 1-3mo Y%, 3-12mo Z%, 1yr+ W%")
-RULE: Populate tenure_distribution_note from any table or distribution present — do not leave null.
 
 Example: key_dependencies from text mentioning any named system or team:
   Healthcare EMR: "The company uses [System Name] as its electronic medical record"
@@ -285,12 +332,12 @@ produce many records — do not stop at 1 or 2.
 
   "products_services": [
     {{
-      "name": "<exact service/product name as stated in the document>",
+      "name": "<exact service/product name as stated>",
       "revenue_pct": "<% of total revenue as stated, or null>",
-      "revenue_dollars": "<$ as stated — e.g. '$12M TTM' or '$4.2M FY2023', or null>",
-      "gm_pct_stated": "<gross margin % as stated — state a range if multiple values e.g. '35%–55%'>",
-      "gm_pct_note": "<e.g. 'range across locations/segments as of FY2023' or 'blended across product tiers'>",
-      "avg_price_or_rate": "<e.g. '$150/hr', '$2,500/month SaaS', '$85K ACV', or null>",
+      "revenue_dollars": "<$ as stated or null>",
+      "gm_pct_stated": "<gross margin % as stated — state a range if multiple values>",
+      "gm_pct_note": "<context for the margin figure>",
+      "avg_price_or_rate": "<stated price, rate, or ACV or null>",
       "growth_note": "<growth rate or trend as stated, or null>",
       "source_doc": "<exact VDR filename>",
       "source_location": "<page or section>"
@@ -300,20 +347,103 @@ produce many records — do not stop at 1 or 2.
   "revenue_by_location": [
     {{
       "location": "<location, market, segment, or geography name as stated>",
-      "revenue_dollars": "<$ as stated — e.g. '$8M' or '4,250' (in thousands)>",
+      "revenue_dollars": "<$ as stated>",
       "revenue_pct": "<% of total revenue as stated or null>",
       "period": "<period this figure applies to>",
       "source_doc": "<exact filename>"
     }}
   ],
 
+  "people_and_org": {{
+    "key_executives": [
+      {{
+        "name": "<full name as stated>",
+        "title": "<exact title as stated — e.g. 'Chief Executive Officer' or 'VP of Sales'>",
+        "tenure_with_company": "<years or date joined as stated — e.g. '8 years' or 'joined 2017'>",
+        "background_note": "<prior role, company, or credential as stated — e.g. 'Previously at Morgan Stanley Investment Banking'>",
+        "operational_role": "<true if actively involved in operations; false if passive/non-operational>",
+        "source_doc": "<exact VDR filename>",
+        "source_location": "<page or section>"
+      }}
+    ],
+    "ownership": [
+      {{
+        "owner_name": "<name as stated>",
+        "ownership_pct": "<% as stated — e.g. '92%'>",
+        "entity": "<which entity they own % in, if multiple entities stated>",
+        "operational_role": "<their role description as stated — e.g. 'CEO' or 'no involvement in operations' or 'part-time nurse'>",
+        "source_doc": "<exact VDR filename>"
+      }}
+    ],
+    "entity_structure_note": "<description of corporate/entity structure as stated — e.g. 'S-Corp operating entity, with LLC subsidiaries in CT, MA, NJ' or null>",
+    "management_depth_note": "<any stated description of bench strength, management layers, or key-man risk, or null>",
+    "source_doc": "<exact VDR filename>"
+  }},
+
+  "workforce_capacity": {{
+    "total_headcount": "<total stated headcount as of most recent period — e.g. '108 as of Dec-24'>",
+    "headcount_period": "<period this headcount applies to>",
+    "headcount_by_function": [
+      {{
+        "function": "<functional area name as stated — e.g. 'Engineering', 'Sales', 'Clinical', 'Finance'>",
+        "headcount": "<count as stated>",
+        "avg_salary_stated": "<average salary as stated, or null>",
+        "location_type": "<onsite | offshore | hybrid | contract | unknown>",
+        "source_doc": "<exact VDR filename>"
+      }}
+    ],
+    "workforce_model": {{
+      "us_or_onsite_headcount": "<count as stated or null>",
+      "offshore_or_contract_headcount": "<count as stated or null>",
+      "offshore_pct_of_total": "<% as stated or computed from two stated numbers — e.g. '41%'>",
+      "cost_advantage_note": "<any stated cost arbitrage or savings from the workforce model>",
+      "growth_note": "<headcount growth % or absolute change vs prior period as stated>",
+      "source_doc": "<exact VDR filename>"
+    }},
+    "hiring_and_growth": {{
+      "hiring_rate": "<stated hiring rate — e.g. '25 hires/month', '6 caregivers/week in NYC', '1,300/year'>",
+      "time_to_fill_note": "<any stated time-to-fill or recruiting cycle length>",
+      "capacity_constraint_note": "<any stated constraint on hiring or scaling capacity>",
+      "source_doc": "<exact VDR filename>"
+    }}
+  }},
+
+  "customer_operational_metrics": {{
+    "total_customers_or_accounts": "<total active customers/accounts/clients as of most recent period>",
+    "customer_count_period": "<period this count applies to>",
+    "by_location": [
+      {{
+        "location": "<location, market, or segment name as stated>",
+        "customer_count": "<count as stated>",
+        "revenue_per_customer_per_period": "<$ per customer per period as stated — e.g. '$2,749/week' or '$85K ACV' or null>",
+        "utilization_per_customer": "<usage or activity metric per customer as stated — e.g. '67 hrs/week', '4.2 sessions/month', '85% seat utilization' or null>",
+        "period": "<period>",
+        "source_doc": "<exact VDR filename>"
+      }}
+    ],
+    "tenure_distribution": {{
+      "distribution_buckets": [
+        {{
+          "bucket": "<duration bucket label as stated — e.g. '<1 month', '1-3 months', '1-2 years', '3+ years'>",
+          "pct": "<% of customers in this bucket as stated>"
+        }}
+      ],
+      "longest_bucket_pct": "<% of customers in the longest-tenure bucket — key stickiness indicator>",
+      "avg_tenure_stated": "<stated average tenure or null>",
+      "period_covered": "<which cohort or period this distribution covers>",
+      "source_doc": "<exact VDR filename>"
+    }},
+    "growth_trend_note": "<description of customer count trend over time as stated — e.g. 'clients grew from 125 to 595 Q1-20 to Q4-24E'>",
+    "source_doc": "<exact VDR filename>"
+  }},
+
   "customer_profile": {{
     "segments_description": "<description of who the customers are — demographics, size, buyer type>",
     "end_markets": ["<end market 1>", "<end market 2>"],
-    "geographic_concentration": "<factual description with $ or % amounts where stated — e.g. 'Region A $X, Region B $Y as of [period]'>",
+    "geographic_concentration": "<factual description with $ or % amounts where stated>",
     "client_tenure": {{
-      "avg_tenure_stated": "<average tenure as stated — e.g. '3.2 years' or '18 months average engagement', or null if no average given>",
-      "tenure_distribution_note": "<any stated distribution or cohort data — describe whatever format appears in the document>",
+      "avg_tenure_stated": "<average tenure as stated, or null>",
+      "tenure_distribution_note": "<summary of distribution if customer_operational_metrics.tenure_distribution is populated>",
       "source_doc": "<exact filename or null>"
     }},
     "overlay_specific": {{
@@ -321,15 +451,15 @@ produce many records — do not stop at 1 or 2.
         "referral_source_breakdown": [
           {{
             "source_type": "<exact label from the document>",
-            "pct_of_volume_or_profit": "<% as stated — MUST populate if a % appears in the document. Do NOT return null if a percentage is present.>",
-            "period": "<period — e.g. 'FY2023' or 'TTM Q3-2024'>",
+            "pct_of_volume_or_profit": "<% as stated — MUST populate if a % is present>",
+            "period": "<period>",
             "source_doc": "<exact filename>"
           }}
         ],
         "payor_mix": [
           {{
             "payor_type": "<exact label from the document>",
-            "pct_of_revenue": "<% as stated — MUST populate if a % appears in the document. Do NOT return null if a percentage is present.>",
+            "pct_of_revenue": "<% as stated — MUST populate if a % is present>",
             "source_doc": "<exact filename>"
           }}
         ]
@@ -346,11 +476,11 @@ produce many records — do not stop at 1 or 2.
   }},
 
   "sales_motion": {{
-    "tag": "<choose one tag from the system prompt list. Key disambiguation: use 'relationship' for any company where growth depends on maintaining long-term personal relationships with referral sources, channel partners, or key accounts — NOT 'enterprise_sales' which implies a structured inbound/outbound deal pipeline with dedicated AEs>",
+    "tag": "<choose one tag from the system prompt list. 'relationship' = growth depends on personal networks with referral sources/partners. 'enterprise_sales' = structured inbound/outbound pipeline with dedicated AEs>",
     "description": "<factual description of the sales process using document language>",
-    "key_roles": ["<specific names and titles as stated in the document>"],
+    "key_roles": ["<specific names and titles as stated>"],
     "process_note": "<any stated touchpoint cadence, deal cycle, or qualification process>",
-    "compensation_model": "<salesperson/BD compensation structure as stated. Do NOT return null if any commission, incentive, or revenue-sharing mechanism is described — even informally.>",
+    "compensation_model": "<salesperson/BD compensation structure as stated — do NOT return null if any mechanism is described>",
     "source_doc": "<exact VDR filename>",
     "source_location": "<page or section>"
   }},
@@ -359,17 +489,17 @@ produce many records — do not stop at 1 or 2.
     "contracted_pct_of_forward_12mo": "<% as stated or null>",
     "backlog_coverage_months": "<months as stated or null>",
     "backlog_dollars": "<$ backlog as stated or null>",
-    "pipeline_description": "<any forward revenue pipeline — formal pipeline $, revenue goals by market, M&A acquisition pipeline, or order intake data>",
+    "pipeline_description": "<any forward revenue pipeline description>",
     "renewal_cadence_note": "<any stated renewal rate, auto-renewal, or retention mechanism>",
     "msa_sow_coverage_note": "<MSA, SOW, or retainer coverage as stated, or null>",
-    "recurring_revenue_proxy": "<any stated proxy for forward revenue where formal backlog is absent — e.g. average customer tenure, retention rate, cohort data, utilization trend, or pipeline coverage>",
+    "recurring_revenue_proxy": "<any stated proxy for forward revenue — tenure data, utilization, pipeline coverage>",
     "source_doc": "<exact VDR filename>"
   }},
 
   "key_dependencies": [
     {{
       "dependency_type": "<vendor | platform | channel | partner | person | geography | customer | team>",
-      "name": "<specific named system, team, vendor, or person as stated in the document — one record per named entity>",
+      "name": "<specific named system, team, vendor, or person — one record per named entity>",
       "description": "<role or nature of the dependency as stated>",
       "concentration_risk": "<true | false | null>",
       "source_doc": "<exact VDR filename>"
@@ -380,18 +510,18 @@ produce many records — do not stop at 1 or 2.
     {{
       "change_type": "<revenue_model | pricing | gtm | customer_mix | technology | geography | ma | staffing | product | operational>",
       "description": "<specific factual description using document language>",
-      "approximate_date": "<year or quarter as stated — e.g. 'Q2 2023', 'FY2021', 'March 2024'>",
+      "approximate_date": "<year or quarter as stated>",
       "impact_note": "<stated quantified or qualitative impact, or null>",
       "source_doc": "<exact VDR filename>",
       "source_location": "<page or section>"
     }}
   ],
 
-  "overlay_conflict_evidence": "<any text in the documents inconsistent with the confirmed industry overlay, or null>",
+  "overlay_conflict_evidence": "<any text inconsistent with the confirmed industry overlay, or null>",
 
   "citations": [
     {{
-      "field": "<field_name this citation supports>",
+      "field": "<field_name>",
       "document": "<exact VDR filename — must NOT be 'COMPANY PROFILE'>",
       "location": "<page number or section title>",
       "quote": "<≤30 word direct quote>",
@@ -399,9 +529,9 @@ produce many records — do not stop at 1 or 2.
     }}
   ],
 
-  "executive_summary": "<4–5 sentence factual summary covering: (1) what the company does, where it operates, and at what revenue scale; (2) how it earns revenue and the margin profile; (3) the key growth driver and customer acquisition mechanism; (4) a notable dependency or concentration risk with specifics; (5) what has changed recently with dates. Use numbers where stated. Do not render a verdict.>",
+  "executive_summary": "<5–6 sentence factual summary covering: (1) what the company does and at what revenue scale; (2) how it earns revenue and the margin profile; (3) who leads the company and any ownership/key-man context; (4) workforce model and delivery capacity; (5) customer stickiness signal from tenure or utilization data; (6) what has changed recently. Use numbers where stated.>",
 
-  "extraction_notes": "<note: whether a CIM was present; fields null because genuinely absent; overlay-specific fields skipped; any ambiguities in the data>"
+  "extraction_notes": "<note: whether a CIM was present; fields null because genuinely absent; overlay-specific fields skipped; any ambiguities>"
 }}
 """
 
@@ -552,6 +682,94 @@ class BusinessModelAgent:
             source_docs=source_docs,
         )
 
+    def _tool_retrieve_people_and_org(self, spark):
+        """Key executives, management team depth, ownership structure, entity structure.
+
+        Industry-agnostic — retrieves whatever people and org content is present:
+        - Healthcare: physician/clinical owner, practice administrator, COO, directors
+        - Tech services: founder/CEO, CTO, VP Sales, delivery head, practice leads
+        - SaaS: founding team, CTO, VP Product, VP Customer Success, board composition
+        - Industrial: plant manager, engineering director, operations VP, GM
+        - All: ownership table (% per shareholder), entity structure, key-man assessment,
+          management bench depth, tenure of leadership team
+        """
+        chunks = self._semantic_search_with_fallback(
+            spark=spark,
+            query=(
+                "management team key executives CEO founder CTO COO VP president director "
+                "ownership structure capitalization shareholder equity ownership percentage "
+                "organizational chart org chart key personnel management depth bench "
+                "entity structure subsidiary holding company operating entity "
+                "executive biography background experience years tenure "
+                "key man risk leadership team senior management"
+            ),
+            workstream_filter=["BUSINESS_MODEL"],
+            top_k=15,
+            file_name_filter=["CIM", "OM", "Management", "Team", "Overview",
+                              "Org", "Chart", "Cap", "Table", "Personnel",
+                              "Executive", "Leadership", "Presentation"],
+            min_chunk_length=100,
+            min_results=3,
+        )
+        source_docs = list({c.file_name for c in chunks})
+        return self._tool_call(
+            tool_name="retrieve_people_and_org",
+            input_summary=(
+                "query=management team executives ownership structure org chart entity; "
+                "workstream=BUSINESS_MODEL; top_k=15 (with fallback)"
+            ),
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks from {len(source_docs)} files",
+            confidence="high" if chunks else "low",
+            source_docs=source_docs,
+        )
+
+    def _tool_retrieve_workforce_and_capacity(self, spark):
+        """Workforce headcount, cost structure, hiring rate, and delivery capacity.
+
+        Industry-agnostic — retrieves whatever workforce data is present:
+        - Healthcare: caregiver headcount by location, hiring rate, US vs offshore split,
+          admin staff count and cost, scheduled caregiver growth trend
+        - Tech services: billable headcount, bench, utilization, offshore delivery team,
+          revenue per FTE, contractor vs. employee split
+        - SaaS: R&D headcount, sales headcount, CS headcount, revenue per employee
+        - Industrial: plant workers, engineers, contract labor, capacity utilization
+        - All: total headcount, headcount growth trend, average compensation, payroll cost
+        """
+        chunks = self._semantic_search_with_fallback(
+            spark=spark,
+            query=(
+                "headcount employees staff workforce count by location by function "
+                "average salary compensation payroll cost by team by department "
+                "hiring rate hires per week time to fill recruiting capacity "
+                "US versus offshore global outsourced contract versus full-time "
+                "workforce growth headcount trend prior period current period "
+                "billable staff delivery team bench utilization per employee "
+                "caregiver count clinician count consultant count engineer count "
+                "scheduled workforce active workforce capacity by market by region"
+            ),
+            workstream_filter=["BUSINESS_MODEL", "KPI_OPS", "FINANCIAL"],
+            top_k=15,
+            file_name_filter=["CIM", "OM", "Team", "Headcount", "Workforce",
+                              "Staff", "Recruiting", "Capacity", "Operations",
+                              "Overview", "KPI", "Dashboard", "Metrics"],
+            min_chunk_length=100,
+            min_results=3,
+        )
+        source_docs = list({c.file_name for c in chunks})
+        return self._tool_call(
+            tool_name="retrieve_workforce_and_capacity",
+            input_summary=(
+                "query=headcount employees salary compensation hiring rate US vs offshore "
+                "delivery capacity workforce growth; workstream=BUSINESS_MODEL,KPI_OPS,FINANCIAL; "
+                "top_k=15 (with fallback)"
+            ),
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks from {len(source_docs)} files",
+            confidence="high" if chunks else "low",
+            source_docs=source_docs,
+        )
+
     def _tool_retrieve_pricing_and_margins(self, spark):
         """Per-offering pricing, bill rates, gross margin by product or service type.
 
@@ -598,13 +816,14 @@ class BusinessModelAgent:
         chunks = self._semantic_search_with_fallback(
             spark=spark,
             query=(
-                "revenue by location revenue by geography revenue by segment adjusted revenue "
-                "revenue CAGR financial highlights headline metrics key metrics by market "
-                "customer count clients served units sold revenue per customer cohort "
-                "tenure distribution customer lifetime retention rate repeat rate "
-                "utilization rate capacity revenue per employee revenue per unit "
-                "acquisition pipeline M&A target metrics addressable market revenue goal "
-                "same store revenue organic growth by market revenue by channel"
+                "clients served active accounts customers by location by market by segment "
+                "billed hours per client revenue per customer revenue per account "
+                "utilization per customer sessions per user visits per patient "
+                "customer count trend quarterly growth by location by geography "
+                "length of stay customer tenure distribution cohort by duration "
+                "revenue per location revenue by market adjusted revenue by geography "
+                "revenue CAGR financial highlights headline metrics acquisition pipeline "
+                "same store revenue organic growth by market revenue goal by location"
             ),
             workstream_filter=["BUSINESS_MODEL", "FINANCIAL", "KPI_OPS"],
             top_k=15,
@@ -946,13 +1165,15 @@ class BusinessModelAgent:
 
         # ── Tool calls ──────────────────────────────────────────────────
         tr_cim  = self._tool_detect_cim_presence(spark)
+        tr_ppl  = self._tool_retrieve_people_and_org(spark)
+        tr_wf   = self._tool_retrieve_workforce_and_capacity(spark)
         tr1     = self._tool_retrieve_business_overview(spark)
         tr2     = self._tool_retrieve_pricing_and_margins(spark)
+        tr7     = self._tool_retrieve_revenue_by_location_and_metrics(spark)
         tr3     = self._tool_retrieve_sales_and_customers(spark)
         tr4     = self._tool_retrieve_revenue_visibility(spark)
         tr5     = self._tool_retrieve_model_changes_and_dependencies(spark)
         tr6     = self._tool_load_company_profile(company_name, spark)
-        tr7     = self._tool_retrieve_revenue_by_location_and_metrics(spark)
 
         # ── CIM / deal type detection ───────────────────────────────────
         cim_found = (tr_cim.data or {}).get("cim_found", False)
@@ -975,7 +1196,7 @@ class BusinessModelAgent:
         # ── Build combined context (deduplicate by chunk text) ──────────
         seen_texts: set[str] = set()
         all_chunks = []
-        for tr in (tr1, tr2, tr3, tr4, tr5, tr7):
+        for tr in (tr_ppl, tr_wf, tr1, tr2, tr3, tr4, tr5, tr7):
             for chunk in (tr.data or []):
                 if chunk.chunk_text not in seen_texts:
                     seen_texts.add(chunk.chunk_text)
@@ -1084,6 +1305,37 @@ class BusinessModelAgent:
                 "dependencies not extracted. Check retrieval coverage."
             )
 
+        # People & org checks
+        _pao = extracted.get("people_and_org") or {}
+        if not (_pao.get("key_executives") or []):
+            self._add_gap(
+                "people_and_org.key_executives is empty — management team not extracted. "
+                "Check retrieval coverage of management team and org sections."
+            )
+
+        if not (_pao.get("ownership") or []):
+            self._add_gap(
+                "people_and_org.ownership is empty — ownership structure not extracted. "
+                "Key-man and equity structure assessment requires this. Check retrieval of "
+                "capitalization, entity structure, or transaction overview sections."
+            )
+
+        # Workforce checks
+        _wfc = extracted.get("workforce_capacity") or {}
+        if not _wfc.get("total_headcount") and not (_wfc.get("headcount_by_function") or []):
+            self._add_gap(
+                "workforce_capacity is empty — headcount and workforce model not extracted. "
+                "Check retrieval of team, staffing, and operational sections."
+            )
+
+        # Customer operational metrics checks
+        _com = extracted.get("customer_operational_metrics") or {}
+        if not (_com.get("by_location") or []) and not _com.get("total_customers_or_accounts"):
+            self._add_gap(
+                "customer_operational_metrics is empty — customer count, utilization, and "
+                "tenure data not extracted. Check retrieval of client metrics sections."
+            )
+
         # Healthcare-specific checks (only fire for healthcare overlay)
         if "healthcare" in _overlay_lower:
             _hc = (_cp.get("overlay_specific") or {}).get("healthcare") or {}
@@ -1113,7 +1365,7 @@ class BusinessModelAgent:
         self._base._trace.append({
             "step":       llm_step,
             "tool":       "llm_extraction",
-            "input":      f"combined context: {len(all_chunks)} chunks from {len(seen_texts)} unique texts (7 retrieval tools)",
+            "input":      f"combined context: {len(all_chunks)} chunks from {len(seen_texts)} unique texts (9 retrieval tools)",
             "output":     (
                 f"Extracted revenue_model_tag={(extracted.get('revenue_model') or {}).get('tag')}, "
                 f"products_services={len(extracted.get('products_services') or [])}, "
@@ -1203,6 +1455,9 @@ class BusinessModelAgent:
             "flag_rule_applied":             flag_rule,
             "products_services_json":        json.dumps(extracted.get("products_services") or []),
             "revenue_by_location_json":      json.dumps(extracted.get("revenue_by_location") or []),
+            "people_and_org_json":               json.dumps(extracted.get("people_and_org") or {}),
+            "workforce_capacity_json":           json.dumps(extracted.get("workforce_capacity") or {}),
+            "customer_operational_metrics_json": json.dumps(extracted.get("customer_operational_metrics") or {}),
             "customer_profile_json":         json.dumps(extracted.get("customer_profile") or {}),
             "sales_motion_tag":              (extracted.get("sales_motion") or {}).get("tag"),
             "sales_motion_json":             json.dumps(extracted.get("sales_motion") or {}),
@@ -1250,9 +1505,12 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
             "flag_confidence":   result.get("flag_confidence"),
             "flag_rule":         result.get("flag_rule_applied"),
         },
-        "products_and_services": json.loads(result.get("products_services_json") or "[]"),
-        "revenue_by_location":   json.loads(result.get("revenue_by_location_json") or "[]"),
-        "customer_profile":      json.loads(result.get("customer_profile_json") or "{}"),
+        "products_and_services":            json.loads(result.get("products_services_json") or "[]"),
+        "revenue_by_location":              json.loads(result.get("revenue_by_location_json") or "[]"),
+        "people_and_org":                   json.loads(result.get("people_and_org_json") or "{}"),
+        "workforce_capacity":               json.loads(result.get("workforce_capacity_json") or "{}"),
+        "customer_operational_metrics":     json.loads(result.get("customer_operational_metrics_json") or "{}"),
+        "customer_profile":                 json.loads(result.get("customer_profile_json") or "{}"),
         "sales_motion":          json.loads(result.get("sales_motion_json") or "{}"),
         "revenue_visibility":    json.loads(result.get("revenue_visibility_json") or "{}"),
         "key_dependencies":      json.loads(result.get("key_dependencies_json") or "[]"),
@@ -1401,6 +1659,94 @@ def generate_business_model_assessment(
     ) if rev_loc_rows else ""
 
     # ══════════════════════════════════════════════════════════════════════
+    # TABLE — Key executives
+    # ══════════════════════════════════════════════════════════════════════
+    pao       = json.loads(result.get("people_and_org_json") or "{}")
+    execs     = pao.get("key_executives") or []
+    exec_rows = [
+        [
+            e.get("name") or "—",
+            e.get("title") or "—",
+            e.get("tenure_with_company") or "—",
+            (e.get("background_note") or "—")[:80],
+            "Yes" if e.get("operational_role") else "No",
+        ]
+        for e in execs
+    ]
+    tbl_execs = _md_table(
+        ["Name", "Title", "Tenure", "Background", "Operational"],
+        exec_rows,
+    ) if exec_rows else ""
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE — Ownership
+    # ══════════════════════════════════════════════════════════════════════
+    owners     = pao.get("ownership") or []
+    owner_rows = [
+        [
+            o.get("owner_name") or "—",
+            o.get("ownership_pct") or "—",
+            o.get("entity") or "—",
+            (o.get("operational_role") or "—")[:60],
+        ]
+        for o in owners
+    ]
+    tbl_ownership = _md_table(
+        ["Owner", "Ownership %", "Entity", "Role"],
+        owner_rows,
+    ) if owner_rows else ""
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE — Workforce capacity
+    # ══════════════════════════════════════════════════════════════════════
+    wfc        = json.loads(result.get("workforce_capacity_json") or "{}")
+    wf_model   = wfc.get("workforce_model") or {}
+    hbf        = wfc.get("headcount_by_function") or []
+    hbf_rows   = [
+        [
+            h.get("function") or "—",
+            h.get("headcount") or "—",
+            h.get("avg_salary_stated") or "—",
+            h.get("location_type") or "—",
+        ]
+        for h in hbf
+    ]
+    tbl_workforce = _md_table(
+        ["Function", "Headcount", "Avg Salary", "Type"],
+        hbf_rows,
+    ) if hbf_rows else ""
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE — Customer operational metrics by location
+    # ══════════════════════════════════════════════════════════════════════
+    com        = json.loads(result.get("customer_operational_metrics_json") or "{}")
+    com_locs   = com.get("by_location") or []
+    com_rows   = [
+        [
+            c.get("location") or "—",
+            c.get("customer_count") or "—",
+            c.get("revenue_per_customer_per_period") or "—",
+            c.get("utilization_per_customer") or "—",
+            c.get("period") or "—",
+        ]
+        for c in com_locs
+    ]
+    tbl_com = _md_table(
+        ["Location", "Customers", "Rev/Customer", "Utilization", "Period"],
+        com_rows,
+    ) if com_rows else ""
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE — Customer tenure distribution
+    # ══════════════════════════════════════════════════════════════════════
+    ten_dist   = (com.get("tenure_distribution") or {}).get("distribution_buckets") or []
+    ten_rows   = [
+        [b.get("bucket") or "—", b.get("pct") or "—"]
+        for b in ten_dist
+    ]
+    tbl_tenure = _md_table(["Tenure Bucket", "% of Customers"], ten_rows) if ten_rows else ""
+
+    # ══════════════════════════════════════════════════════════════════════
     # TABLE 2 — Revenue visibility
     # ══════════════════════════════════════════════════════════════════════
     rv_rows = []
@@ -1534,6 +1880,30 @@ INVESTMENT FLAGS:
 
 DATA ROOM GAPS:
 {chr(10).join("- " + g for g in data_room_gaps) if data_room_gaps else "None"}
+
+PEOPLE AND ORG:
+  Key Executives: {json.dumps([{k: v for k, v in e.items() if k != 'source_doc'} for e in execs], indent=2) if execs else 'not extracted'}
+  Ownership: {json.dumps([{k: v for k, v in o.items() if k != 'source_doc'} for o in owners], indent=2) if owners else 'not extracted'}
+  Entity Structure: {pao.get('entity_structure_note') or 'not stated'}
+  Management Depth: {pao.get('management_depth_note') or 'not stated'}
+
+WORKFORCE CAPACITY:
+  Total Headcount: {wfc.get('total_headcount') or 'not stated'}
+  Workforce Model: US/onsite={wf_model.get('us_or_onsite_headcount') or 'null'}, Offshore/contract={wf_model.get('offshore_or_contract_headcount') or 'null'}, Offshore%={wf_model.get('offshore_pct_of_total') or 'null'}
+  Cost Advantage: {wf_model.get('cost_advantage_note') or 'not stated'}
+  Growth: {wf_model.get('growth_note') or 'not stated'}
+  Hiring Rate: {(wfc.get('hiring_and_growth') or {}).get('hiring_rate') or 'not stated'}
+  Headcount by Function:
+{tbl_workforce}
+
+CUSTOMER OPERATIONAL METRICS:
+  Total Customers: {com.get('total_customers_or_accounts') or 'not stated'}
+  Growth Trend: {com.get('growth_trend_note') or 'not stated'}
+  By Location:
+{tbl_com}
+  Tenure Distribution:
+{tbl_tenure}
+  Longest Tenure Bucket: {(com.get('tenure_distribution') or {}).get('longest_bucket_pct') or 'not stated'}
 """.strip()
 
     # ══════════════════════════════════════════════════════════════════════
@@ -1541,9 +1911,9 @@ DATA ROOM GAPS:
     # ══════════════════════════════════════════════════════════════════════
     _ASSESS_SYS = """\
 You are a senior PE investment analyst writing the Business Model section of an
-internal diligence memo. Use the structured data provided to answer 7 specific
-questions about the company's revenue model, go-to-market, customer profile,
-revenue visibility, key risks, and recent changes.
+internal diligence memo. Use the structured data provided to answer 9 specific
+questions about the company's revenue model, management team, workforce, customer
+profile, go-to-market, revenue visibility, key risks, and recent changes.
 
 Rules:
 1. Write only what the data supports. Do not invent facts.
@@ -1553,14 +1923,16 @@ Rules:
 4. Be direct and use PE language (e.g. "referral-dependent", "low contractual
    visibility", "single-vendor dependency", "model in transition").
 5. Return pure markdown only — no preamble, no code fences.
-6. Structure your response with exactly these 7 section headers (H3):
+6. Structure your response with exactly these 9 section headers (H3):
    ### 1. Revenue Model & Durability
    ### 2. Products, Services & Margin Profile
-   ### 3. Customer Profile & Acquisition
-   ### 4. Sales Motion & Go-to-Market
-   ### 5. Revenue Visibility & Forward Signals
-   ### 6. Key Dependencies & Concentration Risks
-   ### 7. Recent Business Model Changes & Trajectory
+   ### 3. Management Team & Ownership
+   ### 4. Workforce Model & Delivery Capacity
+   ### 5. Customer Profile & Acquisition
+   ### 6. Sales Motion & Go-to-Market
+   ### 7. Revenue Visibility & Forward Signals
+   ### 8. Key Dependencies & Concentration Risks
+   ### 9. Recent Business Model Changes & Trajectory
 7. For each section use at most 4 bullet points followed by a 1–2 sentence
    "**Analyst take:**" line that states the signal and what it means for underwriting.
 """
@@ -1633,6 +2005,55 @@ Write the markdown narrative only — no extra commentary.
     if tbl_rev_loc:
         md.append("### Revenue by Location\n")
         md.append(tbl_rev_loc)
+
+    if tbl_execs:
+        md.append("### Key Executives\n")
+        md.append(tbl_execs)
+        if pao.get("entity_structure_note"):
+            md.append(f"**Entity structure:** {pao['entity_structure_note']}\n")
+        if pao.get("management_depth_note"):
+            md.append(f"**Management depth:** {pao['management_depth_note']}\n")
+
+    if tbl_ownership:
+        md.append("### Ownership Structure\n")
+        md.append(tbl_ownership)
+
+    if tbl_workforce or wf_model:
+        md.append("### Workforce & Capacity\n")
+        if wfc.get("total_headcount"):
+            md.append(f"**Total headcount:** {wfc['total_headcount']}\n")
+        if tbl_workforce:
+            md.append(tbl_workforce)
+        if wf_model:
+            wf_summary_rows = [
+                [k.replace("_", " ").title(), str(v)[:100]]
+                for k, v in wf_model.items()
+                if v and k != "source_doc"
+            ]
+            if wf_summary_rows:
+                md.append(_md_table(["Workforce Model Field", "Detail"], wf_summary_rows))
+        hiring = wfc.get("hiring_and_growth") or {}
+        if hiring.get("hiring_rate"):
+            md.append(f"**Hiring rate:** {hiring['hiring_rate']}\n")
+        if hiring.get("capacity_constraint_note"):
+            md.append(f"**Capacity constraint:** {hiring['capacity_constraint_note']}\n")
+
+    if tbl_com:
+        md.append("### Customer Metrics by Location\n")
+        if com.get("total_customers_or_accounts"):
+            md.append(f"**Total active customers:** {com['total_customers_or_accounts']}\n")
+        md.append(tbl_com)
+        if com.get("growth_trend_note"):
+            md.append(f"**Growth trend:** {com['growth_trend_note']}\n")
+
+    if tbl_tenure:
+        md.append("### Customer Tenure Distribution\n")
+        md.append(tbl_tenure)
+        ten = com.get("tenure_distribution") or {}
+        if ten.get("longest_bucket_pct"):
+            md.append(f"**Longest tenure bucket:** {ten['longest_bucket_pct']} of customers\n")
+        if ten.get("period_covered"):
+            md.append(f"**Cohort covers:** {ten['period_covered']}\n")
 
     md.append("### Sales Motion\n")
     md.append(_md_table(
@@ -1732,6 +2153,9 @@ CREATE TABLE IF NOT EXISTS {table} (
     flag_rule_applied             STRING,
     products_services_json        STRING,
     revenue_by_location_json      STRING,
+    people_and_org_json                  STRING,
+    workforce_capacity_json              STRING,
+    customer_operational_metrics_json    STRING,
     customer_profile_json         STRING,
     sales_motion_tag              STRING,
     sales_motion_json             STRING,
@@ -1782,7 +2206,9 @@ def main() -> dict:
         "company_name", "cim_detected", "executive_summary",
         "revenue_model_tag", "revenue_model_pct_split", "revenue_model_note",
         "revenue_durability_flag", "flag_confidence", "flag_rule_applied",
-        "products_services_json", "revenue_by_location_json", "customer_profile_json",
+        "products_services_json", "revenue_by_location_json",
+        "people_and_org_json", "workforce_capacity_json", "customer_operational_metrics_json",
+        "customer_profile_json",
         "sales_motion_tag", "sales_motion_json", "revenue_visibility_json",
         "key_dependencies_json", "recent_model_changes_json",
         "overlay_conflict", "overlay_conflict_note", "overlay_conflict_evidence",
@@ -1820,9 +2246,12 @@ def main() -> dict:
         StructField("revenue_durability_flag",     StringType(),            True),
         StructField("flag_confidence",             StringType(),            True),
         StructField("flag_rule_applied",           StringType(),            True),
-        StructField("products_services_json",      StringType(),            True),
-        StructField("revenue_by_location_json",    StringType(),            True),
-        StructField("customer_profile_json",       StringType(),            True),
+        StructField("products_services_json",               StringType(),            True),
+        StructField("revenue_by_location_json",             StringType(),            True),
+        StructField("people_and_org_json",                  StringType(),            True),
+        StructField("workforce_capacity_json",              StringType(),            True),
+        StructField("customer_operational_metrics_json",    StringType(),            True),
+        StructField("customer_profile_json",                StringType(),            True),
         StructField("sales_motion_tag",            StringType(),            True),
         StructField("sales_motion_json",           StringType(),            True),
         StructField("revenue_visibility_json",     StringType(),            True),
@@ -1849,9 +2278,12 @@ def main() -> dict:
         "revenue_durability_flag":    result.get("revenue_durability_flag"),
         "flag_confidence":            result.get("flag_confidence"),
         "flag_rule_applied":          result.get("flag_rule_applied"),
-        "products_services_json":     result.get("products_services_json"),
-        "revenue_by_location_json":   result.get("revenue_by_location_json"),
-        "customer_profile_json":      result.get("customer_profile_json"),
+        "products_services_json":               result.get("products_services_json"),
+        "revenue_by_location_json":             result.get("revenue_by_location_json"),
+        "people_and_org_json":                  result.get("people_and_org_json"),
+        "workforce_capacity_json":              result.get("workforce_capacity_json"),
+        "customer_operational_metrics_json":    result.get("customer_operational_metrics_json"),
+        "customer_profile_json":                result.get("customer_profile_json"),
         "sales_motion_tag":           result.get("sales_motion_tag"),
         "sales_motion_json":          result.get("sales_motion_json"),
         "revenue_visibility_json":    result.get("revenue_visibility_json"),
