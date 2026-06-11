@@ -207,61 +207,135 @@ EXTRACTION TASK
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Extract the complete business model profile from the RETRIEVED DOCUMENT CONTEXT.
-Apply all system prompt rules. Return null for any field not stated in the
-documents — do not guess. Return ONLY the JSON object below.
+Apply all system prompt rules. Return null for any field genuinely absent from
+the documents. Return ONLY the JSON object below.
+
+BEFORE WRITING THE JSON — read the entire retrieved context and identify:
+a) All service/product lines with any stated price or margin → products_services
+b) All referral source types with stated % → referral_source_breakdown
+c) All payor types with stated % → payor_mix
+d) Any named technology systems (EMR, payroll, scheduling, etc.) → key_dependencies
+e) Any dated business changes (launches, acquisitions, hires, system changes) → recent_model_changes
+f) Any client tenure, billed hours, or census data → customer_profile.client_tenure + revenue_visibility
+g) Revenue by geography or location → customer_profile.geographic_concentration + revenue_model.note
+
+WORKED EXAMPLES — how to populate the most-missed fields.
+These examples use placeholder values. For any given company, substitute whatever
+the document actually states. The FORMAT and extraction logic are what matter.
+
+Example: referral_source_breakdown (healthcare) from a table like:
+  "Channel Type A    45%    FY2023"
+  "Channel Type B    30%    FY2023"
+→ Extract as:
+  [{{"source_type": "Channel Type A", "pct_of_volume_or_profit": "45%", "period": "FY2023", "source_doc": "filename.pdf"}},
+   {{"source_type": "Channel Type B", "pct_of_volume_or_profit": "30%", "period": "FY2023", "source_doc": "filename.pdf"}}]
+RULE: MUST populate pct_of_volume_or_profit if a % is stated. Do NOT return null.
+
+Example: payor_mix (healthcare) or revenue type breakdown (any overlay) from text like:
+  "70% Payor Type A, 15% Payor Type B, 10% Payor Type C, 5% Other"
+→ Extract as:
+  [{{"payor_type": "Payor Type A", "pct_of_revenue": "70%", "source_doc": "filename.pdf"}},
+   {{"payor_type": "Payor Type B", "pct_of_revenue": "15%", "source_doc": "filename.pdf"}}, ...]
+RULE: MUST populate pct_of_revenue if a % is stated. Do NOT return a single record with null pct.
+
+Example: sales_motion.compensation_model from text like:
+  "sales representatives receive X% of revenue generated from their accounts"
+  OR "salespeople earn a commission tied to the lifetime value of accounts they close"
+→ Extract as: "Sales reps earn X% of account revenue [or: commission tied to account LTV]"
+RULE: Do NOT return null if any compensation structure or incentive mechanism is described.
+
+Example: client_tenure / customer tenure from any stated distribution or average:
+  Healthcare: "57% of clients stay >3 months" or a length-of-stay table
+  SaaS: "median customer tenure of 3.2 years" or a cohort retention table
+  Services: "average engagement length of 18 months across active accounts"
+→ avg_tenure_stated: the stated average (e.g. "3.2 years"), or null if no average given
+  tenure_distribution_note: the distribution as described (e.g. "57% >3 months;
+  distribution by bucket: <1mo X%, 1-3mo Y%, 3-12mo Z%, 1yr+ W%")
+RULE: Populate tenure_distribution_note from any table or distribution present — do not leave null.
+
+Example: key_dependencies from text mentioning any named system or team:
+  Healthcare EMR: "The company uses [System Name] as its electronic medical record"
+  SaaS infra: "All services run on AWS with a single-cloud architecture"
+  Staffing: "Back-office operations are managed by a [City/Country]-based team of N people"
+→ One record per named system, team, platform, or critical vendor:
+  {{"dependency_type": "platform", "name": "[System Name] EMR",
+    "description": "Electronic medical records platform used company-wide",
+    "concentration_risk": "true", "source_doc": "filename.pdf"}}
+RULE: Extract one record per named entity. Do NOT aggregate into "technology systems".
+
+Example: recent_model_changes — one record per distinct dated business event:
+  "In [Month Year], the Company transitioned [process] to [new approach]"
+  "The Company acquired [Target] in [Year], entering the [Market] market"
+  "In [Year], the Company launched [Product/Service/Office]"
+→ One record per event:
+  {{"change_type": "technology", "description": "Transitioned [process] to [new approach]",
+    "approximate_date": "[Month Year]", "impact_note": "[stated quantified impact or null]",
+    "source_doc": "filename.pdf", "source_location": "[section name]"}}
+RULE: Extract every distinct dated event. A company with a 7-year history should
+produce many records — do not stop at 1 or 2.
 
 {{
   "revenue_model": {{
     "tag": "<choose one tag from the system prompt list>",
-    "pct_split": "<stated split or null — e.g. '70% repeat-services, 30% project'>",
-    "note": "<1–2 sentence description of how the company earns revenue>",
+    "pct_split": "<stated split or null — e.g. '80% recurring SaaS, 20% professional services'>",
+    "note": "<1–2 sentence description of how the company earns revenue, including scale if stated>",
     "source_doc": "<exact VDR filename — must NOT be 'COMPANY PROFILE'>",
     "source_location": "<page or section>"
   }},
 
   "products_services": [
     {{
-      "name": "<exact product or service line name as stated>",
+      "name": "<exact service/product name as stated in the document>",
       "revenue_pct": "<% of total revenue as stated, or null>",
-      "revenue_dollars": "<$ as stated, or null>",
-      "gm_pct_stated": "<gross margin % as stated — state a range if multiple values, e.g. '43.7%–52.8%'>",
-      "gm_pct_note": "<context for the margin figure — e.g. 'range across 6 office locations' or 'FY2023 blended'>",
-      "avg_price_or_rate": "<stated price, rate, or ACV — e.g. '$37/hr', '$510/day', '$120K ACV', or null>",
+      "revenue_dollars": "<$ as stated — e.g. '$12M TTM' or '$4.2M FY2023', or null>",
+      "gm_pct_stated": "<gross margin % as stated — state a range if multiple values e.g. '35%–55%'>",
+      "gm_pct_note": "<e.g. 'range across locations/segments as of FY2023' or 'blended across product tiers'>",
+      "avg_price_or_rate": "<e.g. '$150/hr', '$2,500/month SaaS', '$85K ACV', or null>",
       "growth_note": "<growth rate or trend as stated, or null>",
       "source_doc": "<exact VDR filename>",
       "source_location": "<page or section>"
     }}
   ],
 
+  "revenue_by_location": [
+    {{
+      "location": "<location, market, segment, or geography name as stated>",
+      "revenue_dollars": "<$ as stated — e.g. '$8M' or '4,250' (in thousands)>",
+      "revenue_pct": "<% of total revenue as stated or null>",
+      "period": "<period this figure applies to>",
+      "source_doc": "<exact filename>"
+    }}
+  ],
+
   "customer_profile": {{
-    "segments_description": "<description of who the customers are — demographics, company size, buyer type>",
+    "segments_description": "<description of who the customers are — demographics, size, buyer type>",
     "end_markets": ["<end market 1>", "<end market 2>"],
-    "geographic_concentration": "<description of customer or revenue concentration by region/state/country as stated, or null>",
+    "geographic_concentration": "<factual description with $ or % amounts where stated — e.g. 'Region A $X, Region B $Y as of [period]'>",
     "client_tenure": {{
-      "avg_tenure_stated": "<average tenure as stated — e.g. '2.3 years' or '60% stay >6 months', or null>",
-      "tenure_distribution_note": "<any stated distribution of tenure lengths, or null>",
+      "avg_tenure_stated": "<average tenure as stated — e.g. '3.2 years' or '18 months average engagement', or null if no average given>",
+      "tenure_distribution_note": "<any stated distribution or cohort data — describe whatever format appears in the document>",
       "source_doc": "<exact filename or null>"
     }},
     "overlay_specific": {{
       "healthcare": {{
         "referral_source_breakdown": [
           {{
-            "source_type": "<e.g. 'Rehab / Nursing Home' or 'Hospital'>",
-            "pct_of_volume_or_profit": "<% as stated>",
-            "period": "<period>",
+            "source_type": "<exact label from the document>",
+            "pct_of_volume_or_profit": "<% as stated — MUST populate if a % appears in the document. Do NOT return null if a percentage is present.>",
+            "period": "<period — e.g. 'FY2023' or 'TTM Q3-2024'>",
             "source_doc": "<exact filename>"
           }}
         ],
         "payor_mix": [
           {{
-            "payor_type": "<e.g. 'Private Pay' or 'Medicare' or 'Medicaid'>",
-            "pct_of_revenue": "<% as stated or null>",
+            "payor_type": "<exact label from the document>",
+            "pct_of_revenue": "<% as stated — MUST populate if a % appears in the document. Do NOT return null if a percentage is present.>",
             "source_doc": "<exact filename>"
           }}
         ]
       }},
       "tech_services": {{
-        "customer_size_mix": "<description of enterprise vs. mid-market vs. SMB split as stated, or null>",
+        "customer_size_mix": "<enterprise vs. mid-market vs. SMB split as stated, or null>",
         "vertical_concentration": "<any stated vertical or industry concentration, or null>"
       }},
       "b2b_saas": {{
@@ -272,11 +346,11 @@ documents — do not guess. Return ONLY the JSON object below.
   }},
 
   "sales_motion": {{
-    "tag": "<choose one tag from the system prompt list>",
-    "description": "<factual description of the sales process as described in the documents>",
-    "key_roles": ["<e.g. 'VP of Sales — 15+ years industry experience' or 'Founder-led enterprise AEs'>"],
-    "process_note": "<any stated touchpoint cadence, deal cycle length, or qualification process>",
-    "compensation_model": "<salesperson/BD compensation structure as stated, or null>",
+    "tag": "<choose one tag from the system prompt list. Key disambiguation: use 'relationship' for any company where growth depends on maintaining long-term personal relationships with referral sources, channel partners, or key accounts — NOT 'enterprise_sales' which implies a structured inbound/outbound deal pipeline with dedicated AEs>",
+    "description": "<factual description of the sales process using document language>",
+    "key_roles": ["<specific names and titles as stated in the document>"],
+    "process_note": "<any stated touchpoint cadence, deal cycle, or qualification process>",
+    "compensation_model": "<salesperson/BD compensation structure as stated. Do NOT return null if any commission, incentive, or revenue-sharing mechanism is described — even informally.>",
     "source_doc": "<exact VDR filename>",
     "source_location": "<page or section>"
   }},
@@ -285,29 +359,29 @@ documents — do not guess. Return ONLY the JSON object below.
     "contracted_pct_of_forward_12mo": "<% as stated or null>",
     "backlog_coverage_months": "<months as stated or null>",
     "backlog_dollars": "<$ backlog as stated or null>",
-    "pipeline_description": "<any forward revenue pipeline description — formal or informal>",
-    "renewal_cadence_note": "<stated renewal rate, auto-renewal language, or retention mechanism, or null>",
-    "msa_sow_coverage_note": "<description of MSA, SOW, or retainer coverage as stated, or null>",
-    "recurring_revenue_proxy": "<any stated proxy for recurring revenue where formal backlog is absent — e.g. 'length of stay', 'customer tenure', 'renewal rate', or null>",
+    "pipeline_description": "<any forward revenue pipeline — formal pipeline $, revenue goals by market, M&A acquisition pipeline, or order intake data>",
+    "renewal_cadence_note": "<any stated renewal rate, auto-renewal, or retention mechanism>",
+    "msa_sow_coverage_note": "<MSA, SOW, or retainer coverage as stated, or null>",
+    "recurring_revenue_proxy": "<any stated proxy for forward revenue where formal backlog is absent — e.g. average customer tenure, retention rate, cohort data, utilization trend, or pipeline coverage>",
     "source_doc": "<exact VDR filename>"
   }},
 
   "key_dependencies": [
     {{
-      "dependency_type": "<vendor | platform | channel | partner | person | geography | customer>",
-      "name": "<specific name as stated — e.g. 'Salesforce CRM' or 'AWS infrastructure' or 'Philippines back-office team'>",
-      "description": "<role or nature of the dependency as stated in the documents>",
-      "concentration_risk": "<true | false | null — true if loss of this dependency would materially harm the business>",
+      "dependency_type": "<vendor | platform | channel | partner | person | geography | customer | team>",
+      "name": "<specific named system, team, vendor, or person as stated in the document — one record per named entity>",
+      "description": "<role or nature of the dependency as stated>",
+      "concentration_risk": "<true | false | null>",
       "source_doc": "<exact VDR filename>"
     }}
   ],
 
   "recent_model_changes": [
     {{
-      "change_type": "<revenue_model | pricing | gtm | customer_mix | technology | geography | ma | staffing | product>",
-      "description": "<factual description of the change as stated in the documents>",
-      "approximate_date": "<year or quarter as stated — e.g. 'May 2024' or 'Q3 2023' or 'FY2021'>",
-      "impact_note": "<stated impact or rationale for the change, or null>",
+      "change_type": "<revenue_model | pricing | gtm | customer_mix | technology | geography | ma | staffing | product | operational>",
+      "description": "<specific factual description using document language>",
+      "approximate_date": "<year or quarter as stated — e.g. 'Q2 2023', 'FY2021', 'March 2024'>",
+      "impact_note": "<stated quantified or qualitative impact, or null>",
       "source_doc": "<exact VDR filename>",
       "source_location": "<page or section>"
     }}
@@ -325,9 +399,9 @@ documents — do not guess. Return ONLY the JSON object below.
     }}
   ],
 
-  "executive_summary": "<4–5 sentence factual summary covering: (1) what the company does and where it operates, (2) how it earns revenue and at what scale, (3) the key growth driver and customer acquisition mechanism, (4) a notable dependency or concentration risk, (5) what has changed recently. Write only what is stated. Do not render a verdict.>",
+  "executive_summary": "<4–5 sentence factual summary covering: (1) what the company does, where it operates, and at what revenue scale; (2) how it earns revenue and the margin profile; (3) the key growth driver and customer acquisition mechanism; (4) a notable dependency or concentration risk with specifics; (5) what has changed recently with dates. Use numbers where stated. Do not render a verdict.>",
 
-  "extraction_notes": "<note: whether a CIM was present; any fields null because genuinely absent; overlay-specific fields skipped because overlay doesn't apply; any conflicting statements found>"
+  "extraction_notes": "<note: whether a CIM was present; fields null because genuinely absent; overlay-specific fields skipped; any ambiguities in the data>"
 }}
 """
 
@@ -461,7 +535,7 @@ class BusinessModelAgent:
                 "what the company sells how it makes money"
             ),
             workstream_filter=["BUSINESS_MODEL"],
-            top_k=12,
+            top_k=18,
             file_name_filter=["CIM", "OM", "Overview", "Offering", "Memorandum",
                               "Profile", "Summary", "Presentation", "Deck",
                               "Management", "Executive"],
@@ -471,7 +545,7 @@ class BusinessModelAgent:
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_business_overview",
-            input_summary="query=company overview products services geographic footprint; workstream=BUSINESS_MODEL; top_k=12 (with fallback)",
+            input_summary="query=company overview products services geographic footprint; workstream=BUSINESS_MODEL; top_k=18 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks from {len(source_docs)} files",
             confidence="high" if chunks else "low",
@@ -493,7 +567,7 @@ class BusinessModelAgent:
                 "contribution margin by product line pricing table rate card"
             ),
             workstream_filter=["BUSINESS_MODEL", "FINANCIAL"],
-            top_k=10,
+            top_k=15,
             file_name_filter=["CIM", "Pricing", "Financial", "Revenue", "Margin",
                               "OM", "Overview", "Rate", "Card"],
             min_chunk_length=100,
@@ -502,7 +576,51 @@ class BusinessModelAgent:
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_pricing_and_margins",
-            input_summary="query=pricing gross margin by service/product bill rate; workstream=BUSINESS_MODEL,FINANCIAL; top_k=10 (with fallback)",
+            input_summary="query=pricing gross margin by service/product bill rate; workstream=BUSINESS_MODEL,FINANCIAL; top_k=15 (with fallback)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks from {len(source_docs)} files",
+            confidence="high" if chunks else "low",
+            source_docs=source_docs,
+        )
+
+    def _tool_retrieve_revenue_by_location_and_metrics(self, spark):
+        """Revenue breakdown by location/segment and operational metrics that
+        serve as recurring revenue proxies.
+
+        Industry-agnostic — adapts to whatever operational data is present:
+        - Healthcare: billed hours per client, census, length of stay, patient tenure
+        - SaaS: ARR by cohort, NRR by segment, logo count by tier
+        - Tech services: utilization by practice, revenue per FTE, backlog by client
+        - Industrial: revenue by product line, capacity utilization, order intake
+        - Consumer: repeat rate, LTV by cohort, revenue by channel or geography
+        - All: headline CAGR, EBITDA summary, revenue by geography, M&A pipeline
+        """
+        chunks = self._semantic_search_with_fallback(
+            spark=spark,
+            query=(
+                "revenue by location revenue by geography revenue by segment adjusted revenue "
+                "revenue CAGR financial highlights headline metrics key metrics by market "
+                "customer count clients served units sold revenue per customer cohort "
+                "tenure distribution customer lifetime retention rate repeat rate "
+                "utilization rate capacity revenue per employee revenue per unit "
+                "acquisition pipeline M&A target metrics addressable market revenue goal "
+                "same store revenue organic growth by market revenue by channel"
+            ),
+            workstream_filter=["BUSINESS_MODEL", "FINANCIAL", "KPI_OPS"],
+            top_k=15,
+            file_name_filter=["CIM", "OM", "Financial", "Revenue", "Metrics",
+                              "Overview", "Summary", "KPI", "Dashboard"],
+            min_chunk_length=100,
+            min_results=3,
+        )
+        source_docs = list({c.file_name for c in chunks})
+        return self._tool_call(
+            tool_name="retrieve_revenue_by_location_and_metrics",
+            input_summary=(
+                "query=revenue by location segment client metrics billed hours tenure "
+                "acquisition pipeline; workstream=BUSINESS_MODEL,FINANCIAL,KPI_OPS; "
+                "top_k=15 (with fallback)"
+            ),
             data=chunks,
             output_summary=f"{len(chunks)} chunks from {len(source_docs)} files",
             confidence="high" if chunks else "low",
@@ -524,7 +642,7 @@ class BusinessModelAgent:
                 "new customer acquisition how we sell who we sell to"
             ),
             workstream_filter=["BUSINESS_MODEL", "KPI_OPS"],
-            top_k=10,
+            top_k=15,
             file_name_filter=["CIM", "Sales", "GTM", "Customer", "Marketing",
                               "Overview", "OM", "Strategy", "Presentation"],
             min_chunk_length=150,
@@ -533,7 +651,7 @@ class BusinessModelAgent:
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_sales_and_customers",
-            input_summary="query=sales motion GTM customer acquisition segments; workstream=BUSINESS_MODEL,KPI_OPS; top_k=10 (with fallback)",
+            input_summary="query=sales motion GTM customer acquisition segments; workstream=BUSINESS_MODEL,KPI_OPS; top_k=15 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks from {len(source_docs)} files",
             confidence="high" if chunks else "low",
@@ -551,11 +669,15 @@ class BusinessModelAgent:
             query=(
                 "backlog contracted revenue pipeline forward revenue visibility "
                 "renewal rate retention MSA SOW retainer recurring revenue "
-                "average customer tenure length of stay contract coverage "
-                "revenue predictability pipeline coverage months weighted pipeline"
+                "customer tenure average tenure length of stay cohort distribution "
+                "revenue per customer units per client usage per account sessions per user "
+                "acquisition pipeline M&A targets addressable market revenue goal by market "
+                "revenue predictability pipeline coverage months weighted pipeline "
+                "repeat purchase rate retention cohort same store revenue trajectory "
+                "order backlog booking rate renewal cadence contract coverage"
             ),
             workstream_filter=["BUSINESS_MODEL", "FINANCIAL", "KPI_OPS"],
-            top_k=8,
+            top_k=12,
             file_name_filter=["CIM", "Pipeline", "Backlog", "Contract", "Revenue",
                               "KPI", "Metrics", "Overview", "Model"],
             min_chunk_length=100,
@@ -564,7 +686,7 @@ class BusinessModelAgent:
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_revenue_visibility",
-            input_summary="query=backlog contracted pipeline retention tenure; workstream=BUSINESS_MODEL,FINANCIAL,KPI_OPS; top_k=8 (with fallback)",
+            input_summary="query=backlog contracted pipeline retention tenure; workstream=BUSINESS_MODEL,FINANCIAL,KPI_OPS; top_k=12 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks from {len(source_docs)} files",
             confidence="high" if chunks else "low",
@@ -582,21 +704,25 @@ class BusinessModelAgent:
             spark=spark,
             query=(
                 "business model change pricing change go to market change recent initiative "
-                "key vendor platform dependency technology system software EMR payroll HR "
+                "ERP CRM EMR payroll HR software scheduling platform technology system "
+                "outsourcing offshore remote team global staffing third-party operations "
                 "acquisition M&A history strategic initiative timeline milestones "
-                "outsourcing partnership key dependency concentration risk"
+                "launched expanded hired opened acquired transitioned implemented automated "
+                "key dependency concentration risk single vendor platform tool "
+                "new product new service new geography new channel new pricing model "
+                "digital transformation process improvement technology adoption"
             ),
             workstream_filter=["BUSINESS_MODEL", "KPI_OPS"],
-            top_k=10,
+            top_k=18,
             file_name_filter=["CIM", "Overview", "Timeline", "History", "OM",
                               "Strategy", "Presentation", "Management", "Deck"],
             min_chunk_length=150,
-            min_results=3,
+            min_results=5,
         )
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_model_changes_and_dependencies",
-            input_summary="query=model changes pricing GTM dependencies vendor platform; workstream=BUSINESS_MODEL,KPI_OPS; top_k=10 (with fallback)",
+            input_summary="query=model changes pricing GTM dependencies vendor platform; workstream=BUSINESS_MODEL,KPI_OPS; top_k=18 (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks from {len(source_docs)} files",
             confidence="high" if chunks else "low",
@@ -826,6 +952,7 @@ class BusinessModelAgent:
         tr4     = self._tool_retrieve_revenue_visibility(spark)
         tr5     = self._tool_retrieve_model_changes_and_dependencies(spark)
         tr6     = self._tool_load_company_profile(company_name, spark)
+        tr7     = self._tool_retrieve_revenue_by_location_and_metrics(spark)
 
         # ── CIM / deal type detection ───────────────────────────────────
         cim_found = (tr_cim.data or {}).get("cim_found", False)
@@ -848,7 +975,7 @@ class BusinessModelAgent:
         # ── Build combined context (deduplicate by chunk text) ──────────
         seen_texts: set[str] = set()
         all_chunks = []
-        for tr in (tr1, tr2, tr3, tr4, tr5):
+        for tr in (tr1, tr2, tr3, tr4, tr5, tr7):
             for chunk in (tr.data or []):
                 if chunk.chunk_text not in seen_texts:
                     seen_texts.add(chunk.chunk_text)
@@ -986,7 +1113,7 @@ class BusinessModelAgent:
         self._base._trace.append({
             "step":       llm_step,
             "tool":       "llm_extraction",
-            "input":      f"combined context: {len(all_chunks)} chunks from {len(seen_texts)} unique texts",
+            "input":      f"combined context: {len(all_chunks)} chunks from {len(seen_texts)} unique texts (7 retrieval tools)",
             "output":     (
                 f"Extracted revenue_model_tag={(extracted.get('revenue_model') or {}).get('tag')}, "
                 f"products_services={len(extracted.get('products_services') or [])}, "
@@ -1075,6 +1202,7 @@ class BusinessModelAgent:
             "flag_confidence":               flag_confidence,
             "flag_rule_applied":             flag_rule,
             "products_services_json":        json.dumps(extracted.get("products_services") or []),
+            "revenue_by_location_json":      json.dumps(extracted.get("revenue_by_location") or []),
             "customer_profile_json":         json.dumps(extracted.get("customer_profile") or {}),
             "sales_motion_tag":              (extracted.get("sales_motion") or {}).get("tag"),
             "sales_motion_json":             json.dumps(extracted.get("sales_motion") or {}),
@@ -1123,6 +1251,7 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
             "flag_rule":         result.get("flag_rule_applied"),
         },
         "products_and_services": json.loads(result.get("products_services_json") or "[]"),
+        "revenue_by_location":   json.loads(result.get("revenue_by_location_json") or "[]"),
         "customer_profile":      json.loads(result.get("customer_profile_json") or "{}"),
         "sales_motion":          json.loads(result.get("sales_motion_json") or "{}"),
         "revenue_visibility":    json.loads(result.get("revenue_visibility_json") or "{}"),
@@ -1252,6 +1381,24 @@ def generate_business_model_assessment(
         ["Offering", "Rev %", "GM %", "Avg Price / Rate", "Margin Note"],
         ps_rows,
     )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TABLE — Revenue by location
+    # ══════════════════════════════════════════════════════════════════════
+    rev_loc = json.loads(result.get("revenue_by_location_json") or "[]")
+    rev_loc_rows = [
+        [
+            r.get("location") or "—",
+            r.get("revenue_dollars") or "—",
+            r.get("revenue_pct") or "—",
+            r.get("period") or "—",
+        ]
+        for r in rev_loc
+    ]
+    tbl_rev_loc = _md_table(
+        ["Location / Market", "Revenue ($)", "Rev %", "Period"],
+        rev_loc_rows,
+    ) if rev_loc_rows else ""
 
     # ══════════════════════════════════════════════════════════════════════
     # TABLE 2 — Revenue visibility
@@ -1483,6 +1630,10 @@ Write the markdown narrative only — no extra commentary.
     md.append("### Products & Services\n")
     md.append(tbl_products)
 
+    if tbl_rev_loc:
+        md.append("### Revenue by Location\n")
+        md.append(tbl_rev_loc)
+
     md.append("### Sales Motion\n")
     md.append(_md_table(
         ["Field", "Detail"],
@@ -1580,6 +1731,7 @@ CREATE TABLE IF NOT EXISTS {table} (
     flag_confidence               STRING,
     flag_rule_applied             STRING,
     products_services_json        STRING,
+    revenue_by_location_json      STRING,
     customer_profile_json         STRING,
     sales_motion_tag              STRING,
     sales_motion_json             STRING,
@@ -1630,7 +1782,7 @@ def main() -> dict:
         "company_name", "cim_detected", "executive_summary",
         "revenue_model_tag", "revenue_model_pct_split", "revenue_model_note",
         "revenue_durability_flag", "flag_confidence", "flag_rule_applied",
-        "products_services_json", "customer_profile_json",
+        "products_services_json", "revenue_by_location_json", "customer_profile_json",
         "sales_motion_tag", "sales_motion_json", "revenue_visibility_json",
         "key_dependencies_json", "recent_model_changes_json",
         "overlay_conflict", "overlay_conflict_note", "overlay_conflict_evidence",
@@ -1669,6 +1821,7 @@ def main() -> dict:
         StructField("flag_confidence",             StringType(),            True),
         StructField("flag_rule_applied",           StringType(),            True),
         StructField("products_services_json",      StringType(),            True),
+        StructField("revenue_by_location_json",    StringType(),            True),
         StructField("customer_profile_json",       StringType(),            True),
         StructField("sales_motion_tag",            StringType(),            True),
         StructField("sales_motion_json",           StringType(),            True),
@@ -1697,6 +1850,7 @@ def main() -> dict:
         "flag_confidence":            result.get("flag_confidence"),
         "flag_rule_applied":          result.get("flag_rule_applied"),
         "products_services_json":     result.get("products_services_json"),
+        "revenue_by_location_json":   result.get("revenue_by_location_json"),
         "customer_profile_json":      result.get("customer_profile_json"),
         "sales_motion_tag":           result.get("sales_motion_tag"),
         "sales_motion_json":          result.get("sales_motion_json"),
