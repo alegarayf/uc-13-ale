@@ -112,9 +112,13 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
         """Attempt to recover a JSON response truncated mid-stream by the token limit.
 
         Strategy: scan forward tracking bracket depth and string state to find the
-        last position where a complete top-level list item was closed (depth == 1),
-        truncate there, then append the minimum closing brackets needed to produce
-        valid JSON. Returns None if recovery is not possible.
+        last position where any nested item was cleanly closed (depth >= 1), truncate
+        there, then append the minimum closing brackets needed to produce valid JSON.
+
+        Using depth >= 1 (not just depth == 1) allows recovery of partial top-level
+        arrays — e.g. when the ebitda array is cut off mid-way through its records,
+        we save all records that fully closed before the truncation point rather than
+        losing the entire field.  Returns None if no safe recovery point is found.
         """
         last_item_end = -1
         depth = 0
@@ -137,7 +141,7 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
                 depth += 1
             elif ch in ("}", "]"):
                 depth -= 1
-                if depth == 1:
+                if depth >= 1:
                     last_item_end = i + 1
 
         if last_item_end <= 0:
