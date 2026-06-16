@@ -476,16 +476,41 @@ def parse_pdf(
             el_type     = el.get("type", "")
             raw_content = el.get("content", "")
             content     = _strip_html(raw_content).strip()
-            page_id     = el.get("page_id")
+            # page_id is nested inside bbox[0] in ai_parse_document v2.0 output,
+            # not at the top level of the element.
+            _bbox   = el.get("bbox") or []
+            page_id = _bbox[0].get("page_id") if _bbox else None
 
-            # Detect empty figure elements (charts, diagrams, org chart boxes).
-            # Track them for the vision pass; don't let them fall to the skip below.
-            if el_type == "figure" and not content:
+            # Figure elements: content is always empty in v2.0 but ai_parse_document
+            # provides a free text description of the figure.  Store the description
+            # as the chunk text so retrieval can surface figure context even without
+            # the vision LLM.  Also queue the page for vision extraction if enabled.
+            if el_type == "figure":
+                description = (el.get("description") or "").strip()
                 if page_id is not None:
                     figure_page_header_map.setdefault(
                         page_id,
                         current_header or last_known_header or "Document body",
                     )
+                if description:
+                    h      = current_header or last_known_header or "Document body"
+                    prefix = f"[Document: {doc_title}] [Section: {h}] [Figure]"
+                    ct     = f"{prefix}\n\n{description}"
+                    if len(description) >= MIN_VISION_CHUNK_CHARS:
+                        chunks.append(Chunk(
+                            chunk_id=str(uuid.uuid4()),
+                            doc_id=doc_id,
+                            file_name=file_name,
+                            file_type="pdf",
+                            relative_path=file_path,
+                            chunk_index=chunk_index,
+                            chunk_text=ct,
+                            section_header=h,
+                            page_start=page_id + 1 if page_id is not None else None,
+                            page_end=page_id + 1 if page_id is not None else None,
+                            source_type="vision",
+                        ))
+                        chunk_index += 1
                 continue
 
             if el_type in _SKIP_ELEMENT_TYPES or not content:
@@ -552,7 +577,8 @@ def parse_pdf(
             _last_any_hdr = last_known_header or "Document"
 
             for el in elements:
-                _pid     = el.get("page_id")
+                _bbox    = el.get("bbox") or []
+                _pid     = _bbox[0].get("page_id") if _bbox else None
                 _el_type = el.get("type", "")
                 _content = _strip_html(el.get("content", "")).strip()
                 if _el_type in _HEADER_ELEMENT_TYPES:
