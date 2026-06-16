@@ -1462,7 +1462,7 @@ class FinancialTrendsAgent:
             company_profile_json=company_profile_json,
             combined_chunk_text=combined_chunk_text,
         )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=8_192)
+        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=12_000)
         extracted = self._parse_json_response(raw_response)
 
         # ── Source doc validation: reject any record sourced from the company profile ──
