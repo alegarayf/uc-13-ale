@@ -234,7 +234,8 @@ BEFORE YOU WRITE THE JSON: Scan the context for how many distinct named revenue
 lines and EBITDA lines are present. For each named line × each period, you must
 produce one record. A document with 5 fiscal periods and 4 named EBITDA lines
 must produce 20 EBITDA records. Do not abbreviate.
-Extract EBITDA and addback_schedule FIRST before moving to revenue_trend — these are the highest-priority fields.
+Extract EBITDA and addback_schedule FIRST, then revenue_trend — these are the highest-priority fields.
+NOTE: Revenue figures may live in QuickBooks P&L exports (filenames like "2020 P&L", "2022 Elder Care QuickBooks"), geographic segment spreadsheets, or individual annual workbooks — NOT only the CIM. Check all retrieved documents for revenue data before leaving revenue_trend empty.
 
 {{
   "ebitda": [
@@ -295,6 +296,17 @@ Extract EBITDA and addback_schedule FIRST before moving to revenue_trend — the
     }}
   ],
 
+  "revenue_by_customer": [
+    {{
+      "rank": "<1–10 rank by revenue size, or null if not ranked>",
+      "customer_name": "<customer or client name as stated — use 'Customer [N]' if anonymized>",
+      "revenue_dollars": "<$ as stated>",
+      "revenue_pct": "<% of total revenue as stated, or null>",
+      "period": "<time period>",
+      "source_doc": "<exact VDR filename>"
+    }}
+  ],
+
   "opex_breakdown": [
     {{
       "category": "<cost category name — e.g. 'Salaries & Benefits', 'Rent', 'G&A', 'Sales & Marketing'>",
@@ -339,7 +351,7 @@ Extract EBITDA and addback_schedule FIRST before moving to revenue_trend — the
     }}
   ],
 
-  "executive_summary": "<3–4 sentence factual summary covering: (1) revenue scale and growth trajectory if visible, (2) gross margin level and trend, (3) EBITDA profile across the versions present, (4) most notable financial risk or pattern. Write only what is stated in the documents. Do not render a verdict.>",
+  "executive_summary": "<1–2 sentence factual summary covering revenue scale (if visible), EBITDA profile, and the most notable financial risk. Write only what is stated in the documents. Do not render a verdict.>",
 
   "extraction_notes": "<Single string. Enumerate separated by semicolons: fields returned as null because absent from documents; tables present but only partially readable; multiple versions of the same metric found; any ambiguity in how margin rows were assigned to parent rows; any layout patterns that differ from the rules above.>"
 }}\
@@ -851,6 +863,77 @@ class FinancialTrendsAgent:
             source_docs=source_docs,
         )
 
+    def _tool_retrieve_customer_revenue(self, spark):
+        """Retrieves customer concentration and top-customer revenue data.
+
+        Searches QuickBooks customer summary exports, CIM customer tables, and
+        any document disclosing revenue by client or payor. Elder care deals
+        frequently include 'Sales by Customer' QuickBooks reports or a CIM
+        section titled 'Customer Concentration'.
+        """
+        chunks = self._semantic_search_with_fallback(
+            spark=spark,
+            query=(
+                "top customers revenue by customer customer concentration sales by customer "
+                "client revenue largest customers customer P&L income by customer "
+                "QuickBooks customer summary revenue concentration payor concentration "
+                "revenue by client customer breakdown top 10 customers"
+            ),
+            workstream_filter=["FINANCIAL", "BUSINESS_MODEL", "CUSTOMER_QUALITY"],
+            top_k=6,
+            file_name_filter=[
+                "Customer", "QuickBooks", "QBO", "Sales", "Revenue", "CIM",
+                "Client", "Concentration", "Payor",
+            ],
+            min_chunk_length=80,
+            min_results=3,
+            source_type_priority=True,
+        )
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name="retrieve_customer_revenue",
+            input_summary="query=top customers revenue concentration QuickBooks customer summary; workstream=FINANCIAL,BUSINESS_MODEL,CUSTOMER_QUALITY; top_k=6 (with fallback)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
+    def _tool_retrieve_quickbooks_pl(self, spark):
+        """Retrieves annual P&L data from QuickBooks exports and individual year workbooks.
+
+        These files often have non-standard names (e.g. '2022 Elder Care P&L.xlsx',
+        'QuickBooks Export 2023.xlsx') and are not captured by CIM-focused queries.
+        """
+        chunks = self._semantic_search_with_fallback(
+            spark=spark,
+            query=(
+                "total income total revenue net revenue gross revenue QuickBooks P&L "
+                "annual income statement 2020 2021 2022 2023 revenue expenses "
+                "total sales income from operations total operating revenue"
+            ),
+            workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
+            top_k=8,
+            file_name_filter=[
+                "QuickBooks", "QBO", "2020", "2021", "2022", "2023", "2024",
+                "P&L", "Income", "Profit", "Annual", "Financial",
+            ],
+            min_chunk_length=100,
+            min_results=3,
+            source_type_priority=True,
+        )
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name="retrieve_quickbooks_pl",
+            input_summary="query=total revenue net income QuickBooks annual P&L 2020-2024; workstream=FINANCIAL,BUSINESS_MODEL; top_k=8; source_type_priority=True (with fallback)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
     def _tool_load_company_profile(self, company_name: str, spark):
         rows = spark.sql(f"""
             SELECT * FROM uc13.classification.company_profile
@@ -1324,22 +1407,24 @@ class FinancialTrendsAgent:
         self._company_name = company_name
         _extract_ep = extraction_endpoint or llm_endpoint
 
-        print(f"  Running 8 tools ...")
+        print(f"  Running 10 tools ...")
 
         # ── Tool calls ────────────────────────────────────────────────
-        tr1 = self._tool_retrieve_financial_statements(spark)
-        tr2 = self._tool_retrieve_ebitda_and_margins(spark)
-        tr3 = self._tool_retrieve_revenue_by_segment(spark)
-        tr4 = self._tool_retrieve_working_capital(spark)
-        tr5 = self._tool_retrieve_addback_schedule(spark)
-        tr6 = self._tool_load_company_profile(company_name, spark)
-        tr7 = self._tool_retrieve_revenue_by_geography(spark)
-        tr8 = self._tool_retrieve_projected_financials(spark)
+        tr1  = self._tool_retrieve_financial_statements(spark)
+        tr2  = self._tool_retrieve_ebitda_and_margins(spark)
+        tr3  = self._tool_retrieve_revenue_by_segment(spark)
+        tr4  = self._tool_retrieve_working_capital(spark)
+        tr5  = self._tool_retrieve_addback_schedule(spark)
+        tr6  = self._tool_load_company_profile(company_name, spark)
+        tr7  = self._tool_retrieve_revenue_by_geography(spark)
+        tr8  = self._tool_retrieve_projected_financials(spark)
+        tr9  = self._tool_retrieve_customer_revenue(spark)
+        tr10 = self._tool_retrieve_quickbooks_pl(spark)
 
         # ── Build combined context (deduplicate by chunk text) ────────
         seen_texts: set[str] = set()
         all_chunks = []
-        for tr in (tr1, tr2, tr3, tr4, tr5, tr7, tr8):
+        for tr in (tr1, tr2, tr3, tr4, tr5, tr7, tr8, tr9, tr10):
             for chunk in (tr.data or []):
                 if chunk.chunk_text not in seen_texts:
                     seen_texts.add(chunk.chunk_text)
@@ -1572,6 +1657,7 @@ class FinancialTrendsAgent:
             "gross_margin_json":        json.dumps(extracted.get("gross_margin") or []),
             "ebitda_json":              json.dumps(extracted.get("ebitda") or []),
             "revenue_by_segment_json":  json.dumps(extracted.get("revenue_by_segment") or []),
+            "revenue_by_customer_json": json.dumps(extracted.get("revenue_by_customer") or []),
             "cost_structure_json":      json.dumps(extracted.get("cost_structure") or {}),
             "working_capital_json":     json.dumps(extracted.get("working_capital") or {}),
             "budget_vs_actual_json":    json.dumps(extracted.get("budget_vs_actual") or []),
@@ -1624,11 +1710,12 @@ def generate_financial_assessment(
     flags          = result.get("flags") or []
     data_room_gaps = result.get("data_room_gaps") or []
 
-    revenue_trend   = json.loads(result.get("revenue_trend_json")      or "[]")
-    gross_margin    = json.loads(result.get("gross_margin_json")        or "[]")
-    ebitda          = json.loads(result.get("ebitda_json")              or "[]")
-    rev_by_segment  = json.loads(result.get("revenue_by_segment_json") or "[]")
-    opex_breakdown  = json.loads(result.get("opex_breakdown_json")      or "[]")
+    revenue_trend    = json.loads(result.get("revenue_trend_json")       or "[]")
+    gross_margin     = json.loads(result.get("gross_margin_json")        or "[]")
+    ebitda           = json.loads(result.get("ebitda_json")              or "[]")
+    rev_by_segment   = json.loads(result.get("revenue_by_segment_json") or "[]")
+    rev_by_customer  = json.loads(result.get("revenue_by_customer_json") or "[]")
+    opex_breakdown   = json.loads(result.get("opex_breakdown_json")      or "[]")
     working_capital = json.loads(result.get("working_capital_json")     or "{}")
     budget_vs_actual= json.loads(result.get("budget_vs_actual_json")   or "[]")
     addbacks        = json.loads(result.get("addback_schedule_json")   or "[]")
@@ -1715,6 +1802,41 @@ def generate_financial_assessment(
                 seg_vals.append("—")
         pl_lines.append(_pl_row(f"  ↳ {seg}", seg_vals))
 
+    # Top customers (up to 10) — pick most recent period's data if period-specific
+    if rev_by_customer:
+        _cust_sorted = sorted(
+            rev_by_customer,
+            key=lambda r: (
+                int(r.get("rank") or 99),
+                -(_parse_numeric(r.get("revenue_dollars")) or 0),
+            ),
+        )
+        # Deduplicate by customer name; keep top 10
+        _seen_cust: set = set()
+        _top_customers = []
+        for _c in _cust_sorted:
+            _nm = (_c.get("customer_name") or "").strip()
+            if _nm and _nm not in _seen_cust:
+                _seen_cust.add(_nm)
+                _top_customers.append(_c)
+            if len(_top_customers) >= 10:
+                break
+        for _c in _top_customers:
+            _nm  = (_c.get("customer_name") or "Customer")[:30]
+            _pct = f" ({_fmt_pct(_c.get('revenue_pct'))})" if _c.get("revenue_pct") else ""
+            _amt = _fmt_dollars(_c.get("revenue_dollars"))
+            _per = _c.get("period") or ""
+            # Show dollar in the period column if we know which period, else first column
+            _cust_vals = []
+            for p in all_periods:
+                if _per and _per == p:
+                    _cust_vals.append(f"{_amt}{_pct}")
+                elif not _per and p == all_periods[0]:
+                    _cust_vals.append(f"{_amt}{_pct}")
+                else:
+                    _cust_vals.append("—")
+            pl_lines.append(_pl_row(f"  ↳ {_nm}", _cust_vals))
+
     # Gross Profit / Margin
     pl_lines.append(_pl_row("Gross Profit ($K)", [_gm_lookup(p, "gm_dollars_stated") for p in all_periods], bold=True))
     pl_lines.append(_pl_row("  Gross Margin %", [_gm_lookup(p, "gm_pct_stated") for p in all_periods]))
@@ -1800,8 +1922,21 @@ def generate_financial_assessment(
     # ══════════════════════════════════════════════════════════════════════
     # LLM narrative call — 6 focused questions, not 12
     # ══════════════════════════════════════════════════════════════════════
+    # Customer concentration summary for narrative context
+    _cust_lines = []
+    if rev_by_customer:
+        _cust_lines.append("CUSTOMER CONCENTRATION (top customers):")
+        for _c in rev_by_customer[:10]:
+            _pct = f" ({_fmt_pct(_c.get('revenue_pct'))})" if _c.get("revenue_pct") else ""
+            _cust_lines.append(
+                f"  {_c.get('customer_name','?')}: {_fmt_dollars(_c.get('revenue_dollars'))}{_pct} [{_c.get('period','')}]"
+            )
+    _cust_block = "\n".join(_cust_lines) if _cust_lines else "CUSTOMER CONCENTRATION: not available."
+
     _pl_context = f"""P&L SUMMARY (periods as columns):
 {tbl_pl}
+
+{_cust_block}
 
 ADDBACK BRIDGE:
 {tbl_addbacks}
@@ -1814,28 +1949,30 @@ WORKING CAPITAL: DSO={working_capital.get('dso_days') or 'n/a'}  DPO={working_ca
 DEVIATION FLAGS:
 {chr(10).join(_deviation_flags) if _deviation_flags else 'None detected.'}
 
-DATA ROOM GAPS:
+DATA ROOM GAPS (summarized — do not list in narrative):
 {chr(10).join('- ' + g for g in data_room_gaps) if data_room_gaps else 'None.'}
 """
 
     _ASSESS_SYS = """\
-You are a senior PE investment analyst writing a 1-page financial summary section of
-an internal diligence memo. Synthesize the P&L data provided and answer 6 questions.
+You are a senior PE investment analyst writing a concise financial summary for an
+internal diligence memo. Synthesize the P&L data provided and answer 6 questions.
 
 Rules:
 1. Write only what the data supports. Do not invent facts.
-2. If a section cannot be assessed because data is missing, say so in one sentence.
-3. Use concrete numbers from the tables. Use PE language: "compressed", "diluted",
-   "inflated by addbacks", "operating leverage not yet visible", etc.
+2. If a section cannot be assessed due to missing data, say so in ONE sentence.
+3. Use concrete numbers. PE language only: "compressed", "addback-inflated",
+   "operating leverage not visible", "top-line absent", etc.
 4. Return pure markdown only — no preamble, no code fences.
-5. Structure with exactly these 6 section headers (H3):
+5. Structure with exactly these 6 H3 headers:
    ### 1. Revenue Growth Quality
    ### 2. Margin Profile
    ### 3. EBITDA Reliability (Reported vs. Adjusted)
    ### 4. Cost Structure and Operating Leverage
    ### 5. Working Capital and Cash Conversion
    ### 6. Forecast Achievability
-6. Each section: ≤3 bullet points + one "**Analyst take:**" sentence.
+6. Each section: MAX 2 bullet points (≤30 words each) + one **Analyst take:** sentence.
+   Do NOT repeat data already shown in the P&L table — reference it, don't restate it.
+   Be ruthlessly concise.
 """
 
     _ASSESS_USER = f"""\
@@ -1858,7 +1995,7 @@ EXECUTIVE SUMMARY: {exec_summary}
                 {"role": "system", "content": _ASSESS_SYS},
                 {"role": "user",   "content": _ASSESS_USER},
             ],
-            "max_tokens": 3000,
+            "max_tokens": 2000,
             "temperature": 0.1,
         },
     )
@@ -1978,11 +2115,12 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
     company_name = result["company_name"]
 
     # ── Parse JSON blobs back to Python objects for clean rendering ────
-    revenue_trend    = json.loads(result.get("revenue_trend_json")       or "[]")
-    gross_margin     = json.loads(result.get("gross_margin_json")        or "[]")
-    ebitda           = json.loads(result.get("ebitda_json")              or "[]")
+    revenue_trend    = json.loads(result.get("revenue_trend_json")        or "[]")
+    gross_margin     = json.loads(result.get("gross_margin_json")         or "[]")
+    ebitda           = json.loads(result.get("ebitda_json")               or "[]")
     rev_by_segment   = json.loads(result.get("revenue_by_segment_json")  or "[]")
-    cost_structure   = json.loads(result.get("cost_structure_json")      or "{}")
+    rev_by_customer  = json.loads(result.get("revenue_by_customer_json") or "[]")
+    cost_structure   = json.loads(result.get("cost_structure_json")       or "{}")
     working_capital  = json.loads(result.get("working_capital_json")     or "{}")
     budget_vs_actual = json.loads(result.get("budget_vs_actual_json")    or "[]")
     addbacks         = json.loads(result.get("addback_schedule_json")    or "[]")
@@ -2004,6 +2142,7 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
         "gross_margin":      gross_margin,
         "ebitda":            ebitda,
         "revenue_by_segment": rev_by_segment,
+        "revenue_by_customer": rev_by_customer,
         "cost_structure":    cost_structure,
         "working_capital":   working_capital,
         "budget_vs_actual":  budget_vs_actual,
@@ -2084,6 +2223,7 @@ CREATE TABLE IF NOT EXISTS {table} (
     gross_margin_json           STRING,
     ebitda_json                 STRING,
     revenue_by_segment_json     STRING,
+    revenue_by_customer_json    STRING,
     cost_structure_json         STRING,
     working_capital_json        STRING,
     budget_vs_actual_json       STRING,
@@ -2109,7 +2249,7 @@ def main() -> dict:
     company_name         = get_param("sp_company_name")
     catalog              = get_param("catalog",              default="uc13")
     llm_endpoint         = get_param("llm_endpoint",         default="databricks-claude-sonnet-4-6")
-    extraction_endpoint  = get_param("extraction_endpoint",  default="databricks-claude-haiku-4-5") or None
+    extraction_endpoint  = get_param("extraction_endpoint",  default="databricks-claude-sonnet-4-6") or None
 
     from pyspark.sql import SparkSession
     spark = SparkSession.getActiveSession()
@@ -2135,7 +2275,7 @@ def main() -> dict:
     _EXPECTED_COLS = {
         "company_name", "executive_summary", "industry_overlay_used",
         "revenue_trend_json", "gross_margin_json", "ebitda_json",
-        "revenue_by_segment_json", "cost_structure_json", "working_capital_json",
+        "revenue_by_segment_json", "revenue_by_customer_json", "cost_structure_json", "working_capital_json",
         "budget_vs_actual_json", "addback_schedule_json", "opex_breakdown_json",
         "addback_pct_of_ebitda", "flags", "discrepancies", "data_room_gaps",
         "citations", "reasoning_trace", "created_at",
@@ -2166,6 +2306,7 @@ def main() -> dict:
         StructField("gross_margin_json",        StringType(),  True),
         StructField("ebitda_json",              StringType(),  True),
         StructField("revenue_by_segment_json",  StringType(),  True),
+        StructField("revenue_by_customer_json", StringType(),  True),
         StructField("cost_structure_json",      StringType(),  True),
         StructField("working_capital_json",     StringType(),  True),
         StructField("budget_vs_actual_json",    StringType(),  True),
@@ -2188,6 +2329,7 @@ def main() -> dict:
         "gross_margin_json":        result.get("gross_margin_json"),
         "ebitda_json":              result.get("ebitda_json"),
         "revenue_by_segment_json":  result.get("revenue_by_segment_json"),
+        "revenue_by_customer_json": result.get("revenue_by_customer_json"),
         "cost_structure_json":      result.get("cost_structure_json"),
         "working_capital_json":     result.get("working_capital_json"),
         "budget_vs_actual_json":    result.get("budget_vs_actual_json"),
