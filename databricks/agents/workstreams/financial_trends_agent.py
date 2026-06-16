@@ -643,13 +643,16 @@ class FinancialTrendsAgent:
                 "annual revenue gross profit EBITDA profit loss income statement "
                 "financial results reported net revenue pro forma adjusted revenue "
                 "management accounts P&L summary historical financials "
+                "cost of revenue gross margin operating expenses salaries compensation "
+                "benefits overhead G&A selling expenses summary P&L "
                 "clinic level EBITDA diligence adjusted pro forma adjusted EBITDA"
             ),
             workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
-            top_k=10,
+            top_k=12,
             file_name_filter=[
                 "P&L", "Profit", "Loss", "Income", "Financial", "Accounts",
                 "Financials", "Audited", "Management", "QofE", "Quality", "CIM",
+                "Model", "Projection", "Summary",
             ],
             min_chunk_length=150,
             min_results=3,
@@ -838,13 +841,13 @@ class FinancialTrendsAgent:
             spark=spark,
             query=(
                 "projected revenue forecast 2025 2026 2027 2028 2029 "
-                "projected EBITDA gross profit margin projection model "
-                "pro forma income statement forward projections budget forecast "
-                "revenue projection plan projected growth estimated revenue "
-                "financial model projection assumptions"
+                "gross profit gross margin operating expenses OPEX salaries labor "
+                "projected EBITDA summary P&L income statement forward projections "
+                "revenue projection plan financial model projection assumptions "
+                "cost of revenue compensation benefits G&A overhead"
             ),
             workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
-            top_k=6,
+            top_k=8,
             file_name_filter=[
                 "Model", "Projection", "Forecast", "Budget", "CIM", "Financial", "P&L",
             ],
@@ -2249,7 +2252,16 @@ def main() -> dict:
     company_name         = get_param("sp_company_name")
     catalog              = get_param("catalog",              default="uc13")
     llm_endpoint         = get_param("llm_endpoint",         default="databricks-claude-sonnet-4-6")
-    extraction_endpoint  = get_param("extraction_endpoint",  default="databricks-claude-sonnet-4-6") or None
+    _widget_ep           = get_param("extraction_endpoint",  default="databricks-claude-sonnet-4-6") or "databricks-claude-sonnet-4-6"
+    # FTA schema generates 10-14K output tokens (78+ EBITDA records, 17+ addbacks, segments,
+    # OPEX). Haiku 4.5 is hard-capped at 8,192 on this workspace — always truncates before
+    # reaching gross_margin / revenue_by_segment / opex_breakdown. Force Sonnet regardless
+    # of widget setting; any non-Haiku selection (Opus, a custom endpoint) is respected.
+    if "haiku" in _widget_ep.lower():
+        extraction_endpoint = "databricks-claude-sonnet-4-6"
+        print(f"  [override] extraction_endpoint '{_widget_ep}' → Sonnet (Haiku cap=8192 tokens; FTA schema needs 10K+)")
+    else:
+        extraction_endpoint = _widget_ep
 
     from pyspark.sql import SparkSession
     spark = SparkSession.getActiveSession()
