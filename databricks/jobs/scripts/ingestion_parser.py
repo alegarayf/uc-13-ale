@@ -9,23 +9,29 @@ saves both to Delta tables.
 Chunking improvements (vs. original notebook):
   PDF  — Section header carry-forward (no chunk is header-less), document title
           prefix on every chunk: "[Document: {title}] [Section: {header}]\n{text}"
+          HTML table elements are converted to pipe-delimited markdown (not
+          stripped) so column structure is preserved for the LLM.
+          Pages whose ai_parse_document elements are empty figures are passed
+          to a vision LLM endpoint for chart/org-chart data extraction.
   Excel — Document + sheet name prefix on every batch. Financial sheets (P&L,
           Balance Sheet, etc.) detect date-like column headers and add a summary
           line "Time periods covered: {cols}" at the top of each chunk.
 
 Phase 2b outputs:
-  - Table uc13.ingestion.chunks
+  - Table uc13.ingestion.chunks      (+ source_type: text | table | vision)
   - Table uc13.ingestion.embeddings  (CDF enabled, workstream ARRAY<STRING>,
-                                       priority_tier INT)
+                                       priority_tier INT, source_type STRING)
 
 Dependencies:
   - uc13.classification.doc_relevance (written by 02_document_classifier.py)
   - Volume files under /Volumes/{catalog}/ingestion/raw_files/{company_name}/
   - python-docx, openpyxl (pre-installed via requirements.txt / cluster init)
   - MLflow endpoint: databricks-bge-large-en
-  - Job parameters: sp_company_name, catalog, schema
+  - Job parameters: sp_company_name, catalog, schema, vision_endpoint (optional)
+  - Optional: pymupdf (pip install pymupdf) for vision-based figure extraction
 """
 
+import base64
 import csv
 import hashlib
 import json
@@ -35,6 +41,7 @@ import sys
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Optional
 
@@ -156,6 +163,8 @@ class Chunk:
     page_start: Optional[int] = None
     page_end: Optional[int] = None
     tab: Optional[str] = None
+    # "text" | "table" | "vision" — drives source_type column and retrieval routing.
+    source_type: str = "text"
     char_count: int = field(init=False)
 
     def __post_init__(self):
@@ -170,11 +179,12 @@ def make_doc_id(path: str) -> str:
 # Chunking constants
 # ---------------------------------------------------------------------------
 
-MAX_CHUNK_CHARS          = 7_500   # hard ceiling — BGE Large limit with safety buffer
-MIN_CHUNK_CHARS          = 150     # drop chunks shorter than this (content only, after prefix)
-CHUNK_OVERLAP_CHARS      = 200     # overlap for narrative content (PDF prose, Word)
-OPERATIONAL_ROWS_PER_CHUNK = 50   # non-financial Excel/CSV rows per chunk
-FINANCIAL_LINES_PER_CHUNK  = 30   # financial sheet line items per chunk
+MAX_CHUNK_CHARS            = 7_500  # hard ceiling — BGE Large limit with safety buffer
+MIN_CHUNK_CHARS            = 150    # drop chunks shorter than this (content only, after prefix)
+MIN_VISION_CHUNK_CHARS     = 50     # vision-extracted chart data is naturally shorter
+CHUNK_OVERLAP_CHARS        = 200    # overlap for narrative content (PDF prose, Word)
+OPERATIONAL_ROWS_PER_CHUNK = 50    # non-financial Excel/CSV rows per chunk
+FINANCIAL_LINES_PER_CHUNK  = 30    # financial sheet line items per chunk
 
 
 # ---------------------------------------------------------------------------
@@ -212,11 +222,104 @@ def _strip_html(text: str) -> str:
     return text.strip()
 
 
+# ---------------------------------------------------------------------------
+# HTML table → markdown (preserves column structure for the LLM)
+# ---------------------------------------------------------------------------
+
+class _HTMLTableParser(HTMLParser):
+    """Minimal HTML parser that extracts rows and cells from a table element."""
+    def __init__(self):
+        super().__init__()
+        self.rows: list = []
+        self._row: list = []
+        self._cell: list = []
+        self._in_cell = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "tr":
+            self._row = []
+        elif tag in ("td", "th"):
+            self._cell = []
+            self._in_cell = True
+
+    def handle_endtag(self, tag):
+        if tag == "tr":
+            if self._row:
+                self.rows.append(self._row[:])
+            self._row = []
+        elif tag in ("td", "th"):
+            self._row.append(" ".join(self._cell).strip())
+            self._cell = []
+            self._in_cell = False
+
+    def handle_data(self, data):
+        if self._in_cell:
+            text = data.strip()
+            if text:
+                self._cell.append(text)
+
+
+def _html_table_to_markdown(html: str) -> str:
+    """Convert an HTML table to pipe-delimited markdown.
+
+    Preserving the column header → value relationship is critical for tables
+    where column headers carry the key meaning (e.g. owner names as columns in
+    an ownership table, or 'North America | Global' headcount columns).  The
+    plain _strip_html fallback loses this entirely.
+
+    Falls back to _strip_html if the HTML contains no <tr> elements or only
+    one row (nothing to structure).  This makes it safe to call on any content
+    regardless of whether it is actually a well-formed HTML table.
+    """
+    parser = _HTMLTableParser()
+    try:
+        parser.feed(html)
+    except Exception:
+        return _strip_html(html)
+
+    rows = parser.rows
+    if len(rows) < 2:
+        return _strip_html(html)
+
+    max_cols = max((len(r) for r in rows), default=0)
+    if max_cols == 0:
+        return _strip_html(html)
+
+    padded = [r + [""] * (max_cols - len(r)) for r in rows]
+    lines = ["| " + " | ".join(padded[0]) + " |",
+             "|" + "|".join(["---"] * max_cols) + "|"]
+    for row in padded[1:]:
+        lines.append("| " + " | ".join(row) + " |")
+    return "\n".join(lines)
+
+
 def _is_financial_sheet(sheet_name: str, file_name: str) -> bool:
     return bool(
         _FINANCIAL_SHEET_RE.search(sheet_name)
         or _FINANCIAL_SHEET_RE.search(file_name)
     )
+
+
+def _expand_merged_cells(ws) -> None:
+    """Copy the top-left cell value to every cell in each merged range, then unmerge.
+
+    Without this, openpyxl returns None for all non-top-left cells of a merge.
+    Critical for financial P&L sheets where period headers (2020A, 2021A…) sit
+    under spanning headers like "Actual" or "Projected" — those spanning cells
+    must be propagated so column-index mapping in _chunk_financial_sheet is correct.
+
+    Must be called on a non-read_only worksheet (read_only=True worksheets do not
+    expose the merged_cells attribute).
+    """
+    try:
+        for merge_range in list(ws.merged_cells.ranges):
+            top_left_value = ws.cell(merge_range.min_row, merge_range.min_col).value
+            ws.unmerge_cells(str(merge_range))
+            for row in range(merge_range.min_row, merge_range.max_row + 1):
+                for col in range(merge_range.min_col, merge_range.max_col + 1):
+                    ws.cell(row, col).value = top_left_value
+    except Exception:
+        pass  # merged_cells unavailable on read-only sheets — skip silently
 
 
 def _is_valid_chunk(chunk_text: str) -> bool:
@@ -269,11 +372,21 @@ def _split_long_text(text: str, prefix: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def parse_pdf(file_path: str, doc_id: str, file_name: str, spark) -> list[Chunk]:
+def parse_pdf(
+    file_path: str,
+    doc_id: str,
+    file_name: str,
+    spark,
+    vision_endpoint: Optional[str] = None,
+) -> list[Chunk]:
     """Parse a PDF using Databricks ai_parse_document.
 
     - Section header carry-forward: no chunk is ever context-free.
-    - Table elements are isolated as their own chunks (not merged into prose).
+    - Table elements are converted to pipe-delimited markdown (source_type='table')
+      so column headers remain meaningful to the LLM.
+    - Pages that have empty figure elements (charts, diagrams, org charts) are
+      optionally passed to a vision LLM if vision_endpoint is provided
+      (source_type='vision').  Requires pymupdf.
     - Long sections are split with CHUNK_OVERLAP_CHARS overlap.
     - Every chunk gets: [Document: {title}] [Section: {header}]
     """
@@ -309,6 +422,8 @@ def parse_pdf(file_path: str, doc_id: str, file_name: str, spark) -> list[Chunk]
         current_texts: list[str] = []
         current_pages: list[int] = []
         chunk_index = 0
+        # Maps 0-indexed page_id → section header at that point, for vision extraction.
+        figure_page_header_map: dict = {}
 
         def _make_prefix() -> str:
             h = current_header or last_known_header or "Document body"
@@ -334,13 +449,25 @@ def parse_pdf(file_path: str, doc_id: str, file_name: str, spark) -> list[Chunk]
                         section_header=h,
                         page_start=min(current_pages) + 1 if current_pages else None,
                         page_end=max(current_pages) + 1 if current_pages else None,
+                        source_type="text",
                     ))
                     chunk_index += 1
 
         for el in elements:
-            el_type = el.get("type", "")
-            content = _strip_html(el.get("content", "")).strip()
-            page_id = el.get("page_id")
+            el_type     = el.get("type", "")
+            raw_content = el.get("content", "")
+            content     = _strip_html(raw_content).strip()
+            page_id     = el.get("page_id")
+
+            # Detect empty figure elements (charts, diagrams, org chart boxes).
+            # Track them for the vision pass; don't let them fall to the skip below.
+            if el_type == "figure" and not content:
+                if page_id is not None:
+                    figure_page_header_map.setdefault(
+                        page_id,
+                        current_header or last_known_header or "Document body",
+                    )
+                continue
 
             if el_type in _SKIP_ELEMENT_TYPES or not content:
                 continue
@@ -353,13 +480,18 @@ def parse_pdf(file_path: str, doc_id: str, file_name: str, spark) -> list[Chunk]
                 current_pages     = []
 
             elif el_type == "table":
-                # Flush prose first, then split the table content and emit each piece.
+                # Convert HTML to markdown so column headers stay meaningful.
+                # _strip_html would turn "| Owner A | Owner B |" → "Owner A Owner B"
+                # losing the column→value relationship entirely.
                 flush_prose()
                 current_texts = []
                 current_pages = []
+                table_md = _html_table_to_markdown(raw_content)
+                if not table_md.strip():
+                    continue
                 prefix = _make_prefix()
                 h      = current_header or last_known_header or "Document body"
-                for ct in _split_long_text(content, prefix):
+                for ct in _split_long_text(table_md, prefix):
                     if _is_valid_chunk(ct):
                         chunks.append(Chunk(
                             chunk_id=str(uuid.uuid4()),
@@ -372,6 +504,7 @@ def parse_pdf(file_path: str, doc_id: str, file_name: str, spark) -> list[Chunk]
                             section_header=h,
                             page_start=page_id + 1 if page_id is not None else None,
                             page_end=page_id + 1 if page_id is not None else None,
+                            source_type="table",
                         ))
                         chunk_index += 1
 
@@ -381,12 +514,221 @@ def parse_pdf(file_path: str, doc_id: str, file_name: str, spark) -> list[Chunk]
                     current_pages.append(page_id)
 
         flush_prose()
-        print(f"  ✓ {file_name}: {len(chunks)} PDF chunks")
+
+        # Sparse-page detection: pages inside a financial section with very little
+        # text (<30 chars) are likely image-based P&L tables that ai_parse_document
+        # couldn't parse as text elements.  Add them to figure_page_header_map so
+        # the vision pass covers them, even if no figure element was emitted.
+        # This catches CIM pages where the entire P&L is a scanned image with no
+        # OCR-able text elements — previously silently skipped.
+        if vision_endpoint:
+            _page_text_chars: dict[int, int] = {}
+            _page_in_fin_section: dict[int, bool] = {}
+            _in_fin = False
+            for el in elements:
+                _pid     = el.get("page_id")
+                _el_type = el.get("type", "")
+                _content = _strip_html(el.get("content", "")).strip()
+                if _el_type in _HEADER_ELEMENT_TYPES and _FINANCIAL_SHEET_RE.search(_content):
+                    _in_fin = True
+                if _in_fin and _pid is not None:
+                    _page_in_fin_section[_pid] = True
+                if _pid is not None:
+                    _page_text_chars[_pid] = _page_text_chars.get(_pid, 0) + len(_content)
+
+            for _pid, _char_count in _page_text_chars.items():
+                if _char_count < 30 and _page_in_fin_section.get(_pid, False):
+                    figure_page_header_map.setdefault(
+                        _pid,
+                        current_header or last_known_header or "Financial Statement",
+                    )
+
+        # Vision extraction: render figure-heavy pages and extract chart/org data.
+        if vision_endpoint and figure_page_header_map:
+            vision_chunks = _extract_figure_pages_with_vision(
+                file_path=file_path,
+                doc_id=doc_id,
+                file_name=file_name,
+                doc_title=doc_title,
+                figure_page_header_map=figure_page_header_map,
+                start_chunk_index=chunk_index,
+                vision_endpoint=vision_endpoint,
+            )
+            chunks.extend(vision_chunks)
+
+        table_count  = sum(1 for c in chunks if c.source_type == "table")
+        vision_count = sum(1 for c in chunks if c.source_type == "vision")
+        print(
+            f"  ✓ {file_name}: {len(chunks)} PDF chunks"
+            f" ({table_count} table, {vision_count} vision,"
+            f" {len(figure_page_header_map)} figure pages detected)"
+        )
         return chunks
 
     except Exception as exc:
         print(f"  ✗ {file_name}: {exc}")
         return []
+
+
+# ---------------------------------------------------------------------------
+# Vision-based figure extraction
+# ---------------------------------------------------------------------------
+
+def _extract_figure_pages_with_vision(
+    file_path: str,
+    doc_id: str,
+    file_name: str,
+    doc_title: str,
+    figure_page_header_map: dict,
+    start_chunk_index: int,
+    vision_endpoint: str,
+) -> list[Chunk]:
+    """Render figure-heavy PDF pages and extract data via a vision LLM endpoint.
+
+    Fires for any page that ai_parse_document returned empty figure elements on —
+    covers pie/donut charts (payor mix, referral sources, tenure), bar charts,
+    org charts, infographic panels, and any other visual-only content.
+
+    Requires PyMuPDF (pip install pymupdf).  Falls back gracefully to an empty
+    list if the library is missing, so ingestion continues without vision data.
+
+    source_type is set to 'vision' on every chunk produced here so downstream
+    retrieval can distinguish vision-extracted content from parsed text.
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        print(
+            f"  ⚠ PyMuPDF not installed — vision extraction skipped for {file_name}.\n"
+            "    Add pymupdf to the cluster init script or run: %pip install pymupdf"
+        )
+        return []
+
+    import mlflow.deployments
+
+    _VISION_PROMPT = (
+        "This page is from a financial due diligence or business overview document. "
+        "Extract ALL data from any charts, graphs, diagrams, org charts, or tables visible.\n"
+        "• Pie / donut / bar charts: list each label and its value or percentage, "
+        "one per line in the format 'Label: Value'.\n"
+        "• Org charts: list each person as 'Name: [full name] | Title: [job title]'.\n"
+        "• Data tables: reproduce the header row and all data rows using ' | ' as the "
+        "column separator.\n"
+        "• Callout boxes or annotations: reproduce the text verbatim.\n"
+        "If this page contains no extractable data respond with exactly: NO_DATA\n"
+        "Return ONLY the extracted data. No descriptions, no commentary."
+    )
+
+    # Financial-specific vision prompt — used when section_header signals a P&L,
+    # income statement, EBITDA bridge, or balance sheet page.  Produces column-
+    # aligned tabular output optimised for LLM financial extraction.
+    _VISION_PROMPT_FINANCIAL = (
+        "This page contains a financial statement table (P&L, income statement, "
+        "EBITDA bridge, balance sheet, or similar) from a business overview or "
+        "due diligence document.\n"
+        "Extract ALL data from the table using this exact format:\n"
+        "• First output the column header row: Label | 2020A | 2021A | 2022A | ...\n"
+        "• Then one line per row item: Revenue | 8,955 | 14,176 | 20,846 | ...\n"
+        "• Preserve parentheses for negative values: (342)\n"
+        "• Include margin % rows (e.g. 'Margin | 42.1% | 44.3% | ...')\n"
+        "• Include growth % rows (e.g. 'Growth | N/A | 58.3% | ...')\n"
+        "• If the table has multiple named sections (Revenue, Gross Profit, EBITDA), "
+        "separate them with a blank line and the section label.\n"
+        "If this page contains no financial table respond with exactly: NO_DATA\n"
+        "Return ONLY the table data. No descriptions, no preamble, no commentary."
+    )
+
+    chunks: list[Chunk] = []
+    chunk_index = start_chunk_index
+
+    try:
+        pdf_doc = fitz.open(file_path)
+    except Exception as exc:
+        print(f"  ⚠ PyMuPDF could not open {file_name}: {exc}")
+        return []
+
+    client = mlflow.deployments.get_deploy_client("databricks")
+
+    for page_id, section_header in sorted(figure_page_header_map.items()):
+        if page_id >= len(pdf_doc):
+            continue
+        try:
+            page    = pdf_doc[page_id]
+            mat     = fitz.Matrix(150 / 72, 150 / 72)  # 150 DPI — quality vs. token cost
+            pix     = page.get_pixmap(matrix=mat)
+            img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
+
+            # Use the financial-specific prompt when the section header signals a
+            # P&L or income statement page — produces column-aligned tabular output
+            # that the financial trends agent can extract directly.
+            _is_fin_section = bool(_FINANCIAL_SHEET_RE.search(section_header or ""))
+            _active_prompt  = _VISION_PROMPT_FINANCIAL if _is_fin_section else _VISION_PROMPT
+
+            response = client.predict(
+                endpoint=vision_endpoint,
+                inputs={
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/png;base64,{img_b64}"
+                                    },
+                                },
+                                {"type": "text", "text": _active_prompt},
+                            ],
+                        }
+                    ],
+                    "max_tokens": 2000,
+                },
+            )
+
+            text = (
+                (response.get("choices") or [{}])[0]
+                .get("message", {})
+                .get("content", "")
+                .strip()
+            )
+
+            if not text or text.upper() == "NO_DATA":
+                continue
+
+            prefix = (
+                f"[Document: {doc_title}] [Section: {section_header}]"
+                f" [Page: {page_id + 1}] [Source: vision-extracted figure]"
+            )
+
+            for ct in _split_long_text(text, prefix):
+                content_only = _PREFIX_RE.sub("", ct).strip()
+                if len(content_only) >= MIN_VISION_CHUNK_CHARS:
+                    chunks.append(Chunk(
+                        chunk_id=str(uuid.uuid4()),
+                        doc_id=doc_id,
+                        file_name=file_name,
+                        file_type="pdf",
+                        relative_path=file_path,
+                        chunk_index=chunk_index,
+                        chunk_text=ct,
+                        section_header=section_header,
+                        page_start=page_id + 1,
+                        page_end=page_id + 1,
+                        source_type="vision",
+                    ))
+                    chunk_index += 1
+
+        except Exception as exc:
+            print(f"  ⚠ Vision extraction failed for {file_name} page {page_id + 1}: {exc}")
+
+    pdf_doc.close()
+
+    if chunks:
+        print(
+            f"  ✓ Vision extracted {len(chunks)} chunk(s) from "
+            f"{len(figure_page_header_map)} figure page(s) in {file_name}"
+        )
+    return chunks
 
 
 # ---------------------------------------------------------------------------
@@ -578,17 +920,31 @@ def parse_excel(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
     line-item format — one chunk per group of rows with all period values inline.
     Operational sheets (KPI, headcount, customer lists) use section-aware row batches.
     Every chunk carries [Document][Sheet][Section] prefix and respects MAX_CHUNK_CHARS.
+
+    Loading notes:
+      - read_only=False: required to access merged_cells for _expand_merged_cells().
+        read_only=True streaming mode does not expose the merged_cells attribute,
+        causing merged period headers (e.g. "2020A" spanning two rows) to appear
+        as None in all non-top-left cells.
+      - data_only=True: returns cached formula results rather than formula strings,
+        so cells like =SUM(...) yield their numeric value.
+      - Performance: for typical PE financial models (<50 MB) the in-memory load
+        is fast; for very large workbooks consider increasing cluster memory.
     """
     import openpyxl
 
     chunks: list[Chunk] = []
 
     try:
-        wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+        wb = openpyxl.load_workbook(file_path, read_only=False, data_only=True)
         chunk_index = 0
 
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
+
+            # Expand merged cells before row iteration so period headers and
+            # section labels propagate correctly across all spanned columns.
+            _expand_merged_cells(ws)
 
             if _is_financial_sheet(sheet_name, file_name):
                 new_chunks = _chunk_financial_sheet(
@@ -607,6 +963,7 @@ def parse_excel(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
             chunks.extend(new_chunks)
             chunk_index += len(new_chunks)
 
+        wb.close()
         print(f"  ✓ {file_name}: {len(chunks)} Excel chunks")
     except Exception as exc:
         print(f"  ✗ {file_name}: {exc}")
@@ -803,13 +1160,17 @@ def parse_csv(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
 _ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".xlsm", ".docx", ".doc", ".csv"}
 
 
-def parse_file(file_path: str, spark) -> list[Chunk]:
+def parse_file(
+    file_path: str,
+    spark,
+    vision_endpoint: Optional[str] = None,
+) -> list[Chunk]:
     file_name = os.path.basename(file_path)
     ext       = Path(file_name).suffix.lower()
     doc_id    = make_doc_id(file_path)
 
     if ext == ".pdf":
-        return parse_pdf(file_path, doc_id, file_name, spark)
+        return parse_pdf(file_path, doc_id, file_name, spark, vision_endpoint=vision_endpoint)
     elif ext in {".xlsx", ".xls", ".xlsm"}:
         return parse_excel(file_path, doc_id, file_name)
     elif ext in {".docx", ".doc"}:
@@ -992,6 +1353,14 @@ def main():
     catalog            = get_param("catalog",  default="uc13")
     schema             = get_param("schema",   default="ingestion")
     embedding_endpoint = get_param("embedding_endpoint", default="databricks-bge-large-en")
+    # Optional: a multimodal endpoint (e.g. databricks-meta-llama-3-2-11b-vision-instruct)
+    # for extracting data from charts, org charts, and figures.  Leave empty to skip.
+    _vision_raw    = get_param("vision_endpoint", default="")
+    vision_endpoint: Optional[str] = _vision_raw.strip() or None
+    if vision_endpoint:
+        print(f"Vision endpoint : {vision_endpoint} (figure extraction enabled)")
+    else:
+        print("Vision endpoint : not configured (figure extraction skipped)")
 
     # parse_priority_tiers: "all" | "1" | "2" | "3" | "1,2" | "1,2,3" etc.
     parse_tiers_raw = get_param("parse_priority_tiers", default="all").strip().lower()
@@ -1033,6 +1402,7 @@ def main():
             page_start     INT,
             page_end       INT,
             tab            STRING,
+            source_type    STRING,
             char_count     INT,
             created_at     TIMESTAMP
         ) USING DELTA
@@ -1043,6 +1413,7 @@ def main():
             chunk_id      STRING NOT NULL,
             doc_id        STRING,
             file_name     STRING,
+            source_type   STRING,
             workstream    ARRAY<STRING>,
             priority_tier INT,
             embedding     ARRAY<FLOAT>,
@@ -1084,7 +1455,7 @@ def main():
     # --- Parse ---
     all_chunks: list[Chunk] = []
     for file_path in file_paths:
-        chunks = parse_file(file_path, _spark)
+        chunks = parse_file(file_path, _spark, vision_endpoint=vision_endpoint)
         all_chunks.extend(chunks)
 
     _print_chunk_diagnostics(all_chunks)
@@ -1115,6 +1486,7 @@ def main():
         StructField("page_start",     IntegerType(), True),
         StructField("page_end",       IntegerType(), True),
         StructField("tab",            StringType(),  True),
+        StructField("source_type",    StringType(),  True),
         StructField("char_count",     IntegerType(), False),
         StructField("created_at",     TimestampType(), False),
     ])
@@ -1128,7 +1500,8 @@ def main():
             section_header=c.section_header,
             page_start=int(c.page_start) if c.page_start is not None else None,
             page_end=int(c.page_end) if c.page_end is not None else None,
-            tab=c.tab, char_count=int(c.char_count), created_at=now,
+            tab=c.tab, source_type=c.source_type, char_count=int(c.char_count),
+            created_at=now,
         )
         for c in all_chunks
     ]
@@ -1155,6 +1528,7 @@ def main():
         StructField("chunk_id",      StringType(),           False),
         StructField("doc_id",        StringType(),           False),
         StructField("file_name",     StringType(),           False),
+        StructField("source_type",   StringType(),           True),
         StructField("workstream",    ArrayType(StringType()), True),
         StructField("priority_tier", IntegerType(),          True),
         StructField("embedding",     ArrayType(FloatType()), False),
@@ -1167,6 +1541,7 @@ def main():
             chunk_id=all_chunks[i].chunk_id,
             doc_id=all_chunks[i].doc_id,
             file_name=all_chunks[i].file_name,
+            source_type=all_chunks[i].source_type,
             workstream=relevance_map.get(all_chunks[i].file_name, {}).get("workstream"),
             priority_tier=relevance_map.get(all_chunks[i].file_name, {}).get("priority_tier"),
             embedding=[float(x) for x in embeddings[i]],

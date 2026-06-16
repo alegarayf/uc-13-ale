@@ -25,6 +25,8 @@ def semantic_search(
     min_chunk_length: int = 100,
     index_name: str = "uc13.ingestion.embeddings_index",
     embedding_endpoint: str = "databricks-bge-large-en",
+    source_type_priority: bool = False,
+    source_type_filter: list[str] | None = None,
 ) -> list:
     """Search for relevant chunks using semantic similarity.
 
@@ -49,11 +51,18 @@ def semantic_search(
             Eliminates header-only or page-number chunks.
         index_name: Unity Catalog fully-qualified vector index name.
         embedding_endpoint: Databricks embedding model endpoint name.
+        source_type_priority: When True, sort table and vision chunks before
+            text chunks within the same priority_tier. Financial queries benefit
+            from structured chunks appearing first — they carry denser data per
+            character than prose.
+        source_type_filter: When provided, keep only chunks whose source_type
+            is in this list (e.g. ["table", "vision"] for structured-data-only
+            queries). Applied after all other filters, before top_k cap.
 
     Returns:
         List of Spark Row objects with fields:
         chunk_id, file_name, chunk_text, section_header, page_start,
-        workstream, priority_tier.
+        source_type, workstream, priority_tier.
     """
     client = mlflow.deployments.get_deploy_client("databricks")
     w = WorkspaceClient()
@@ -90,6 +99,7 @@ def semantic_search(
                 c.chunk_text,
                 c.section_header,
                 c.page_start,
+                COALESCE(c.source_type, 'text') AS source_type,
                 r.workstream,
                 r.priority_tier
             FROM uc13.ingestion.chunks c
@@ -113,6 +123,7 @@ def semantic_search(
                 c.chunk_text,
                 c.section_header,
                 c.page_start,
+                COALESCE(c.source_type, 'text') AS source_type,
                 r.workstream,
                 r.priority_tier
             FROM uc13.ingestion.chunks c
@@ -148,6 +159,24 @@ def semantic_search(
         # priority_tier is INT: 1 = highest value, 2 = high, 3 = useful.
         # Pass tier_filter=1 to restrict to Tier 1 only, tier_filter=2 for Tier 1+2, etc.
         chunks = [c for c in chunks if c.priority_tier is not None and c.priority_tier <= tier_filter]
+
+    if source_type_filter:
+        chunks = [
+            c for c in chunks
+            if getattr(c, "source_type", "text") in source_type_filter
+        ]
+
+    if source_type_priority:
+        # Within each priority_tier group, surface table and vision chunks first.
+        # These carry denser financial data per character than prose chunks.
+        _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
+        chunks = sorted(
+            chunks,
+            key=lambda c: (
+                c.priority_tier if c.priority_tier is not None else 99,
+                _TYPE_ORDER.get(getattr(c, "source_type", "text"), 2),
+            ),
+        )
 
     # Cap to top_k.
     chunks = chunks[:top_k]

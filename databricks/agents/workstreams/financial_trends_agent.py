@@ -146,6 +146,13 @@ EXTRACTION RULES:
 3. If a metric is absent from the context, return null for that field.
 4. Mark computed_from_stated=true ONLY when you derive a % from two explicitly
    stated numbers in the SAME document. Never cross-document compute.
+   Three arithmetic operations are permitted and should be used when both inputs
+   are stated in the same source document for the same period:
+     a) Gross margin % = gross_profit_$ / revenue_$ × 100
+     b) EBITDA margin % = ebitda_$ / revenue_$ × 100
+     c) Revenue segment % = segment_revenue_$ / total_revenue_$ × 100
+        (only when total_revenue_$ for the same period is stated in the same source)
+   All other values must be extracted verbatim. Never infer, interpolate, or model.
 5. Every extracted value must have a citation: document name, location (page or
    section title), and a ≤30-word quote from the source.
 6. Return ONLY valid JSON with no preamble, no commentary, and no markdown fences.
@@ -544,6 +551,8 @@ class FinancialTrendsAgent:
         file_name_filter,
         min_chunk_length: int = 150,
         min_results: int = 3,
+        source_type_priority: bool = False,
+        source_type_filter: list | None = None,
     ) -> list:
         """Semantic search with automatic fallback when the filename filter is too narrow.
 
@@ -566,6 +575,8 @@ class FinancialTrendsAgent:
             workstream_filter=workstream_filter,
             file_name_filter=file_name_filter,
             min_chunk_length=min_chunk_length,
+            source_type_priority=source_type_priority,
+            source_type_filter=source_type_filter,
         )
 
         if len(chunks) < min_results and file_name_filter is not None:
@@ -587,6 +598,8 @@ class FinancialTrendsAgent:
                 workstream_filter=workstream_filter,
                 file_name_filter=None,
                 min_chunk_length=min_chunk_length,
+                source_type_priority=source_type_priority,
+                source_type_filter=source_type_filter,
             )
 
         return chunks
@@ -717,27 +730,109 @@ class FinancialTrendsAgent:
         chunks = self._semantic_search_with_fallback(
             spark=spark,
             query=(
-                "addback adjustments owner compensation one-time non-recurring EBITDA bridge "
+                "EBITDA adjustment detail addback schedule non-recurring one-time "
+                "owner salary management fee adjustment reported adjusted EBITDA reconciliation "
+                "pro forma adjustments normalization items addback bridge "
                 "diligence adjustment normalized expense run-rate executive compensation "
-                "EBITDA adjustment detail credit card allocation non-operating transactions "
-                "management addbacks seller adjustments earnings quality"
+                "credit card allocation non-operating transactions management addbacks "
+                "seller adjustments earnings quality"
             ),
             workstream_filter=["FINANCIAL", "QUALITY_EARNINGS", "BUSINESS_MODEL"],
-            top_k=12,
+            top_k=15,
             file_name_filter=[
                 "Addback", "Bridge", "EBITDA", "QofE", "Quality", "Adjusted",
                 "CIM", "Adjustment", "Financial", "P&L",
             ],
-            min_chunk_length=100,
+            min_chunk_length=50,   # addback table rows are short — was 100
             min_results=3,
+            source_type_priority=True,  # prefer table/vision chunks for structured addback tables
         )
         if not chunks:
-            self._add_gap("No addback schedule found — expected for QofE review")
+            self._add_gap(
+                "addback_schedule is empty. If an addback or EBITDA adjustment table exists "
+                "in the data room (look for sections titled 'EBITDA Adjustment Detail', "
+                "'Diligence Adjusted Income Statement', or 'Addback Schedule'), confirm those "
+                "documents are tagged with the FINANCIAL or QUALITY_EARNINGS workstream and "
+                "re-run the agent."
+            )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
             tool_name="retrieve_addback_schedule",
-            input_summary="query=addback EBITDA bridge adjustments normalized expense; workstream=FINANCIAL,QUALITY_EARNINGS,BUSINESS_MODEL; top_k=12 (with fallback)",
+            input_summary="query=EBITDA adjustment detail addback normalized reconciliation; workstream=FINANCIAL,QUALITY_EARNINGS,BUSINESS_MODEL; top_k=15; source_type_priority=True (with fallback)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
+    def _tool_retrieve_revenue_by_geography(self, spark):
+        """Retrieves geographic / location revenue breakdown from Excel models and CIM.
+
+        Uses explicit geographic and location terms to improve cosine similarity
+        against Excel chunks whose rows are labelled 'Revenue - New York',
+        'Revenue - Westchester', etc. — generic 'segment' queries have low
+        similarity to these row-label patterns.
+        """
+        chunks = self._semantic_search_with_fallback(
+            spark=spark,
+            query=(
+                "revenue by location geography region state city office clinic "
+                "Revenue New York Westchester Long Island Connecticut Massachusetts "
+                "New Jersey revenue breakdown by office location segment "
+                "revenue by geography per location revenue by clinic by state "
+                "regional revenue split location P&L"
+            ),
+            workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
+            top_k=12,
+            file_name_filter=[
+                "P&L", "Financial", "Revenue", "Segment", "CIM", "Model", "Projection",
+            ],
+            min_chunk_length=100,
+            min_results=3,
+            source_type_priority=True,  # prefer table chunks (Excel row-label data)
+        )
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name="retrieve_revenue_by_geography",
+            input_summary="query=revenue by location geography state clinic office; workstream=FINANCIAL,BUSINESS_MODEL; top_k=12; source_type_priority=True (with fallback)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
+    def _tool_retrieve_projected_financials(self, spark):
+        """Retrieves forward projections and forecast assumptions.
+
+        Targets projected-year data (2025P, 2026P, etc.) which sits in the
+        financial model Excel alongside actuals but may not be returned by
+        queries focused on historical performance.
+        """
+        chunks = self._semantic_search_with_fallback(
+            spark=spark,
+            query=(
+                "projected revenue forecast 2025 2026 2027 2028 2029 "
+                "projected EBITDA gross profit margin projection model "
+                "pro forma income statement forward projections budget forecast "
+                "revenue projection plan projected growth estimated revenue "
+                "financial model projection assumptions"
+            ),
+            workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
+            top_k=10,
+            file_name_filter=[
+                "Model", "Projection", "Forecast", "Budget", "CIM", "Financial", "P&L",
+            ],
+            min_chunk_length=100,
+            min_results=3,
+            source_type_priority=True,  # prefer table chunks from financial models
+        )
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name="retrieve_projected_financials",
+            input_summary="query=projected revenue EBITDA forecast 2025-2029 financial model; workstream=FINANCIAL,BUSINESS_MODEL; top_k=10; source_type_priority=True (with fallback)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
             confidence=confidence,
@@ -1157,7 +1252,24 @@ class FinancialTrendsAgent:
 
     def _apply_budget_miss_flags(self, extracted: dict):
         """Flag budget misses where |actual - budget| / budget > 10%."""
-        for item in (extracted.get("budget_vs_actual") or []):
+        bva_records = extracted.get("budget_vs_actual") or []
+
+        # If no budget vs. actual data was extracted at all, log an actionable gap
+        # rather than leaking a code-artifact message into the analyst output.
+        if not bva_records or all(
+            item.get("budget_stated") is None and item.get("actual_stated") is None
+            for item in bva_records
+        ):
+            self._add_gap(
+                "Budget vs. actual data was not found in retrieved documents. "
+                "If the data room includes a management reporting package, board deck, "
+                "monthly controller report, or rolling forecast, confirm those files are "
+                "tagged with the FINANCIAL workstream and re-run the agent. "
+                "Budget vs. actual is required to assess forecast credibility."
+            )
+            return
+
+        for item in bva_records:
             budget_num = _parse_numeric(item.get("budget_stated"))
             actual_num = _parse_numeric(item.get("actual_stated"))
             metric     = item.get("metric", "unknown")
@@ -1165,9 +1277,6 @@ class FinancialTrendsAgent:
             source_doc = item.get("source_doc", "")
 
             if budget_num is None or actual_num is None or budget_num == 0:
-                self._add_gap(
-                    f"Budget vs. actual for {metric} in {period} not parseable — skipping miss check"
-                )
                 continue
 
             miss_pct = abs(actual_num - budget_num) / abs(budget_num)
@@ -1201,7 +1310,7 @@ class FinancialTrendsAgent:
         self._reset_state()
         self._company_name = company_name
 
-        print(f"  Running 6 tools ...")
+        print(f"  Running 8 tools ...")
 
         # ── Tool calls ────────────────────────────────────────────────
         tr1 = self._tool_retrieve_financial_statements(spark)
@@ -1210,52 +1319,45 @@ class FinancialTrendsAgent:
         tr4 = self._tool_retrieve_working_capital(spark)
         tr5 = self._tool_retrieve_addback_schedule(spark)
         tr6 = self._tool_load_company_profile(company_name, spark)
+        tr7 = self._tool_retrieve_revenue_by_geography(spark)
+        tr8 = self._tool_retrieve_projected_financials(spark)
 
         # ── Build combined context (deduplicate by chunk text) ────────
         seen_texts: set[str] = set()
         all_chunks = []
-        for tr in (tr1, tr2, tr3, tr4, tr5):
+        for tr in (tr1, tr2, tr3, tr4, tr5, tr7, tr8):
             for chunk in (tr.data or []):
                 if chunk.chunk_text not in seen_texts:
                     seen_texts.add(chunk.chunk_text)
                     all_chunks.append(chunk)
 
-        # ── Context budget: three-tier truncation strategy ───────────────
+        # ── Context budget: source-type-aware truncation strategy ───────────
         #
         # Root cause of wrong-source extraction: Excel model sheets are Priority
         # Tier 1 (financial documents) and consume the entire context budget,
         # crowding out the CIM PDF that contains the definitive historical P&L.
         #
-        # Three tiers — evaluated in order, each filling before the next:
+        # Two-axis classification: document tier × source_type.
+        #   Tier 0 — CIM documents (always first regardless of priority_tier)
+        #   Tier 1 — Priority Tier 1, non-CIM (Excel models, audited financials)
+        #   Tier 2 — All other
         #
-        #   Tier A — CIM documents (2,500 chars):
-        #     Any chunk from a file whose name contains "CIM".  These are the
-        #     banker-prepared Confidential Information Memoranda containing the
-        #     authoritative multi-year P&L summary (e.g. p.49 Historical P&L).
-        #     Always included first regardless of assigned priority_tier.
+        #   source_type:
+        #     'table'  — structured table chunk from PDF or Excel; higher char limit
+        #                because financial tables are denser than prose
+        #     'vision' — vision-extracted chart/P&L image; same as table
+        #     'text'   — prose; lower limit
         #
-        #   Tier B — Priority Tier 1, non-CIM (1,500 chars):
-        #     Excel models, QofE reports, audited financials.  Important but
-        #     typically cover a single period or geographic slice; shorter limit
-        #     is sufficient for extracting that slice's key metrics.
+        # Char limits per (tier, source_type) combination:
+        #   CIM table/vision  : 4,000   CIM text         : 2,500
+        #   PT1 table/vision  : 3,000   PT1 text         : 1,000
+        #   Other table/vision: 1,000   Other text       :   500
         #
-        #   Tier C — All other chunks (500 chars):
-        #     Narrative context, supporting appendices, addback detail pages.
-        #     Short excerpts are enough for contextual signal.
-        #
-        # Total cap raised to 50,000 chars (≈12,500 input tokens).  With 6,000
-        # max output tokens → ~18,500 total tokens → ~4–5 min on Llama 70B.
+        # Total cap: 60,000 chars (≈15,000 input tokens).  With 16,000 max output
+        # tokens → ~31,000 total tokens → ~6–8 min on Llama 70B.
 
-        _CIM_CHUNK_CHARS   = 2_500   # Tier A: full CIM P&L table coverage
-        _PT_CHUNK_CHARS    = 1_000   # Tier B: PT1 non-CIM (single-period Excel models)
-        _OTHER_CHUNK_CHARS = 500     # Tier C: narrative / supporting context
-        _MAX_CONTEXT_CHARS = 50_000
-        # Cap on Tier B slots: Excel workbooks often produce 20-30 PT1 sheets,
-        # each as its own chunk.  Without a count cap, they exhaust the entire
-        # budget and crowd out CIM and other-tier chunks.
-        # 10 × 1,000 = 10,000 chars reserved for PT1 non-CIM; CIM + other fill
-        # the remaining ~40,000 chars.
-        _MAX_PT_CHUNKS = 10
+        _MAX_CONTEXT_CHARS = 60_000
+        _MAX_PT_CHUNKS     = 12   # slightly higher now that we have 8 tools
 
         def _chunk_tier(c) -> int:
             """0 = CIM, 1 = PT1 non-CIM, 2 = other."""
@@ -1265,23 +1367,44 @@ class FinancialTrendsAgent:
                 return 1
             return 2
 
-        _tier_limit = {0: _CIM_CHUNK_CHARS, 1: _PT_CHUNK_CHARS, 2: _OTHER_CHUNK_CHARS}
-        _sorted_chunks = sorted(all_chunks, key=_chunk_tier)
+        def _chunk_char_limit(c) -> int:
+            """Per-chunk char budget based on document tier and source_type."""
+            tier  = _chunk_tier(c)
+            stype = getattr(c, "source_type", "text") or "text"
+            is_structured = stype in ("table", "vision")
+            if tier == 0:
+                return 4_000 if is_structured else 2_500
+            if tier == 1:
+                return 3_000 if is_structured else 1_000
+            return 1_000 if is_structured else 500
+
+        # Sort: CIM first, then PT1 (table/vision before text within each tier),
+        # then other.  The source_type sort within tier ensures structured chunks
+        # (denser data per char) fill the budget before prose.
+        _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
+        _sorted_chunks = sorted(
+            all_chunks,
+            key=lambda c: (
+                _chunk_tier(c),
+                _TYPE_ORDER.get(getattr(c, "source_type", "text"), 2),
+            ),
+        )
 
         _context_parts: list[str] = []
         _truncated_count = 0
         _excluded_count  = 0
         _total_chars     = 0
         _tier_counts     = {0: 0, 1: 0, 2: 0}
+        _stype_counts    = {"table": 0, "vision": 0, "text": 0}
 
         for _c in _sorted_chunks:
             _tier  = _chunk_tier(_c)
-            # Enforce PT1 count cap — demote excess PT1 chunks to Tier C limit
-            # rather than excluding them entirely, so their content still appears
-            # in context at a shorter length.
+            _stype = getattr(_c, "source_type", "text") or "text"
+            # Enforce PT1 count cap — demote excess PT1 chunks to Tier 2 limit
+            # rather than excluding them entirely.
             if _tier == 1 and _tier_counts[1] >= _MAX_PT_CHUNKS:
-                _tier  = 2
-            _limit = _tier_limit[_tier]
+                _tier = 2
+            _limit = _chunk_char_limit(_c)
             _raw   = _c.chunk_text
             _was_truncated = len(_raw) > _limit
             _text  = _raw[:_limit] + (" …[truncated]" if _was_truncated else "")
@@ -1292,13 +1415,13 @@ class FinancialTrendsAgent:
             _context_parts.append(_part)
             _total_chars += len(_part) + 8
             _tier_counts[_tier] += 1
+            _stype_counts[_stype] = _stype_counts.get(_stype, 0) + 1
             if _was_truncated:
                 _truncated_count += 1
 
         print(f"  [context_budget] {len(_context_parts)}/{len(all_chunks)} chunks included "
-              f"| CIM={_tier_counts[0]}@{_CIM_CHUNK_CHARS}c "
-              f"PT1={_tier_counts[1]}@{_PT_CHUNK_CHARS}c "
-              f"other={_tier_counts[2]}@{_OTHER_CHUNK_CHARS}c "
+              f"| CIM={_tier_counts[0]} PT1={_tier_counts[1]} other={_tier_counts[2]} "
+              f"| table={_stype_counts.get('table',0)} vision={_stype_counts.get('vision',0)} text={_stype_counts.get('text',0)} "
               f"| total={_total_chars:,} chars"
               + (f" | {_truncated_count} truncated" if _truncated_count else "")
               + (f" | {_excluded_count} excluded" if _excluded_count else ""))
@@ -1315,12 +1438,17 @@ class FinancialTrendsAgent:
         overlay = profile_dict.get("industry_overlay") if profile_dict else None
 
         # ── Single LLM call ───────────────────────────────────────────
+        # max_tokens=16,000: the financial trends schema (10 top-level arrays ×
+        # multiple periods × multiple EBITDA versions) requires substantially more
+        # output space than other workstream agents.  The base class default of
+        # 12,000 is sufficient for most deals; 16,000 provides headroom for large
+        # data rooms with many periods and EBITDA versions.
         print("  Calling LLM for extraction ...")
         user_prompt = _USER_PROMPT_TEMPLATE.format(
             company_profile_json=company_profile_json,
             combined_chunk_text=combined_chunk_text,
         )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, llm_endpoint)
+        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, llm_endpoint, max_tokens=16_000)
         extracted = self._parse_json_response(raw_response)
 
         # ── Source doc validation: reject any record sourced from the company profile ──
@@ -1747,7 +1875,7 @@ Write the markdown narrative only — no extra commentary.
                 {"role": "system", "content": _ASSESS_SYS},
                 {"role": "user",   "content": _ASSESS_USER},
             ],
-            "max_tokens": 4000,
+            "max_tokens": 6000,
             "temperature": 0.1,
         },
     )
