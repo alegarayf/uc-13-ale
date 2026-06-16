@@ -534,25 +534,21 @@ def parse_pdf(
 
         flush_prose()
 
-        # Image-page detection: identify pages that ai_parse_document couldn't
-        # extract text from and pass them to the vision LLM.  Two cases:
+        # Image-page detection: find pages that ai_parse_document couldn't extract
+        # real content from, and queue them for the vision LLM.
         #
-        #   Case (a) — pages WITH elements but <30 chars of text in a financial
-        #              section (e.g. a page where ai_parse_document returned only
-        #              a sparse figure element alongside a financial heading).
-        #              Gated on _PDF_FIN_SECTION_RE to avoid sending sparse cover
-        #              or legal pages to vision unnecessarily.
-        #
-        #   Case (b) — pages with NO elements at all.  ai_parse_document simply
-        #              emits nothing for pure-image pages (embedded PNGs/JPEGs).
-        #              These gaps in the page_id sequence are flagged regardless
-        #              of section — the vision LLM returns NO_DATA for non-
-        #              financial images, so false-positive cost is one extra call.
+        # Key insight: ai_parse_document may still emit page_footer / page_number
+        # elements for image-only pages (e.g. a page whose only text is "47").
+        # Counting those as "content" makes sparse image pages look populated.
+        # Fix: count only meaningful element types (not skip types, not empty
+        # figures).  Any page with < 30 meaningful chars is flagged for vision.
+        # Pages completely absent from the dict (no elements at all) use -1 as
+        # default, which also satisfies < 30.  No financial-section requirement —
+        # the vision LLM returns NO_DATA for non-financial pages, so the only
+        # cost of a false positive is one extra API call.
         if vision_endpoint:
-            _page_text_chars: dict[int, int] = {}
+            _page_meaningful_chars: dict[int, int] = {}
             _page_last_header: dict[int, str] = {}
-            _in_fin = False
-            _cur_fin_hdr = "Financial Statement"
             _last_any_hdr = last_known_header or "Document"
 
             for el in elements:
@@ -561,36 +557,28 @@ def parse_pdf(
                 _content = _strip_html(el.get("content", "")).strip()
                 if _el_type in _HEADER_ELEMENT_TYPES:
                     _last_any_hdr = _content
-                    if _PDF_FIN_SECTION_RE.search(_content):
-                        _in_fin = True
-                        _cur_fin_hdr = _content
                 if _pid is not None:
-                    _page_text_chars[_pid] = _page_text_chars.get(_pid, 0) + len(_content)
                     _page_last_header[_pid] = _last_any_hdr
+                    _is_skip = _el_type in _SKIP_ELEMENT_TYPES
+                    _is_empty_fig = (_el_type == "figure" and not _content)
+                    if not _is_skip and not _is_empty_fig:
+                        _page_meaningful_chars[_pid] = (
+                            _page_meaningful_chars.get(_pid, 0) + len(_content)
+                        )
+                    elif _pid not in _page_meaningful_chars:
+                        # Register the page so gaps between it and real pages
+                        # don't widen the scan range unnecessarily.
+                        _page_meaningful_chars[_pid] = 0
 
-            # Case (a): sparse pages inside a detected financial section.
-            _in_fin2 = False
-            _cur_hdr2 = "Financial Statement"
-            for el in elements:
-                _pid     = el.get("page_id")
-                _el_type = el.get("type", "")
-                _content = _strip_html(el.get("content", "")).strip()
-                if _el_type in _HEADER_ELEMENT_TYPES and _PDF_FIN_SECTION_RE.search(_content):
-                    _in_fin2 = True
-                    _cur_hdr2 = _content
-                if _in_fin2 and _pid is not None and _page_text_chars.get(_pid, 0) < 30:
-                    figure_page_header_map.setdefault(_pid, _cur_hdr2)
-
-            # Case (b): pages absent from ai_parse_document output entirely.
-            # Scan the full page_id range — no financial section requirement.
-            if _page_text_chars:
-                _min_pid = min(_page_text_chars.keys())
-                _max_pid = max(_page_text_chars.keys())
+            if _page_meaningful_chars:
+                _min_pid   = min(_page_meaningful_chars.keys())
+                _max_pid   = max(_page_meaningful_chars.keys())
                 _carry_hdr = last_known_header or "Document"
                 for _pid in range(_min_pid, _max_pid + 1):
                     if _pid in _page_last_header:
                         _carry_hdr = _page_last_header[_pid]
-                    if _pid not in _page_text_chars:
+                    # -1 default = page absent from elements entirely (also < 30)
+                    if _page_meaningful_chars.get(_pid, -1) < 30:
                         figure_page_header_map.setdefault(_pid, _carry_hdr)
 
         # Vision extraction: render figure-heavy pages and extract chart/org data.
