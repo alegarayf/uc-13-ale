@@ -189,7 +189,7 @@ def detect_banked(spark, table_relevance: str, company_name: str) -> tuple[bool,
     Returns (banked: bool, note: str | None).
     """
     _CIM_KEYWORDS = re.compile(
-        r"\bcim\b|offering memorandum|\bom\b|confidential information memorandum",
+        r"\bcim(?:\b|_)|offering memorandum|\bom\b|confidential information memorandum",
         re.IGNORECASE,
     )
     try:
