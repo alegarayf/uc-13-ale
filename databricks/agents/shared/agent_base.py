@@ -75,8 +75,20 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
             self._llm_client = mlflow.deployments.get_deploy_client("databricks")
         return self._llm_client
 
-    def _call_llm(self, system_prompt: str, user_prompt: str, endpoint: str) -> str:
-        """Call the Databricks MLflow LLM endpoint. Returns response text."""
+    def _call_llm(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        endpoint: str,
+        max_tokens: int = 12_000,
+    ) -> str:
+        """Call the Databricks MLflow LLM endpoint. Returns response text.
+
+        max_tokens default raised to 12,000 — the financial trends schema
+        (10 top-level arrays × multiple periods) regularly exceeds 6,000 tokens.
+        Agents with smaller schemas inherit the higher default at no cost;
+        agents with especially large schemas can override upward (e.g. 16,000).
+        """
         client = self._get_llm_client()
         response = client.predict(
             endpoint=endpoint,
@@ -85,7 +97,7 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
                     {"role": "system", "content": system_prompt},
                     {"role": "user",   "content": user_prompt},
                 ],
-                "max_tokens": 6000,
+                "max_tokens": max_tokens,
                 "temperature": 0.0,  # deterministic extraction
             },
         )

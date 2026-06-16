@@ -1,0 +1,135 @@
+UC13:
+ 
+Summary Notes:
+ 
+	•	If challenge is data room diversity I don’t know that I care all that much that it downloads the data room for me
+	◦	Not a heavy lift for us to login and download a dataroom to our drive and we want it saved on our drive anyway
+	◦	What would be helpful is helping highlight any new additions to a data room and flagging them and summarizing them
+	•	Analysis is the part that really matters to me
+	◦	I would love an agent that can behave like an Associate doing first-pass diligence
+	▪	Orient us to the business, identify what matters, test whether the data supports the story, surface red flags, generate diligence questions, and help us form an initial view
+	◦	Specific questions for NG on capabilities:
+	▪	Can the agent cite back to the exact source document, page, and Excel tab/cell range?
+	▪	Can it compare across documents and flag inconsistencies?
+	▪	Can it create structured outputs by diligence category?
+	▪	Can we customize analysis templates by industry / business model?
+	▪	Can it produce a data request list based on what is missing?
+	▪	Can it leverage prior deals we’ve looked at or completed in the Target company’s industry to figure out what it should be looking for?
+ 
+---
+ 
+Overall Goal: Build an agent that can rapidly triage a data room, surface diligence questions, identify risk areas, and help our deal team form an initial underwriting view before we go deep with advisors.
+ 
+1. Business model overview
+	•	Help us quickly understand what the company does, how it makes money, who it serves, and what drives growth.  Items to analyze:
+	◦	Revenue model: project-based, recurring, usage-based, retainers, licenses, marketplace, services, etc.
+	◦	Key products / services and margin profile by offering
+	◦	Customer segments, verticals, and end markets
+	◦	Sales motion: founder-led, enterprise sales, channel-led, inbound, partner-driven
+	◦	Revenue visibility: backlog, contracted revenue, pipeline, renewal cadence, retainers, MSAs/SOWs
+	◦	Dependency on any key vendor, platform, channel, or partner
+	◦	What has changed recently in the business model, pricing, GTM, or customer mix
+2. Customer quality and concentration
+	•	Assess whether revenue is durable, diversified, expanding, or at risk.  Items to analyze:
+	◦	Customer concentration by revenue and gross profit
+	◦	Top customer history over time: growth, churn, margin, payment behavior
+	◦	Cohort performance by customer vintage
+	◦	Net revenue retention / gross retention, if applicable
+	◦	Logo churn vs. revenue churn
+	◦	Customer tenure and renewal patterns
+	◦	Customer health indicators: utilization, complaints, discounts, late payments, declining spend
+	◦	Contract terms: termination rights, renewal mechanics, pricing escalators, exclusivity, change-of-control provisions
+	◦	Exposure to one-time projects versus embedded / recurring relationships
+3. Financial trend analysis
+	•	Identify whether the financial story is improving, deteriorating, or being distorted by mix, timing, addbacks, or accounting.  Items to analyze:
+o    Revenue growth by month / quarter / year
+o    Gross margin expansion or compression
+o    EBITDA margin trends
+o    Contribution margin by customer, product, vertical, office, geography, or employee group
+o    Revenue bridge: price, volume, mix, new logos, churn, expansion
+o    Cost structure: fixed vs. variable, operating leverage, hiring ahead of revenue
+o    Addback quality and recurrence
+o    Seasonality and timing effects
+o    Working capital trends  
+o    Cash conversion and EBITDA-to-cash flow bridge
+o    Budget vs. actual performance
+o    Forecast achievability versus historical run-rate
+4. KPI and operating metric assessment
+	•	Extract and assess the KPIs that actually matter for the business.
+	•	For services / consulting businesses:
+o    Bill rates by role, customer, vertical, and project type
+o    Utilization by employee, role, team, and geography
+o    Bench size and bench cost
+o    Gross margin by project / client / delivery team
+o    Contractor vs. employee mix
+o    Revenue per FTE
+o    Bookings, backlog, pipeline conversion, average sales cycle
+o    Delivery capacity versus sales pipeline
+o    Attrition / turnover
+	•	For healthcare / regulated services:
+o    Census / client count trends
+o    Payor mix
+o    Caregiver / clinician capacity and utilization
+o    Compliance incidents
+o    Credentialing / licensure status
+o    Referral sources
+o    Wage pressure and labor availability
+o    Revenue per client / visit / hour
+o    Denials, collections, and aging trends
+5. Contract and legal risk review
+	•	Surface terms that could matter economically or create closing / post-close risk.  Items to analyze:
+o    Customer contracts with termination for convenience
+o    Change-of-control consent requirements
+o    Exclusivity, MFN, non-compete, non-solicit, or restrictive covenants
+o    Vendor agreements with pricing resets or cancellation rights
+o    Platform / reseller / channel dependencies
+o    Employee, contractor, and commission agreements
+o    Founder / key employee agreements
+o    Litigation, disputes, threatened claims
+o    Data privacy / security obligations
+o    IP ownership, assignment, open-source exposure
+o    Insurance gaps or unusual indemnities
+6. Quality of revenue and earnings flags
+	•	Help us identify issues before QofE or legal diligence formally kicks off.  Items to analyze:
+o    Revenue recognized before cash collection or delivery
+o    One-time revenue included in run-rate
+o    Project revenue booked near period-end
+o    Unusual credits, rebates, discounts, refunds, or concessions
+o    Topline growth driven by low-margin work
+o    Margin expansion driven by underinvestment
+o    Addbacks that are really recurring costs
+o    Owner expenses that may not fully go away
+o    Customer-level profitability outliers
+o    Changes in accounting policy or revenue recognition
+o    Unusual AR aging, write-offs, or collections issues
+7. Forecast and underwriting support
+	•	Help turn data room contents into a first-pass underwriting view.  Items to analyze:
+o    Whether forecast assumptions are supported by historical performance
+o    Revenue build by customer / cohort / pipeline / capacity
+o    Sales pipeline quality and conversion assumptions
+o    Hiring plan feasibility
+o    Margin improvement assumptions
+o    Required investment to achieve plan
+o    Downside case sensitivities
+o    Key value creation levers
+o    What assumptions require management validation
+o    What should be diligence priorities before LOI / before close
+8. Red flag and diligence question generation
+	•	Produce a prioritized list of questions for management, bankers, and advisors.  Example outputs:
+o    Top 10 diligence issues
+o    Top 10 questions for management or the advisor
+o    Missing data request list
+o    “Things that do not reconcile” list
+o    “Claims in CIM not supported by data room” list
+9. Deal team workflow and output format
+	•	Design the agent to create usable work product, not just generic summaries.  Potential outputs:
+o    One-page company overview
+o    Deal risks and mitigants grid
+o    Diligence tracker
+o    Data room gap list
+o    Customer concentration summary
+o    Financial trend summary
+o    KPI dashboard
+o    Management question list
+o    Source-linked analysis with citations to specific documents / tabs / pages
+o    Confidence scoring: high / medium / low support for each conclusion

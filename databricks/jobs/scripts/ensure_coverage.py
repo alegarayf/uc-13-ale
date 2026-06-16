@@ -46,6 +46,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from ingestion_parser.py
@@ -333,6 +334,7 @@ def ingest_missing(
     spark,
     embedding_endpoint: str = "databricks-bge-large-en",
     schema: str = "ingestion",
+    vision_endpoint: Optional[str] = None,
 ) -> dict:
     """Parse and embed files not yet present in embeddings. APPEND only — no DELETE.
 
@@ -415,7 +417,7 @@ def ingest_missing(
     # ── Parse ─────────────────────────────────────────────────────────────────
     all_chunks = []
     for fpath in file_paths:
-        chunks = parse_file(fpath, spark)
+        chunks = parse_file(fpath, spark, vision_endpoint=vision_endpoint)
         all_chunks.extend(chunks)
         fname = os.path.basename(fpath)
         print(f"  Parsed  {fname[:60]}: {len(chunks)} chunks")
@@ -448,6 +450,7 @@ def ingest_missing(
         StructField("page_start",     IntegerType(), True),
         StructField("page_end",       IntegerType(), True),
         StructField("tab",            StringType(),  True),
+        StructField("source_type",    StringType(),  True),
         StructField("char_count",     IntegerType(), False),
         StructField("created_at",     TimestampType(), False),
     ])
@@ -461,7 +464,8 @@ def ingest_missing(
             section_header=c.section_header,
             page_start=int(c.page_start)   if c.page_start   is not None else None,
             page_end=int(c.page_end)       if c.page_end     is not None else None,
-            tab=c.tab, char_count=int(c.char_count), created_at=now,
+            tab=c.tab, source_type=getattr(c, "source_type", "text"),
+            char_count=int(c.char_count), created_at=now,
         )
         for c in all_chunks
     ]
@@ -485,6 +489,7 @@ def ingest_missing(
         StructField("file_name",     StringType(),           False),
         StructField("workstream",    ArrayType(StringType()), True),
         StructField("priority_tier", IntegerType(),          True),
+        StructField("source_type",   StringType(),           True),
         StructField("embedding",     ArrayType(FloatType()), False),
         StructField("created_at",    TimestampType(),        False),
     ])
@@ -497,6 +502,7 @@ def ingest_missing(
             file_name=all_chunks[i].file_name,
             workstream=relevance_map.get(all_chunks[i].file_name, {}).get("workstream"),
             priority_tier=relevance_map.get(all_chunks[i].file_name, {}).get("priority_tier"),
+            source_type=getattr(all_chunks[i], "source_type", "text"),
             embedding=[float(x) for x in embeddings[i]],
             created_at=now,
         )
@@ -542,6 +548,8 @@ def main() -> dict:
     catalog            = get_param("catalog",            default="uc13")
     schema             = get_param("schema",             default="ingestion")
     embedding_endpoint = get_param("embedding_endpoint", default="databricks-bge-large-en")
+    _vision_raw        = get_param("vision_endpoint",    default="")
+    vision_endpoint: Optional[str] = _vision_raw.strip() or None
 
     # parse_priority_tiers param follows the same convention as ingestion_parser:
     # "all" means [1, 2, 3], otherwise a comma-separated list like "1,2".
@@ -574,6 +582,7 @@ def main() -> dict:
         spark=spark,
         embedding_endpoint=embedding_endpoint,
         schema=schema,
+        vision_endpoint=vision_endpoint,
     )
 
     # Step 3: Post-ingest coverage confirmation
