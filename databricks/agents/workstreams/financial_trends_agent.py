@@ -213,7 +213,21 @@ EXTRACTING ADDBACK AND ADJUSTMENT TABLES:
     adjustment items as rows with fiscal periods as columns. Extract one record per
     ROW (one per adjustment item), using the most recent period's dollar value as
     amount_stated. Record the period that value comes from. Each row is a distinct
-    item regardless of how it is labelled ([A], [1], a description, etc.).\
+    item regardless of how it is labelled ([A], [1], a description, etc.).
+
+EBITDA VERSION LIMIT — TOKEN BUDGET:
+13. Extract at most 3 EBITDA version types total:
+    (a) "reported"             — the raw, unadjusted EBITDA as filed/stated.
+    (b) "pf_adjusted"          — the highest/most adjusted pro forma figure (management
+                                 case, PF Adj. EBITDA, full pro forma). If multiple
+                                 adjusted concepts exist, pick the highest and call it
+                                 pf_adjusted; do NOT emit separate records for each.
+    (c) "clinic_level_adjusted" — unit/location-level EBITDA, ONLY if explicitly
+                                 presented as a distinct concept.
+    Skip ALL intermediate adjusted EBITDA concepts (diligence adjusted, normalized,
+    partial adjustment, EBITDA before synergies, etc.) if a pf_adjusted version is
+    also present. Extract ALL periods for each of the ≤3 chosen versions. A document
+    with 10 periods and 3 version types produces at most 30 EBITDA records.\
 """
 
 _USER_PROMPT_TEMPLATE = """\
@@ -230,38 +244,25 @@ EXTRACTION TASK
 Extract all available financial metrics from the RETRIEVED FINANCIAL DOCUMENT
 CONTEXT above. Apply all system prompt rules. Return ONLY the JSON object below.
 
-BEFORE YOU WRITE THE JSON: Scan the context for how many distinct named revenue
-lines and EBITDA lines are present. For each named line × each period, you must
-produce one record. A document with 5 fiscal periods and 4 named EBITDA lines
-must produce 20 EBITDA records. Do not abbreviate.
-Extract EBITDA and addback_schedule FIRST, then revenue_trend — these are the highest-priority fields.
-NOTE: Revenue figures may live in QuickBooks P&L exports (filenames like "2020 P&L", "2022 Elder Care QuickBooks"), geographic segment spreadsheets, or individual annual workbooks — NOT only the CIM. Check all retrieved documents for revenue data before leaving revenue_trend empty.
+EXTRACTION ORDER — FOLLOW EXACTLY (token budget is limited; earlier fields are higher priority):
+1. revenue_trend      — all stated revenue lines across all periods.
+2. gross_margin       — Gross Profit $ and % across all periods.
+3. revenue_by_segment — geographic / service-line revenue breakdown.
+4. revenue_by_customer — top customer concentration (up to 10).
+5. opex_breakdown     — top OPEX categories.
+6. addback_schedule   — all addback / adjustment items.
+7. ebitda             — LIMITED to 3 version types only (Rule 13). Write last.
+8. cost_structure, working_capital, budget_vs_actual, discrepancies_found,
+   executive_summary, extraction_notes — fill with whatever space remains.
+
+CRITICAL: revenue_trend, gross_margin, and addback_schedule MUST be fully written
+before you begin the ebitda array. Do NOT start ebitda until they are complete.
+
+NOTE: Revenue figures may live in QuickBooks P&L exports, geographic segment
+spreadsheets, or individual annual workbooks — NOT only the CIM. Check all
+retrieved documents for revenue data before leaving revenue_trend empty.
 
 {{
-  "ebitda": [
-    {{
-      "period": "<time period ONLY — NEVER a geography, state, or entity name>",
-      "label": "<FULL exact label from the document — e.g. 'PF Adjusted Clinic-Level EBITDA' or 'PF Adj. EBITDA' or 'Reported EBITDA' or 'Diligence Adjusted EBITDA' or 'Adjusted EBITDA' or 'Normalized EBITDA'>",
-      "version": "<classify the version: 'reported' for raw/as-reported | 'diligence_adjusted' for accounting-adjusted | 'clinic_level_adjusted' for location/unit-level | 'pf_adjusted' for full pro forma | 'mgmt_adjusted' for management-adjusted | 'other' for anything else>",
-      "ebitda_dollars": "<$ as stated — e.g. '(342)' for a loss, '9,239' for profit>",
-      "ebitda_margin_pct": "<EBITDA margin % for this period, found anywhere in the document for THIS specific EBITDA line: subordinate Margin row, inline column, summary table, or narrative. E.g. '23.5%'. Each named EBITDA line has its own margin. Return null if genuinely absent.>",
-      "source_doc": "<exact VDR document filename — must NOT be 'COMPANY PROFILE'>",
-      "source_location": "<page number or section title>"
-    }}
-  ],
-
-  "addback_schedule": [
-    {{
-      "description": "<exact label of this adjustment item as written — e.g. '[G] Run-rate executive compensation' or 'Owner compensation normalization' or 'Non-recurring legal fees'>",
-      "amount_stated": "<$ for the most recent period as stated>",
-      "period": "<the period this amount_stated value comes from>",
-      "supporting_doc_referenced": "<name of any supporting document cited in the schedule for this item, or 'not referenced'>",
-      "source_doc": "<exact VDR document filename>",
-      "source_location": "<page number or section title — e.g. 'p.50 EBITDA Adjustment Detail'>",
-      "raw_text": "<≤30 word direct quote>"
-    }}
-  ],
-
   "revenue_trend": [
     {{
       "period": "<time period ONLY: FY20A | FY21A | 2023A | TTM Aug-24 | Q1-2024 | etc. — NEVER a geography, state, or entity name>",
@@ -315,6 +316,30 @@ NOTE: Revenue figures may live in QuickBooks P&L exports (filenames like "2020 P
       "pct_of_revenue": "<% of revenue as stated, or null>",
       "source_doc": "<exact filename>",
       "source_location": "<page or section>"
+    }}
+  ],
+
+  "addback_schedule": [
+    {{
+      "description": "<exact label of this adjustment item as written — e.g. '[G] Run-rate executive compensation' or 'Owner compensation normalization' or 'Non-recurring legal fees'>",
+      "amount_stated": "<$ for the most recent period as stated>",
+      "period": "<the period this amount_stated value comes from>",
+      "supporting_doc_referenced": "<name of any supporting document cited in the schedule for this item, or 'not referenced'>",
+      "source_doc": "<exact VDR document filename>",
+      "source_location": "<page number or section title — e.g. 'p.50 EBITDA Adjustment Detail'>",
+      "raw_text": "<≤30 word direct quote>"
+    }}
+  ],
+
+  "ebitda": [
+    {{
+      "period": "<time period ONLY — NEVER a geography, state, or entity name>",
+      "label": "<FULL exact label from the document — e.g. 'PF Adjusted Clinic-Level EBITDA' or 'PF Adj. EBITDA' or 'Reported EBITDA'>",
+      "version": "<3 allowed values ONLY: 'reported' | 'pf_adjusted' | 'clinic_level_adjusted' — see Rule 13>",
+      "ebitda_dollars": "<$ as stated — e.g. '(342)' for a loss, '9,239' for profit>",
+      "ebitda_margin_pct": "<EBITDA margin % for this period, found anywhere in the document for THIS specific EBITDA line: subordinate Margin row, inline column, summary table, or narrative. E.g. '23.5%'. Return null if genuinely absent.>",
+      "source_doc": "<exact VDR document filename — must NOT be 'COMPANY PROFILE'>",
+      "source_location": "<page number or section title>"
     }}
   ],
 
@@ -1582,14 +1607,14 @@ class FinancialTrendsAgent:
                 "was not extracted. Check retrieval coverage of the P&L table."
             )
 
-        # Check 2: at least one adjusted EBITDA version
-        _adjusted_versions = {"pf_adjusted", "mgmt_adjusted", "diligence_adjusted",
-                              "clinic_level_adjusted"}
+        # Check 2: at least one adjusted EBITDA version (Rule 13: only pf_adjusted or clinic_level_adjusted)
+        _adjusted_versions = {"pf_adjusted", "clinic_level_adjusted",
+                              # legacy versions tolerated if LLM ignores the cap
+                              "mgmt_adjusted", "diligence_adjusted"}
         if _ebitda_records and not _adjusted_versions.intersection(_versions_found):
             self._add_gap(
-                "No adjusted EBITDA version found (pf_adjusted / mgmt_adjusted / "
-                "diligence_adjusted / clinic_level_adjusted). If an adjusted EBITDA concept "
-                "exists in the documents, check retrieval and extraction coverage."
+                "No adjusted EBITDA version found (pf_adjusted / clinic_level_adjusted). "
+                "If an adjusted EBITDA concept exists in the documents, check retrieval and extraction coverage."
             )
 
         # Check 3: EBITDA margin % populated for at least one adjusted record
