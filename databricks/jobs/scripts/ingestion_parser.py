@@ -213,16 +213,22 @@ _FINANCIAL_SHEET_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Broader pattern for PDF section headers — matches standalone financial
-# keywords AND compound phrases like "Financial Performance / Overview /
-# Results / Highlights / Summary / Projections / History / Statements".
-# Intentionally excludes bare "financial" to avoid triggering on legal
-# section headers like "Financial Representations" or "Financial Covenants".
+# Broader pattern for PDF section headers.  Matches:
+#   - standalone financial data keywords (p&l, ebitda, revenue, etc.)
+#   - "financials" as a bare section title (common CIM heading)
+#   - "historical financials" / "key financials" compound phrases
+#   - "financial <data-word>" compounds (financial performance, overview, etc.)
+# Does NOT match single-word "financial" to avoid triggering on legal headers
+# like "Financial Representations" or "Financial Covenants" — those sections
+# contain dense text pages that won't pass the image-page detection anyway,
+# but excluding them keeps false vision calls to a minimum.
 _PDF_FIN_SECTION_RE = re.compile(
     r"p&l|profit.loss|income statement|balance sheet|cash flow|addback|ebitda"
     r"|revenue|forecast|budget|cogs|margin"
+    r"|\bfinancials\b"
+    r"|(?:historical|key|selected|summary)\s+financials?"
     r"|financial\s+(?:performance|overview|results|highlights|summary"
-    r"|projections?|history|statements?|trends?|model|data)",
+    r"|projections?|history|statements?|trends?|model|data|information|metrics)",
     re.IGNORECASE,
 )
 
@@ -542,10 +548,13 @@ def parse_pdf(
             _page_fin_header: dict[int, str] = {}
             _in_fin = False
             _cur_fin_hdr = "Financial Statement"
+            _all_headers_seen: list[str] = []
             for el in elements:
                 _pid     = el.get("page_id")
                 _el_type = el.get("type", "")
                 _content = _strip_html(el.get("content", "")).strip()
+                if _el_type in _HEADER_ELEMENT_TYPES:
+                    _all_headers_seen.append(_content)
                 if _el_type in _HEADER_ELEMENT_TYPES and _PDF_FIN_SECTION_RE.search(_content):
                     _in_fin = True
                     _cur_fin_hdr = _content
@@ -554,6 +563,15 @@ def parse_pdf(
                     _page_fin_header[_pid] = _cur_fin_hdr
                 if _pid is not None:
                     _page_text_chars[_pid] = _page_text_chars.get(_pid, 0) + len(_content)
+
+            # DEBUG: print all section headers so we can tune _PDF_FIN_SECTION_RE
+            if _all_headers_seen:
+                print(
+                    f"  [debug] {file_name} headers ({len(_all_headers_seen)}): "
+                    + " | ".join(_all_headers_seen[:30])
+                )
+            if not _page_in_fin_section:
+                print(f"  [debug] {file_name}: no financial section header matched _PDF_FIN_SECTION_RE")
 
             # Case (a): pages that exist in elements but have very little text.
             for _pid, _char_count in _page_text_chars.items():
