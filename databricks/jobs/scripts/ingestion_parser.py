@@ -213,6 +213,19 @@ _FINANCIAL_SHEET_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Broader pattern for PDF section headers — matches standalone financial
+# keywords AND compound phrases like "Financial Performance / Overview /
+# Results / Highlights / Summary / Projections / History / Statements".
+# Intentionally excludes bare "financial" to avoid triggering on legal
+# section headers like "Financial Representations" or "Financial Covenants".
+_PDF_FIN_SECTION_RE = re.compile(
+    r"p&l|profit.loss|income statement|balance sheet|cash flow|addback|ebitda"
+    r"|revenue|forecast|budget|cogs|margin"
+    r"|financial\s+(?:performance|overview|results|highlights|summary"
+    r"|projections?|history|statements?|trends?|model|data)",
+    re.IGNORECASE,
+)
+
 _PREFIX_RE = re.compile(r"^\[Document:.*?\](\s*\[.*?\])*\s*", re.DOTALL)
 
 
@@ -516,32 +529,51 @@ def parse_pdf(
         flush_prose()
 
         # Sparse-page detection: pages inside a financial section with very little
-        # text (<30 chars) are likely image-based P&L tables that ai_parse_document
-        # couldn't parse as text elements.  Add them to figure_page_header_map so
-        # the vision pass covers them, even if no figure element was emitted.
-        # This catches CIM pages where the entire P&L is a scanned image with no
-        # OCR-able text elements — previously silently skipped.
+        # text are likely image-based P&L tables that ai_parse_document couldn't
+        # parse as text elements.  Two failure modes are covered:
+        #   a) Pages with elements but <30 chars of text (partially parsed).
+        #   b) Pages with NO elements at all (pure image pages — ai_parse_document
+        #      emits nothing for them so they never appear in _page_text_chars).
+        # Case (b) is identified as gaps in the page_id sequence within the
+        # financial section range.
         if vision_endpoint:
             _page_text_chars: dict[int, int] = {}
             _page_in_fin_section: dict[int, bool] = {}
+            _page_fin_header: dict[int, str] = {}
             _in_fin = False
+            _cur_fin_hdr = "Financial Statement"
             for el in elements:
                 _pid     = el.get("page_id")
                 _el_type = el.get("type", "")
                 _content = _strip_html(el.get("content", "")).strip()
-                if _el_type in _HEADER_ELEMENT_TYPES and _FINANCIAL_SHEET_RE.search(_content):
+                if _el_type in _HEADER_ELEMENT_TYPES and _PDF_FIN_SECTION_RE.search(_content):
                     _in_fin = True
+                    _cur_fin_hdr = _content
                 if _in_fin and _pid is not None:
                     _page_in_fin_section[_pid] = True
+                    _page_fin_header[_pid] = _cur_fin_hdr
                 if _pid is not None:
                     _page_text_chars[_pid] = _page_text_chars.get(_pid, 0) + len(_content)
 
+            # Case (a): pages that exist in elements but have very little text.
             for _pid, _char_count in _page_text_chars.items():
                 if _char_count < 30 and _page_in_fin_section.get(_pid, False):
                     figure_page_header_map.setdefault(
                         _pid,
-                        current_header or last_known_header or "Financial Statement",
+                        _page_fin_header.get(_pid, "Financial Statement"),
                     )
+
+            # Case (b): pages completely absent from ai_parse_document output
+            # (pure image pages) that fall within the financial section range.
+            if _page_in_fin_section and _page_text_chars:
+                _min_fin_pid  = min(_page_in_fin_section.keys())
+                _max_known_pid = max(_page_text_chars.keys())
+                _carry_hdr = "Financial Statement"
+                for _pid in range(_min_fin_pid, _max_known_pid + 1):
+                    if _pid in _page_fin_header:
+                        _carry_hdr = _page_fin_header[_pid]
+                    if _pid not in _page_text_chars:
+                        figure_page_header_map.setdefault(_pid, _carry_hdr)
 
         # Vision extraction: render figure-heavy pages and extract chart/org data.
         if vision_endpoint and figure_page_header_map:
@@ -661,7 +693,7 @@ def _extract_figure_pages_with_vision(
             # Use the financial-specific prompt when the section header signals a
             # P&L or income statement page — produces column-aligned tabular output
             # that the financial trends agent can extract directly.
-            _is_fin_section = bool(_FINANCIAL_SHEET_RE.search(section_header or ""))
+            _is_fin_section = bool(_PDF_FIN_SECTION_RE.search(section_header or ""))
             _active_prompt  = _VISION_PROMPT_FINANCIAL if _is_fin_section else _VISION_PROMPT
 
             response = client.predict(
