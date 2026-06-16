@@ -1306,9 +1306,11 @@ class FinancialTrendsAgent:
     # Main run() orchestration
     # ------------------------------------------------------------------
 
-    def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
+    def run(self, company_name: str, spark, llm_endpoint: str,
+            extraction_endpoint: str = None) -> dict:
         self._reset_state()
         self._company_name = company_name
+        _extract_ep = extraction_endpoint or llm_endpoint
 
         print(f"  Running 8 tools ...")
 
@@ -1448,7 +1450,7 @@ class FinancialTrendsAgent:
             company_profile_json=company_profile_json,
             combined_chunk_text=combined_chunk_text,
         )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, llm_endpoint, max_tokens=16_000)
+        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=8_192)
         extracted = self._parse_json_response(raw_response)
 
         # ── Source doc validation: reject any record sourced from the company profile ──
@@ -2122,9 +2124,10 @@ def main() -> dict:
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
 
-    company_name = get_param("sp_company_name")
-    catalog      = get_param("catalog",      default="uc13")
-    llm_endpoint = get_param("llm_endpoint", default="databricks-meta-llama-3-3-70b-instruct")
+    company_name         = get_param("sp_company_name")
+    catalog              = get_param("catalog",              default="uc13")
+    llm_endpoint         = get_param("llm_endpoint",         default="databricks-claude-sonnet-4-6")
+    extraction_endpoint  = get_param("extraction_endpoint",  default="databricks-claude-haiku-4-5") or None
 
     from pyspark.sql import SparkSession
     spark = SparkSession.getActiveSession()
@@ -2132,9 +2135,15 @@ def main() -> dict:
         raise RuntimeError("No active Spark session.")
 
     print(f"\n=== Financial Trends Agent ({company_name}) ===")
+    print(f"  extraction: {extraction_endpoint or llm_endpoint}  narrative: {llm_endpoint}")
 
     agent = FinancialTrendsAgent()
-    result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint)
+    result = agent.run(
+        company_name=company_name,
+        spark=spark,
+        llm_endpoint=llm_endpoint,
+        extraction_endpoint=extraction_endpoint,
+    )
 
     # ── Save to Delta ─────────────────────────────────────────────────
     table = f"{catalog}.analysis.financial_trends"

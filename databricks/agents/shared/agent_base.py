@@ -72,6 +72,10 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
 
     def _get_llm_client(self):
         if self._llm_client is None:
+            # Claude Sonnet at max_tokens=16,000 needs ~400s to generate output.
+            # The Databricks SDK default is ~120s — raise it before the client
+            # is constructed so the underlying HTTP connection pool picks it up.
+            os.environ.setdefault("DATABRICKS_HTTP_TIMEOUT", "600")
             self._llm_client = mlflow.deployments.get_deploy_client("databricks")
         return self._llm_client
 
