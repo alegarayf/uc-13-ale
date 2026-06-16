@@ -117,8 +117,10 @@ All scripts use a dual-source helper: tries `dbutils.widgets.get()` first, falls
 | Role | Endpoint name |
 |---|---|
 | Embeddings | `databricks-bge-large-en` |
-| Main LLM | `databricks-meta-llama-3-3-70b-instruct` |
-| Vision LLM (optional) | `databricks-meta-llama-3-2-11b-vision-instruct` |
+| Main LLM | `databricks-claude-sonnet-4-6` |
+| Vision LLM (optional) | `databricks-claude-haiku-4-5` |
+
+**Why Claude over Llama:** `databricks-meta-llama-3-3-70b-instruct` is hard-capped at 8,192 output tokens on this workspace. The BMA and FTA schemas require more (16,000+), causing a 400 error. Claude Sonnet 4.6 supports 64K output tokens and follows complex multi-array extraction schemas more reliably. Claude Haiku 4.5 replaces the unavailable `databricks-meta-llama-3-2-11b-vision-instruct` for vision.
 
 Vision extraction is opt-in: set the `vision_endpoint` widget in Cell 1 to enable. Leave blank to skip (no PyMuPDF dependency, faster parse).
 
@@ -129,7 +131,7 @@ Vision extraction is opt-in: set the `vision_endpoint` widget in Cell 1 to enabl
 Always run cells in this order after code changes:
 
 1. **Cell 0** — `%pip install` (once per cluster restart; includes `pymupdf>=1.24.0`)
-2. **Cell 1** — Config widgets + `os.environ` sync. Set `vision_endpoint` to `databricks-meta-llama-3-2-11b-vision-instruct` if image-based P&L extraction is needed (CIM pages 45+).
+2. **Cell 1** — Config widgets + `os.environ` sync. Set `vision_endpoint` to `databricks-claude-haiku-4-5` if image-based P&L extraction is needed (CIM pages 45+). `llm_endpoint` defaults to `databricks-claude-sonnet-4-6`.
 3. **Cell 7** — Ingestion Parser (`s3.main()`) — full rebuild of chunks + embeddings. **Required after any change to `ingestion_parser.py`** (including the Excel merged-cell fix). Existing chunks do not update automatically.
 4. **Cell 8** — Verify chunk stats + `source_type` distribution + PDF coverage flags
 5. **Cell 8e** — Vision chunk spot-check (if `vision_endpoint` was set)
