@@ -114,13 +114,14 @@ All scripts use a dual-source helper: tries `dbutils.widgets.get()` first, falls
 
 ## Endpoint names (Databricks model serving)
 
-| Role | Endpoint name |
-|---|---|
-| Embeddings | `databricks-bge-large-en` |
-| Main LLM | `databricks-claude-sonnet-4-6` |
-| Vision LLM (optional) | `databricks-claude-haiku-4-5` |
+| Role | Endpoint name | Widget |
+|---|---|---|
+| Embeddings | `databricks-bge-large-en` | `embedding_endpoint` |
+| Extraction LLM (fast, structured JSON) | `databricks-claude-haiku-4-5` | `extraction_endpoint` |
+| Narrative LLM (assessment reports) | `databricks-claude-sonnet-4-6` | `llm_endpoint` |
+| Vision LLM (optional, figure pages) | `databricks-claude-haiku-4-5` | `vision_endpoint` |
 
-**Why Claude over Llama:** `databricks-meta-llama-3-3-70b-instruct` is hard-capped at 8,192 output tokens on this workspace. The BMA and FTA schemas require more (16,000+), causing a 400 error. Claude Sonnet 4.6 supports 64K output tokens and follows complex multi-array extraction schemas more reliably. Claude Haiku 4.5 replaces the unavailable `databricks-meta-llama-3-2-11b-vision-instruct` for vision.
+**Two-LLM pattern:** BMA and FTA use `extraction_endpoint` (Haiku) for the single big structured-JSON call (`max_tokens=8192`, ~60-90s) and `llm_endpoint` (Sonnet) for narrative assessment calls (Cells 11c/12b). The orchestrator reads from the Delta table, which is written from extraction output only — switching Haiku/Sonnet doesn't change the output schema. Llama 3.3 70B is hard-capped at 8,192 output tokens on this workspace; Claude Haiku 4.5 and Sonnet 4.6 are not.
 
 Vision extraction is opt-in: set the `vision_endpoint` widget in Cell 1 to enable. Leave blank to skip (no PyMuPDF dependency, faster parse).
 
