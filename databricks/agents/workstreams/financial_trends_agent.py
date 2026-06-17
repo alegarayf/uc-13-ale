@@ -21,10 +21,12 @@ Dependencies:
   - agents.shared.agent_base.WorkstreamAgent
 """
 
+import concurrent.futures
 import json
 import os
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -133,254 +135,16 @@ def find_repo_root(marker="agents"):
 # ---------------------------------------------------------------------------
 # LLM prompts
 # ---------------------------------------------------------------------------
+# Moved to agents/subagents/workstream/financial/shared_prompts.py
+# (SYSTEM_PROMPT_BASE rules 1-10, SYSTEM_PROMPT_EBITDA rules 1-13)
 
-_SYSTEM_PROMPT = """\
-You are a senior PE investment analyst extracting structured financial metrics
-from due diligence documents. You must follow all rules below precisely.
-
-EXTRACTION RULES:
-1. Extract ONLY what is explicitly stated in the provided context. Never infer,
-   compute, or hallucinate a value.
-2. Do NOT recompute, reconcile, or choose between conflicting figures. If two
-   documents show different EBITDA values, extract both and flag the discrepancy.
-3. If a metric is absent from the context, return null for that field.
-4. Mark computed_from_stated=true ONLY when you derive a % from two explicitly
-   stated numbers in the SAME document. Never cross-document compute.
-   Three arithmetic operations are permitted and should be used when both inputs
-   are stated in the same source document for the same period:
-     a) Gross margin % = gross_profit_$ / revenue_$ × 100
-     b) EBITDA margin % = ebitda_$ / revenue_$ × 100
-     c) Revenue segment % = segment_revenue_$ / total_revenue_$ × 100
-        (only when total_revenue_$ for the same period is stated in the same source)
-   All other values must be extracted verbatim. Never infer, interpolate, or model.
-5. Every extracted value must have a citation: document name, location (page or
-   section title), and a ≤30-word quote from the source.
-6. Return ONLY valid JSON with no preamble, no commentary, and no markdown fences.
-7. COMPANY PROFILE BLOCK IS METADATA ONLY: The block labelled "COMPANY PROFILE"
-   at the top of the user prompt is metadata used to configure thresholds. It is
-   NOT a financial source. Never extract revenue, EBITDA, gross margin, or addback
-   values from the company profile block. All financial data must come exclusively
-   from the RETRIEVED FINANCIAL DOCUMENT CONTEXT section.
-
-READING FINANCIAL TABLES — LAYOUT-AGNOSTIC RULES:
-Financial statements appear in many formats across different data rooms. These
-rules apply regardless of layout:
-
-8. MARGIN VALUES: For each dollar metric (Revenue, Gross Profit, EBITDA), find
-   its corresponding margin % by any means present in the document — it may appear
-   as a subordinate row labelled "Margin" immediately below the dollar row (common
-   in banker CIMs), as an inline column, as a separate summary table, or as a
-   narrative sentence (e.g. "Gross margin was 42% in FY2023"). Extract the margin %
-   wherever it is stated. Do NOT skip a record because the margin % isn't in a
-   subordinate row.
-   When a "Margin" row does appear immediately below a dollar row, read its values
-   directly into the parent row's margin field — do NOT create a separate record.
-   Example: Row "PF Adj. EBITDA: 2,104 / 3,157 / 4,016 / 6,677 / 9,239" followed
-   by "Margin: 23.5% / 22.3% / 19.3% / 19.5% / 19.9%" → margin % values belong
-   in ebitda_margin_pct for each period's PF Adj. EBITDA record.
-
-9. GROWTH VALUES: Find each revenue line's YoY growth % by any means present —
-   subordinate "Growth" row, inline percentage, or bridge narrative. Do NOT compute
-   growth. Extract the stated %. "N/A" for the first period means no prior year —
-   return null for that period.
-   Example: Row "Revenue: 8,955 / 14,176 / 20,846 / 34,160 / 46,423" followed by
-   "Growth: N/A / 58.3% / 47.1% / 63.9% / 35.9%" → yoy_growth_pct values:
-   null, "58.3%", "47.1%", "63.9%", "35.9%".
-
-10. PERIOD LABELS — TIME ONLY: The "period" field must always be a time period:
-    FY20A, FY21A, 2023A, TTM Aug-24, Q1-2024, LTM, H1 2024, etc. Geographic
-    names (NY, MA, CT, states, countries) and entity names (company names,
-    division names) are NOT time periods. If a table's column headers are
-    geographies or entities, treat that table as revenue_by_segment data, not
-    as revenue_trend or ebitda data.
-
-EXTRACTING MULTIPLE NAMED EBITDA LINES:
-11. A single document frequently presents MULTIPLE distinct named EBITDA lines.
-    Each named EBITDA line is a SEPARATE concept and requires SEPARATE records —
-    one record per period per named line.
-    Common patterns (not exhaustive — labels vary by banker and company):
-    - Raw/unadjusted: "Reported EBITDA", "EBITDA as reported", "Statutory EBITDA"
-    - Accounting-adjusted: "Diligence Adjusted EBITDA", "Normalized EBITDA",
-      "Adjusted EBITDA"
-    - Sub-entity: "Clinic-Level EBITDA", "Store-Level EBITDA", "Location EBITDA"
-    - Full pro forma: "PF Adj. EBITDA", "Pro Forma EBITDA", "Management EBITDA"
-    Do NOT collapse these. Use the exact label from the document in the "label"
-    field. A P&L with 5 periods and 4 named EBITDA lines must produce 20 records.
-
-EXTRACTING ADDBACK AND ADJUSTMENT TABLES:
-12. An addback table (may be titled "EBITDA Adjustment Detail", "Addback Schedule",
-    "Management Adjustments", "Normalizing Adjustments", or similar) lists
-    adjustment items as rows with fiscal periods as columns. Extract one record per
-    ROW (one per adjustment item), using the most recent period's dollar value as
-    amount_stated. Record the period that value comes from. Each row is a distinct
-    item regardless of how it is labelled ([A], [1], a description, etc.).
-
-EBITDA VERSION LIMIT — TOKEN BUDGET:
-13. Extract at most 3 EBITDA version types total:
-    (a) "reported"             — the raw, unadjusted EBITDA as filed/stated.
-    (b) "pf_adjusted"          — the highest/most adjusted pro forma figure (management
-                                 case, PF Adj. EBITDA, full pro forma). If multiple
-                                 adjusted concepts exist, pick the highest and call it
-                                 pf_adjusted; do NOT emit separate records for each.
-    (c) "clinic_level_adjusted" — unit/location-level EBITDA, ONLY if explicitly
-                                 presented as a distinct concept.
-    Skip ALL intermediate adjusted EBITDA concepts (diligence adjusted, normalized,
-    partial adjustment, EBITDA before synergies, etc.) if a pf_adjusted version is
-    also present. Extract ALL periods for each of the ≤3 chosen versions. A document
-    with 10 periods and 3 version types produces at most 30 EBITDA records.\
-"""
-
-_USER_PROMPT_TEMPLATE = """\
-COMPANY PROFILE (metadata only — do NOT extract financial figures from this block):
-{company_profile_json}
-
-RETRIEVED FINANCIAL DOCUMENT CONTEXT (extract ALL financial figures from here only):
-{combined_chunk_text}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EXTRACTION TASK
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Extract all available financial metrics from the RETRIEVED FINANCIAL DOCUMENT
-CONTEXT above. Apply all system prompt rules. Return ONLY the JSON object below.
-
-EXTRACTION ORDER — FOLLOW EXACTLY (token budget is limited; earlier fields are higher priority):
-1. revenue_trend      — all stated revenue lines across all periods.
-2. gross_margin       — Gross Profit $ and % across all periods.
-3. revenue_by_segment — geographic / service-line revenue breakdown.
-4. revenue_by_customer — top customer concentration (up to 10).
-5. opex_breakdown     — top OPEX categories.
-6. addback_schedule   — all addback / adjustment items.
-7. ebitda             — LIMITED to 3 version types only (Rule 13). Write last.
-8. cost_structure, working_capital, budget_vs_actual, discrepancies_found,
-   executive_summary, extraction_notes — fill with whatever space remains.
-
-CRITICAL: revenue_trend, gross_margin, and addback_schedule MUST be fully written
-before you begin the ebitda array. Do NOT start ebitda until they are complete.
-
-NOTE: Revenue figures may live in QuickBooks P&L exports, geographic segment
-spreadsheets, or individual annual workbooks — NOT only the CIM. Check all
-retrieved documents for revenue data before leaving revenue_trend empty.
-
-{{
-  "revenue_trend": [
-    {{
-      "period": "<time period ONLY: FY20A | FY21A | 2023A | TTM Aug-24 | Q1-2024 | etc. — NEVER a geography, state, or entity name>",
-      "label": "<exact row label from the document — e.g. 'Pro Forma Adjusted Revenue' or 'Reported Net Revenue' or 'Total Revenue'>",
-      "revenue_stated": "<$ amount exactly as written — e.g. '8,955' or '46,423' or '$14.2M'>",
-      "yoy_growth_pct": "<YoY growth % for this period, extracted from wherever it is stated in the document (Growth row, inline %, narrative). E.g. '58.3%' or '35.9%'. Return null if N/A or absent.>",
-      "computed_yoy": false,
-      "source_doc": "<exact filename of the VDR document — must NOT be 'COMPANY PROFILE'>",
-      "source_location": "<page number or section title — e.g. 'p.49 Historical P&L Summary'>"
-    }}
-  ],
-
-  "gross_margin": [
-    {{
-      "period": "<time period ONLY>",
-      "label": "<exact row label — e.g. 'Gross Profit' or 'Pro Forma Adjusted Gross Profit'>",
-      "gm_dollars_stated": "<$ amount from the Gross Profit row for this period — e.g. '3,770' or '20,170'>",
-      "gm_pct_stated": "<gross margin % for this period, found anywhere in the document: subordinate Margin row, inline column, summary table, or narrative. E.g. '42.1%' or '44.3%'. Return null only if genuinely absent from the document.>",
-      "computed_from_stated": false,
-      "source_doc": "<exact filename — must NOT be 'COMPANY PROFILE'>",
-      "source_location": "<page number or section title>"
-    }}
-  ],
-
-  "revenue_by_segment": [
-    {{
-      "segment": "<segment, geography, service line, or location name — e.g. 'NYC' or 'Home Health Aides' or 'Northeast'>",
-      "revenue_pct": "<% of total revenue as stated, or null>",
-      "revenue_dollars": "<$ as stated — e.g. '$25M' or '13,588'>",
-      "period": "<time period for this figure>",
-      "source_doc": "<exact filename>"
-    }}
-  ],
-
-  "revenue_by_customer": [
-    {{
-      "rank": "<1–10 rank by revenue size, or null if not ranked>",
-      "customer_name": "<customer or client name as stated — use 'Customer [N]' if anonymized>",
-      "revenue_dollars": "<$ as stated>",
-      "revenue_pct": "<% of total revenue as stated, or null>",
-      "period": "<time period>",
-      "source_doc": "<exact VDR filename>"
-    }}
-  ],
-
-  "opex_breakdown": [
-    {{
-      "category": "<cost category name — e.g. 'Salaries & Benefits', 'Rent', 'G&A', 'Sales & Marketing'>",
-      "amount_stated": "<$ as stated — e.g. '12,500' or '$8.1M'>",
-      "period": "<time period this amount belongs to>",
-      "pct_of_revenue": "<% of revenue as stated, or null>",
-      "source_doc": "<exact filename>",
-      "source_location": "<page or section>"
-    }}
-  ],
-
-  "addback_schedule": [
-    {{
-      "description": "<exact label of this adjustment item as written — e.g. '[G] Run-rate executive compensation' or 'Owner compensation normalization' or 'Non-recurring legal fees'>",
-      "amount_stated": "<$ for the most recent period as stated>",
-      "period": "<the period this amount_stated value comes from>",
-      "supporting_doc_referenced": "<name of any supporting document cited in the schedule for this item, or 'not referenced'>",
-      "source_doc": "<exact VDR document filename>",
-      "source_location": "<page number or section title — e.g. 'p.50 EBITDA Adjustment Detail'>",
-      "raw_text": "<≤30 word direct quote>"
-    }}
-  ],
-
-  "ebitda": [
-    {{
-      "period": "<time period ONLY — NEVER a geography, state, or entity name>",
-      "label": "<FULL exact label from the document — e.g. 'PF Adjusted Clinic-Level EBITDA' or 'PF Adj. EBITDA' or 'Reported EBITDA'>",
-      "version": "<3 allowed values ONLY: 'reported' | 'pf_adjusted' | 'clinic_level_adjusted' — see Rule 13>",
-      "ebitda_dollars": "<$ as stated — e.g. '(342)' for a loss, '9,239' for profit>",
-      "ebitda_margin_pct": "<EBITDA margin % for this period, found anywhere in the document for THIS specific EBITDA line: subordinate Margin row, inline column, summary table, or narrative. E.g. '23.5%'. Return null if genuinely absent.>",
-      "source_doc": "<exact VDR document filename — must NOT be 'COMPANY PROFILE'>",
-      "source_location": "<page number or section title>"
-    }}
-  ],
-
-  "cost_structure": {{
-    "headcount_pct_of_revenue": "<% as stated or null>",
-    "fixed_vs_variable_note": "<description of fixed vs. variable cost split as stated, or null>",
-    "key_categories": ["<e.g. 'Payroll expenses'>", "<e.g. 'Rent expense'>"],
-    "source_doc": "<filename or null>"
-  }},
-
-  "working_capital": {{
-    "dso_days": "<days as stated or null>",
-    "dpo_days": "<days as stated or null>",
-    "ar_aging_note": "<AR aging or cash collection description as stated, or null>",
-    "source_doc": "<filename or null>"
-  }},
-
-  "budget_vs_actual": [
-    {{
-      "period": "<period>",
-      "metric": "<Revenue | EBITDA>",
-      "budget_stated": "<$ as stated>",
-      "actual_stated": "<$ as stated>",
-      "variance_note": "<description of variance as stated in the document>",
-      "source_doc": "<filename>"
-    }}
-  ],
-
-  "discrepancies_found": [
-    {{
-      "metric": "<metric name>",
-      "conflicting_values": ["<doc A: $X>", "<doc B: $Y>"],
-      "note": "<brief description>"
-    }}
-  ],
-
-  "executive_summary": "<1–2 sentence factual summary covering revenue scale (if visible), EBITDA profile, and the most notable financial risk. Write only what is stated in the documents. Do not render a verdict.>",
-
-  "extraction_notes": "<Single string. Enumerate separated by semicolons: fields returned as null because absent from documents; tables present but only partially readable; multiple versions of the same metric found; any ambiguity in how margin rows were assigned to parent rows; any layout patterns that differ from the rules above.>"
-}}\
-"""
+# Extraction prompts and system prompts have moved to:
+#   agents/subagents/workstream/financial/shared_prompts.py  (system prompts)
+#   agents/subagents/workstream/financial/revenue_sub_agent.py
+#   agents/subagents/workstream/financial/ebitda_sub_agent.py
+#   agents/subagents/workstream/financial/opex_sub_agent.py
+# The orchestrator (FinancialTrendsAgent.run) fans out to these three sub-agents
+# in parallel via ThreadPoolExecutor(max_workers=3).
 
 
 # ---------------------------------------------------------------------------
@@ -1564,19 +1328,49 @@ class FinancialTrendsAgent:
         company_profile_json = json.dumps(profile_dict, default=str) if profile_dict else "{}"
         overlay = profile_dict.get("industry_overlay") if profile_dict else None
 
-        # ── Single LLM call ───────────────────────────────────────────
-        # max_tokens=16,000: the financial trends schema (10 top-level arrays ×
-        # multiple periods × multiple EBITDA versions) requires substantially more
-        # output space than other workstream agents.  The base class default of
-        # 12,000 is sufficient for most deals; 16,000 provides headroom for large
-        # data rooms with many periods and EBITDA versions.
-        print("  Calling LLM for extraction ...")
-        user_prompt = _USER_PROMPT_TEMPLATE.format(
-            company_profile_json=company_profile_json,
-            combined_chunk_text=combined_chunk_text,
+        # ── Parallel sub-agent extraction ─────────────────────────────
+        # Three focused sub-agents run concurrently via ThreadPoolExecutor.
+        # Each receives the same combined_chunk_text but a disjoint schema:
+        #   RevenueSubAgent  → revenue_trend, gross_margin, revenue_by_segment,
+        #                       revenue_by_customer          (max_tokens=6,000)
+        #   EbitdaSubAgent   → ebitda (≤3 versions), addback_schedule,
+        #                       working_capital, budget_vs_actual,
+        #                       discrepancies_found          (max_tokens=8,000)
+        #   OpexSubAgent     → opex_breakdown, cost_structure,
+        #                       executive_summary, extraction_notes (max_tokens=3,000)
+        #
+        # Wall-clock: ~90s (parallel) vs ~270s (sequential).
+        # Thread safety: each sub-agent instantiates its own WorkstreamAgent
+        # (independent LLM client + gap list). Gaps are collected and merged
+        # into the orchestrator's gap list after all futures complete.
+        from agents.subagents.workstream.financial import (
+            RevenueSubAgent, EbitdaSubAgent, OpexSubAgent,
         )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=12_000)
-        extracted = self._parse_json_response(raw_response)
+
+        _sub_args = (combined_chunk_text, company_profile_json, _extract_ep)
+
+        print("  Launching 3 sub-agents in parallel ...")
+        _t0 = time.time()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as _pool:
+            _f_rev  = _pool.submit(RevenueSubAgent().run, *_sub_args)
+            _f_ebi  = _pool.submit(EbitdaSubAgent().run,  *_sub_args)
+            _f_opex = _pool.submit(OpexSubAgent().run,    *_sub_args)
+            _r_rev  = _f_rev.result()
+            _r_ebi  = _f_ebi.result()
+            _r_opex = _f_opex.result()
+        _elapsed = time.time() - _t0
+        print(f"  Sub-agents finished in {_elapsed:.0f}s (parallel)")
+
+        # Merge: disjoint schemas — no key collision expected
+        extracted = {
+            **_r_rev.get("extracted",  {}),
+            **_r_ebi.get("extracted",  {}),
+            **_r_opex.get("extracted", {}),
+        }
+
+        # Propagate sub-agent gaps into the orchestrator's gap list
+        for _gap in _r_rev.get("gaps", []) + _r_ebi.get("gaps", []) + _r_opex.get("gaps", []):
+            self._add_gap(_gap)
 
         # ── Source doc validation: reject any record sourced from the company profile ──
         _PROFILE_SENTINEL = "COMPANY PROFILE"
@@ -1661,14 +1455,28 @@ class FinancialTrendsAgent:
         llm_step = len(self._base._trace) + 1
         self._base._trace.append({
             "step":       llm_step,
-            "tool":       "llm_extraction",
-            "input":      f"combined context: {len(all_chunks)} deduplicated chunks",
-            "output":     f"Extracted {len(extracted.get('revenue_trend') or [])} revenue periods, "
-                          f"{len(extracted.get('ebitda') or [])} EBITDA records, "
-                          f"{len(extracted.get('addback_schedule') or [])} addbacks",
+            "tool":       "llm_extraction_parallel_3_subagents",
+            "input":      f"3 parallel sub-agents (revenue/ebitda/opex) over {len(all_chunks)} deduplicated chunks | elapsed={_elapsed:.0f}s",
+            "output":     (
+                f"Revenue: {len(extracted.get('revenue_trend') or [])} periods | "
+                f"GrossMargin: {len(extracted.get('gross_margin') or [])} | "
+                f"Segments: {len(extracted.get('revenue_by_segment') or [])} | "
+                f"OPEX: {len(extracted.get('opex_breakdown') or [])} | "
+                f"EBITDA: {len(extracted.get('ebitda') or [])} records | "
+                f"Addbacks: {len(extracted.get('addback_schedule') or [])}"
+            ),
             "confidence": "high" if all_chunks else "low",
             "sources":    list({c.file_name for c in all_chunks}),
         })
+        print(
+            f"  Extraction complete: "
+            f"rev={len(extracted.get('revenue_trend') or [])} "
+            f"gm={len(extracted.get('gross_margin') or [])} "
+            f"seg={len(extracted.get('revenue_by_segment') or [])} "
+            f"opex={len(extracted.get('opex_breakdown') or [])} "
+            f"ebitda={len(extracted.get('ebitda') or [])} "
+            f"addbacks={len(extracted.get('addback_schedule') or [])}"
+        )
 
         # ── Post-LLM Python processing ────────────────────────────────
         print("  Applying financial thresholds ...")
