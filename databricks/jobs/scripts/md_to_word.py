@@ -532,7 +532,7 @@ def _r_pl_table(doc: Document, rows: List[List[str]]):
     data_col_w = max(0.65, min(data_col_w, 1.3))
 
     table = doc.add_table(rows=len(rows), cols=n_cols)
-    table.style = "Table Normal"
+    table.style = "Table Grid"   # start with Grid; clear all borders below
     table.allow_autofit = False
     _clear_table_borders(table)
 

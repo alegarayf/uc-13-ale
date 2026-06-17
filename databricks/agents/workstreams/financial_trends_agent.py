@@ -1830,19 +1830,47 @@ def generate_financial_assessment(
                     f"({gap_pct:.0f}% uplift). Verify addback support."
                 )
 
-    # ── Addback bridge table ───────────────────────────────────────────────
-    ab_lines = []
-    if addbacks:
+    # ── Addback bridge table (period-column format, matches CIM EBITDA Adjustment Detail) ──
+    # Build index: description → {period: amount}
+    _ab_idx: dict = {}
+    for _ab in addbacks:
+        _ab_desc = (((_ab.get("description") or "")).strip())[:55]
+        _ab_per  = (_ab.get("period") or "").strip()
+        _ab_amt  = _parse_numeric(_ab.get("amount_stated"))
+        if _ab_desc and _ab_per and _ab_amt is not None:
+            _ab_idx.setdefault(_ab_desc, {})[_ab_per] = _ab_amt
+
+    if _ab_idx or addbacks:
+        _ab_hdr_cols = " | ".join(_cp)
+        _ab_sep_cols = "|".join(["---"] * _n)
         ab_lines = [
-            "| Addback Item | Amount ($K) | Period | Supporting Doc |",
-            "|---|---|---|---|",
+            f"| Line Item | {_ab_hdr_cols} |",
+            f"|---|{_ab_sep_cols}|",
         ]
-        for a in addbacks:
-            desc = (a.get("description") or "")[:60]
-            amt  = _fmt_dollars(a.get("amount_stated"))
-            per  = a.get("period") or "—"
-            doc  = (a.get("supporting_doc_referenced") or "not referenced")[:40]
-            ab_lines.append(f"| {desc} | {amt} | {per} | {doc} |")
+        # Reported Revenue row
+        ab_lines.append(_pl_row("Reported Revenue ($K)", [_rev_lookup(p) for p in _cp]))
+        # Reported EBITDA + margin
+        _ab_rep_vals = [_ebitda_lookup(p, ["reported"]) for p in _cp]
+        ab_lines.append(_pl_row("Reported EBITDA ($K)", [v[0] for v in _ab_rep_vals], bold=True))
+        ab_lines.append(_pl_row("EBITDA Margin %", [v[1] for v in _ab_rep_vals]))
+        # Each addback item — amount in its period column, "—" elsewhere
+        for _ab_desc, _ab_per_amts in _ab_idx.items():
+            _ab_row_vals = []
+            for p in _cp:
+                _v = _ab_per_amts.get(p)
+                _ab_row_vals.append(_fmt_dollars(_v) if _v is not None else "—")
+            ab_lines.append(_pl_row(f"↳ {_ab_desc}", _ab_row_vals))
+        # Adjusted EBITDA + margin
+        _ab_adj_vals = [_ebitda_lookup(p, _adj_versions) for p in _cp]
+        ab_lines.append(_pl_row("EBITDA Adjusted ($K)", [v[0] for v in _ab_adj_vals], bold=True))
+        ab_lines.append(_pl_row("Adj. EBITDA Margin %", [v[1] for v in _ab_adj_vals]))
+        # PF Adjusted EBITDA (only if data exists)
+        _ab_pf_vals = [_ebitda_lookup(p, ["pf_adjusted"]) for p in _cp]
+        if any(v[0] != "—" for v in _ab_pf_vals):
+            ab_lines.append(_pl_row("PF Adjusted EBITDA ($K)", [v[0] for v in _ab_pf_vals], bold=True))
+            ab_lines.append(_pl_row("PF Adj. EBITDA Margin %", [v[1] for v in _ab_pf_vals]))
+    else:
+        ab_lines = []
     tbl_addbacks = "\n".join(ab_lines) if ab_lines else "_No addbacks extracted._"
 
     # ── Budget vs actual ───────────────────────────────────────────────────
