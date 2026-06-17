@@ -1723,6 +1723,98 @@ def generate_financial_assessment(
             _cust_lines.append(f"| {_idx} | {_nm} | {_amt} | {_pct} | {_per} |")
         _tbl_customers = "\n".join(_cust_lines)
 
+    # ── Cost & EBITDA Detail table ─────────────────────────────────────────
+    # OPEX: index records as {category: {period: amount}}
+    _opex_idx: dict = {}
+    for rec in opex_breakdown:
+        cat = (rec.get("category") or "").strip()
+        per = (rec.get("period") or "").strip()
+        amt = _parse_numeric(rec.get("amount_stated"))
+        if cat and per and amt is not None:
+            _opex_idx.setdefault(cat, {})[per] = amt
+
+    # Rank categories by total absolute magnitude across ALL periods (not just compact)
+    _all_opex_cats = sorted(
+        _opex_idx.keys(),
+        key=lambda c: sum(abs(v) for v in _opex_idx[c].values()),
+        reverse=True,
+    )
+    _top4_cats  = _all_opex_cats[:4]
+    _other_cats = _all_opex_cats[4:]
+
+    def _opex_cell(category: str, period: str) -> str:
+        amt = _opex_idx.get(category, {}).get(period)
+        return _fmt_dollars(amt) if amt is not None else "—"
+
+    def _opex_other_cell(period: str) -> str:
+        vals = [_opex_idx.get(c, {}).get(period) for c in _other_cats]
+        vals = [v for v in vals if v is not None]
+        return _fmt_dollars(sum(vals)) if vals else "—"
+
+    def _opex_total_cell(period: str) -> str:
+        vals = [_opex_idx.get(c, {}).get(period) for c in _all_opex_cats]
+        vals = [v for v in vals if v is not None]
+        return _fmt_dollars(sum(vals)) if vals else "—"
+
+    # Addback per period: compute as (Adj EBITDA − Reported EBITDA) when available.
+    # This is the net addback total — the itemized schedule lives in the Addback Bridge table.
+    def _net_addback_cell(period: str) -> str:
+        rep_d, _ = _ebitda_lookup(period, ["reported"])
+        adj_d, _ = _ebitda_lookup(period, _adj_versions)
+        rep_n = _parse_numeric(rep_d.replace("(", "-").replace(")", "")) if rep_d != "—" else None
+        adj_n = _parse_numeric(adj_d.replace("(", "-").replace(")", "")) if adj_d != "—" else None
+        if rep_n is not None and adj_n is not None:
+            return _fmt_dollars(adj_n - rep_n)
+        return "—"
+
+    # Build the combined Cost & EBITDA Detail rows
+    _ce_hdr  = " | ".join(_cp)
+    _ce_sep  = " | ".join(["---"] * _n)
+    _ce_lines = [
+        f"| Line Item | {_ce_hdr} |",
+        f"|---|{_ce_sep}|",
+    ]
+
+    # Gross Profit header row (context anchor for the OPEX section below)
+    _ce_lines.append(_pl_row("Gross Profit ($K)", [_gm_lookup(p, "gm_dollars_stated") for p in _cp], bold=True))
+    _ce_lines.append(_pl_row("Gross Margin %",    [_gm_lookup(p, "gm_pct_stated")      for p in _cp]))
+
+    # OPEX section — only if we have data
+    _has_opex_data = bool(_opex_idx)
+    if _has_opex_data:
+        for cat in _top4_cats:
+            _ce_lines.append(_pl_row(f"↳ {cat}", [_opex_cell(cat, p) for p in _cp]))
+        if _other_cats:
+            _ce_lines.append(_pl_row("↳ Other OpEx", [_opex_other_cell(p) for p in _cp]))
+        _total_vals = [_opex_total_cell(p) for p in _cp]
+        if any(v != "—" for v in _total_vals):
+            _ce_lines.append(_pl_row("Total OpEx ($K)", _total_vals, bold=True))
+    else:
+        _ce_lines.append(_pl_row("↳ (OpEx detail not extracted)", ["—"] * _n))
+
+    # EBITDA bridge
+    rep_ce_vals = [_ebitda_lookup(p, ["reported"]) for p in _cp]
+    _ce_lines.append(_pl_row("EBITDA Reported ($K)", [v[0] for v in rep_ce_vals], bold=True))
+    _ce_lines.append(_pl_row("EBITDA Margin %",      [v[1] for v in rep_ce_vals]))
+
+    # Net addbacks row (computed; directs reader to itemized Addback Bridge table below)
+    _net_ab_vals = [_net_addback_cell(p) for p in _cp]
+    _ab_row_label = "↳ Total Addbacks (see bridge below)" if addbacks else "↳ Addback detail (not extracted)"
+    _ce_lines.append(_pl_row(_ab_row_label, _net_ab_vals))
+
+    # Adjusted EBITDA
+    adj_ce_vals = [_ebitda_lookup(p, _adj_versions) for p in _cp]
+    _ce_lines.append(_pl_row("EBITDA Adjusted ($K)", [v[0] for v in adj_ce_vals], bold=True))
+    _ce_lines.append(_pl_row("Adj. EBITDA Margin %", [v[1] for v in adj_ce_vals]))
+
+    # PF Adjusted EBITDA — only if a pf_adjusted version is present and has data
+    pf_ce_vals = [_ebitda_lookup(p, ["pf_adjusted"]) for p in _cp]
+    if any(v[0] != "—" for v in pf_ce_vals):
+        _ce_lines.append(_pl_row("PF Adjusted EBITDA ($K)", [v[0] for v in pf_ce_vals], bold=True))
+        _ce_lines.append(_pl_row("PF Adj. EBITDA Margin %", [v[1] for v in pf_ce_vals]))
+
+    tbl_cost_ebitda = "\n".join(_ce_lines)
+
     # ── Material deviation flag ────────────────────────────────────────────
     _deviation_flags: list[str] = []
     for p in all_periods:
@@ -1894,6 +1986,16 @@ EXECUTIVE SUMMARY: {exec_summary}
     md_parts.append("## P&L Summary\n")
     md_parts.append("> All figures in $K unless stated. Actuals + TTM shown; projected periods excluded.\n")
     md_parts.append(tbl_pl)
+    md_parts.append("")
+
+    # Cost & EBITDA Detail (right after P&L, same accounting format)
+    md_parts.append("### Cost & EBITDA Detail\n")
+    md_parts.append(
+        "> OpEx: top 4 categories by total spend; remainder summed into Other OpEx. "
+        "Net Addbacks = Adjusted EBITDA − Reported EBITDA (per period); "
+        "see Addback Bridge below for itemized detail. All figures in $K.\n"
+    )
+    md_parts.append(tbl_cost_ebitda)
     md_parts.append("")
 
     # Customer concentration (own table, not embedded in P&L rows)
