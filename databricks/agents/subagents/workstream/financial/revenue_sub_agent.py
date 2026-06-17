@@ -20,6 +20,14 @@ RETRIEVED FINANCIAL DOCUMENT CONTEXT (extract ALL financial figures from here on
 EXTRACTION TASK — REVENUE & MARGINS
 Extract ONLY the four fields below. Return ONLY the JSON object — no preamble.
 
+RECORD COUNT CAPS (strictly enforced — to leave token budget for segments and customers):
+- revenue_trend: at most 12 records total. If more periods exist, keep the most recent
+  actuals and the TTM/LTM period. Drop projected future periods (2025P-2029P) from this
+  array — they appear in the P&L table via gross_margin if needed.
+- gross_margin: at most 12 records total. Same priority: actuals and TTM first.
+- revenue_by_segment and revenue_by_customer must always be attempted — do not skip them
+  even if revenue_trend and gross_margin are already large.
+
 NOTE: Revenue figures may live in QuickBooks P&L exports, geographic segment
 spreadsheets, or individual annual workbooks — NOT only the CIM. Check all
 retrieved documents before leaving revenue_trend empty.
@@ -72,7 +80,7 @@ retrieved documents before leaving revenue_trend empty.
 }}\
 """
 
-_MAX_TOKENS = 6_000
+_MAX_TOKENS = 10_000
 
 
 class RevenueSubAgent:
