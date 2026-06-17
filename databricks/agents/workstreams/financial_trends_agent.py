@@ -1636,47 +1636,72 @@ def generate_financial_assessment(
                 )
         return ("—", "—")
 
-    # ── P&L grid builder (periods as columns) ─────────────────────────────
+    # ── Compact P&L grid (actuals + TTM only; no projected columns) ───────
+    # Projected periods (2024E, 2025P, etc.) expand the table beyond one page
+    # and distract from the historical signal that matters at IC stage.
+    def _is_projected(p: str) -> bool:
+        return bool(re.search(r"\d{4}[EP]", (p or "").upper()))
+
+    _compact_periods = [p for p in all_periods if not _is_projected(p)]
+    if not _compact_periods:
+        _compact_periods = all_periods  # fallback: show whatever we have
+
     def _pl_row(label: str, values: list, bold: bool = False) -> str:
         lbl = f"**{label}**" if bold else label
         cells = " | ".join(str(v) for v in values)
         return f"| {lbl} | {cells} |"
 
-    period_headers = " | ".join(all_periods) if all_periods else "(no periods extracted)"
-    col_sep = " | ".join(["---"] * len(all_periods)) if all_periods else "---"
+    _cp = _compact_periods
+    _n  = len(_cp)
+    period_headers = " | ".join(_cp) if _cp else "(no periods extracted)"
+    col_sep        = " | ".join(["---"] * _n) if _n else "---"
 
     pl_lines = [
         f"| Line Item | {period_headers} |",
         f"|---|{col_sep}|",
     ]
 
-    # Revenue rows
-    pl_lines.append(_pl_row("Revenue ($K)", [_rev_lookup(p) for p in all_periods], bold=True))
-    pl_lines.append(_pl_row("  YoY Growth %", [_growth_lookup(p) for p in all_periods]))
+    # Revenue
+    pl_lines.append(_pl_row("Revenue ($K)", [_rev_lookup(p) for p in _cp], bold=True))
+    pl_lines.append(_pl_row("YoY Growth %", [_growth_lookup(p) for p in _cp]))
 
-    # Revenue by segment sub-rows (first unique segment per period, up to 5 segments)
+    # Revenue segments (≤5, dollar values preferred over pct)
     _seg_names = list(dict.fromkeys(r.get("segment", "") for r in rev_by_segment if r.get("segment")))[:5]
     for seg in _seg_names:
         seg_vals = []
-        for p in all_periods:
+        for p in _cp:
             match = next((r for r in rev_by_segment if r.get("segment") == seg and r.get("period") == p), None)
             if match:
-                seg_vals.append(_fmt_dollars(match.get("revenue_dollars")) if match.get("revenue_dollars") else
-                                (_fmt_pct(match.get("revenue_pct")) if match.get("revenue_pct") else "—"))
+                seg_vals.append(_fmt_dollars(match.get("revenue_dollars")) if match.get("revenue_dollars")
+                                else (_fmt_pct(match.get("revenue_pct")) if match.get("revenue_pct") else "—"))
             else:
                 seg_vals.append("—")
-        pl_lines.append(_pl_row(f"  ↳ {seg}", seg_vals))
+        pl_lines.append(_pl_row(f"↳ {seg}", seg_vals))
 
-    # Top customers (up to 10) — pick most recent period's data if period-specific
+    # Gross Profit / Margin
+    pl_lines.append(_pl_row("Gross Profit ($K)", [_gm_lookup(p, "gm_dollars_stated") for p in _cp], bold=True))
+    pl_lines.append(_pl_row("Gross Margin %", [_gm_lookup(p, "gm_pct_stated") for p in _cp]))
+
+    # Reported EBITDA
+    _adj_versions = ["pf_adjusted", "mgmt_adjusted", "diligence_adjusted", "clinic_level_adjusted"]
+    reported_vals = [_ebitda_lookup(p, ["reported"]) for p in _cp]
+    pl_lines.append(_pl_row("EBITDA Reported ($K)", [v[0] for v in reported_vals], bold=True))
+    pl_lines.append(_pl_row("EBITDA Margin %",      [v[1] for v in reported_vals]))
+
+    # Adjusted EBITDA
+    adj_vals = [_ebitda_lookup(p, _adj_versions) for p in _cp]
+    pl_lines.append(_pl_row("EBITDA Adjusted ($K)", [v[0] for v in adj_vals], bold=True))
+    pl_lines.append(_pl_row("Adj. EBITDA Margin %", [v[1] for v in adj_vals]))
+
+    tbl_pl = "\n".join(pl_lines)
+
+    # ── Customer concentration table (separate from P&L) ──────────────────
+    _tbl_customers = ""
     if rev_by_customer:
         _cust_sorted = sorted(
             rev_by_customer,
-            key=lambda r: (
-                int(r.get("rank") or 99),
-                -(_parse_numeric(r.get("revenue_dollars")) or 0),
-            ),
+            key=lambda r: (int(r.get("rank") or 99), -(_parse_numeric(r.get("revenue_dollars")) or 0)),
         )
-        # Deduplicate by customer name; keep top 10
         _seen_cust: set = set()
         _top_customers = []
         for _c in _cust_sorted:
@@ -1686,52 +1711,17 @@ def generate_financial_assessment(
                 _top_customers.append(_c)
             if len(_top_customers) >= 10:
                 break
-        for _c in _top_customers:
-            _nm  = (_c.get("customer_name") or "Customer")[:30]
-            _pct = f" ({_fmt_pct(_c.get('revenue_pct'))})" if _c.get("revenue_pct") else ""
+        _cust_lines = [
+            "| # | Customer | Revenue ($K) | % of Revenue | Period |",
+            "|---|---|---|---|---|",
+        ]
+        for _idx, _c in enumerate(_top_customers, 1):
+            _nm  = (_c.get("customer_name") or "—")[:35]
             _amt = _fmt_dollars(_c.get("revenue_dollars"))
-            _per = _c.get("period") or ""
-            # Show dollar in the period column if we know which period, else first column
-            _cust_vals = []
-            for p in all_periods:
-                if _per and _per == p:
-                    _cust_vals.append(f"{_amt}{_pct}")
-                elif not _per and p == all_periods[0]:
-                    _cust_vals.append(f"{_amt}{_pct}")
-                else:
-                    _cust_vals.append("—")
-            pl_lines.append(_pl_row(f"  ↳ {_nm}", _cust_vals))
-
-    # Gross Profit / Margin
-    pl_lines.append(_pl_row("Gross Profit ($K)", [_gm_lookup(p, "gm_dollars_stated") for p in all_periods], bold=True))
-    pl_lines.append(_pl_row("  Gross Margin %", [_gm_lookup(p, "gm_pct_stated") for p in all_periods]))
-
-    # OPEX top categories (up to 4 + Other bucket)
-    if opex_breakdown:
-        _opex_cats = list(dict.fromkeys(r.get("category", "") for r in opex_breakdown if r.get("category")))
-        _top_cats  = _opex_cats[:4]
-        _other_cats= _opex_cats[4:]
-        for cat in _top_cats:
-            cat_vals = []
-            for p in all_periods:
-                match = next((r for r in opex_breakdown if r.get("category") == cat and r.get("period") == p), None)
-                cat_vals.append(_fmt_dollars(match.get("amount_stated")) if match else "—")
-            pl_lines.append(_pl_row(f"  {cat}", cat_vals))
-        if _other_cats:
-            pl_lines.append(_pl_row("  Other OPEX", ["—"] * len(all_periods)))
-
-    # Reported EBITDA
-    reported_vals    = [_ebitda_lookup(p, ["reported"]) for p in all_periods]
-    pl_lines.append(_pl_row("EBITDA Reported ($K)", [v[0] for v in reported_vals], bold=True))
-    pl_lines.append(_pl_row("  EBITDA Margin %",    [v[1] for v in reported_vals]))
-
-    # Adjusted EBITDA (pf_adjusted preferred, then mgmt_adjusted)
-    _adj_versions = ["pf_adjusted", "mgmt_adjusted", "diligence_adjusted", "clinic_level_adjusted"]
-    adj_vals = [_ebitda_lookup(p, _adj_versions) for p in all_periods]
-    pl_lines.append(_pl_row("EBITDA Adjusted ($K)", [v[0] for v in adj_vals], bold=True))
-    pl_lines.append(_pl_row("  Adj. EBITDA Margin %", [v[1] for v in adj_vals]))
-
-    tbl_pl = "\n".join(pl_lines)
+            _pct = _fmt_pct(_c.get("revenue_pct")) if _c.get("revenue_pct") else "—"
+            _per = _c.get("period") or "—"
+            _cust_lines.append(f"| {_idx} | {_nm} | {_amt} | {_pct} | {_per} |")
+        _tbl_customers = "\n".join(_cust_lines)
 
     # ── Material deviation flag ────────────────────────────────────────────
     _deviation_flags: list[str] = []
@@ -1899,12 +1889,18 @@ EXECUTIVE SUMMARY: {exec_summary}
             md_parts.append(d)
         md_parts.append("")
 
-    # P&L grid
+    # Compact P&L grid
     md_parts.append("---\n")
     md_parts.append("## P&L Summary\n")
-    md_parts.append("> All figures in $K unless stated. Periods run left to right chronologically.\n")
+    md_parts.append("> All figures in $K unless stated. Actuals + TTM shown; projected periods excluded.\n")
     md_parts.append(tbl_pl)
     md_parts.append("")
+
+    # Customer concentration (own table, not embedded in P&L rows)
+    if _tbl_customers:
+        md_parts.append("### Customer Concentration\n")
+        md_parts.append(_tbl_customers)
+        md_parts.append("")
 
     # Addback bridge
     if addbacks:
