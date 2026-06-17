@@ -517,13 +517,11 @@ def _r_table(doc, rows: List[List[str]]):
             p.paragraph_format.space_before = Pt(1)
             p.paragraph_format.space_after  = Pt(1)
 
-            # Detect indentation from leading spaces (sub-rows like "  ↳ New York")
+            # ↳ prefix in the label column = indented sub-row (segment, sub-metric).
             txt = cell_text
             indent_extra = Inches(0.05)
-            leading = len(txt) - len(txt.lstrip(" "))
-            if leading >= 2 and col_idx == 0:
-                indent_extra = Inches(0.05 + (leading // 2) * 0.14)
-                txt = txt.lstrip()
+            if col_idx == 0 and txt.startswith("↳"):
+                indent_extra = Inches(0.20)
             p.paragraph_format.left_indent = indent_extra
 
             txt_color = ("FFFFFF" if is_header else
