@@ -19,7 +19,9 @@ Or as a standalone script:
 """
 
 import re
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -602,9 +604,19 @@ def convert_md_to_word(md_path: str, out_path: str) -> str:
         _render(doc, block)
         prev_type = btype
 
-    out = Path(out_path)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(str(out))
+    # UC Volumes don't support the random-write seek() calls that python-docx's
+    # underlying zipfile needs to finalize the .docx ZIP structure. Save to a
+    # local /tmp file first, then copy to the destination (works on any path).
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as _tmp:
+        _tmp_path = _tmp.name
+    try:
+        doc.save(_tmp_path)
+        out = Path(out_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(_tmp_path, str(out))
+    finally:
+        Path(_tmp_path).unlink(missing_ok=True)
+
     print(f"✓ Word document saved → {out_path}")
     return out_path
 
