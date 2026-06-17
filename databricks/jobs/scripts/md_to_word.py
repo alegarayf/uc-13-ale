@@ -78,6 +78,42 @@ def _para_shading(para, color: str):
     pPr.append(shd)
 
 
+def _clear_table_borders(table):
+    """Remove all grid borders from a table (for accounting-style P&L format)."""
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    tblBorders = OxmlElement("w:tblBorders")
+    for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        b = OxmlElement(f"w:{side}")
+        b.set(qn("w:val"), "none")
+        b.set(qn("w:sz"), "0")
+        b.set(qn("w:space"), "0")
+        b.set(qn("w:color"), "auto")
+        tblBorders.append(b)
+    for old in tblPr.findall(qn("w:tblBorders")):
+        tblPr.remove(old)
+    tblPr.append(tblBorders)
+
+
+def _cell_bottom_border(cell, val: str = "single", size: str = "8",
+                        color: str = "000000"):
+    """Add a bottom border to a single cell (for subtotal rows in P&L tables)."""
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    tcBorders = tcPr.find(qn("w:tcBorders"))
+    if tcBorders is None:
+        tcBorders = OxmlElement("w:tcBorders")
+        tcPr.append(tcBorders)
+    for old in tcBorders.findall(qn("w:bottom")):
+        tcBorders.remove(old)
+    bottom = OxmlElement("w:bottom")
+    bottom.set(qn("w:val"), val)
+    bottom.set(qn("w:sz"), size)
+    bottom.set(qn("w:space"), "0")
+    bottom.set(qn("w:color"), color.upper())
+    tcBorders.append(bottom)
+
+
 def _table_borders(table, color: str = _BORDER):
     tbl = table._tbl
     tblPr = tbl.tblPr
@@ -460,9 +496,129 @@ def _r_flag_table(doc, items: List[str]):
     doc.add_paragraph()
 
 
-def _r_table(doc, rows: List[List[str]]):
-    """Render a markdown pipe table as a styled Word table."""
+def _is_pl_table(rows: List[List[str]]) -> bool:
+    """True when the table looks like a period-column P&L (first header = 'Line Item')."""
+    if not rows or len(rows[0]) < 2:
+        return False
+    first = (rows[0][0] or "").strip().lower()
+    if first != "line item":
+        return False
+    period_re = re.compile(r"\d{4}|ttm|ltm", re.I)
+    return any(period_re.search(h) for h in rows[0][1:])
+
+
+def _r_pl_table(doc: Document, rows: List[List[str]]):
+    """Render a P&L table in clean accounting format — no grid borders,
+    right-aligned numbers, bold subtotals with thin underlines.
+
+    Mirrors the Amazon / Walmart income-statement style:
+    - White background, no cell shading
+    - Thin bottom border on every bold (subtotal) row
+    - Double bottom border on the very last bold row
+    - ↳ rows indented in the label column
+    - Numbers right-aligned; labels left-aligned
+    - Header row: bold, light grey background, thin bottom border
+    """
     if not rows:
+        return
+
+    n_cols = len(rows[0])
+    n_data_cols = max(n_cols - 1, 1)
+
+    # Column widths — label gets more room, data cols share the rest
+    avail_w = 7.0
+    label_w = min(2.8, avail_w * 0.40)
+    data_col_w = round((avail_w - label_w) / n_data_cols, 3)
+    data_col_w = max(0.65, min(data_col_w, 1.3))
+
+    table = doc.add_table(rows=len(rows), cols=n_cols)
+    table.style = "Table Normal"
+    table.allow_autofit = False
+    _clear_table_borders(table)
+
+    # Identify bold (subtotal) rows — raw cell text starts with **
+    def _cell_is_bold(text: str) -> bool:
+        t = (text or "").strip()
+        return t.startswith("**") and t.endswith("**") and len(t) > 4
+
+    bold_rows = [i for i, r in enumerate(rows) if r and _cell_is_bold(r[0])]
+    last_bold = bold_rows[-1] if bold_rows else None
+
+    for row_idx, row_cells in enumerate(rows):
+        is_header = (row_idx == 0)
+        label_raw = row_cells[0] if row_cells else ""
+        is_bold   = _cell_is_bold(label_raw) and not is_header
+        is_last_bold = (row_idx == last_bold)
+        is_indented  = (label_raw or "").strip().startswith("↳")
+
+        tr = table.rows[row_idx]
+        _row_height(tr, 15 if is_header else 13)
+
+        for col_idx in range(n_cols):
+            cell_text = row_cells[col_idx] if col_idx < len(row_cells) else ""
+            cell = table.cell(row_idx, col_idx)
+            _cell_valign(cell, "center")
+
+            # Column width
+            cell.width = int(Inches(label_w if col_idx == 0 else data_col_w))
+
+            # Header: light grey tint + thin bottom line
+            if is_header:
+                _cell_bg(cell, "F2F4F7")
+                _cell_bottom_border(cell, "single", size="8", color=_NAVY)
+
+            # Bold (subtotal) row: thin bottom underline
+            elif is_bold:
+                border_type = "double" if is_last_bold else "single"
+                _cell_bottom_border(cell, border_type, size="6", color="404040")
+
+            # ── Text ────────────────────────────────────────────────────────
+            p = cell.paragraphs[0]
+            p.paragraph_format.space_before = Pt(1)
+            p.paragraph_format.space_after  = Pt(1)
+
+            # Label column — left-aligned with optional indent
+            if col_idx == 0:
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                if is_indented:
+                    p.paragraph_format.left_indent = Inches(0.22)
+                else:
+                    p.paragraph_format.left_indent = Inches(0.04)
+                color = _NAVY if (is_header or is_bold) else "1A1A1A"
+                _inline_runs(p, cell_text, size=9.5, color=color,
+                             bold=(is_header or is_bold))
+
+            # Data columns — right-aligned
+            else:
+                p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                p.paragraph_format.right_indent = Inches(0.06)
+                txt = (cell_text or "").strip()
+                # Strip bold markers from data cells (they're bolded via run style)
+                if txt.startswith("**") and txt.endswith("**"):
+                    txt = txt[2:-2]
+                color = _NAVY if (is_header or is_bold) else "1A1A1A"
+                run = p.add_run(txt)
+                run.font.size = Pt(9.5)
+                run.bold = is_header or is_bold
+                run.font.color.rgb = _hex_rgb(color)
+
+    sp = doc.add_paragraph()
+    sp.paragraph_format.space_before = Pt(4)
+    sp.paragraph_format.space_after  = Pt(4)
+
+
+def _r_table(doc, rows: List[List[str]]):
+    """Render a markdown pipe table as a styled Word table.
+
+    P&L summary tables (first header cell = 'Line Item') are routed through
+    _r_pl_table() for clean accounting-style formatting (no grid borders,
+    right-aligned numbers, bold subtotals with underlines).
+    All other tables use the colored grid style.
+    """
+    if not rows:
+        return
+    if _is_pl_table(rows):
+        _r_pl_table(doc, rows)
         return
     n_cols = len(rows[0])
     n_rows = len(rows)
