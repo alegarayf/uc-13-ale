@@ -658,29 +658,58 @@ class FinancialTrendsAgent:
     def _tool_retrieve_customer_revenue(self, spark):
         """Retrieves customer concentration and top-customer revenue data.
 
-        Searches QuickBooks customer summary exports, CIM customer tables, and
-        any document disclosing revenue by client or payor. Elder care deals
-        frequently include 'Sales by Customer' QuickBooks reports or a CIM
-        section titled 'Customer Concentration'.
+        Two-pass strategy:
+          Pass 1 — CIM only (high-signal): the banker CIM almost always has a
+            "Customer Concentration" or "Key Customers" table. Query the CIM
+            directly with workstream=BUSINESS_MODEL and a tight CIM filename filter.
+          Pass 2 — Broad fallback: QuickBooks Sales by Customer exports, any file
+            disclosing revenue by client. Only used when the CIM pass returns < 2 chunks.
+
+        Bank statement documents (e.g. 'Eastern Bank Statements') are explicitly
+        excluded — they list individual transactions, not customer revenue summaries.
         """
+        # Pass 1: CIM customer section
         chunks = self._semantic_search_with_fallback(
             spark=spark,
             query=(
-                "top customers revenue by customer customer concentration sales by customer "
-                "client revenue largest customers customer P&L income by customer "
-                "QuickBooks customer summary revenue concentration payor concentration "
-                "revenue by client customer breakdown top 10 customers"
+                "customer concentration top customers revenue by customer largest customers "
+                "customer mix payor mix client revenue key customers top 10 customers "
+                "customer revenue breakdown revenue by payor revenue by client"
             ),
-            workstream_filter=["FINANCIAL", "BUSINESS_MODEL", "CUSTOMER_QUALITY"],
+            workstream_filter=["BUSINESS_MODEL", "FINANCIAL", "CUSTOMER_QUALITY"],
             top_k=6,
-            file_name_filter=[
-                "Customer", "QuickBooks", "QBO", "Sales", "Revenue", "CIM",
-                "Client", "Concentration", "Payor",
-            ],
+            file_name_filter=["CIM"],
             min_chunk_length=80,
-            min_results=3,
+            min_results=2,
             source_type_priority=True,
         )
+
+        # Pass 2: broader search (QuickBooks Sales by Customer, concentration schedules)
+        if len(chunks) < 2:
+            chunks = self._semantic_search_with_fallback(
+                spark=spark,
+                query=(
+                    "top customers revenue by customer customer concentration sales by customer "
+                    "client revenue largest customers QuickBooks customer summary "
+                    "revenue concentration payor concentration revenue by client top 10 customers"
+                ),
+                workstream_filter=["FINANCIAL", "BUSINESS_MODEL", "CUSTOMER_QUALITY"],
+                top_k=6,
+                file_name_filter=[
+                    "Customer", "QuickBooks", "QBO", "Sales", "Concentration",
+                    "Client", "Payor", "Revenue",
+                ],
+                min_chunk_length=80,
+                min_results=2,
+                source_type_priority=True,
+            )
+
+        # Filter out bank-statement documents — they list transactions, not customer revenue
+        _BANK_STMT_KEYWORDS = ("bank statement", "bank stmt", "eastern bank", "checking", "deposit")
+        chunks = [
+            c for c in chunks
+            if not any(kw in (c.file_name or "").lower() for kw in _BANK_STMT_KEYWORDS)
+        ]
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
