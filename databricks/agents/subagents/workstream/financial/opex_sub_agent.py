@@ -73,6 +73,7 @@ class OpexSubAgent:
         spark,
         llm_endpoint: str,
         company_profile: dict | None,
+        retrieval_mode: str = "semantic",
     ) -> dict:
         """Run retrieval → context build → extraction.
 
@@ -80,7 +81,7 @@ class OpexSubAgent:
         """
         _wa = self._make_base()
 
-        chunks = self._retrieve(company_name, spark)
+        chunks = self._retrieve(company_name, spark, retrieval_mode)
         context_text, stats = build_focused_context(chunks, max_chars=_MAX_CONTEXT_CHARS)
         print(f"  [Opex]    {stats}")
 
@@ -98,7 +99,7 @@ class OpexSubAgent:
             "source_files": source_files,
         }
 
-    def _retrieve(self, company_name: str, spark) -> list:
+    def _retrieve(self, company_name: str, spark, retrieval_mode: str = "semantic") -> list:
         """Run all OPEX-domain retrieval queries."""
         chunks: list = []
 
@@ -117,9 +118,10 @@ class OpexSubAgent:
                 "Financials", "Audited", "Management", "CIM", "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
-        # 2. Working capital — opex context (current liabilities, payables)
+        # 2. Working capital
         chunks += semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
@@ -130,9 +132,10 @@ class OpexSubAgent:
             top_k=4,
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "Working Capital", "CIM"],
             min_chunk_length=150, min_results=3,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
-        # 3. Projected financials — forward OPEX / cost assumptions
+        # 3. Projected financials
         chunks += semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
@@ -147,6 +150,7 @@ class OpexSubAgent:
             file_name_filter=["Model", "Projection", "Forecast", "Budget", "CIM", "Financial", "P&L"],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
         return chunks

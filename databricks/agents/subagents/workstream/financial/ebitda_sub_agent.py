@@ -108,6 +108,7 @@ class EbitdaSubAgent:
         spark,
         llm_endpoint: str,
         company_profile: dict | None,
+        retrieval_mode: str = "semantic",
     ) -> dict:
         """Run retrieval → context build → extraction.
 
@@ -115,7 +116,7 @@ class EbitdaSubAgent:
         """
         _wa = self._make_base()
 
-        chunks, gaps = self._retrieve(company_name, spark)
+        chunks, gaps = self._retrieve(company_name, spark, retrieval_mode)
         context_text, stats = build_focused_context(chunks, max_chars=_MAX_CONTEXT_CHARS)
         print(f"  [EBITDA] {stats}")
 
@@ -133,7 +134,7 @@ class EbitdaSubAgent:
             "source_files": source_files,
         }
 
-    def _retrieve(self, company_name: str, spark) -> tuple[list, list[str]]:
+    def _retrieve(self, company_name: str, spark, retrieval_mode: str = "semantic") -> tuple[list, list[str]]:
         """Run all EBITDA-domain retrieval queries.
 
         Returns (chunks, retrieval_gaps) where retrieval_gaps are gap strings
@@ -159,9 +160,10 @@ class EbitdaSubAgent:
                 "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
-        # 2. EBITDA and margins — dedicated EBITDA/margin/profitability query
+        # 2. EBITDA and margins
         chunks += semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
@@ -173,9 +175,10 @@ class EbitdaSubAgent:
             top_k=8,
             file_name_filter=["EBITDA", "Margin", "Addback", "Bridge", "Adjusted", "QofE", "Quality", "P&L", "CIM", "Financial"],
             min_chunk_length=150, min_results=3,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
-        # 3. Working capital — DSO, DPO, AR aging
+        # 3. Working capital
         chunks += semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
@@ -186,9 +189,10 @@ class EbitdaSubAgent:
             top_k=4,
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "AR", "Aging", "Working Capital", "CIM"],
             min_chunk_length=150, min_results=3,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
-        # 4. Addback schedule — EBITDA adjustment detail, normalizing items
+        # 4. Addback schedule
         addback_chunks = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
@@ -205,6 +209,7 @@ class EbitdaSubAgent:
             min_chunk_length=50,
             min_results=3,
             source_type_priority=True,
+            retrieval_mode=retrieval_mode,
         ).chunks
         if not addback_chunks:
             retrieval_gaps.append(

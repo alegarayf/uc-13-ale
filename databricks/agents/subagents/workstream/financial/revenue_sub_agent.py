@@ -107,6 +107,7 @@ class RevenueSubAgent:
         spark,
         llm_endpoint: str,
         company_profile: dict | None,
+        retrieval_mode: str = "semantic",
     ) -> dict:
         """Run retrieval → context build → extraction.
 
@@ -114,7 +115,7 @@ class RevenueSubAgent:
         """
         _wa = self._make_base()
 
-        chunks = self._retrieve(company_name, spark)
+        chunks = self._retrieve(company_name, spark, retrieval_mode)
         context_text, stats = build_focused_context(chunks, max_chars=_MAX_CONTEXT_CHARS)
         print(f"  [Revenue] {stats}")
 
@@ -132,7 +133,7 @@ class RevenueSubAgent:
             "source_files": source_files,
         }
 
-    def _retrieve(self, company_name: str, spark) -> list:
+    def _retrieve(self, company_name: str, spark, retrieval_mode: str = "semantic") -> list:
         """Run all revenue-domain retrieval queries."""
         chunks: list = []
 
@@ -151,9 +152,10 @@ class RevenueSubAgent:
                 "Financials", "Audited", "Management", "CIM", "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
-        # 2. Revenue by segment / product line / service line
+        # 2. Revenue by segment
         chunks += semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
@@ -164,9 +166,10 @@ class RevenueSubAgent:
             top_k=5,
             file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM"],
             min_chunk_length=150, min_results=3,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
-        # 3. Revenue by geography / location (explicit geographic terms for Excel models
+        # 3. Revenue by geography
         #    whose rows are labelled 'Revenue - New York', 'Revenue - Westchester', etc.)
         chunks += semantic_search_with_fallback(
             company_name=company_name, spark=spark,
@@ -182,9 +185,10 @@ class RevenueSubAgent:
             file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM", "Model", "Projection"],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
-        # 4. Customer concentration — 2-pass: CIM first, broader fallback
+        # 4. Customer concentration
         cust = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
@@ -197,6 +201,7 @@ class RevenueSubAgent:
             file_name_filter=["CIM"],
             min_chunk_length=80, min_results=2,
             source_type_priority=True,
+            retrieval_mode=retrieval_mode,
         ).chunks
         if len(cust) < 2:
             cust = semantic_search_with_fallback(
@@ -211,6 +216,7 @@ class RevenueSubAgent:
                 file_name_filter=["Customer", "QuickBooks", "QBO", "Sales", "Concentration", "Client", "Payor", "Revenue"],
                 min_chunk_length=80, min_results=2,
                 source_type_priority=True,
+                retrieval_mode=retrieval_mode,
             ).chunks
         cust = [c for c in cust if not any(kw in (getattr(c, "file_name", "") or "").lower() for kw in _BANK_STMT_KEYWORDS)]
         chunks += cust
@@ -231,6 +237,7 @@ class RevenueSubAgent:
             ],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
+            retrieval_mode=retrieval_mode,
         ).chunks
 
         return chunks

@@ -819,7 +819,8 @@ class FinancialTrendsAgent:
     # ------------------------------------------------------------------
 
     def run(self, company_name: str, spark, llm_endpoint: str,
-            extraction_endpoint: str = None) -> dict:
+            extraction_endpoint: str = None,
+            retrieval_mode: str = "semantic") -> dict:
         self._reset_state()
         self._company_name = company_name
         _extract_ep = extraction_endpoint or llm_endpoint
@@ -837,9 +838,9 @@ class FinancialTrendsAgent:
             RevenueSubAgent, EbitdaSubAgent, OpexSubAgent,
         )
 
-        _sub_args = (company_name, spark, _extract_ep, profile_dict)
+        _sub_args = (company_name, spark, _extract_ep, profile_dict, retrieval_mode)
 
-        print("  Launching 3 autonomous sub-agents in parallel ...")
+        print(f"  Launching 3 autonomous sub-agents in parallel (retrieval_mode={retrieval_mode}) ...")
         _t0 = time.time()
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as _pool:
             _f_rev  = _pool.submit(RevenueSubAgent().run, *_sub_args)
@@ -1714,6 +1715,7 @@ def main() -> dict:
         print(f"  [override] extraction_endpoint '{_widget_ep}' → Sonnet (Haiku cap=8192 tokens; FTA schema needs 10K+)")
     else:
         extraction_endpoint = _widget_ep
+    retrieval_mode       = get_param("retrieval_mode", default="semantic")
 
     from pyspark.sql import SparkSession
     spark = SparkSession.getActiveSession()
@@ -1722,6 +1724,7 @@ def main() -> dict:
 
     print(f"\n=== Financial Trends Agent ({company_name}) ===")
     print(f"  extraction: {extraction_endpoint or llm_endpoint}  narrative: {llm_endpoint}")
+    print(f"  retrieval_mode: {retrieval_mode}")
 
     agent = FinancialTrendsAgent()
     result = agent.run(
@@ -1729,6 +1732,7 @@ def main() -> dict:
         spark=spark,
         llm_endpoint=llm_endpoint,
         extraction_endpoint=extraction_endpoint,
+        retrieval_mode=retrieval_mode,
     )
 
     # ── Save to Delta ─────────────────────────────────────────────────
