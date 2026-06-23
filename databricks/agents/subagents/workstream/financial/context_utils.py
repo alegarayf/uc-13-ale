@@ -10,6 +10,7 @@ retrieval without duplicating the fallback and budget logic.
 
 from __future__ import annotations
 
+from agents.shared._types import RouteResult
 
 _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
 
@@ -105,12 +106,32 @@ def semantic_search_with_fallback(
     min_results: int = 3,
     source_type_priority: bool = False,
     source_type_filter: list | None = None,
-) -> list:
-    """semantic_search with automatic filename-filter fallback.
+    retrieval_mode: str = "semantic",
+) -> RouteResult:
+    """Dispatch retrieval by mode with automatic filename-filter fallback on semantic paths.
 
-    If result count < min_results with the filename filter, retries without
-    it so documents with non-standard names are not silently excluded.
+    ``retrieval_mode="routed"`` calls Route A (``route_chunks``); ``"semantic"`` and
+    ``"enhanced_semantic"`` call ``semantic_search`` (Route B enhancements are in
+    ``retrieval.py``). Any unrecognized value falls through to the semantic path.
+
+    If result count < min_results with the filename filter, retries without it so
+    documents with non-standard names are not silently excluded (semantic paths only).
     """
+    if retrieval_mode == "routed":
+        from agents.shared.route_chunks import route_chunks
+
+        result = route_chunks(
+            company_name=company_name,
+            spark=spark,
+            workstream_filter=workstream_filter,
+            top_k=top_k,
+            file_name_filter=file_name_filter,
+            min_chunk_length=min_chunk_length,
+            source_type_filter=source_type_filter,
+        )
+        print(f"  retrieval_mode={retrieval_mode} returned {len(result.chunks)} chunks")
+        return result
+
     from agents.shared.retrieval import semantic_search
 
     chunks = semantic_search(
@@ -136,4 +157,7 @@ def semantic_search_with_fallback(
             source_type_priority=source_type_priority,
             source_type_filter=source_type_filter,
         )
-    return chunks
+    mode = "semantic" if retrieval_mode in ("semantic", "enhanced_semantic") else "semantic"
+    result = RouteResult(chunks=chunks, mode=mode, scores=None)
+    print(f"  retrieval_mode={retrieval_mode} returned {len(result.chunks)} chunks")
+    return result

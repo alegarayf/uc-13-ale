@@ -151,7 +151,7 @@ class RevenueSubAgent:
                 "Financials", "Audited", "Management", "CIM", "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
-        )
+        ).chunks
 
         # 2. Revenue by segment / product line / service line
         chunks += semantic_search_with_fallback(
@@ -164,7 +164,7 @@ class RevenueSubAgent:
             top_k=5,
             file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM"],
             min_chunk_length=150, min_results=3,
-        )
+        ).chunks
 
         # 3. Revenue by geography / location (explicit geographic terms for Excel models
         #    whose rows are labelled 'Revenue - New York', 'Revenue - Westchester', etc.)
@@ -182,7 +182,7 @@ class RevenueSubAgent:
             file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM", "Model", "Projection"],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
-        )
+        ).chunks
 
         # 4. Customer concentration — 2-pass: CIM first, broader fallback
         cust = semantic_search_with_fallback(
@@ -197,7 +197,7 @@ class RevenueSubAgent:
             file_name_filter=["CIM"],
             min_chunk_length=80, min_results=2,
             source_type_priority=True,
-        )
+        ).chunks
         if len(cust) < 2:
             cust = semantic_search_with_fallback(
                 company_name=company_name, spark=spark,
@@ -211,7 +211,7 @@ class RevenueSubAgent:
                 file_name_filter=["Customer", "QuickBooks", "QBO", "Sales", "Concentration", "Client", "Payor", "Revenue"],
                 min_chunk_length=80, min_results=2,
                 source_type_priority=True,
-            )
+            ).chunks
         cust = [c for c in cust if not any(kw in (getattr(c, "file_name", "") or "").lower() for kw in _BANK_STMT_KEYWORDS)]
         chunks += cust
 
@@ -231,7 +231,7 @@ class RevenueSubAgent:
             ],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
-        )
+        ).chunks
 
         return chunks
 
