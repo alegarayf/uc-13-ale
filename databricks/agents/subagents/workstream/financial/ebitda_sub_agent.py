@@ -159,7 +159,7 @@ class EbitdaSubAgent:
                 "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
-        )
+        ).chunks
 
         # 2. EBITDA and margins — dedicated EBITDA/margin/profitability query
         chunks += semantic_search_with_fallback(
@@ -173,7 +173,7 @@ class EbitdaSubAgent:
             top_k=8,
             file_name_filter=["EBITDA", "Margin", "Addback", "Bridge", "Adjusted", "QofE", "Quality", "P&L", "CIM", "Financial"],
             min_chunk_length=150, min_results=3,
-        )
+        ).chunks
 
         # 3. Working capital — DSO, DPO, AR aging
         chunks += semantic_search_with_fallback(
@@ -186,7 +186,7 @@ class EbitdaSubAgent:
             top_k=4,
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "AR", "Aging", "Working Capital", "CIM"],
             min_chunk_length=150, min_results=3,
-        )
+        ).chunks
 
         # 4. Addback schedule — EBITDA adjustment detail, normalizing items
         addback_chunks = semantic_search_with_fallback(
@@ -205,7 +205,7 @@ class EbitdaSubAgent:
             min_chunk_length=50,
             min_results=3,
             source_type_priority=True,
-        )
+        ).chunks
         if not addback_chunks:
             retrieval_gaps.append(
                 "addback_schedule retrieval returned 0 chunks. If an addback or EBITDA adjustment "

@@ -117,7 +117,7 @@ class OpexSubAgent:
                 "Financials", "Audited", "Management", "CIM", "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
-        )
+        ).chunks
 
         # 2. Working capital — opex context (current liabilities, payables)
         chunks += semantic_search_with_fallback(
@@ -130,7 +130,7 @@ class OpexSubAgent:
             top_k=4,
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "Working Capital", "CIM"],
             min_chunk_length=150, min_results=3,
-        )
+        ).chunks
 
         # 3. Projected financials — forward OPEX / cost assumptions
         chunks += semantic_search_with_fallback(
@@ -147,7 +147,7 @@ class OpexSubAgent:
             file_name_filter=["Model", "Projection", "Forecast", "Budget", "CIM", "Financial", "P&L"],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
-        )
+        ).chunks
 
         return chunks
 
