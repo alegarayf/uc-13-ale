@@ -1,4 +1,4 @@
-# Rallyday
+# uc-13-ale
 
 Monorepo for a multi-component application:
 
@@ -12,7 +12,7 @@ Deployments target **Databricks** (warehouses, Unity Catalog, Jobs) rather than 
 ## Layout
 
 ```
-Rallyday/
+uc-13-ale/
 ├── .env.example          # Copy to `.env` at repo root (see Environment)
 ├── package.json          # Workspaces + concurrent dev scripts
 ├── tsconfig.base.json
