@@ -13,6 +13,143 @@ import json
 from databricks.sdk import WorkspaceClient
 import mlflow.deployments
 
+# B-W4: merge-rank tier weights (documented in .dev/decision-logs/T4-retrieval-enhancements.md)
+_TIER_WEIGHT = {1: 1.0, 2: 0.7, 3: 0.4}
+_DEFAULT_TIER_WEIGHT = 0.3
+
+
+def _escape_sql_literal(value: str) -> str:
+    """Escape single quotes for safe SQL string literals (B-W8)."""
+    return value.replace("'", "''")
+
+
+def _chunk_ids_in_clause(chunk_ids: list[str]) -> str:
+    escaped = "', '".join(_escape_sql_literal(cid) for cid in chunk_ids)
+    return f"('{escaped}')"
+
+
+def _extract_score_map(data_array) -> dict[str, float]:
+    """Map chunk_id → VS similarity score (last column in each result row)."""
+    score_map: dict[str, float] = {}
+    for row in data_array or []:
+        if not row or len(row) < 2:
+            continue
+        try:
+            score_map[row[0]] = float(row[-1])
+        except (TypeError, ValueError):
+            continue
+    return score_map
+
+
+def _tier_weight(priority_tier: int | None) -> float:
+    if priority_tier is None:
+        return _DEFAULT_TIER_WEIGHT
+    return _TIER_WEIGHT.get(priority_tier, _DEFAULT_TIER_WEIGHT)
+
+
+def _merge_score(chunk, score_map: dict[str, float]) -> float:
+    return score_map.get(chunk.chunk_id, 0.0) * _tier_weight(chunk.priority_tier)
+
+
+def _sort_by_merge_rank(chunks: list, score_map: dict[str, float]) -> list:
+    """B-W3/B-W4: rank by sim_score × tier_weight; tier-only fallback when no scores."""
+    if not score_map:
+        return sorted(
+            chunks,
+            key=lambda c: c.priority_tier if c.priority_tier is not None else 99,
+        )
+    return sorted(chunks, key=lambda c: -_merge_score(c, score_map))
+
+
+def _query_vector_index(
+    w: WorkspaceClient,
+    *,
+    index_name: str,
+    query_embedding: list[float],
+    fetch_k: int,
+    company_name: str | None,
+):
+    """B-W2: query_index with optional company_name filter pushdown and fallback."""
+    query_kwargs = {
+        "index_name": index_name,
+        "columns": ["chunk_id", "doc_id", "file_name"],
+        "query_vector": query_embedding,
+        "num_results": fetch_k,
+    }
+    if not company_name:
+        return w.vector_search_indexes.query_index(**query_kwargs)
+
+    filters_json = json.dumps({"company_name": company_name})
+    try:
+        return w.vector_search_indexes.query_index(**query_kwargs, filters_json=filters_json)
+    except Exception as filter_err:
+        print(
+            f"  VS filter pushdown unavailable ({filter_err}) — querying without filters"
+        )
+        return w.vector_search_indexes.query_index(**query_kwargs)
+
+
+def _hydrate_chunks_sql(chunk_ids: list[str], company_name: str | None) -> str:
+    """Hydrate VS hits from Delta; no ORDER BY — merge rank applied in Python (B-W3)."""
+    ids_clause = _chunk_ids_in_clause(chunk_ids)
+    company_filter = ""
+    if company_name:
+        company_filter = f"AND c.company_name = '{_escape_sql_literal(company_name)}'"
+    return f"""
+        SELECT
+            c.chunk_id,
+            c.file_name,
+            c.chunk_text,
+            c.section_header,
+            c.page_start,
+            COALESCE(c.source_type, 'text') AS source_type,
+            r.workstream,
+            r.priority_tier
+        FROM uc13.ingestion.chunks c
+        JOIN uc13.classification.doc_relevance r
+            ON c.file_name = r.filename
+           AND c.company_name = r.company_name
+        WHERE c.chunk_id IN {ids_clause}
+          {company_filter}
+    """
+
+
+def _keyword_fallback_sql(
+    keywords: list[str],
+    company_name: str | None,
+    fetch_k: int,
+) -> str:
+    """Keyword LIKE fallback when VS is unavailable (B-W8 parameterized literals)."""
+    conditions = " OR ".join(
+        [
+            f"c.chunk_text LIKE '%{_escape_sql_literal(k)}%'"
+            for k in keywords
+            if k
+        ]
+    )
+    company_filter = ""
+    if company_name:
+        company_filter = f"AND c.company_name = '{_escape_sql_literal(company_name)}'"
+    return f"""
+        SELECT
+            c.chunk_id,
+            c.file_name,
+            c.chunk_text,
+            c.section_header,
+            c.page_start,
+            COALESCE(c.source_type, 'text') AS source_type,
+            r.workstream,
+            r.priority_tier
+        FROM uc13.ingestion.chunks c
+        JOIN uc13.classification.doc_relevance r
+            ON c.file_name = r.filename
+           AND c.company_name = r.company_name
+        WHERE ({conditions})
+            AND r.should_parse = true
+            {company_filter}
+        LIMIT {int(fetch_k)}
+    """
+
 
 def semantic_search(
     query: str,
@@ -76,66 +213,32 @@ def semantic_search(
 
     # Fetch more candidates than needed so post-retrieval filters have margin.
     fetch_k = top_k * 3
+    score_map: dict[str, float] = {}
 
     try:
-        results = w.vector_search_indexes.query_index(
+        results = _query_vector_index(
+            w,
             index_name=index_name,
-            columns=["chunk_id", "doc_id", "file_name"],
-            query_vector=query_embedding,
-            num_results=fetch_k,
+            query_embedding=query_embedding,
+            fetch_k=fetch_k,
+            company_name=company_name,
         )
 
         if not results.result or not results.result.data_array:
             raise ValueError("No results from vector search")
 
+        score_map = _extract_score_map(results.result.data_array)
         chunk_ids = [row[0] for row in results.result.data_array]
-        ids_str = "', '".join(chunk_ids)
-
-        company_filter = f"AND c.company_name = '{company_name}'" if company_name else ""
-        chunks = spark.sql(f"""
-            SELECT
-                c.chunk_id,
-                c.file_name,
-                c.chunk_text,
-                c.section_header,
-                c.page_start,
-                COALESCE(c.source_type, 'text') AS source_type,
-                r.workstream,
-                r.priority_tier
-            FROM uc13.ingestion.chunks c
-            JOIN uc13.classification.doc_relevance r
-                ON c.file_name = r.filename
-               AND c.company_name = r.company_name
-            WHERE c.chunk_id IN ('{ids_str}')
-              {company_filter}
-            ORDER BY r.priority_tier ASC NULLS LAST
-        """).collect()
+        chunks = spark.sql(_hydrate_chunks_sql(chunk_ids, company_name)).collect()
 
     except Exception as e:
         print(f"Vector search failed: {e} — falling back to keyword search")
-        keywords = query.replace("'", "").split()[:5]
-        conditions = " OR ".join([f"c.chunk_text LIKE '%{k}%'" for k in keywords])
-        company_filter = f"AND c.company_name = '{company_name}'" if company_name else ""
-        chunks = spark.sql(f"""
-            SELECT
-                c.chunk_id,
-                c.file_name,
-                c.chunk_text,
-                c.section_header,
-                c.page_start,
-                COALESCE(c.source_type, 'text') AS source_type,
-                r.workstream,
-                r.priority_tier
-            FROM uc13.ingestion.chunks c
-            JOIN uc13.classification.doc_relevance r
-                ON c.file_name = r.filename
-               AND c.company_name = r.company_name
-            WHERE ({conditions})
-                AND r.should_parse = true
-                {company_filter}
-            ORDER BY r.priority_tier ASC NULLS LAST
-            LIMIT {fetch_k}
-        """).collect()
+        keywords = [k for k in query.replace("'", "").split()[:5] if k]
+        if not keywords:
+            keywords = [query[:20]]
+        chunks = spark.sql(
+            _keyword_fallback_sql(keywords, company_name, fetch_k)
+        ).collect()
 
     # --- Post-retrieval filters ---
 
@@ -167,16 +270,27 @@ def semantic_search(
         ]
 
     if source_type_priority:
-        # Within each priority_tier group, surface table and vision chunks first.
-        # These carry denser financial data per character than prose chunks.
+        # Within merge-rank groups, surface table and vision chunks first.
+        # TODO: consolidate with context_utils._TYPE_ORDER
         _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
-        chunks = sorted(
-            chunks,
-            key=lambda c: (
-                c.priority_tier if c.priority_tier is not None else 99,
-                _TYPE_ORDER.get(getattr(c, "source_type", "text"), 2),
-            ),
-        )
+        if score_map:
+            chunks = sorted(
+                chunks,
+                key=lambda c: (
+                    -_merge_score(c, score_map),
+                    _TYPE_ORDER.get(getattr(c, "source_type", "text"), 2),
+                ),
+            )
+        else:
+            chunks = sorted(
+                chunks,
+                key=lambda c: (
+                    c.priority_tier if c.priority_tier is not None else 99,
+                    _TYPE_ORDER.get(getattr(c, "source_type", "text"), 2),
+                ),
+            )
+    elif score_map:
+        chunks = _sort_by_merge_rank(chunks, score_map)
 
     # Cap to top_k.
     chunks = chunks[:top_k]
