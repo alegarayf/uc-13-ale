@@ -3,21 +3,16 @@
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 
-_SETUP_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "databricks"
-    / "jobs"
-    / "scripts"
-    / "setup_vector_search.py"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_SETUP_PATH = _REPO_ROOT / "databricks" / "jobs" / "scripts" / "setup_vector_search.py"
+_NOTEBOOK_PATH = (
+    _REPO_ROOT / "databricks" / "jobs" / "notebooks" / "00_setup_vector_search.ipynb"
 )
 _INGESTION_PARSER_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "databricks"
-    / "jobs"
-    / "scripts"
-    / "ingestion_parser.py"
+    _REPO_ROOT / "databricks" / "jobs" / "scripts" / "ingestion_parser.py"
 )
 
 EXPECTED_COLUMNS_TO_SYNC = [
@@ -95,3 +90,17 @@ def test_columns_to_sync_includes_filter_pushdown_fields():
     """Falsifier: missing company_name would break T4 filter pushdown silently."""
     assert "company_name" in EXPECTED_COLUMNS_TO_SYNC
     assert "source_type" in EXPECTED_COLUMNS_TO_SYNC
+
+
+def test_notebook_columns_to_sync_matches_setup_script():
+    """Falsifier: notebook drift would recreate index missing B-W1 columns."""
+    nb = json.loads(_NOTEBOOK_PATH.read_text(encoding="utf-8"))
+    notebook_cols: list[str] | None = None
+    for cell in nb.get("cells", []):
+        source = "".join(cell.get("source", []))
+        if "columns_to_sync" not in source:
+            continue
+        notebook_cols = _extract_columns_to_sync(source)
+        break
+    assert notebook_cols is not None, "columns_to_sync not found in notebook"
+    assert notebook_cols == EXPECTED_COLUMNS_TO_SYNC
