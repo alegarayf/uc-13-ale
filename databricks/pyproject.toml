@@ -1,5 +1,5 @@
 [project]
-name = "rallyday-uc13-databricks"
+name = "uc-13-ale-databricks"
 version = "0.1.0"
 description = "UC13 agentic ingestion pipeline for Rallyday Partners - Databricks modules"
 requires-python = ">=3.11"

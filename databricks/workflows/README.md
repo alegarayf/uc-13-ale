@@ -29,7 +29,7 @@ company profile.
 | MLflow serving endpoints | `databricks-bge-large-en` and `databricks-meta-llama-3-3-70b-instruct` must be active |
 | Vector Search enabled | Feature toggle must be on for the workspace |
 | SharePoint App Registration | Azure AD app with `Sites.Read.All` and `Files.Read.All` application permissions granted by the tenant admin |
-| Repo cloned to Databricks Repos | Clone `Rallyday` repo into the workspace so script paths resolve correctly |
+| Repo cloned to Databricks Repos | Clone `uc-13-ale` repo into the workspace so script paths resolve correctly |
 
 ---
 
@@ -76,7 +76,7 @@ pip install databricks-cli
 databricks configure --token
 
 # From the repo root
-cd Rallyday
+cd uc-13-ale
 databricks bundle deploy --target dev     # or --target prod
 databricks bundle run uc13_ingestion_pipeline --target dev \
   -p sp_company_name="Elder Care"
