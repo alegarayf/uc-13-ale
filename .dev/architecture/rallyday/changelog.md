@@ -1,1 +1,0 @@
-[MINOR] 1.0.0 — 2026-06-20 — Initial construction (Construct mode). Code-derived sections populated from repository exploration; architectural-patterns and failure cause classes pending Phase 8 user interview.
