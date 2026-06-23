@@ -146,8 +146,10 @@ def setup_embeddings_table(spark):
             chunk_id      STRING NOT NULL,
             doc_id        STRING,
             file_name     STRING,
+            company_name  STRING,
             workstream    ARRAY<STRING>,
             priority_tier INT,
+            source_type   STRING,
             embedding     ARRAY<FLOAT>,
             created_at    TIMESTAMP
         ) USING DELTA
@@ -214,6 +216,7 @@ def setup_vector_search_index(endpoint_name: str, index_name: str):
             columns_to_sync=[
                 "chunk_id", "doc_id", "file_name",
                 "workstream", "priority_tier",
+                "company_name", "source_type",
             ],
         ),
     )
