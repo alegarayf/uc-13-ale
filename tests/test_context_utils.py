@@ -106,6 +106,29 @@ def test_enhanced_semantic_mode_uses_semantic_search(mock_semantic_search):
 
 
 @patch("agents.shared.retrieval.semantic_search", create=True)
+def test_enhanced_semantic_and_semantic_pass_identical_semantic_search_kwargs(
+    mock_semantic_search,
+):
+    """D7a eval guard: enhanced_semantic must not diverge from semantic at the retrieval layer."""
+    rows = [_row(), _row(file_name="P&L.pdf"), _row(file_name="Model.xlsx")]
+    mock_semantic_search.return_value = rows
+    call_kwargs = _call_kwargs()
+
+    semantic_search_with_fallback(**call_kwargs, retrieval_mode="semantic")
+    semantic_calls = [call for call in mock_semantic_search.call_args_list]
+
+    mock_semantic_search.reset_mock()
+    mock_semantic_search.return_value = rows
+
+    semantic_search_with_fallback(**call_kwargs, retrieval_mode="enhanced_semantic")
+    enhanced_calls = [call for call in mock_semantic_search.call_args_list]
+
+    assert len(semantic_calls) == len(enhanced_calls)
+    for semantic_call, enhanced_call in zip(semantic_calls, enhanced_calls, strict=True):
+        assert semantic_call == enhanced_call
+
+
+@patch("agents.shared.retrieval.semantic_search", create=True)
 def test_unknown_retrieval_mode_falls_back_to_semantic(mock_semantic_search):
     rows = [_row(), _row(), _row()]
     mock_semantic_search.return_value = rows
