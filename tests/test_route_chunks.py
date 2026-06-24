@@ -176,6 +176,68 @@ def test_keyword_filter_sanitized_into_sql_like_clauses():
     assert "margin" in sql
 
 
+def test_sql_includes_file_name_like_clauses_when_filter_set():
+    rows = [_row(file_name="CIM_Financial.pdf")]
+    spark = _mock_spark(rows)
+    route_chunks(
+        "Acme",
+        spark,
+        workstream_filter=["FINANCIAL"],
+        file_name_filter=["CIM", "p&l"],
+        top_k=5,
+    )
+    sql = spark.sql.call_args_list[-1][0][0]
+    assert "LOWER(c.file_name) LIKE '%cim%'" in sql
+    assert "LOWER(c.file_name) LIKE '%p&l%'" in sql
+
+
+def test_sql_filename_filter_elder_care_pattern_survives():
+    """Elder Care revenue sub-agent uses cim / p&l / financial filename patterns."""
+    rows = [
+        _row(
+            file_name="Elder Care CIM v3.pdf",
+            chunk_text="D" * 150,
+            priority_tier=1,
+        ),
+        _row(
+            file_name="P&L Summary 2023.xlsx",
+            chunk_text="E" * 150,
+            priority_tier=1,
+        ),
+        _row(
+            file_name="Financial Model.xlsx",
+            chunk_text="F" * 150,
+            priority_tier=2,
+        ),
+        _row(
+            file_name="unrelated_memo.docx",
+            chunk_text="G" * 150,
+            priority_tier=1,
+        ),
+    ]
+    spark = _mock_spark(rows)
+    result = route_chunks(
+        "Elder Care",
+        spark,
+        workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
+        file_name_filter=["cim", "p&l", "financial"],
+        top_k=10,
+        min_chunk_length=100,
+    )
+    assert len(result.chunks) == 3
+    assert all(
+        any(
+            p in (c.file_name or "").lower()
+            for p in ("cim", "p&l", "financial")
+        )
+        for c in result.chunks
+    )
+    sql = spark.sql.call_args_list[-1][0][0]
+    assert "LOWER(c.file_name) LIKE '%cim%'" in sql
+    assert "LOWER(c.file_name) LIKE '%p&l%'" in sql
+    assert "LOWER(c.file_name) LIKE '%financial%'" in sql
+
+
 def test_raises_value_error_when_no_chunks_remain():
     spark = _mock_spark([])
     with pytest.raises(ValueError, match="route_chunks: no results"):

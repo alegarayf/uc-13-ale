@@ -46,8 +46,26 @@ def _call_kwargs():
 
 
 @patch("agents.shared.route_chunks.route_chunks")
+def test_routed_mode_retries_without_file_name_filter_when_under_min_results(
+    mock_route_chunks,
+):
+    retry_rows = [_row(), _row(file_name="other.pdf"), _row(file_name="misc.pdf")]
+    mock_route_chunks.side_effect = [
+        RouteResult(chunks=[_row()], mode="routed", scores=None),
+        RouteResult(chunks=retry_rows, mode="routed", scores=None),
+    ]
+
+    result = semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="routed")
+
+    assert result.chunks == retry_rows
+    assert mock_route_chunks.call_count == 2
+    second_call_kwargs = mock_route_chunks.call_args_list[1].kwargs
+    assert second_call_kwargs["file_name_filter"] is None
+
+
+@patch("agents.shared.route_chunks.route_chunks")
 def test_routed_mode_returns_route_result(mock_route_chunks):
-    rows = [_row()]
+    rows = [_row(), _row(file_name="P&L.pdf"), _row(file_name="Model.xlsx")]
     mock_route_chunks.return_value = RouteResult(chunks=rows, mode="routed", scores=None)
 
     result = semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="routed")
