@@ -9,6 +9,7 @@ after fetching top_k * 3 candidates so filter losses don't starve results.
 from __future__ import annotations
 
 import json
+import os
 
 from databricks.sdk import WorkspaceClient
 import mlflow.deployments
@@ -16,6 +17,14 @@ import mlflow.deployments
 # B-W4: merge-rank tier weights (documented in .dev/decision-logs/T4-retrieval-enhancements.md)
 _TIER_WEIGHT = {1: 1.0, 2: 0.7, 3: 0.4}
 _DEFAULT_TIER_WEIGHT = 0.3
+
+
+def _default_catalog() -> str:
+    return os.environ.get("catalog", "uc13").strip() or "uc13"
+
+
+def _index_name_for_catalog(catalog: str) -> str:
+    return f"{catalog}.ingestion.embeddings_index"
 
 
 def _escape_sql_literal(value: str) -> str:
@@ -89,7 +98,11 @@ def _query_vector_index(
         return w.vector_search_indexes.query_index(**query_kwargs)
 
 
-def _hydrate_chunks_sql(chunk_ids: list[str], company_name: str | None) -> str:
+def _hydrate_chunks_sql(
+    chunk_ids: list[str],
+    company_name: str | None,
+    catalog: str,
+) -> str:
     """Hydrate VS hits from Delta; no ORDER BY — merge rank applied in Python (B-W3)."""
     ids_clause = _chunk_ids_in_clause(chunk_ids)
     company_filter = ""
@@ -105,8 +118,8 @@ def _hydrate_chunks_sql(chunk_ids: list[str], company_name: str | None) -> str:
             COALESCE(c.source_type, 'text') AS source_type,
             r.workstream,
             r.priority_tier
-        FROM uc13.ingestion.chunks c
-        JOIN uc13.classification.doc_relevance r
+        FROM {catalog}.ingestion.chunks c
+        JOIN {catalog}.classification.doc_relevance r
             ON c.file_name = r.filename
            AND c.company_name = r.company_name
         WHERE c.chunk_id IN {ids_clause}
@@ -118,6 +131,7 @@ def _keyword_fallback_sql(
     keywords: list[str],
     company_name: str | None,
     fetch_k: int,
+    catalog: str,
 ) -> str:
     """Keyword LIKE fallback when VS is unavailable (B-W8 parameterized literals)."""
     conditions = " OR ".join(
@@ -140,8 +154,8 @@ def _keyword_fallback_sql(
             COALESCE(c.source_type, 'text') AS source_type,
             r.workstream,
             r.priority_tier
-        FROM uc13.ingestion.chunks c
-        JOIN uc13.classification.doc_relevance r
+        FROM {catalog}.ingestion.chunks c
+        JOIN {catalog}.classification.doc_relevance r
             ON c.file_name = r.filename
            AND c.company_name = r.company_name
         WHERE ({conditions})
@@ -160,7 +174,8 @@ def semantic_search(
     workstream_filter: list[str] | None = None,
     tier_filter: int | None = None,
     min_chunk_length: int = 100,
-    index_name: str = "uc13.ingestion.embeddings_index",
+    catalog: str | None = None,
+    index_name: str | None = None,
     embedding_endpoint: str = "databricks-bge-large-en",
     source_type_priority: bool = False,
     source_type_filter: list[str] | None = None,
@@ -186,7 +201,9 @@ def semantic_search(
             returns Tier 1 and 2. Passed as post-retrieval filter.
         min_chunk_length: Discard chunks shorter than this many characters.
             Eliminates header-only or page-number chunks.
-        index_name: Unity Catalog fully-qualified vector index name.
+        catalog: Unity Catalog name (defaults to ``catalog`` env var, else ``uc13``).
+        index_name: Unity Catalog fully-qualified vector index name (defaults to
+            ``{catalog}.ingestion.embeddings_index``).
         embedding_endpoint: Databricks embedding model endpoint name.
         source_type_priority: When True, sort table and vision chunks before
             text chunks within the same priority_tier. Financial queries benefit
@@ -201,6 +218,10 @@ def semantic_search(
         chunk_id, file_name, chunk_text, section_header, page_start,
         source_type, workstream, priority_tier.
     """
+    catalog = (catalog or _default_catalog()).strip()
+    if not index_name:
+        index_name = _index_name_for_catalog(catalog)
+
     client = mlflow.deployments.get_deploy_client("databricks")
     w = WorkspaceClient()
 
@@ -229,7 +250,9 @@ def semantic_search(
 
         score_map = _extract_score_map(results.result.data_array)
         chunk_ids = [row[0] for row in results.result.data_array]
-        chunks = spark.sql(_hydrate_chunks_sql(chunk_ids, company_name)).collect()
+        chunks = spark.sql(
+            _hydrate_chunks_sql(chunk_ids, company_name, catalog)
+        ).collect()
 
     except Exception as e:
         print(f"Vector search failed: {e} — falling back to keyword search")
@@ -237,7 +260,7 @@ def semantic_search(
         if not keywords:
             keywords = [query[:20]]
         chunks = spark.sql(
-            _keyword_fallback_sql(keywords, company_name, fetch_k)
+            _keyword_fallback_sql(keywords, company_name, fetch_k, catalog)
         ).collect()
 
     # --- Post-retrieval filters ---

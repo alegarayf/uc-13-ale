@@ -10,9 +10,15 @@ retrieval without duplicating the fallback and budget logic.
 
 from __future__ import annotations
 
+import os
+
 from agents.shared._types import RouteResult
 
 _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
+
+
+def _default_catalog() -> str:
+    return os.environ.get("catalog", "uc13").strip() or "uc13"
 
 
 def _chunk_tier(c) -> int:
@@ -134,6 +140,13 @@ def semantic_search_with_fallback(
 
     from agents.shared.retrieval import semantic_search
 
+    catalog = _default_catalog()
+    index_name = f"{catalog}.ingestion.embeddings_index"
+    search_kwargs = dict(
+        catalog=catalog,
+        index_name=index_name,
+    )
+
     chunks = semantic_search(
         query=query,
         spark=spark,
@@ -144,6 +157,7 @@ def semantic_search_with_fallback(
         min_chunk_length=min_chunk_length,
         source_type_priority=source_type_priority,
         source_type_filter=source_type_filter,
+        **search_kwargs,
     )
     if len(chunks) < min_results and file_name_filter is not None:
         chunks = semantic_search(
@@ -156,6 +170,7 @@ def semantic_search_with_fallback(
             min_chunk_length=min_chunk_length,
             source_type_priority=source_type_priority,
             source_type_filter=source_type_filter,
+            **search_kwargs,
         )
     mode = "semantic" if retrieval_mode in ("semantic", "enhanced_semantic") else "semantic"
     result = RouteResult(chunks=chunks, mode=mode, scores=None)
