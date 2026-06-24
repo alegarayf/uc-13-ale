@@ -72,10 +72,11 @@ def test_setup_vector_search_columns_to_sync_matches_contract():
 
 def test_setup_embeddings_table_ddl_includes_company_name_and_source_type():
     source = _SETUP_PATH.read_text(encoding="utf-8")
-    start = source.index("CREATE TABLE IF NOT EXISTS uc13.ingestion.embeddings")
+    start = source.index("CREATE TABLE IF NOT EXISTS {catalog}.ingestion.embeddings")
     end = source.index(") USING DELTA", start)
     ddl_cols = _extract_create_table_columns(source[start:end])
     assert EXPECTED_EMBEDDINGS_DDL_COLUMNS.issubset(ddl_cols)
+    assert 'catalog = os.environ.get("catalog", "uc13")' in source
 
 
 def test_ingestion_parser_embeddings_ddl_has_company_name_and_source_type():

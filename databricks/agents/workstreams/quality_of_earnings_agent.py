@@ -28,6 +28,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+_CATALOG = os.environ.get("catalog", "uc13")
+
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from financial_trends_agent.py
 # ---------------------------------------------------------------------------
@@ -287,7 +289,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         """
         try:
             rows = spark.sql(f"""
-                SELECT addback_schedule_json FROM uc13.analysis.financial_trends
+                SELECT addback_schedule_json FROM {_CATALOG}.analysis.financial_trends
                 WHERE company_name = '{company_name}'
                 ORDER BY created_at DESC LIMIT 1
             """).collect()
@@ -296,7 +298,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         except Exception:
             pass
         self._add_gap(
-            "addback_schedule_json not found in uc13.analysis.financial_trends — "
+            f"addback_schedule_json not found in {_CATALOG}.analysis.financial_trends — "
             "Financial Trends Agent has not run or found no addbacks. "
             "QofE scope will rely on direct VDR retrieval only."
         )
@@ -415,7 +417,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
     def _tool_load_company_profile(self, company_name: str, spark):
         try:
             rows = spark.sql(
-                f"SELECT * FROM uc13.classification.company_profile "
+                f"SELECT * FROM {_CATALOG}.classification.company_profile "
                 f"WHERE company_name = '{company_name}' "
                 f"ORDER BY created_at DESC LIMIT 1"
             ).collect()
@@ -436,7 +438,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
                 data=profile_dict,
                 output_summary="Company profile loaded",
                 confidence="high",
-                source_docs=["uc13.classification.company_profile"],
+                source_docs=[f"{_CATALOG}.classification.company_profile"],
             )
         except Exception as exc:
             self._add_gap(f"company_profile query failed: {exc} — run company_profiler.py first")

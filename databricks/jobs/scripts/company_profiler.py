@@ -258,7 +258,7 @@ def main():
     print(f"\n=== UC13 Phase 2b — Company Profiler ({company_name}) ===")
 
     # --- Ensure output table exists ---
-    _spark.sql("CREATE SCHEMA IF NOT EXISTS uc13.classification")
+    _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.classification")
     _spark.sql(f"""
         CREATE TABLE IF NOT EXISTS {table_profile} (
             company_name            STRING,

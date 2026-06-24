@@ -366,7 +366,7 @@ def main():
     print(f"Volume: {volume_path}")
 
     # --- Ensure schemas and output table exist ---
-    _spark.sql("CREATE SCHEMA IF NOT EXISTS uc13.classification")
+    _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.classification")
     _spark.sql(f"""
         CREATE TABLE IF NOT EXISTS {table_relevance} (
             company_name         STRING,

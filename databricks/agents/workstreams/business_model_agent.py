@@ -33,6 +33,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+_CATALOG = os.environ.get("catalog", "uc13")
+
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from ingestion_parser.py
 # ---------------------------------------------------------------------------
@@ -1159,7 +1161,7 @@ class BusinessModelAgent:
 
     def _tool_load_company_profile(self, company_name: str, spark):
         rows = spark.sql(f"""
-            SELECT * FROM uc13.classification.company_profile
+            SELECT * FROM {_CATALOG}.classification.company_profile
             WHERE company_name = '{company_name}'
             ORDER BY created_at DESC LIMIT 1
         """).collect()
@@ -1181,7 +1183,7 @@ class BusinessModelAgent:
             data=profile_dict,
             output_summary=f"Profile loaded: industry_overlay={profile_dict.get('industry_overlay')}",
             confidence="high",
-            source_docs=["uc13.classification.company_profile"],
+            source_docs=[f"{_CATALOG}.classification.company_profile"],
         )
 
     # ------------------------------------------------------------------
@@ -1688,7 +1690,7 @@ class BusinessModelAgent:
             ),
             "output":     f"conflict={overlay_conflict}" + (f" — {overlay_conflict_note[:120]}" if overlay_conflict_note else ""),
             "confidence": "high" if profile_dict else "low",
-            "sources":    ["uc13.classification.company_profile"],
+            "sources":    [f"{_CATALOG}.classification.company_profile"],
         })
         print(f"  Step {overlay_step} [industry_overlay_conflict_check]: conflict={overlay_conflict}")
 
