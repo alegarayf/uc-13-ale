@@ -2,8 +2,9 @@
 Route A metadata router — SQL-based chunk selection without query-time embeddings.
 
 Joins {catalog}.ingestion.chunks to {catalog}.classification.doc_relevance and applies
-the same filter semantics as semantic_search (post-SQL Python filters for file_name,
-length, source_type; SQL filters for company, workstream, tier, keyword).
+the same filter semantics as semantic_search (SQL filename LIKE pushdown plus
+post-SQL Python filters for file_name, length, source_type; SQL filters for
+company, workstream, tier, keyword).
 """
 
 from __future__ import annotations
@@ -52,6 +53,16 @@ def _workstream_overlap_clause(workstream_filter: list[str], spark) -> str:
     return "(" + " OR ".join(or_parts) + ")"
 
 
+def _file_name_clause(file_name_filter: list[str] | None) -> str:
+    if not file_name_filter:
+        return "TRUE"
+    or_parts = [
+        f"LOWER(c.file_name) LIKE '%{_escape_sql_string(p.lower())}%'"
+        for p in file_name_filter
+    ]
+    return "(" + " OR ".join(or_parts) + ")"
+
+
 def _keyword_clause(keyword_filter: str | None) -> str:
     if not keyword_filter:
         return "TRUE"
@@ -90,6 +101,7 @@ def route_chunks(
     )
     ws_clause = _workstream_overlap_clause(workstream_filter, spark)
     kw_clause = _keyword_clause(keyword_filter)
+    fn_clause = _file_name_clause(file_name_filter)
 
     sql = f"""
         SELECT
@@ -110,6 +122,7 @@ def route_chunks(
           AND r.should_parse = true
           {tier_clause}
           AND ({kw_clause})
+          AND ({fn_clause})
         ORDER BY r.priority_tier ASC NULLS LAST, c.file_name, c.chunk_index
         LIMIT {fetch_k}
     """

@@ -121,20 +121,22 @@ def semantic_search_with_fallback(
     ``retrieval.py``). Any unrecognized value falls through to the semantic path.
 
     If result count < min_results with the filename filter, retries without it so
-    documents with non-standard names are not silently excluded (semantic paths only).
+    documents with non-standard names are not silently excluded (routed and semantic).
     """
     if retrieval_mode == "routed":
         from agents.shared.route_chunks import route_chunks
 
-        result = route_chunks(
+        route_kwargs = dict(
             company_name=company_name,
             spark=spark,
             workstream_filter=workstream_filter,
             top_k=top_k,
-            file_name_filter=file_name_filter,
             min_chunk_length=min_chunk_length,
             source_type_filter=source_type_filter,
         )
+        result = route_chunks(**route_kwargs, file_name_filter=file_name_filter)
+        if len(result.chunks) < min_results and file_name_filter is not None:
+            result = route_chunks(**route_kwargs, file_name_filter=None)
         print(f"  retrieval_mode={retrieval_mode} returned {len(result.chunks)} chunks")
         return result
 
