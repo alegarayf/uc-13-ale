@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-import types
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -13,10 +12,6 @@ import pytest
 _DATABRICKS_ROOT = Path(__file__).resolve().parents[1] / "databricks"
 if str(_DATABRICKS_ROOT) not in sys.path:
     sys.path.insert(0, str(_DATABRICKS_ROOT))
-
-# retrieval.py requires databricks.sdk; stub the module so patch targets resolve.
-if "agents.shared.retrieval" not in sys.modules:
-    sys.modules["agents.shared.retrieval"] = types.ModuleType("agents.shared.retrieval")
 
 from agents.shared._types import RouteResult  # noqa: E402
 from agents.subagents.workstream.financial.context_utils import (  # noqa: E402

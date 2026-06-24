@@ -32,9 +32,11 @@ if "mlflow" not in sys.modules:
     sys.modules["mlflow.deployments"] = deployments_mod
 
 from agents.shared.retrieval import (  # noqa: E402
+    _default_catalog,
     _escape_sql_literal,
     _extract_score_map,
     _hydrate_chunks_sql,
+    _index_name_for_catalog,
     _keyword_fallback_sql,
     _merge_score,
     _query_vector_index,
@@ -59,6 +61,17 @@ def _row(*, chunk_id: str, priority_tier: int = 2, source_type: str = "text"):
 
 def test_escape_sql_literal_doubles_single_quotes():
     assert _escape_sql_literal("O'Brien") == "O''Brien"
+
+
+def test_index_name_for_catalog():
+    assert _index_name_for_catalog("uc13_ale") == "uc13_ale.ingestion.embeddings_index"
+
+
+def test_default_catalog_reads_env(monkeypatch):
+    monkeypatch.setenv("catalog", "uc13_ale")
+    assert _default_catalog() == "uc13_ale"
+    monkeypatch.delenv("catalog")
+    assert _default_catalog() == "uc13"
 
 
 def test_extract_score_map_uses_trailing_score_column():
@@ -90,16 +103,19 @@ def test_merge_rank_falls_back_to_tier_when_no_scores():
 
 
 def test_hydrate_sql_escapes_company_name_and_has_no_order_by():
-    sql = _hydrate_chunks_sql(["c1"], "Acme's Corp")
+    sql = _hydrate_chunks_sql(["c1"], "Acme's Corp", "uc13_ale")
     assert "ORDER BY" not in sql.upper()
     assert "Acme''s Corp" in sql
     assert "c.chunk_id IN ('c1')" in sql
+    assert "uc13_ale.ingestion.chunks" in sql
+    assert "uc13_ale.classification.doc_relevance" in sql
 
 
 def test_keyword_fallback_sql_escapes_keywords():
-    sql = _keyword_fallback_sql(["rev'enue"], "Co", 30)
+    sql = _keyword_fallback_sql(["rev'enue"], "Co", 30, "uc13_ale")
     assert "rev''enue" in sql
     assert "LIMIT 30" in sql
+    assert "uc13_ale.ingestion.chunks" in sql
 
 
 def test_query_vector_index_retries_without_filters_on_sdk_error():
@@ -126,7 +142,9 @@ def test_query_vector_index_retries_without_filters_on_sdk_error():
 def test_semantic_search_returns_list_and_preserves_row_fields(
     mock_get_deploy_client,
     mock_workspace_client,
+    monkeypatch,
 ):
+    monkeypatch.setenv("catalog", "uc13_ale")
     mock_client = MagicMock()
     mock_get_deploy_client.return_value = mock_client
     mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
@@ -154,3 +172,5 @@ def test_semantic_search_returns_list_and_preserves_row_fields(
     assert result[0].chunk_id == "c1"
     assert result[0].priority_tier == 1
     assert hasattr(result[0], "source_type")
+    query_call = mock_w.vector_search_indexes.query_index.call_args
+    assert query_call.kwargs["index_name"] == "uc13_ale.ingestion.embeddings_index"
