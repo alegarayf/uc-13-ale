@@ -28,6 +28,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+_CATALOG = os.environ.get("catalog", "uc13")
+
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from financial_trends_agent.py
 # ---------------------------------------------------------------------------
@@ -290,7 +292,7 @@ class LegalContractsAgent(WorkstreamAgent):
         """
         try:
             rows = spark.sql(f"""
-                SELECT contract_trigger_list FROM uc13.analysis.customer_quality
+                SELECT contract_trigger_list FROM {_CATALOG}.analysis.customer_quality
                 WHERE company_name = '{company_name}'
                 ORDER BY created_at DESC LIMIT 1
             """).collect()
@@ -437,7 +439,7 @@ class LegalContractsAgent(WorkstreamAgent):
     def _tool_load_company_profile(self, company_name: str, spark) -> "ToolResult":  # noqa: F821
         try:
             rows = spark.sql(
-                f"SELECT * FROM uc13.classification.company_profile "
+                f"SELECT * FROM {_CATALOG}.classification.company_profile "
                 f"WHERE company_name = '{company_name}' "
                 f"ORDER BY created_at DESC LIMIT 1"
             ).collect()
@@ -445,7 +447,7 @@ class LegalContractsAgent(WorkstreamAgent):
                 self._add_gap("company_profile not found — run company_profiler.py first")
                 return self._tool_call(
                     tool_name="load_company_profile",
-                    input_summary=f"SELECT * FROM uc13.classification.company_profile WHERE company_name='{company_name}'",
+                    input_summary=f"SELECT * FROM {_CATALOG}.classification.company_profile WHERE company_name='{company_name}'",
                     data=None,
                     output_summary="No rows returned — company_profile not found",
                     confidence="low",
@@ -454,17 +456,17 @@ class LegalContractsAgent(WorkstreamAgent):
             row_dict = rows[0].asDict()
             return self._tool_call(
                 tool_name="load_company_profile",
-                input_summary=f"SELECT * FROM uc13.classification.company_profile WHERE company_name='{company_name}'",
+                input_summary=f"SELECT * FROM {_CATALOG}.classification.company_profile WHERE company_name='{company_name}'",
                 data=row_dict,
                 output_summary=f"Company profile loaded for '{company_name}'",
                 confidence="high",
-                source_docs=["uc13.classification.company_profile"],
+                source_docs=[f"{_CATALOG}.classification.company_profile"],
             )
         except Exception as exc:
             self._add_gap(f"company_profile query failed: {exc} — run company_profiler.py first")
             return self._tool_call(
                 tool_name="load_company_profile",
-                input_summary=f"SELECT * FROM uc13.classification.company_profile WHERE company_name='{company_name}'",
+                input_summary=f"SELECT * FROM {_CATALOG}.classification.company_profile WHERE company_name='{company_name}'",
                 data=None,
                 output_summary=f"Query failed: {exc}",
                 confidence="low",

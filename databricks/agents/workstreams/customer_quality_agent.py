@@ -28,6 +28,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+_CATALOG = os.environ.get("catalog", "uc13")
+
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from financial_trends_agent.py
 # ---------------------------------------------------------------------------
@@ -403,7 +405,7 @@ class CustomerQualityAgent(WorkstreamAgent):
         )
 
     def _tool_load_company_profile(self, company_name: str, spark):
-        sql = f"SELECT * FROM uc13.classification.company_profile WHERE company_name = '{company_name}' ORDER BY created_at DESC LIMIT 1"
+        sql = f"SELECT * FROM {_CATALOG}.classification.company_profile WHERE company_name = '{company_name}' ORDER BY created_at DESC LIMIT 1"
         rows = spark.sql(sql).collect()
         if not rows:
             self._add_gap("company_profile not found — run company_profiler.py first")
@@ -422,7 +424,7 @@ class CustomerQualityAgent(WorkstreamAgent):
             data=row_dict,
             output_summary=f"Company profile loaded: industry_overlay={row_dict.get('industry_overlay')}",
             confidence="high",
-            source_docs=["uc13.classification.company_profile"],
+            source_docs=[f"{_CATALOG}.classification.company_profile"],
         )
 
     # ------------------------------------------------------------------

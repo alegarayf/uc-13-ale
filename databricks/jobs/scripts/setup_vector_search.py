@@ -128,21 +128,24 @@ def find_repo_root(marker="agents"):
 
 def setup_schemas(spark):
     """Create UC schemas if they don't already exist."""
-    spark.sql("CREATE SCHEMA IF NOT EXISTS uc13.ingestion")
-    spark.sql("CREATE SCHEMA IF NOT EXISTS uc13.classification")
-    print("Schemas: uc13.ingestion and uc13.classification — OK")
+    catalog = os.environ.get("catalog", "uc13")
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.ingestion")
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.classification")
+    print(f"Schemas: {catalog}.ingestion and {catalog}.classification — OK")
 
 
 def setup_raw_files_volume(spark):
     """Create the managed UC Volume that stores raw ingested files (idempotent)."""
-    spark.sql("CREATE VOLUME IF NOT EXISTS uc13.ingestion.raw_files")
-    print("Volume: uc13.ingestion.raw_files — OK")
+    catalog = os.environ.get("catalog", "uc13")
+    spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.ingestion.raw_files")
+    print(f"Volume: {catalog}.ingestion.raw_files — OK")
 
 
 def setup_embeddings_table(spark):
     """Create embeddings table with CDF enabled (idempotent)."""
-    spark.sql("""
-        CREATE TABLE IF NOT EXISTS uc13.ingestion.embeddings (
+    catalog = os.environ.get("catalog", "uc13")
+    spark.sql(f"""
+        CREATE TABLE IF NOT EXISTS {catalog}.ingestion.embeddings (
             chunk_id      STRING NOT NULL,
             doc_id        STRING,
             file_name     STRING,
@@ -159,11 +162,11 @@ def setup_embeddings_table(spark):
         )
     """)
     # Ensure CDF is on even if table already existed without it.
-    spark.sql("""
-        ALTER TABLE uc13.ingestion.embeddings
+    spark.sql(f"""
+        ALTER TABLE {catalog}.ingestion.embeddings
         SET TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true')
     """)
-    print("Table: uc13.ingestion.embeddings — OK (CDF enabled)")
+    print(f"Table: {catalog}.ingestion.embeddings — OK (CDF enabled)")
 
 
 def setup_vector_search_endpoint(endpoint_name: str):
@@ -208,7 +211,7 @@ def setup_vector_search_index(endpoint_name: str, index_name: str):
         primary_key="chunk_id",
         index_type=VectorIndexType.DELTA_SYNC,
         delta_sync_index_spec=DeltaSyncVectorIndexSpecRequest(
-            source_table="uc13.ingestion.embeddings",
+            source_table=f"{os.environ.get('catalog', 'uc13')}.ingestion.embeddings",
             pipeline_type=PipelineType.TRIGGERED,
             embedding_vector_columns=[
                 EmbeddingVectorColumn(name="embedding", embedding_dimension=1024)
