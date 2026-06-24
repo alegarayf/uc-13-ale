@@ -1,16 +1,21 @@
 """
 Route A metadata router — SQL-based chunk selection without query-time embeddings.
 
-Joins uc13.ingestion.chunks to uc13.classification.doc_relevance and applies the same
-filter semantics as semantic_search (post-SQL Python filters for file_name, length,
-source_type; SQL filters for company, workstream, tier, keyword).
+Joins {catalog}.ingestion.chunks to {catalog}.classification.doc_relevance and applies
+the same filter semantics as semantic_search (post-SQL Python filters for file_name,
+length, source_type; SQL filters for company, workstream, tier, keyword).
 """
 
 from __future__ import annotations
 
+import os
 import re
 
 from agents.shared._types import RouteResult
+
+
+def _default_catalog() -> str:
+    return os.environ.get("catalog", "uc13").strip() or "uc13"
 
 _ARRAYS_OVERLAP_AVAILABLE: bool | None = None
 
@@ -74,8 +79,10 @@ def route_chunks(
     min_chunk_length: int = 100,
     source_type_filter: list[str] | None = None,
     keyword_filter: str | None = None,
+    catalog: str | None = None,
 ) -> RouteResult:
     """Select chunks via metadata routing (no embeddings / vector search)."""
+    catalog = (catalog or _default_catalog()).strip()
     fetch_k = top_k * 3
     company_escaped = _escape_sql_string(company_name)
     tier_clause = (
@@ -94,8 +101,8 @@ def route_chunks(
             COALESCE(c.source_type, 'text') AS source_type,
             r.workstream,
             r.priority_tier
-        FROM uc13.ingestion.chunks c
-        JOIN uc13.classification.doc_relevance r
+        FROM {catalog}.ingestion.chunks c
+        JOIN {catalog}.classification.doc_relevance r
             ON c.file_name = r.filename
            AND c.company_name = r.company_name
         WHERE c.company_name = '{company_escaped}'

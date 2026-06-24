@@ -111,6 +111,26 @@ def test_post_filters_file_name_min_length_and_source_type():
     assert result.chunks[0].source_type == "table"
 
 
+def test_sql_uses_catalog_from_env(monkeypatch):
+    monkeypatch.setenv("catalog", "uc13_ale")
+    rows = [_row()]
+    spark = _mock_spark(rows)
+    route_chunks("Acme", spark, workstream_filter=["FINANCIAL"], top_k=3)
+    sql = spark.sql.call_args_list[-1][0][0]
+    assert "FROM uc13_ale.ingestion.chunks c" in sql
+    assert "JOIN uc13_ale.classification.doc_relevance r" in sql
+
+
+def test_sql_defaults_to_uc13_without_catalog_env(monkeypatch):
+    monkeypatch.delenv("catalog", raising=False)
+    rows = [_row()]
+    spark = _mock_spark(rows)
+    route_chunks("Acme", spark, workstream_filter=["FINANCIAL"], top_k=3)
+    sql = spark.sql.call_args_list[-1][0][0]
+    assert "FROM uc13.ingestion.chunks c" in sql
+    assert "JOIN uc13.classification.doc_relevance r" in sql
+
+
 def test_sql_includes_tier_cap_and_workstream_overlap():
     rows = [_row(priority_tier=2)]
     spark = _mock_spark(rows)
