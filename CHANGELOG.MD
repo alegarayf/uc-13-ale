@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-m0-corpus-baseline-platform-setup — 2026-06-25
+
+- T1 (A0 corpus measurement): Ran §5.15 Spark SQL and semantic_search dry-runs on Elder Care (`uc13_ale`); wrote `.dev/legal_agent/corpus_baseline_elder_care.md` with workstream gate, embedding volume, filename decomposition, domain dry-run, misclassification probe, and HR overlap tables. Deferred automated artifact-structure pytest — M0 non-goal; manual §5.15 table gate satisfied.
+
 ## uc13-remediation-plan — 2026-06-23
 
 - T1 (E2E prerequisites): Added Cell 8f FTA corpus-stats SQL to `test_pipeline.ipynb`; recorded Elder Care coverage (FINANCIAL/QUALITY_EARNINGS/FORECAST all PASS on `uc13_ale`) and corpus chunk counts in `.dev/plans/uc13-remediation-plan/prereqs.md`; defined 18-field FTA golden checklist for T7 scorecard.
