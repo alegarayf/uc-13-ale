@@ -2,7 +2,7 @@
 
 ## uc13-m0-corpus-baseline-platform-setup — 2026-06-25
 
-- T1 (A0 corpus measurement): Ran §5.15 Spark SQL and semantic_search dry-runs on Elder Care (`uc13_ale`); wrote `.dev/legal_agent/corpus_baseline_elder_care.md` with workstream gate, embedding volume, filename decomposition, domain dry-run, misclassification probe, and HR overlap tables. Deferred automated artifact-structure pytest — M0 non-goal; manual §5.15 table gate satisfied.
+- T2 (A1 legacy baseline): Ran `legal_contracts_agent.main()` on Elder Care (`catalog=uc13_ale`, Sonnet LLM) via serverless job; saved `.dev/legal_agent/baselines/baseline_elder_care_legal_contracts_report.yaml` from Volume output with A0 reconciliation header (`report.agent=legal_contracts`, 14 contract_register entries). Deferred automated baseline-structure pytest — M0 non-goal; manual YAML validation passed.
 
 ## uc13-remediation-plan — 2026-06-23
 
