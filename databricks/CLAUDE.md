@@ -57,7 +57,8 @@ Unity Catalog: **`uc13`**
 | `uc13.analysis.financial_trends` | `financial_trends_agent.py` | Revenue/margin/EBITDA trends |
 | `uc13.analysis.customer_quality` | `customer_quality_agent.py` | Concentration, NRR/GRR, contract triggers |
 | `uc13.analysis.kpi` | `kpi_agent.py` | Overlay-specific KPIs |
-| `uc13.analysis.legal_contracts` | `legal_contracts_agent.py` | Contract register, CoC, litigation |
+| `uc13.analysis.legal` | `legal_contracts_agent.py` | Contract register, CoC, litigation — **M0 write target** (21-column Appendix A DDL) |
+| `uc13.analysis.legal_contracts` | — (compat VIEW) | Legacy consumers; subset of `analysis.legal` + `triggered_reviews_loaded=0` |
 | `uc13.analysis.quality_of_earnings` | `quality_of_earnings_agent.py` | Addback ledger, EBITDA scenarios |
 
 Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync, auto-updated)
