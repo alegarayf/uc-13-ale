@@ -137,9 +137,47 @@ def test_run_signature_includes_catalog():
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "LegalContractsAgent")
     run_fn = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == "run")
     arg_names = [a.arg for a in run_fn.args.args]
-    assert arg_names == ["self", "company_name", "spark", "llm_endpoint", "catalog"]
+    assert arg_names == ["self", "company_name", "spark", "extraction_endpoint", "catalog"]
     body = _method_body_source("LegalContractsAgent", "run")
     assert "self._catalog = catalog" in body
+    assert "llm_endpoint" not in body
+
+
+def test_main_passes_extraction_endpoint_to_run_not_llm_endpoint():
+    """Falsifier: M0 F3 shadow llm_endpoint=extraction_endpoint or llm_endpoint must not return."""
+    main_body = _function_body_source("main")
+    assert "extraction_endpoint=extraction_endpoint" in main_body
+    assert "llm_endpoint=extraction_endpoint" not in main_body
+    assert "llm_endpoint=extraction_endpoint or llm_endpoint" not in main_body
+
+
+def test_main_d6a_haiku_and_llama_override_to_sonnet():
+    """Falsifier: notebook Cell 1 Haiku/Llama default must be overridden before agent.run()."""
+    main_body = _function_body_source("main")
+    assert '"haiku" in _widget_ep.lower()' in main_body
+    assert '"llama" in _widget_ep.lower()' in main_body
+    assert 'extraction_endpoint = "databricks-claude-sonnet-4-6"' in main_body
+    assert "[override] extraction_endpoint" in main_body
+
+
+def test_extract_methods_thread_extraction_endpoint_param():
+    """Falsifier: extract stubs must accept extraction_endpoint for T3 _call_llm wiring."""
+    for pass_id in (
+        "contracts_vendors_platform",
+        "employment",
+        "litigation",
+        "ip_privacy",
+        "insurance",
+    ):
+        tree = ast.parse(_AGENT_SOURCE)
+        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "LegalContractsAgent")
+        method = next(
+            n for n in cls.body
+            if isinstance(n, ast.FunctionDef) and n.name == f"_extract_{pass_id}"
+        )
+        arg_names = [a.arg for a in method.args.args]
+        assert "extraction_endpoint" in arg_names, f"_extract_{pass_id} missing extraction_endpoint"
+        assert "llm_endpoint" not in arg_names, f"_extract_{pass_id} still uses llm_endpoint"
 
 
 def test_load_contract_triggers_sql_uses_catalog_not_module_constant():
