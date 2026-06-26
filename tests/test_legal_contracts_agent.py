@@ -254,8 +254,8 @@ def test_does_not_import_financial_semantic_search_with_fallback():
     assert "_semantic_search_with_fallback" in _AGENT_SOURCE
 
 
-def test_run_m1_interim_return_includes_all_pass_register_keys():
-    """Falsifier: D1a interim return must expose every pass-owned register, not only contract/litigation."""
+def test_run_returns_m2_wired_shape():
+    """Falsifier: M2 run() must expose merged registers, roll-ups, flags, and gap columns."""
     body = _method_body_source("LegalContractsAgent", "run")
     for key in (
         "contract_register_json",
@@ -266,23 +266,69 @@ def test_run_m1_interim_return_includes_all_pass_register_keys():
         "ip_register_json",
         "privacy_security_register_json",
         "insurance_register_json",
+        "coc_consent_list_json",
+        "termination_exposure_json",
+        "restrictive_covenant_map_json",
+        "unable_to_assess_json",
+        "recommended_diligence_json",
+        "section_confidence",
+        "executive_summary",
     ):
         assert f'"{key}"' in body, f"run() return missing {key}"
-    assert 'json.dumps([])' in body  # M2 roll-up placeholders
-    assert '"flags":                              []' in body or '"flags":                         []' in body
+    assert "self._flags_as_dicts()" in body
+    assert '"flags":                              []' not in body
+    assert '"flags":                         []' not in body
+    assert '"executive_summary":                  None' not in body
 
 
-def test_run_does_not_call_m2_rollup_or_flag_builders():
-    """Falsifier: M1 must not invoke roll-up builders or _apply_legal_flags."""
+def test_run_calls_m2_rollup_flag_and_gap_builders():
+    """Falsifier: M2 run() must invoke merge, roll-ups, flags, and gap assessment."""
     body = _method_body_source("LegalContractsAgent", "run")
-    for forbidden in (
+    for required in (
+        "_merge_registers",
         "_build_coc_consent_list",
         "_build_termination_exposure",
         "_build_restrictive_covenant_map",
         "_apply_legal_flags",
-        "_merge_registers",
+        "_assess_coverage_gaps",
     ):
-        assert forbidden not in body
+        assert required in body, f"run() must call {required}"
+
+
+def test_stakeholder_coverage_requirements_present_austin_absent():
+    """Falsifier: normative §5.6 checklist must replace AUSTIN_ITEM_COVERAGE constant."""
+    tree = ast.parse(_AGENT_SOURCE)
+    module_constants: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    module_constants.add(target.id)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            module_constants.add(node.target.id)
+    assert "STAKEHOLDER_COVERAGE_REQUIREMENTS" in module_constants
+    assert "AUSTIN_ITEM_COVERAGE" not in module_constants
+
+
+def test_run_serializes_merged_registers_not_raw_pass_accumulators():
+    """Adversarial: run() must json.dumps merged output, not pre-merge registers dict."""
+    body = _method_body_source("LegalContractsAgent", "run")
+    assert 'json.dumps(merged["contract_register"])' in body
+    assert 'json.dumps(registers["contract_register"])' not in body
+
+
+def test_m2_tri_state_and_merge_helpers_defined():
+    """Falsifier: §5.6.1 tri-state helpers and merge must exist at module level."""
+    tree = ast.parse(_AGENT_SOURCE)
+    top_level_names = {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    assert "_is_true" in top_level_names
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "LegalContractsAgent")
+    method_names = {n.name for n in cls.body if isinstance(n, ast.FunctionDef)}
+    assert "_merge_registers" in method_names
 
 
 def test_monolithic_retrieve_tools_removed():
