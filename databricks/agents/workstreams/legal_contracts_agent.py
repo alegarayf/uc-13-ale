@@ -1470,6 +1470,38 @@ class LegalContractsAgent(WorkstreamAgent):
             return "medium"
         return "high"
 
+    def _build_executive_summary(
+        self,
+        assessed_count: int,
+        coc_consent_count: int,
+        open_litigation_count: int,
+    ) -> str:
+        """Deterministic MVP template from roll-up counts — §5.8; no legal opinion."""
+        total_items = len(STAKEHOLDER_COVERAGE_REQUIREMENTS)
+        sentences = [
+            (
+                f"Stakeholder coverage assessment: {assessed_count} of {total_items} "
+                f"checklist items had extractable supporting terms in the retrieved corpus."
+            ),
+        ]
+        if coc_consent_count:
+            sentences.append(
+                f"{coc_consent_count} contract(s) require change-of-control consent."
+            )
+        else:
+            sentences.append(
+                "No contracts with change-of-control consent requirements were identified."
+            )
+        if open_litigation_count:
+            sentences.append(
+                f"{open_litigation_count} open legal matter(s) appear in the litigation register."
+            )
+        else:
+            sentences.append(
+                "No open legal matters were identified in the extracted litigation register."
+            )
+        return " ".join(sentences)
+
     # -----------------------------------------------------------------------
     # Threshold flagging
     # -----------------------------------------------------------------------
@@ -1613,10 +1645,12 @@ class LegalContractsAgent(WorkstreamAgent):
         }
 
         domain_passes = _bind_domain_passes(self)
+        pass_chunk_counts: dict[str, int] = {}
         print(f"  Running {len(domain_passes)} domain passes ...")
         for pass_id, retrieve_fn, extract_fn, budget in domain_passes:
             retrieve_result = retrieve_fn(spark)
             chunks = retrieve_result.data or []
+            pass_chunk_counts[pass_id] = len(chunks)
             print(f"    [{pass_id}] retrieve: {len(chunks)} chunks")
 
             extracted = extract_fn(
@@ -1636,22 +1670,50 @@ class LegalContractsAgent(WorkstreamAgent):
             )
             print(f"    [{pass_id}] extract: {register_summary}")
 
+        merged = self._merge_registers(registers)
+        contract_register = merged.get("contract_register") or []
+        litigation_register = merged.get("litigation_register") or []
+
+        coc_consent_list = self._build_coc_consent_list(contract_register)
+        termination_exposure = self._build_termination_exposure(contract_register)
+        restrictive_covenant_map = self._build_restrictive_covenant_map(contract_register)
+
+        self._apply_legal_flags(merged)
+        self._assess_coverage_gaps(merged, pass_chunk_counts, company_profile)
+        section_confidence = self._compute_section_confidence()
+
+        open_litigation_count = sum(
+            1 for item in litigation_register if _eq_str(item.get("status"), "open")
+        )
+        executive_summary = self._build_executive_summary(
+            assessed_count=getattr(self, "_assessed_coverage_count", 0),
+            coc_consent_count=len(coc_consent_list),
+            open_litigation_count=open_litigation_count,
+        )
+
         return {
             "company_name":                       company_name,
-            "executive_summary":                  None,
-            "contract_register_json":             json.dumps(registers["contract_register"]),
-            "vendor_register_json":               json.dumps(registers["vendor_register"]),
-            "platform_dependency_register_json":  json.dumps(registers["platform_dependency_register"]),
-            "employment_register_json":           json.dumps(registers["employment_register"]),
-            "litigation_register_json":           json.dumps(registers["litigation_register"]),
-            "ip_register_json":                   json.dumps(registers["ip_register"]),
-            "privacy_security_register_json":     json.dumps(registers["privacy_security_register"]),
-            "insurance_register_json":            json.dumps(registers["insurance_register"]),
-            "coc_consent_list_json":              json.dumps([]),
-            "termination_exposure_json":          json.dumps([]),
-            "restrictive_covenant_map_json":      json.dumps([]),
+            "executive_summary":                  executive_summary,
+            "section_confidence":                 section_confidence,
+            "contract_register_json":             json.dumps(merged["contract_register"]),
+            "vendor_register_json":               json.dumps(merged["vendor_register"]),
+            "platform_dependency_register_json":  json.dumps(merged["platform_dependency_register"]),
+            "employment_register_json":           json.dumps(merged["employment_register"]),
+            "litigation_register_json":           json.dumps(merged["litigation_register"]),
+            "ip_register_json":                   json.dumps(merged["ip_register"]),
+            "privacy_security_register_json":     json.dumps(merged["privacy_security_register"]),
+            "insurance_register_json":            json.dumps(merged["insurance_register"]),
+            "coc_consent_list_json":              json.dumps(coc_consent_list),
+            "termination_exposure_json":          json.dumps(termination_exposure),
+            "restrictive_covenant_map_json":      json.dumps(restrictive_covenant_map),
+            "unable_to_assess_json":              json.dumps(
+                getattr(self, "_unable_to_assess_items", [])
+            ),
+            "recommended_diligence_json":         json.dumps(
+                getattr(self, "_recommended_diligence", [])
+            ),
             "triggered_reviews_loaded":           len(contract_triggers),
-            "flags":                              [],
+            "flags":                              self._flags_as_dicts(),
             "data_room_gaps":                     list(self._data_room_gaps),
             "citations":                          json.dumps(self._citations_as_dicts()),
             "reasoning_trace":                    list(self._trace),
