@@ -1853,11 +1853,11 @@ FROM {catalog}.analysis.legal
 
 
 def _map_legacy_result_to_legal_row(result: dict) -> dict:
-    """Map legacy run() output to analysis.legal row; MVP-only columns get empty JSON."""
+    """Map run() output to analysis.legal row; threads gap/confidence fields from result."""
     return {
         "company_name":                  result["company_name"],
         "executive_summary":             result.get("executive_summary"),
-        "section_confidence":            None,
+        "section_confidence":            result.get("section_confidence"),
         "contract_register_json":             result.get("contract_register_json"),
         "vendor_register_json":               result.get("vendor_register_json", "[]"),
         "platform_dependency_register_json":  result.get("platform_dependency_register_json", "[]"),
@@ -1869,8 +1869,8 @@ def _map_legacy_result_to_legal_row(result: dict) -> dict:
         "coc_consent_list_json":         result.get("coc_consent_list_json"),
         "termination_exposure_json":     result.get("termination_exposure_json"),
         "restrictive_covenant_map_json": result.get("restrictive_covenant_map_json"),
-        "unable_to_assess_json":         "[]",
-        "recommended_diligence_json":    "[]",
+        "unable_to_assess_json":         result.get("unable_to_assess_json"),
+        "recommended_diligence_json":    result.get("recommended_diligence_json"),
         "flags":                         json.dumps(result.get("flags") or []),
         "data_room_gaps":                result.get("data_room_gaps") or [],
         "citations":                     result.get("citations"),
