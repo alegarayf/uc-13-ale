@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-m1-multi-pass-retrieval-extraction — 2026-06-26
+
+- T1 (B1 domain pass loop scaffold): Replaced monolithic 6-retrieval + single LLM `run()` path with `_DOMAIN_PASSES` loop (5 spec §5.11 pass IDs), stub `_domain_retrieve_*` / `_extract_*` methods emitting 5+5 domain trace steps, and M1 interim return (empty registers, roll-ups `[]`, `flags=[]`, `executive_summary=null`). Stage 1 retains read-only profile + triggers per D8a. Deferred trace step-count pytest — D4a cluster wet run owned by T5. See `.dev/decision-logs/m1-t1-domain-pass-loop.md`.
+
 ## uc13-m0-corpus-baseline-platform-setup — 2026-06-25
 
 - T-A3 (Cell 18 legal report_path branch — audit F2/W4): Branched Cell 18 summary loop so `legal` and `legal_contracts` SELECT only `flags` and `data_room_gaps` (no `report_path`); report column prints `—` for those rows. Static contract tests in `tests/test_uc13_ingestion_pipeline.py`.
