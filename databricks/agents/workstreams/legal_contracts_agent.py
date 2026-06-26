@@ -704,7 +704,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks,
         company_profile,
         contract_triggers,
-        llm_endpoint: str,
+        extraction_endpoint: str,
         budget: dict,
     ) -> dict:
         self._tool_call(
@@ -726,7 +726,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks,
         company_profile,
         contract_triggers,
-        llm_endpoint: str,
+        extraction_endpoint: str,
         budget: dict,
     ) -> dict:
         self._tool_call(
@@ -744,7 +744,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks,
         company_profile,
         contract_triggers,
-        llm_endpoint: str,
+        extraction_endpoint: str,
         budget: dict,
     ) -> dict:
         self._tool_call(
@@ -762,7 +762,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks,
         company_profile,
         contract_triggers,
-        llm_endpoint: str,
+        extraction_endpoint: str,
         budget: dict,
     ) -> dict:
         self._tool_call(
@@ -780,7 +780,7 @@ class LegalContractsAgent(WorkstreamAgent):
         chunks,
         company_profile,
         contract_triggers,
-        llm_endpoint: str,
+        extraction_endpoint: str,
         budget: dict,
     ) -> dict:
         self._tool_call(
@@ -1004,7 +1004,7 @@ class LegalContractsAgent(WorkstreamAgent):
     # run()
     # -----------------------------------------------------------------------
 
-    def run(self, company_name: str, spark, llm_endpoint: str, catalog: str) -> dict:
+    def run(self, company_name: str, spark, extraction_endpoint: str, catalog: str) -> dict:
         self._reset_state()
         self._company_name = company_name
         self._catalog = catalog
@@ -1040,7 +1040,7 @@ class LegalContractsAgent(WorkstreamAgent):
                 chunks,
                 company_profile,
                 contract_triggers,
-                llm_endpoint,
+                extraction_endpoint,
                 budget,
             )
             for key, rows in extracted.items():
@@ -1258,8 +1258,14 @@ def main() -> dict:
 
     company_name        = get_param("sp_company_name")
     catalog             = get_param("catalog",             default="uc13_ale")
-    extraction_endpoint = get_param("extraction_endpoint", default="databricks-claude-sonnet-4-6")
-    llm_endpoint        = get_param("llm_endpoint",        default=extraction_endpoint)
+    _widget_ep          = get_param("extraction_endpoint", default="databricks-claude-sonnet-4-6") or "databricks-claude-sonnet-4-6"
+    llm_endpoint        = get_param("llm_endpoint",        default=_widget_ep)
+
+    if "haiku" in _widget_ep.lower() or "llama" in _widget_ep.lower():
+        extraction_endpoint = "databricks-claude-sonnet-4-6"
+        print(f"  [override] extraction_endpoint '{_widget_ep}' → Sonnet (Haiku/Llama cap=8192 tokens; legal multi-pass schema needs Sonnet)")
+    else:
+        extraction_endpoint = _widget_ep
 
     from pyspark.sql import SparkSession
     spark = SparkSession.getActiveSession()
@@ -1276,7 +1282,7 @@ def main() -> dict:
     result = agent.run(
         company_name=company_name,
         spark=spark,
-        llm_endpoint=extraction_endpoint or llm_endpoint,
+        extraction_endpoint=extraction_endpoint,
         catalog=catalog,
     )
 
