@@ -42,6 +42,9 @@ resources:
         - name: llm_endpoint
           default: "databricks-meta-llama-3-3-70b-instruct"
           description: "MLflow LLM endpoint name."
+        - name: extraction_endpoint
+          default: "databricks-claude-sonnet-4-6"
+          description: "MLflow extraction LLM endpoint (structured JSON schemas)."
         - name: vs_endpoint_name
           default: "uc13-vector-search"
           description: "Databricks Vector Search endpoint name."
@@ -338,25 +341,23 @@ resources:
 
         # ------------------------------------------------------------------
         # Task 9 — Phase 3e: Legal Contracts Agent
-        # Extracts contract terms and litigation from LEGAL-tagged documents.
-        # Depends on customer_quality_agent for contract review triggers.
+        # Standalone legal workstream — no customer_quality_agent dependency.
         # ------------------------------------------------------------------
         - task_key: legal_contracts_agent
           description: >
-            Reads contract_trigger_list from uc13.analysis.customer_quality.
-            Semantic retrieval over LEGAL-tagged chunks + single LLM call to
-            extract contract register (CoC clauses, termination, anti-assignment,
-            auto-renewal, pricing, liability caps, restrictive covenants) and
-            litigation register. Produces CoC consent list for deal team.
-            Writes uc13.analysis.legal_contracts.
+            Standalone legal workstream agent: semantic retrieval over LEGAL-tagged
+            chunks + LLM extraction of contract register (CoC clauses, termination,
+            anti-assignment, auto-renewal, pricing, liability caps, restrictive
+            covenants) and litigation register. Produces CoC consent list for deal team.
+            Writes uc13.analysis.legal (compat view uc13.analysis.legal_contracts).
           depends_on:
-            - task_key: customer_quality_agent
+            - task_key: company_profiler
           spark_python_task:
             python_file: "databricks/agents/workstreams/legal_contracts_agent.py"
             parameters:
               - "{{job.parameters.sp_company_name}}"
               - "{{job.parameters.catalog}}"
-              - "{{job.parameters.llm_endpoint}}"
+              - "{{job.parameters.extraction_endpoint}}"
           new_cluster:
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_DS3_v2"

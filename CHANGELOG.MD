@@ -2,7 +2,8 @@
 
 ## uc13-m0-corpus-baseline-platform-setup — 2026-06-25
 
-- T3 (A4 Delta DDL + main storage): Migrated `legal_contracts_agent.main()` to Appendix A `analysis.legal` Delta DDL, dropped legacy `legal_contracts` table, added compat VIEW, remapped legacy `run()` output with empty JSON for MVP-only columns, and wired `extraction_endpoint`/`llm_endpoint` params (catalog default `uc13_ale`). See `.dev/decision-logs/m0-t3-legal-delta-ddl.md`.
+- T4 (A3 workflow + notebook): Rewired `legal_contracts_agent` in `uc13_ingestion_pipeline.yml` to depend on `company_profiler`, pass `extraction_endpoint` (not `llm_endpoint`), and document standalone `analysis.legal` writes; updated `test_pipeline.ipynb` Phase 3 ordering, Cell 16 comments, and Cell 18 `analysis_tables` (`legal` + `legal_contracts` compat view). Static contract tests in `tests/test_uc13_ingestion_pipeline.py`.
+- T3 (A4 Delta DDL + main storage): Migrated `legal_contracts_agent.main()` to Appendix A `analysis.legal` Delta DDL, dropped legacy `legal_contracts` table, added compat VIEW, remapped legacy `run()` output with empty JSON for MVP-only columns, and wired `extraction_endpoint`/`llm_endpoint` params (catalog default `uc13_ale`). Kill criteria closed via notebook Cell 16 on workspace (`DESCRIBE` 21 cols, `legal_contracts` VIEW, Elder Care row `2026-06-26T13:27:26Z`). See `.dev/decision-logs/m0-t3-legal-delta-ddl.md`.
 - T2 (A1 legacy baseline): Ran `legal_contracts_agent.main()` on Elder Care (`catalog=uc13_ale`, Sonnet LLM) via serverless job; saved `.dev/legal_agent/baselines/baseline_elder_care_legal_contracts_report.yaml` from Volume output with A0 reconciliation header (`report.agent=legal_contracts`, 14 contract_register entries). Deferred automated baseline-structure pytest — M0 non-goal; manual YAML validation passed.
 
 ## uc13-remediation-plan — 2026-06-23
