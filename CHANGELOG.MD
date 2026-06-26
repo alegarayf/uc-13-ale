@@ -2,6 +2,8 @@
 
 ## uc13-m2-merge-flags-gaps-stakeholder-report — 2026-06-26
 
+- T2 (Stakeholder coverage gaps + section confidence): Added `STAKEHOLDER_COVERAGE_REQUIREMENTS` (11 rows per spec §5.6), `_assess_coverage_gaps`, `_compute_section_confidence`, and healthcare overlay diligence append; `pass_chunk_counts` contract documented for T4 loop wiring. `run()` left unwired for T4. Deferred step-2/step-3 falsifier to T7. See `.dev/decision-logs/m2-t2-gaps-confidence.md`.
+- T3 (Option-C flags): Replaced `_apply_legal_flags` with spec §5.6 MVP metrics (`coc_consent_required`, `restrictive_covenant`, `unusual_indemnity`, `open_legal_matter_{matter_type}`, `regulatory_matter`) using T1 tri-state helpers; retired revenue/CQA/trigger gates and `contract_triggers` parameter; `run()` left unwired for T4. Deferred option-C AST falsifier to T7. See `.dev/decision-logs/m2-t3-option-c-flags.md`.
 - T1 (Tri-state helpers, merge, roll-up migration): Added §5.6.1 helpers (`_is_true`, `_is_not_found`, `_eq_str`), `_merge_registers` within-register dedupe per §5.6.2, and migrated roll-up builders to `restrictive_covenants` + tri-state evaluation; `run()` left unwired for T4. Deferred merge/roll-up AST falsifier amend to T7. See `.dev/decision-logs/m2-t1-merge-helpers-rollups.md`.
 
 ## uc13-m1-multi-pass-retrieval-extraction — 2026-06-26
