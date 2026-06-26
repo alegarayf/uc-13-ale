@@ -8,7 +8,7 @@
 #   Workflows → Create Job → Import from YAML
 #
 # Required before first run:
-#   - Unity Catalog catalog "uc13" created by workspace admin
+#   - Unity Catalog catalog "uc13_ale" created by workspace admin (job default)
 #   - Secrets scope "uc13" with keys listed in workflows/README.md
 #   - Run 00_setup_vector_search once to create the VS endpoint and index
 
@@ -31,7 +31,7 @@ resources:
             Company name as it appears in SharePoint under "Example Data Room/".
             E.g. "Elder Care" or "Project Silo". Required — leave blank to abort.
         - name: catalog
-          default: "uc13"
+          default: "uc13_ale"
           description: "Unity Catalog catalog name."
         - name: schema
           default: "ingestion"
