@@ -2,6 +2,7 @@
 
 ## uc13-m0-corpus-baseline-platform-setup — 2026-06-25
 
+- T-A3 (Cell 18 legal report_path branch — audit F2/W4): Branched Cell 18 summary loop so `legal` and `legal_contracts` SELECT only `flags` and `data_room_gaps` (no `report_path`); report column prints `—` for those rows. Static contract tests in `tests/test_uc13_ingestion_pipeline.py`.
 - T-A2 (workflow catalog default — audit F6/W5): Set job-level `catalog` parameter default to `uc13_ale` in `uc13_ingestion_pipeline.yml` and aligned the setup header comment; added static default assertion in `tests/test_uc13_ingestion_pipeline.py`. Prevents Run Now without override from writing to the wrong catalog.
 - T-A1 (catalog threading — audit F1): Threaded runtime `catalog` through `LegalContractsAgent.run()`, all retrieval `semantic_search()` calls, and `_load_contract_triggers` / `_tool_load_company_profile` SQL; removed module-level `_CATALOG`; `main()` passes `catalog=catalog`. Closes import-time vs `get_param` catalog mismatch. See `.dev/decision-logs/m0-ta1-catalog-threading.md`.
 - T5 (M0 architecture housekeeping): Updated `.dev/architecture/rallyday/` module-map, public-interface-inventory, data-contract-registry, known-coupling-surfaces, and architecture changelog for M0 legal surfaces (`analysis.legal` + `legal_contracts` VIEW, `LegalContractsAgent`/`main()` `extraction_endpoint`); recorded charter A2 rename waiver in architecture changelog; added `analysis.legal` row to `databricks/CLAUDE.md`. Static doc contract tests in `tests/test_architecture_m0_legal.py`.
