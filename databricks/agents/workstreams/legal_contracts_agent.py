@@ -255,6 +255,84 @@ Extract legal and contract fields and return this exact JSON structure:
 
 
 # ---------------------------------------------------------------------------
+# Domain pass registry (spec §5.6.3 / §5.11)
+# ---------------------------------------------------------------------------
+
+_DOMAIN_PASS_BUDGETS: dict[str, dict] = {
+    "contracts_vendors_platform": {
+        "top_k": 14,
+        "min_chunk_length": 150,
+        "max_chars": 20_000,
+        "max_tokens": 12_000,
+        "file_name_filter": [
+            "Contract", "MSA", "Agreement", "SOW", "Customer", "Client", "Vendor", "Supplier",
+        ],
+    },
+    "employment": {
+        "top_k": 10,
+        "min_chunk_length": 150,
+        "max_chars": 15_000,
+        "max_tokens": 10_000,
+        "file_name_filter": [
+            "Employment", "Offer", "Contractor", "Commission", "Founder",
+        ],
+    },
+    "litigation": {
+        "top_k": 8,
+        "min_chunk_length": 150,
+        "max_chars": 15_000,
+        "max_tokens": 10_000,
+        "file_name_filter": [
+            "Litigation", "Dispute", "Legal", "Demand", "Regulatory",
+        ],
+    },
+    "ip_privacy": {
+        "top_k": 8,
+        "min_chunk_length": 150,
+        "max_chars": 15_000,
+        "max_tokens": 10_000,
+        "file_name_filter": [
+            "IP", "Privacy", "GDPR", "HIPAA", "OSS", "Data Processing",
+        ],
+    },
+    "insurance": {
+        "top_k": 6,
+        "min_chunk_length": 150,
+        "max_chars": 12_000,
+        "max_tokens": 8_000,
+        "file_name_filter": [
+            "Insurance", "Policy", "COI", "Indemnity",
+        ],
+    },
+}
+
+# Static registry: pass_id + budget_dict per §5.11 (retrieve/extract fns bound at runtime).
+_DOMAIN_PASSES: list[tuple[str, dict]] = [
+    (pass_id, _DOMAIN_PASS_BUDGETS[pass_id])
+    for pass_id in (
+        "contracts_vendors_platform",
+        "employment",
+        "litigation",
+        "ip_privacy",
+        "insurance",
+    )
+]
+
+
+def _bind_domain_passes(agent: "LegalContractsAgent") -> list[tuple]:
+    """Materialize full _DOMAIN_PASSES tuples with bound instance methods."""
+    return [
+        (
+            pass_id,
+            getattr(agent, f"_domain_retrieve_{pass_id}"),
+            getattr(agent, f"_extract_{pass_id}"),
+            budget,
+        )
+        for pass_id, budget in _DOMAIN_PASSES
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Agent class
 # ---------------------------------------------------------------------------
 
@@ -478,6 +556,154 @@ class LegalContractsAgent(WorkstreamAgent):
             )
 
     # -----------------------------------------------------------------------
+    # Domain pass retrieve / extract (B1 loop — stubs until T2/T3)
+    # -----------------------------------------------------------------------
+
+    def _domain_retrieve_contracts_vendors_platform(self, spark) -> "ToolResult":  # noqa: F821
+        return self._tool_call(
+            tool_name="domain_retrieve_contracts_vendors_platform",
+            input_summary="pass=contracts_vendors_platform | stub (T2)",
+            data=[],
+            output_summary="0 chunks returned from 0 files",
+            confidence="low",
+            source_docs=[],
+        )
+
+    def _domain_retrieve_employment(self, spark) -> "ToolResult":  # noqa: F821
+        return self._tool_call(
+            tool_name="domain_retrieve_employment",
+            input_summary="pass=employment | stub (T2)",
+            data=[],
+            output_summary="0 chunks returned from 0 files",
+            confidence="low",
+            source_docs=[],
+        )
+
+    def _domain_retrieve_litigation(self, spark) -> "ToolResult":  # noqa: F821
+        return self._tool_call(
+            tool_name="domain_retrieve_litigation",
+            input_summary="pass=litigation | stub (T2)",
+            data=[],
+            output_summary="0 chunks returned from 0 files",
+            confidence="low",
+            source_docs=[],
+        )
+
+    def _domain_retrieve_ip_privacy(self, spark) -> "ToolResult":  # noqa: F821
+        return self._tool_call(
+            tool_name="domain_retrieve_ip_privacy",
+            input_summary="pass=ip_privacy | stub (T2)",
+            data=[],
+            output_summary="0 chunks returned from 0 files",
+            confidence="low",
+            source_docs=[],
+        )
+
+    def _domain_retrieve_insurance(self, spark) -> "ToolResult":  # noqa: F821
+        return self._tool_call(
+            tool_name="domain_retrieve_insurance",
+            input_summary="pass=insurance | stub (T2)",
+            data=[],
+            output_summary="0 chunks returned from 0 files",
+            confidence="low",
+            source_docs=[],
+        )
+
+    def _extract_contracts_vendors_platform(
+        self,
+        chunks,
+        company_profile,
+        contract_triggers,
+        llm_endpoint: str,
+        budget: dict,
+    ) -> dict:
+        self._tool_call(
+            tool_name="domain_extract_contracts_vendors_platform",
+            input_summary=f"pass=contracts_vendors_platform | {len(chunks)} chunks | stub (T3)",
+            data=None,
+            output_summary="0 contracts, 0 vendors, 0 platform deps",
+            confidence="low",
+            source_docs=[],
+        )
+        return {
+            "contract_register": [],
+            "vendor_register": [],
+            "platform_dependency_register": [],
+        }
+
+    def _extract_employment(
+        self,
+        chunks,
+        company_profile,
+        contract_triggers,
+        llm_endpoint: str,
+        budget: dict,
+    ) -> dict:
+        self._tool_call(
+            tool_name="domain_extract_employment",
+            input_summary=f"pass=employment | {len(chunks)} chunks | stub (T3)",
+            data=None,
+            output_summary="0 employment records",
+            confidence="low",
+            source_docs=[],
+        )
+        return {"employment_register": []}
+
+    def _extract_litigation(
+        self,
+        chunks,
+        company_profile,
+        contract_triggers,
+        llm_endpoint: str,
+        budget: dict,
+    ) -> dict:
+        self._tool_call(
+            tool_name="domain_extract_litigation",
+            input_summary=f"pass=litigation | {len(chunks)} chunks | stub (T3)",
+            data=None,
+            output_summary="0 litigation records",
+            confidence="low",
+            source_docs=[],
+        )
+        return {"litigation_register": []}
+
+    def _extract_ip_privacy(
+        self,
+        chunks,
+        company_profile,
+        contract_triggers,
+        llm_endpoint: str,
+        budget: dict,
+    ) -> dict:
+        self._tool_call(
+            tool_name="domain_extract_ip_privacy",
+            input_summary=f"pass=ip_privacy | {len(chunks)} chunks | stub (T3)",
+            data=None,
+            output_summary="0 IP records, 0 privacy/security records",
+            confidence="low",
+            source_docs=[],
+        )
+        return {"ip_register": [], "privacy_security_register": []}
+
+    def _extract_insurance(
+        self,
+        chunks,
+        company_profile,
+        contract_triggers,
+        llm_endpoint: str,
+        budget: dict,
+    ) -> dict:
+        self._tool_call(
+            tool_name="domain_extract_insurance",
+            input_summary=f"pass=insurance | {len(chunks)} chunks | stub (T3)",
+            data=None,
+            output_summary="0 insurance records",
+            confidence="low",
+            source_docs=[],
+        )
+        return {"insurance_register": []}
+
+    # -----------------------------------------------------------------------
     # Roll-up computations (deterministic Python — no LLM)
     # -----------------------------------------------------------------------
 
@@ -692,97 +918,61 @@ class LegalContractsAgent(WorkstreamAgent):
         self._reset_state()
         self._company_name = company_name
         self._catalog = catalog
+
+        # Stage 1 — company profile + contract triggers (D8a: read-only triggers)
         print(f"  Loading contract triggers ...")
         contract_triggers = self._load_contract_triggers(company_name, spark)
 
-        print(f"  Running 6 retrieval tools ...")
-        tr1 = self._tool_retrieve_material_contracts(spark)
-        tr2 = self._tool_retrieve_coc_and_termination(spark)
-        tr3 = self._tool_retrieve_restrictive_covenants(spark)
-        tr4 = self._tool_retrieve_litigation(spark)
-        tr5 = self._tool_retrieve_ip_and_data(spark)
-        tr6 = self._tool_load_company_profile(company_name, spark)
+        print(f"  Loading company profile ...")
+        profile_result = self._tool_load_company_profile(company_name, spark)
+        company_profile = profile_result.data
 
-        seen_texts: set = set()
-        all_chunks = []
-        for tr in (tr1, tr2, tr3, tr4, tr5):
-            for chunk in (tr.data or []):
-                if chunk.chunk_text not in seen_texts:
-                    seen_texts.add(chunk.chunk_text)
-                    all_chunks.append(chunk)
+        # Pass-owned register accumulators (M1 interim — no cross-pass merge)
+        registers: dict[str, list] = {
+            "contract_register": [],
+            "vendor_register": [],
+            "platform_dependency_register": [],
+            "employment_register": [],
+            "litigation_register": [],
+            "ip_register": [],
+            "privacy_security_register": [],
+            "insurance_register": [],
+        }
 
-        combined_chunk_text = "\n\n---\n\n".join(
-            f"[File: {c.file_name}] [Section: {c.section_header}]\n{c.chunk_text}"
-            for c in all_chunks
-        )
+        domain_passes = _bind_domain_passes(self)
+        print(f"  Running {len(domain_passes)} domain passes ...")
+        for pass_id, retrieve_fn, extract_fn, budget in domain_passes:
+            retrieve_result = retrieve_fn(spark)
+            chunks = retrieve_result.data or []
+            print(f"    [{pass_id}] retrieve: {len(chunks)} chunks")
 
-        profile_dict = tr6.data
-        company_profile_json = json.dumps(profile_dict, default=str) if profile_dict else "{}"
-
-        trigger_context = (
-            f"CONTRACT REVIEW TRIGGERS (customers >20% revenue from Customer Quality Agent):\n"
-            f"{json.dumps(contract_triggers, indent=2)}"
-            if contract_triggers
-            else (
-                "CONTRACT REVIEW TRIGGERS: None loaded — "
-                "Customer Quality Agent output not available."
+            extracted = extract_fn(
+                chunks,
+                company_profile,
+                contract_triggers,
+                llm_endpoint,
+                budget,
             )
-        )
+            for key, rows in extracted.items():
+                if key in registers and rows:
+                    registers[key].extend(rows)
 
-        print("  Calling LLM for extraction ...")
-        user_prompt = _USER_PROMPT_TEMPLATE.format(
-            company_profile_json=company_profile_json,
-            trigger_context=trigger_context,
-            combined_chunk_text=combined_chunk_text,
-        )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, llm_endpoint)
-        extracted = self._parse_json_response(raw_response)
-
-        llm_step = len(self._trace) + 1
-        self._trace.append({
-            "step":       llm_step,
-            "tool":       "llm_extraction",
-            "input":      (
-                f"combined context: {len(all_chunks)} deduplicated chunks, "
-                f"{len(contract_triggers)} triggers"
-            ),
-            "output":     (
-                f"Extracted {len(extracted.get('contract_register') or [])} contracts, "
-                f"{len(extracted.get('litigation_register') or [])} litigation items"
-            ),
-            "confidence": "high" if all_chunks else "low",
-            "sources":    list({c.file_name for c in all_chunks}),
-        })
-
-        for cit in (extracted.get("citations") or []):
-            self._add_citation(
-                claim=cit.get("field", ""),
-                document=cit.get("document", ""),
-                location=cit.get("location", ""),
-                confidence=cit.get("confidence", "low"),
-                raw_text=cit.get("quote", ""),
+            register_summary = ", ".join(
+                f"{k}={len(extracted.get(k, []))}"
+                for k in sorted(extracted.keys())
             )
-
-        contract_register = extracted.get("contract_register") or []
-        litigation_register = extracted.get("litigation_register") or []
-
-        coc_consent_list = self._build_coc_consent_list(contract_register)
-        termination_exposure = self._build_termination_exposure(contract_register)
-        covenant_map = self._build_restrictive_covenant_map(contract_register)
-
-        print("  Applying legal threshold flags ...")
-        self._apply_legal_flags(extracted, contract_triggers)
+            print(f"    [{pass_id}] extract: {register_summary}")
 
         return {
             "company_name":                  company_name,
-            "executive_summary":             extracted.get("executive_summary"),
-            "contract_register_json":        json.dumps(contract_register),
-            "litigation_register_json":      json.dumps(litigation_register),
-            "coc_consent_list_json":         json.dumps(coc_consent_list),
-            "termination_exposure_json":     json.dumps(termination_exposure),
-            "restrictive_covenant_map_json": json.dumps(covenant_map),
+            "executive_summary":             None,
+            "contract_register_json":        json.dumps(registers["contract_register"]),
+            "litigation_register_json":      json.dumps(registers["litigation_register"]),
+            "coc_consent_list_json":         json.dumps([]),
+            "termination_exposure_json":     json.dumps([]),
+            "restrictive_covenant_map_json": json.dumps([]),
             "triggered_reviews_loaded":      len(contract_triggers),
-            "flags":                         self._flags_as_dicts(),
+            "flags":                         [],
             "data_room_gaps":                list(self._data_room_gaps),
             "citations":                     json.dumps(self._citations_as_dicts()),
             "reasoning_trace":               list(self._trace),
