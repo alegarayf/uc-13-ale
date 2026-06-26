@@ -56,6 +56,16 @@ def test_job_parameters_include_extraction_endpoint():
     assert "- name: extraction_endpoint" in _WORKFLOW_SOURCE
 
 
+def test_job_catalog_parameter_default_is_uc13_ale():
+    """Falsifier: Run Now without override must not target catalog uc13."""
+    match = re.search(
+        r"- name: catalog\s+default: \"([^\"]+)\"",
+        _WORKFLOW_SOURCE,
+    )
+    assert match is not None
+    assert match.group(1) == "uc13_ale"
+
+
 def test_notebook_cell18_includes_legal_and_legal_contracts_tables():
     src = _notebook_joined_source()
     assert '"legal":' in src and ".analysis.legal" in src
