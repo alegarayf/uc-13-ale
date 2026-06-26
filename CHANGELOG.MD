@@ -2,6 +2,7 @@
 
 ## uc13-m0-corpus-baseline-platform-setup — 2026-06-25
 
+- T3 (A4 Delta DDL + main storage): Migrated `legal_contracts_agent.main()` to Appendix A `analysis.legal` Delta DDL, dropped legacy `legal_contracts` table, added compat VIEW, remapped legacy `run()` output with empty JSON for MVP-only columns, and wired `extraction_endpoint`/`llm_endpoint` params (catalog default `uc13_ale`). See `.dev/decision-logs/m0-t3-legal-delta-ddl.md`.
 - T2 (A1 legacy baseline): Ran `legal_contracts_agent.main()` on Elder Care (`catalog=uc13_ale`, Sonnet LLM) via serverless job; saved `.dev/legal_agent/baselines/baseline_elder_care_legal_contracts_report.yaml` from Volume output with A0 reconciliation header (`report.agent=legal_contracts`, 14 contract_register entries). Deferred automated baseline-structure pytest — M0 non-goal; manual YAML validation passed.
 
 ## uc13-remediation-plan — 2026-06-23

@@ -9,7 +9,8 @@ Does not provide legal advice. Produces a structured contract register and CoC
 consent list for the deal team and outside counsel.
 
 Phase 3 outputs:
-  - Table uc13.analysis.legal_contracts
+  - Table {catalog}.analysis.legal (M0 write target)
+  - Compat view {catalog}.analysis.legal_contracts (legacy consumers)
 
 Dependencies:
   - uc13.ingestion.embeddings
@@ -851,26 +852,115 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Delta table DDL
+# Delta table DDL — Appendix A (legal_agent.md v0.2.2)
 # ---------------------------------------------------------------------------
 
-_CREATE_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS {table} (
-    company_name                  STRING,
-    executive_summary             STRING,
-    contract_register_json        STRING,
-    litigation_register_json      STRING,
-    coc_consent_list_json         STRING,
-    termination_exposure_json     STRING,
-    restrictive_covenant_map_json STRING,
-    triggered_reviews_loaded      INT,
-    flags                         STRING,
-    data_room_gaps                ARRAY<STRING>,
-    citations                     STRING,
-    reasoning_trace               STRING,
-    created_at                    TIMESTAMP
+_EXPECTED_COLS = {
+    "company_name",
+    "executive_summary",
+    "section_confidence",
+    "contract_register_json",
+    "vendor_register_json",
+    "platform_dependency_register_json",
+    "employment_register_json",
+    "litigation_register_json",
+    "privacy_security_register_json",
+    "ip_register_json",
+    "insurance_register_json",
+    "coc_consent_list_json",
+    "termination_exposure_json",
+    "restrictive_covenant_map_json",
+    "unable_to_assess_json",
+    "recommended_diligence_json",
+    "flags",
+    "data_room_gaps",
+    "citations",
+    "reasoning_trace",
+    "created_at",
+}
+
+_CREATE_LEGAL_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS {catalog}.analysis.legal (
+    company_name                          STRING,
+    executive_summary                     STRING,
+    section_confidence                    STRING,
+    contract_register_json                STRING,
+    vendor_register_json                  STRING,
+    platform_dependency_register_json     STRING,
+    employment_register_json              STRING,
+    litigation_register_json              STRING,
+    privacy_security_register_json        STRING,
+    ip_register_json                      STRING,
+    insurance_register_json               STRING,
+    coc_consent_list_json                 STRING,
+    termination_exposure_json             STRING,
+    restrictive_covenant_map_json         STRING,
+    unable_to_assess_json                 STRING,
+    recommended_diligence_json            STRING,
+    flags                                 STRING,
+    data_room_gaps                        ARRAY<STRING>,
+    citations                             STRING,
+    reasoning_trace                       STRING,
+    created_at                            TIMESTAMP
 ) USING DELTA
 """
+
+_CREATE_LEGAL_CONTRACTS_VIEW_SQL = """
+CREATE OR REPLACE VIEW {catalog}.analysis.legal_contracts AS
+SELECT
+  company_name, executive_summary,
+  contract_register_json, litigation_register_json,
+  coc_consent_list_json, termination_exposure_json, restrictive_covenant_map_json,
+  0 AS triggered_reviews_loaded,
+  flags, data_room_gaps, citations, reasoning_trace, created_at
+FROM {catalog}.analysis.legal
+"""
+
+
+def _map_legacy_result_to_legal_row(result: dict) -> dict:
+    """Map legacy run() output to analysis.legal row; MVP-only columns get empty JSON."""
+    return {
+        "company_name":                  result["company_name"],
+        "executive_summary":             result.get("executive_summary"),
+        "section_confidence":            None,
+        "contract_register_json":        result.get("contract_register_json"),
+        "vendor_register_json":          "[]",
+        "platform_dependency_register_json": "[]",
+        "employment_register_json":      "[]",
+        "litigation_register_json":      result.get("litigation_register_json"),
+        "privacy_security_register_json": "[]",
+        "ip_register_json":              "[]",
+        "insurance_register_json":       "[]",
+        "coc_consent_list_json":         result.get("coc_consent_list_json"),
+        "termination_exposure_json":     result.get("termination_exposure_json"),
+        "restrictive_covenant_map_json": result.get("restrictive_covenant_map_json"),
+        "unable_to_assess_json":         "[]",
+        "recommended_diligence_json":    "[]",
+        "flags":                         json.dumps(result.get("flags") or []),
+        "data_room_gaps":                result.get("data_room_gaps") or [],
+        "citations":                     result.get("citations"),
+        "reasoning_trace":               json.dumps(result.get("reasoning_trace") or []),
+        "created_at":                    datetime.now(timezone.utc),
+    }
+
+
+def _ensure_legal_storage(catalog: str, spark) -> None:
+    """Idempotent Appendix A DDL: analysis.legal table + legal_contracts compat view."""
+    legal_table = f"{catalog}.analysis.legal"
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
+
+    try:
+        live_cols = {f.name for f in spark.table(legal_table).schema.fields}
+        if not _EXPECTED_COLS.issubset(live_cols):
+            missing = _EXPECTED_COLS - live_cols
+            print(f"  [schema_migration] {legal_table}: dropping stale table. Missing: {sorted(missing)}")
+            spark.sql(f"DROP TABLE IF EXISTS {legal_table}")
+    except Exception:
+        pass
+
+    spark.sql(_CREATE_LEGAL_TABLE_SQL.format(catalog=catalog))
+    spark.sql(f"DROP TABLE IF EXISTS {catalog}.analysis.legal_contracts")
+    spark.sql(_CREATE_LEGAL_CONTRACTS_VIEW_SQL.format(catalog=catalog))
 
 
 # ---------------------------------------------------------------------------
@@ -882,9 +972,10 @@ def main() -> dict:
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
 
-    company_name = get_param("sp_company_name")
-    catalog      = get_param("catalog",      default="uc13")
-    llm_endpoint = get_param("llm_endpoint", default="databricks-meta-llama-3-3-70b-instruct")
+    company_name        = get_param("sp_company_name")
+    catalog             = get_param("catalog",             default="uc13_ale")
+    extraction_endpoint = get_param("extraction_endpoint", default="databricks-claude-sonnet-4-6")
+    llm_endpoint        = get_param("llm_endpoint",        default=extraction_endpoint)
 
     from pyspark.sql import SparkSession
     spark = SparkSession.getActiveSession()
@@ -892,57 +983,57 @@ def main() -> dict:
         raise RuntimeError("No active Spark session.")
 
     print(f"\n=== Legal Contracts Agent ({company_name}) ===")
+    print(f"  catalog={catalog}  extraction_endpoint={extraction_endpoint}  llm_endpoint={llm_endpoint}")
+    print(f"  write target={catalog}.analysis.legal")
+
+    _ensure_legal_storage(catalog, spark)
 
     agent = LegalContractsAgent()
-    result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint)
+    result = agent.run(
+        company_name=company_name,
+        spark=spark,
+        llm_endpoint=extraction_endpoint or llm_endpoint,
+    )
 
-    table = f"{catalog}.analysis.legal_contracts"
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
-    spark.sql(_CREATE_TABLE_SQL.format(table=table))
+    table = f"{catalog}.analysis.legal"
     spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
     from pyspark.sql import Row
     from pyspark.sql.types import (
-        StructType, StructField, StringType, IntegerType,
+        StructType, StructField, StringType,
         ArrayType, TimestampType,
     )
 
     schema = StructType([
-        StructField("company_name",                  StringType(),           True),
-        StructField("executive_summary",             StringType(),           True),
-        StructField("contract_register_json",        StringType(),           True),
-        StructField("litigation_register_json",      StringType(),           True),
-        StructField("coc_consent_list_json",         StringType(),           True),
-        StructField("termination_exposure_json",     StringType(),           True),
-        StructField("restrictive_covenant_map_json", StringType(),           True),
-        StructField("triggered_reviews_loaded",      IntegerType(),          True),
-        StructField("flags",                         StringType(),           True),
-        StructField("data_room_gaps",                ArrayType(StringType()), True),
-        StructField("citations",                     StringType(),           True),
-        StructField("reasoning_trace",               StringType(),           True),
-        StructField("created_at",                    TimestampType(),        True),
+        StructField("company_name",                          StringType(),            True),
+        StructField("executive_summary",                     StringType(),            True),
+        StructField("section_confidence",                    StringType(),            True),
+        StructField("contract_register_json",                StringType(),            True),
+        StructField("vendor_register_json",                  StringType(),            True),
+        StructField("platform_dependency_register_json",     StringType(),            True),
+        StructField("employment_register_json",              StringType(),            True),
+        StructField("litigation_register_json",              StringType(),            True),
+        StructField("privacy_security_register_json",        StringType(),            True),
+        StructField("ip_register_json",                      StringType(),            True),
+        StructField("insurance_register_json",               StringType(),            True),
+        StructField("coc_consent_list_json",                 StringType(),            True),
+        StructField("termination_exposure_json",             StringType(),            True),
+        StructField("restrictive_covenant_map_json",         StringType(),            True),
+        StructField("unable_to_assess_json",                 StringType(),            True),
+        StructField("recommended_diligence_json",            StringType(),            True),
+        StructField("flags",                                 StringType(),            True),
+        StructField("data_room_gaps",                        ArrayType(StringType()), True),
+        StructField("citations",                             StringType(),            True),
+        StructField("reasoning_trace",                       StringType(),            True),
+        StructField("created_at",                            TimestampType(),         True),
     ])
 
-    row_data = {
-        "company_name":                  result["company_name"],
-        "executive_summary":             result.get("executive_summary"),
-        "contract_register_json":        result.get("contract_register_json"),
-        "litigation_register_json":      result.get("litigation_register_json"),
-        "coc_consent_list_json":         result.get("coc_consent_list_json"),
-        "termination_exposure_json":     result.get("termination_exposure_json"),
-        "restrictive_covenant_map_json": result.get("restrictive_covenant_map_json"),
-        "triggered_reviews_loaded":      result.get("triggered_reviews_loaded", 0),
-        "flags":                         json.dumps(result.get("flags") or []),
-        "data_room_gaps":                result.get("data_room_gaps") or [],
-        "citations":                     result.get("citations"),
-        "reasoning_trace":               json.dumps(result.get("reasoning_trace") or []),
-        "created_at":                    datetime.now(timezone.utc),
-    }
+    row_data = _map_legacy_result_to_legal_row(result)
 
     df = spark.createDataFrame([Row(**row_data)], schema=schema)
     df.write.format("delta").mode("append").saveAsTable(table)
 
-    print(f"\n✓ Saved legal contracts output → {table}")
+    print(f"\n✓ Saved legal output → {table}")
 
     report_path = _write_stakeholder_report(result, catalog, spark)
     result["report_path"] = report_path
