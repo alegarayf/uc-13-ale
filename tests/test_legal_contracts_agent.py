@@ -93,14 +93,17 @@ def test_map_legacy_result_populates_legacy_keys_and_maps_pass_registers():
     keys = {k.value for k in returns[0].value.keys if isinstance(k, ast.Constant)}
     assert keys == APPENDIX_A_COLS
     source_segment = ast.get_source_segment(_AGENT_SOURCE, returns[0].value) or ""
-    assert '"section_confidence":            None' in source_segment
+    assert 'result.get("section_confidence")' in source_segment
     assert 'result.get("vendor_register_json", "[]")' in source_segment
     assert 'result.get("platform_dependency_register_json", "[]")' in source_segment
     assert 'result.get("employment_register_json", "[]")' in source_segment
     assert 'result.get("ip_register_json", "[]")' in source_segment
     assert 'result.get("privacy_security_register_json", "[]")' in source_segment
     assert 'result.get("insurance_register_json", "[]")' in source_segment
-    assert '"unable_to_assess_json":         "[]"' in source_segment
+    assert 'result.get("unable_to_assess_json")' in source_segment
+    assert 'result.get("recommended_diligence_json")' in source_segment
+    assert '"unable_to_assess_json":         "[]"' not in source_segment
+    assert '"recommended_diligence_json":    "[]"' not in source_segment
     assert "triggered_reviews_loaded" not in source_segment
 
 
