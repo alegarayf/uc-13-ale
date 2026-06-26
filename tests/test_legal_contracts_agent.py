@@ -174,3 +174,43 @@ def test_main_passes_catalog_to_run():
     main_body = _function_body_source("main")
     assert "catalog=catalog" in main_body
     assert "_CATALOG" not in _AGENT_SOURCE
+
+
+def test_semantic_search_with_fallback_passes_catalog_on_both_paths():
+    """Falsifier: fallback retry must not drop catalog=self._catalog (D3a / uc13_ale VS index)."""
+    body = _method_body_source("LegalContractsAgent", "_semantic_search_with_fallback")
+    assert body.count("catalog=self._catalog") >= 2
+    assert '"tool":       "retrieval_fallback"' in body or '"tool": "retrieval_fallback"' in body
+
+
+def test_domain_retrieve_methods_delegate_to_semantic_search_with_fallback():
+    for pass_id in (
+        "contracts_vendors_platform",
+        "employment",
+        "litigation",
+        "ip_privacy",
+        "insurance",
+    ):
+        body = _method_body_source("LegalContractsAgent", f"_domain_retrieve_{pass_id}")
+        assert "_domain_retrieve_pass" in body
+
+
+def test_domain_retrieve_pass_emits_domain_retrieve_trace_tool():
+    body = _method_body_source("LegalContractsAgent", "_domain_retrieve_pass")
+    assert 'tool_name=f"domain_retrieve_{pass_id}"' in body
+    assert "_semantic_search_with_fallback" in body
+
+
+def test_a0_tuned_employment_and_litigation_filename_filters():
+    """Falsifier: MVP defaults that returned 0 chunks on Elder Care must be retuned."""
+    assert '"Handbook"' in _AGENT_SOURCE
+    assert '"Orientation"' in _AGENT_SOURCE
+    assert '"Survey"' in _AGENT_SOURCE
+    assert '"DOH"' in _AGENT_SOURCE
+
+
+def test_does_not_import_financial_semantic_search_with_fallback():
+    """Falsifier: shared financial fallback defaults catalog to uc13 — legal agent uses own method."""
+    assert "from agents.subagents.workstream.financial.context_utils import" not in _AGENT_SOURCE
+    assert "context_utils.semantic_search_with_fallback" not in _AGENT_SOURCE
+    assert "_semantic_search_with_fallback" in _AGENT_SOURCE
