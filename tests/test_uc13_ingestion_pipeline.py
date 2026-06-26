@@ -72,6 +72,42 @@ def test_notebook_cell18_includes_legal_and_legal_contracts_tables():
     assert '"legal_contracts":' in src and ".analysis.legal_contracts" in src
 
 
+def _cell18_summary_loop_source() -> str:
+    """Return Cell 18 summary-loop source (before detailed flag sub-loop)."""
+    src = _notebook_joined_source()
+    start = src.index("# ── Cell 18:")
+    end = src.index("# Detailed flag summary across all agents", start)
+    return src[start:end]
+
+
+def test_notebook_cell18_legal_tables_omit_report_path_select():
+    """Falsifier: legal/legal_contracts must not SELECT report_path (Appendix A has no column)."""
+    loop = _cell18_summary_loop_source()
+    legal_branch = loop[loop.index('if label in ("legal", "legal_contracts")'):]
+    assert "report_path" not in legal_branch.split("else:")[0]
+    assert "SELECT flags, data_room_gaps" in legal_branch
+
+
+def test_notebook_cell18_non_legal_tables_keep_report_path_select():
+    """Falsifier: non-legal agents must still SELECT report_path in the else branch."""
+    loop = _cell18_summary_loop_source()
+    match = re.search(
+        r'else:\s+rows = spark\.sql\(f"""\s+SELECT flags, data_room_gaps, report_path',
+        loop,
+        re.DOTALL,
+    )
+    assert match is not None
+
+
+def test_notebook_cell18_flag_detail_subloop_unchanged():
+    """Adversarial: detailed flag sub-loop must still SELECT flags only."""
+    src = _notebook_joined_source()
+    start = src.index("# Detailed flag summary across all agents")
+    detail_loop = src[start : start + 400]
+    assert "SELECT flags FROM" in detail_loop
+    assert "report_path" not in detail_loop
+
+
 def test_notebook_removes_cqa_before_legal_ordering():
     src = _notebook_joined_source()
     assert "run Cell 14 before Cell 16" not in src
