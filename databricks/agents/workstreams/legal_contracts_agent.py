@@ -142,6 +142,120 @@ def _parse_int(value) -> Optional[int]:
         return None
 
 
+def _is_true(value) -> bool:
+    """True only for string token 'true' (case-insensitive) — §5.6.1."""
+    return str(value or "").strip().lower() == "true"
+
+
+def _is_not_found(value) -> bool:
+    """True when LLM emitted the not_found tri-state token — §5.6.1."""
+    return str(value or "").strip().lower() == "not_found"
+
+
+def _eq_str(value, expected: str) -> bool:
+    """Case-insensitive string equality for LLM string tokens — §5.6.1."""
+    return str(value or "").strip().lower() == expected.lower()
+
+
+def _normalize_name(value) -> str:
+    """Strip, collapse whitespace, casefold for within-register dedupe keys — §5.6.2."""
+    return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+
+
+def _raw_quote_len(record: dict) -> int:
+    return len(str(record.get("raw_quote") or ""))
+
+
+def _union_citation_field(existing, incoming) -> str:
+    """Union source_doc / raw_quote values when dedupe merges rows — §5.6.2."""
+    parts: list[str] = []
+    for value in (existing, incoming):
+        text = str(value or "").strip()
+        if text and text not in parts:
+            parts.append(text)
+    if parts:
+        return " | ".join(parts)
+    return str(existing or incoming or "")
+
+
+def _merge_nested_dicts(base: dict, overlay: dict) -> dict:
+    """Merge nested clause dicts; non-null fields from both sides are retained."""
+    merged = dict(base)
+    for key, val in overlay.items():
+        if val is None:
+            continue
+        if key not in merged or merged[key] is None:
+            merged[key] = val
+        elif isinstance(merged[key], dict) and isinstance(val, dict):
+            merged[key] = _merge_nested_dicts(merged[key], val)
+    return merged
+
+
+def _merge_register_records(existing: dict, incoming: dict) -> dict:
+    """Within-register conflict resolution — prefer row with longer raw_quote — §5.6.2."""
+    preferred = existing if _raw_quote_len(existing) >= _raw_quote_len(incoming) else incoming
+    other = incoming if preferred is existing else existing
+    merged = dict(preferred)
+    for key, val in other.items():
+        if val is None:
+            continue
+        if key not in merged or merged[key] is None:
+            merged[key] = val
+        elif key in ("source_doc", "raw_quote"):
+            merged[key] = _union_citation_field(merged[key], val)
+        elif isinstance(merged[key], dict) and isinstance(val, dict):
+            merged[key] = _merge_nested_dicts(merged[key], val)
+    return merged
+
+
+def _register_dedupe_key(register_name: str, record: dict) -> tuple:
+    """Compute within-register dedupe key per §5.6.2 / §5.8 shapes."""
+    if register_name == "contract_register":
+        return (
+            _normalize_name(record.get("counterparty_name")),
+            str(record.get("contract_type") or "").strip().lower(),
+        )
+    if register_name == "vendor_register":
+        return (
+            _normalize_name(record.get("vendor_name")),
+            str(record.get("agreement_type") or "").strip().lower(),
+        )
+    if register_name == "employment_register":
+        return (
+            _normalize_name(record.get("person_or_role")),
+            str(record.get("agreement_class") or "").strip().lower(),
+        )
+    if register_name == "platform_dependency_register":
+        return (
+            _normalize_name(record.get("platform_or_channel_name")),
+            str(record.get("dependency_type") or "").strip().lower(),
+        )
+    if register_name == "litigation_register":
+        primary = record.get("counterparty") or record.get("description")
+        return (
+            _normalize_name(primary),
+            str(record.get("matter_type") or "").strip().lower(),
+        )
+    if register_name == "ip_register":
+        primary = record.get("ownership_assignment_note") or record.get("open_source_exposure_note")
+        return (
+            _normalize_name(primary),
+            str(record.get("ip_type") or "").strip().lower(),
+        )
+    if register_name == "privacy_security_register":
+        return (
+            _normalize_name(record.get("description")),
+            str(record.get("obligation_type") or "").strip().lower(),
+        )
+    if register_name == "insurance_register":
+        primary = record.get("coverage_note") or record.get("gap_or_unusual_term_note")
+        return (
+            _normalize_name(primary),
+            str(record.get("policy_type") or "").strip().lower(),
+        )
+    raise ValueError(f"Unknown register for dedupe: {register_name}")
+
+
 # ---------------------------------------------------------------------------
 # Per-pass LLM prompts (spec §5.8.1–5.8.5 — normative field names per D2a)
 # ---------------------------------------------------------------------------
@@ -966,11 +1080,74 @@ class LegalContractsAgent(WorkstreamAgent):
         )
 
     # -----------------------------------------------------------------------
+    # Post-loop register merge (spec §5.6.2)
+    # -----------------------------------------------------------------------
+
+    def _merge_registers(self, registers: dict[str, list]) -> dict[str, list]:
+        """Within-register dedupe after per-pass extend; no cross-register merge."""
+        merged: dict[str, list] = {}
+        dedupe_stats: dict[str, dict] = {}
+        merge_notes: list[str] = []
+
+        for register_name, rows in registers.items():
+            if not rows:
+                merged[register_name] = []
+                dedupe_stats[register_name] = {"input": 0, "output": 0, "collisions": 0}
+                continue
+
+            by_key: dict[tuple, dict] = {}
+            collisions = 0
+            for row in rows:
+                key = _register_dedupe_key(register_name, row)
+                if key in by_key:
+                    collisions += 1
+                    merge_notes.append(
+                        f"{register_name}: merged duplicate key {key!r} "
+                        f"(kept longer raw_quote)"
+                    )
+                    by_key[key] = _merge_register_records(by_key[key], row)
+                else:
+                    by_key[key] = dict(row)
+
+            merged[register_name] = list(by_key.values())
+            dedupe_stats[register_name] = {
+                "input": len(rows),
+                "output": len(merged[register_name]),
+                "collisions": collisions,
+            }
+
+        step = len(self._trace) + 1
+        summary = ", ".join(
+            f"{name}={stats['input']}→{stats['output']}"
+            for name, stats in sorted(dedupe_stats.items())
+        )
+        self._trace.append({
+            "step":       step,
+            "tool":       "merge_registers",
+            "input":      f"registers pre-merge ({summary})",
+            "output":     json.dumps(dedupe_stats),
+            "confidence": "high",
+            "sources":    [],
+        })
+        if merge_notes:
+            note_step = len(self._trace) + 1
+            self._trace.append({
+                "step":       note_step,
+                "tool":       "merge_registers",
+                "input":      "within-register dedupe collisions",
+                "output":     "; ".join(merge_notes[:20]),
+                "confidence": "high",
+                "sources":    [],
+            })
+        print(f"  Step {step} [merge_registers]: {summary}")
+        return merged
+
+    # -----------------------------------------------------------------------
     # Roll-up computations (deterministic Python — no LLM)
     # -----------------------------------------------------------------------
 
     def _build_coc_consent_list(self, contract_register: list) -> list:
-        """All contracts where change_of_control.consent_required == 'true'."""
+        """All contracts where change_of_control.consent_required is tri-state true."""
         return [
             {
                 "contract_id": c.get("contract_id"),
@@ -979,7 +1156,7 @@ class LegalContractsAgent(WorkstreamAgent):
                 "consent_standard_note": c.get("change_of_control", {}).get("consent_standard"),
             }
             for c in contract_register
-            if str(c.get("change_of_control", {}).get("consent_required", "")).lower() == "true"
+            if _is_true(c.get("change_of_control", {}).get("consent_required"))
         ]
 
     def _build_termination_exposure(self, contract_register: list) -> list:
@@ -987,7 +1164,7 @@ class LegalContractsAgent(WorkstreamAgent):
         result = []
         for c in contract_register:
             tfc = c.get("termination_for_convenience", {})
-            if str(tfc.get("present", "")).lower() != "true":
+            if not _is_true(tfc.get("present")):
                 continue
             notice = _parse_int(tfc.get("notice_days"))
             if notice is not None and notice < 90:
@@ -1004,10 +1181,10 @@ class LegalContractsAgent(WorkstreamAgent):
             {
                 "contract_id": c.get("contract_id"),
                 "counterparty_name": c.get("counterparty_name"),
-                "scope_note": c.get("exclusivity_mfn_noncompete", {}).get("scope_note"),
+                "scope_note": c.get("restrictive_covenants", {}).get("scope_note"),
             }
             for c in contract_register
-            if str(c.get("exclusivity_mfn_noncompete", {}).get("present", "")).lower() == "true"
+            if _is_true(c.get("restrictive_covenants", {}).get("present"))
         ]
 
     # -----------------------------------------------------------------------
