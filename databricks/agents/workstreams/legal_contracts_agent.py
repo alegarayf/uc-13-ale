@@ -29,8 +29,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-_CATALOG = os.environ.get("catalog", "uc13")
-
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from financial_trends_agent.py
 # ---------------------------------------------------------------------------
@@ -293,7 +291,7 @@ class LegalContractsAgent(WorkstreamAgent):
         """
         try:
             rows = spark.sql(f"""
-                SELECT contract_trigger_list FROM {_CATALOG}.analysis.customer_quality
+                SELECT contract_trigger_list FROM {self._catalog}.analysis.customer_quality
                 WHERE company_name = '{company_name}'
                 ORDER BY created_at DESC LIMIT 1
             """).collect()
@@ -325,6 +323,7 @@ class LegalContractsAgent(WorkstreamAgent):
             workstream_filter=["LEGAL"],
             file_name_filter=["Contract", "MSA", "Agreement", "SOW", "Customer", "Client"],
             min_chunk_length=150,
+            catalog=self._catalog,
         )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
@@ -350,6 +349,7 @@ class LegalContractsAgent(WorkstreamAgent):
             top_k=10,
             workstream_filter=["LEGAL"],
             min_chunk_length=150,
+            catalog=self._catalog,
         )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
@@ -375,6 +375,7 @@ class LegalContractsAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["LEGAL"],
             min_chunk_length=150,
+            catalog=self._catalog,
         )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
@@ -400,6 +401,7 @@ class LegalContractsAgent(WorkstreamAgent):
             top_k=8,
             workstream_filter=["LEGAL"],
             min_chunk_length=150,
+            catalog=self._catalog,
         )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
@@ -425,6 +427,7 @@ class LegalContractsAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["LEGAL"],
             min_chunk_length=150,
+            catalog=self._catalog,
         )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
@@ -440,7 +443,7 @@ class LegalContractsAgent(WorkstreamAgent):
     def _tool_load_company_profile(self, company_name: str, spark) -> "ToolResult":  # noqa: F821
         try:
             rows = spark.sql(
-                f"SELECT * FROM {_CATALOG}.classification.company_profile "
+                f"SELECT * FROM {self._catalog}.classification.company_profile "
                 f"WHERE company_name = '{company_name}' "
                 f"ORDER BY created_at DESC LIMIT 1"
             ).collect()
@@ -448,7 +451,7 @@ class LegalContractsAgent(WorkstreamAgent):
                 self._add_gap("company_profile not found — run company_profiler.py first")
                 return self._tool_call(
                     tool_name="load_company_profile",
-                    input_summary=f"SELECT * FROM {_CATALOG}.classification.company_profile WHERE company_name='{company_name}'",
+                    input_summary=f"SELECT * FROM {self._catalog}.classification.company_profile WHERE company_name='{company_name}'",
                     data=None,
                     output_summary="No rows returned — company_profile not found",
                     confidence="low",
@@ -457,17 +460,17 @@ class LegalContractsAgent(WorkstreamAgent):
             row_dict = rows[0].asDict()
             return self._tool_call(
                 tool_name="load_company_profile",
-                input_summary=f"SELECT * FROM {_CATALOG}.classification.company_profile WHERE company_name='{company_name}'",
+                input_summary=f"SELECT * FROM {self._catalog}.classification.company_profile WHERE company_name='{company_name}'",
                 data=row_dict,
                 output_summary=f"Company profile loaded for '{company_name}'",
                 confidence="high",
-                source_docs=[f"{_CATALOG}.classification.company_profile"],
+                source_docs=[f"{self._catalog}.classification.company_profile"],
             )
         except Exception as exc:
             self._add_gap(f"company_profile query failed: {exc} — run company_profiler.py first")
             return self._tool_call(
                 tool_name="load_company_profile",
-                input_summary=f"SELECT * FROM {_CATALOG}.classification.company_profile WHERE company_name='{company_name}'",
+                input_summary=f"SELECT * FROM {self._catalog}.classification.company_profile WHERE company_name='{company_name}'",
                 data=None,
                 output_summary=f"Query failed: {exc}",
                 confidence="low",
@@ -685,9 +688,10 @@ class LegalContractsAgent(WorkstreamAgent):
     # run()
     # -----------------------------------------------------------------------
 
-    def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
+    def run(self, company_name: str, spark, llm_endpoint: str, catalog: str) -> dict:
         self._reset_state()
         self._company_name = company_name
+        self._catalog = catalog
         print(f"  Loading contract triggers ...")
         contract_triggers = self._load_contract_triggers(company_name, spark)
 
@@ -993,6 +997,7 @@ def main() -> dict:
         company_name=company_name,
         spark=spark,
         llm_endpoint=extraction_endpoint or llm_endpoint,
+        catalog=catalog,
     )
 
     table = f"{catalog}.analysis.legal"
