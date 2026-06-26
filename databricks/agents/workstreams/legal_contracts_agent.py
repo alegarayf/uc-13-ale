@@ -633,6 +633,201 @@ _DOMAIN_PASSES: list[tuple[str, dict]] = [
     )
 ]
 
+_DOMAIN_PASS_IDS: frozenset[str] = frozenset(pass_id for pass_id, _ in _DOMAIN_PASSES)
+
+
+def _has_source_doc(record: dict) -> bool:
+    """True when register row carries a non-empty source_doc citation."""
+    return bool(str(record.get("source_doc") or "").strip())
+
+
+def _pred_t4c(merged: dict) -> bool:
+    for row in merged.get("contract_register") or []:
+        if not _has_source_doc(row):
+            continue
+        tfc = row.get("termination_for_convenience") or {}
+        if not _is_not_found(tfc.get("present")):
+            return True
+    return False
+
+
+def _pred_coc(merged: dict) -> bool:
+    for row in merged.get("contract_register") or []:
+        if not _has_source_doc(row):
+            continue
+        coc = row.get("change_of_control") or {}
+        if not _is_not_found(coc.get("clause_present")):
+            return True
+    return False
+
+
+def _pred_restrictive(merged: dict) -> bool:
+    for row in merged.get("contract_register") or []:
+        if not _has_source_doc(row):
+            continue
+        rc = row.get("restrictive_covenants") or {}
+        if not _is_not_found(rc.get("present")):
+            return True
+    return False
+
+
+def _pred_vendor(merged: dict) -> bool:
+    return any(_has_source_doc(row) for row in merged.get("vendor_register") or [])
+
+
+def _pred_platform(merged: dict) -> bool:
+    return any(
+        _has_source_doc(row) for row in merged.get("platform_dependency_register") or []
+    )
+
+
+def _pred_employment(merged: dict) -> bool:
+    for row in merged.get("employment_register") or []:
+        if not _has_source_doc(row):
+            continue
+        ac = row.get("agreement_class")
+        if (
+            _eq_str(ac, "employee")
+            or _eq_str(ac, "contractor")
+            or _eq_str(ac, "commission")
+        ):
+            return True
+    return False
+
+
+def _pred_founder(merged: dict) -> bool:
+    for row in merged.get("employment_register") or []:
+        if not _has_source_doc(row):
+            continue
+        if _eq_str(row.get("agreement_class"), "founder_key"):
+            return True
+    return False
+
+
+def _pred_litigation(merged: dict) -> bool:
+    return any(_has_source_doc(row) for row in merged.get("litigation_register") or [])
+
+
+def _pred_privacy(merged: dict) -> bool:
+    return any(
+        _has_source_doc(row) for row in merged.get("privacy_security_register") or []
+    )
+
+
+def _pred_ip(merged: dict) -> bool:
+    return any(_has_source_doc(row) for row in merged.get("ip_register") or [])
+
+
+def _pred_insurance(merged: dict) -> bool:
+    for row in merged.get("insurance_register") or []:
+        if _has_source_doc(row):
+            return True
+    for reg_name in ("contract_register", "vendor_register"):
+        for row in merged.get(reg_name) or []:
+            liab = row.get("liability_indemnity") or {}
+            if _is_true(liab.get("unusual_indemnity")):
+                return True
+    return False
+
+
+# Normative Austin §5 gap checklist — spec §5.6 (D-M2-7: not AUSTIN_ITEM_COVERAGE).
+STAKEHOLDER_COVERAGE_REQUIREMENTS: list[dict] = [
+    {
+        "item_id": "t4c",
+        "display_name": "Customer contracts — termination for convenience",
+        "assessed_predicate": _pred_t4c,
+        "domain_pass_id": "contracts_vendors_platform",
+        "doc_type": "Top Customer Contracts / MSAs / SOWs",
+        "priority": "High",
+    },
+    {
+        "item_id": "coc",
+        "display_name": "Change-of-control clauses",
+        "assessed_predicate": _pred_coc,
+        "domain_pass_id": "contracts_vendors_platform",
+        "doc_type": "Top Customer Contracts / MSAs / SOWs",
+        "priority": "High",
+    },
+    {
+        "item_id": "restrictive",
+        "display_name": "Exclusivity, MFN, non-compete, non-solicit",
+        "assessed_predicate": _pred_restrictive,
+        "domain_pass_id": "contracts_vendors_platform",
+        "doc_type": "Top Customer Contracts / MSAs / SOWs",
+        "priority": "High",
+    },
+    {
+        "item_id": "vendor",
+        "display_name": "Vendor pricing / cancellation terms",
+        "assessed_predicate": _pred_vendor,
+        "domain_pass_id": "contracts_vendors_platform",
+        "doc_type": "Vendor Contracts",
+        "priority": "Medium",
+    },
+    {
+        "item_id": "platform",
+        "display_name": "Platform / reseller / channel dependencies",
+        "assessed_predicate": _pred_platform,
+        "domain_pass_id": "contracts_vendors_platform",
+        "doc_type": "Referral / Channel / Platform Agreements",
+        "priority": "High",
+    },
+    {
+        "item_id": "employment",
+        "display_name": "Employee, contractor, commission agreements",
+        "assessed_predicate": _pred_employment,
+        "domain_pass_id": "employment",
+        "doc_type": "Employment Agreements",
+        "priority": "Medium",
+    },
+    {
+        "item_id": "founder",
+        "display_name": "Founder / key employee agreements",
+        "assessed_predicate": _pred_founder,
+        "domain_pass_id": "employment",
+        "doc_type": "Founder / Key Employee Agreements",
+        "priority": "High",
+    },
+    {
+        "item_id": "litigation",
+        "display_name": "Litigation exposure",
+        "assessed_predicate": _pred_litigation,
+        "domain_pass_id": "litigation",
+        "doc_type": "Litigation Summary / Legal Matters Schedule",
+        "priority": "High",
+    },
+    {
+        "item_id": "privacy",
+        "display_name": "Data privacy / security obligations",
+        "assessed_predicate": _pred_privacy,
+        "domain_pass_id": "ip_privacy",
+        "doc_type": "Privacy Policy / BAA / DPA",
+        "priority": "Medium",
+    },
+    {
+        "item_id": "ip",
+        "display_name": "IP ownership, assignment, OSS",
+        "assessed_predicate": _pred_ip,
+        "domain_pass_id": "ip_privacy",
+        "doc_type": "IP Assignment / OSS Policy",
+        "priority": "Medium",
+    },
+    {
+        "item_id": "insurance",
+        "display_name": "Insurance coverage gaps",
+        "assessed_predicate": _pred_insurance,
+        "domain_pass_id": "insurance",
+        "doc_type": "Insurance Certificates / Policies",
+        "priority": "Medium",
+    },
+]
+
+assert len(STAKEHOLDER_COVERAGE_REQUIREMENTS) == 11
+assert all(
+    req["domain_pass_id"] in _DOMAIN_PASS_IDS
+    for req in STAKEHOLDER_COVERAGE_REQUIREMENTS
+)
+
 
 def _bind_domain_passes(agent: "LegalContractsAgent") -> list[tuple]:
     """Materialize full _DOMAIN_PASSES tuples with bound instance methods."""
@@ -1188,121 +1383,141 @@ class LegalContractsAgent(WorkstreamAgent):
         ]
 
     # -----------------------------------------------------------------------
+    # Stakeholder coverage gaps + section confidence (spec §5.6)
+    # -----------------------------------------------------------------------
+
+    @staticmethod
+    def _is_healthcare_overlay(company_profile: dict | None) -> bool:
+        """Normalize healthcare overlay — profile may emit healthcare or healthcare_services."""
+        overlay = str((company_profile or {}).get("industry_overlay") or "").strip().lower()
+        return overlay in ("healthcare_services", "healthcare")
+
+    def _assess_coverage_gaps(
+        self,
+        merged: dict,
+        pass_chunk_counts: dict[str, int],
+        company_profile: dict | None,
+    ) -> None:
+        """Evaluate STAKEHOLDER_COVERAGE_REQUIREMENTS; stage gap JSON lists for T4 return.
+
+        pass_chunk_counts: ``pass_id → len(chunks)`` recorded in the run() domain loop (D-M2-2).
+        T4 populates this dict each iteration before calling this method post-merge.
+        """
+        self._unable_to_assess_items: list[str] = []
+        self._recommended_diligence: list[dict] = []
+        assessed_count = 0
+
+        for req in STAKEHOLDER_COVERAGE_REQUIREMENTS:
+            item_id = req["item_id"]
+            if req["assessed_predicate"](merged):
+                assessed_count += 1
+                continue
+
+            pass_id = req["domain_pass_id"]
+            chunk_count = pass_chunk_counts.get(pass_id, 0)
+
+            if chunk_count >= 1:
+                self._add_gap(f"{item_id}: chunks retrieved but no extractable terms")
+                self._unable_to_assess_items.append(req["display_name"])
+            else:
+                self._add_gap(
+                    f"{item_id}: no documents retrieved for {pass_id} pass — "
+                    f"request {req['doc_type']}"
+                )
+                self._unable_to_assess_items.append(req["display_name"])
+                self._recommended_diligence.append({
+                    "doc_type": req["doc_type"],
+                    "priority": req["priority"],
+                    "item_id": item_id,
+                })
+
+        if self._is_healthcare_overlay(company_profile):
+            self._recommended_diligence.append({
+                "doc_type": "Healthcare Referral Agreements",
+                "priority": "High",
+                "item_id": "healthcare_referral",
+            })
+
+        self._assessed_coverage_count = assessed_count
+
+        step = len(self._trace) + 1
+        self._trace.append({
+            "step":       step,
+            "tool":       "assess_coverage_gaps",
+            "input":      (
+                f"checklist={len(STAKEHOLDER_COVERAGE_REQUIREMENTS)} items | "
+                f"pass_chunk_counts={pass_chunk_counts}"
+            ),
+            "output":     (
+                f"assessed={assessed_count} | unable={len(self._unable_to_assess_items)} | "
+                f"diligence={len(self._recommended_diligence)}"
+            ),
+            "confidence": "high",
+            "sources":    [],
+        })
+        print(
+            f"  Step {step} [assess_coverage_gaps]: assessed={assessed_count}/11, "
+            f"unable={len(self._unable_to_assess_items)}, "
+            f"diligence={len(self._recommended_diligence)}"
+        )
+
+    def _compute_section_confidence(self) -> str:
+        """Map assessed checklist count (0–11) to low / medium / high — spec §5.6."""
+        count = getattr(self, "_assessed_coverage_count", 0)
+        if count <= 2:
+            return "low"
+        if count <= 6:
+            return "medium"
+        return "high"
+
+    # -----------------------------------------------------------------------
     # Threshold flagging
     # -----------------------------------------------------------------------
 
-    def _apply_legal_flags(self, extracted: dict, contract_triggers: list):
-        contract_register = extracted.get("contract_register") or []
-        litigation_register = extracted.get("litigation_register") or []
-
-        trigger_names = {(t.get("customer_name") or "").lower() for t in contract_triggers}
-
-        triggered_contracts = [
-            c for c in contract_register
-            if str(c.get("triggered_review", "")).lower() == "true"
-        ]
-
-        matched_triggers = set()
-        for c in triggered_contracts:
-            cpname = c.get("counterparty_name", "")
-            rev_pct = c.get("revenue_pct")
-            try:
-                rev_num = float(str(rev_pct).replace("%", "").strip())
-            except (ValueError, TypeError):
-                rev_num = None
-
-            matched_triggers.add(cpname.lower())
-
-            coc = c.get("change_of_control", {})
-            if str(coc.get("consent_required", "")).lower() == "true" and (rev_num is None or rev_num > 20):
-                self._add_flag(
-                    metric="coc_consent_required_material_customer",
-                    value=f"{cpname} — CoC consent required, revenue_pct={rev_pct}",
-                    threshold="CoC consent + >20% revenue (triggered review)",
-                    severity="Red",
-                    note=(
-                        f"CoC consent required for {cpname} ({rev_pct} of revenue) — "
-                        f"deal-relevant. Must obtain consent pre-close. "
-                        f"Source: {c.get('source_doc', '')}."
-                    ),
-                    source_doc=c.get("source_doc", ""),
-                    confidence="high",
-                )
-
-            tfc = c.get("termination_for_convenience", {})
-            notice = _parse_int(tfc.get("notice_days"))
-            if (
-                str(tfc.get("present", "")).lower() == "true"
-                and notice is not None
-                and notice < 60
-                and (rev_num is None or rev_num > 20)
-            ):
-                self._add_flag(
-                    metric="short_termination_notice_material_customer",
-                    value=f"{cpname} — notice={notice} days, revenue_pct={rev_pct}",
-                    threshold="<60 days notice on >20% revenue customer",
-                    severity="Red",
-                    note=(
-                        f"Termination for convenience with {notice}-day notice on material "
-                        f"customer ({cpname}, {rev_pct} of revenue). "
-                        f"Acquirer exposed to rapid revenue loss post-close."
-                    ),
-                    source_doc=c.get("source_doc", ""),
-                    confidence="high",
-                )
-
-        for trigger in contract_triggers:
-            tname = (trigger.get("customer_name") or "").lower()
-            if tname not in {(c.get("counterparty_name") or "").lower() for c in contract_register}:
-                self._add_gap(
-                    f"Contract not found for {trigger.get('customer_name')} "
-                    f"({trigger.get('revenue_pct')}% of revenue) — "
-                    f"high-priority information request"
-                )
+    def _apply_legal_flags(self, merged: dict) -> None:
+        """Option-C MVP flags per spec §5.6 — scans merged registers post-dedupe."""
+        contract_register = merged.get("contract_register") or []
+        vendor_register = merged.get("vendor_register") or []
+        litigation_register = merged.get("litigation_register") or []
 
         for c in contract_register:
             cpname = c.get("counterparty_name", "")
-            rev_pct = c.get("revenue_pct")
-            try:
-                rev_num = float(str(rev_pct).replace("%", "").strip())
-            except (ValueError, TypeError):
-                rev_num = None
             source_doc = c.get("source_doc", "")
 
-            auto = c.get("auto_renewal", {})
-            if str(auto.get("present", "")).lower() == "false" and rev_num is not None and rev_num > 10:
+            coc = c.get("change_of_control", {})
+            if _is_true(coc.get("consent_required")):
                 self._add_flag(
-                    metric="no_auto_renewal_material_customer",
-                    value=f"{cpname} — auto_renewal=false, revenue_pct={rev_pct}",
-                    threshold="No auto-renewal on >10% revenue customer",
-                    severity="Yellow",
+                    metric="coc_consent_required",
+                    value=f"{cpname} — CoC consent required",
+                    threshold="Any CoC consent required",
+                    severity="Red",
                     note=(
-                        f"No auto-renewal on >10% customer ({cpname}, {rev_pct} of revenue). "
-                        f"Revenue continuity risk at contract expiration. "
+                        f"CoC consent required for {cpname}. "
+                        f"Deal-relevant — obtain consent pre-close. "
                         f"Source: {source_doc}."
                     ),
                     source_doc=source_doc,
                     confidence="high",
                 )
 
-            exc = c.get("exclusivity_mfn_noncompete", {})
-            if str(exc.get("present", "")).lower() == "true":
-                scope = exc.get("scope_note", "scope not stated")
+            rc = c.get("restrictive_covenants", {})
+            if _is_true(rc.get("present")):
+                scope = rc.get("scope_note") or "scope not stated"
                 self._add_flag(
                     metric="restrictive_covenant",
                     value=f"{cpname}: {scope}",
-                    threshold="Any restrictive covenant (exclusivity/MFN/non-compete)",
+                    threshold="Restrictive covenant present",
                     severity="Yellow",
                     note=(
-                        f"Restrictive covenant ({scope}) found in {cpname} contract. "
+                        f"Restrictive covenant ({scope}) in {cpname} contract. "
                         f"May limit add-on M&A options. Source: {source_doc}."
                     ),
                     source_doc=source_doc,
                     confidence="high",
                 )
 
-            liab = c.get("liability_cap", {})
-            if str(liab.get("unusual_indemnity", "")).lower() == "true":
+            liab = c.get("liability_indemnity", {})
+            if _is_true(liab.get("unusual_indemnity")):
                 self._add_flag(
                     metric="unusual_indemnity",
                     value=f"{cpname} — unusual_indemnity=true",
@@ -1316,13 +1531,31 @@ class LegalContractsAgent(WorkstreamAgent):
                     confidence="medium",
                 )
 
+        for v in vendor_register:
+            vname = v.get("vendor_name", "")
+            source_doc = v.get("source_doc", "")
+            liab = v.get("liability_indemnity", {})
+            if _is_true(liab.get("unusual_indemnity")):
+                self._add_flag(
+                    metric="unusual_indemnity",
+                    value=f"{vname} — unusual_indemnity=true",
+                    threshold="Unusual indemnity scope",
+                    severity="Yellow",
+                    note=(
+                        f"Unusual indemnity scope in {vname} vendor agreement. "
+                        f"Refer to outside counsel for assessment. Source: {source_doc}."
+                    ),
+                    source_doc=source_doc,
+                    confidence="medium",
+                )
+
         for item in litigation_register:
-            status = (item.get("status") or "").lower()
             matter_type = item.get("matter_type", "unknown")
             description = item.get("description", "")
             source_doc = item.get("source_doc", "")
+            status = item.get("status")
 
-            if status == "open":
+            if _eq_str(status, "open"):
                 self._add_flag(
                     metric=f"open_legal_matter_{matter_type}",
                     value=f"{matter_type}: {description[:80]}",
@@ -1335,7 +1568,8 @@ class LegalContractsAgent(WorkstreamAgent):
                     source_doc=source_doc,
                     confidence="high",
                 )
-            elif matter_type == "regulatory":
+
+            if _eq_str(matter_type, "regulatory"):
                 self._add_flag(
                     metric="regulatory_matter",
                     value=f"regulatory: {description[:80]}",
