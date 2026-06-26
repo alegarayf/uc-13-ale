@@ -78,7 +78,7 @@ def test_compat_view_sql_maps_legacy_subset_and_triggered_reviews_zero():
     assert "vendor_register_json" not in view_sql
 
 
-def test_map_legacy_result_populates_legacy_keys_and_empty_mvp_json_columns():
+def test_map_legacy_result_populates_legacy_keys_and_maps_pass_registers():
     tree = ast.parse(_AGENT_SOURCE)
     fn = next(
         n for n in tree.body
@@ -94,7 +94,12 @@ def test_map_legacy_result_populates_legacy_keys_and_empty_mvp_json_columns():
     assert keys == APPENDIX_A_COLS
     source_segment = ast.get_source_segment(_AGENT_SOURCE, returns[0].value) or ""
     assert '"section_confidence":            None' in source_segment
-    assert '"vendor_register_json":          "[]"' in source_segment
+    assert 'result.get("vendor_register_json", "[]")' in source_segment
+    assert 'result.get("platform_dependency_register_json", "[]")' in source_segment
+    assert 'result.get("employment_register_json", "[]")' in source_segment
+    assert 'result.get("ip_register_json", "[]")' in source_segment
+    assert 'result.get("privacy_security_register_json", "[]")' in source_segment
+    assert 'result.get("insurance_register_json", "[]")' in source_segment
     assert '"unable_to_assess_json":         "[]"' in source_segment
     assert "triggered_reviews_loaded" not in source_segment
 
@@ -195,17 +200,9 @@ def test_company_profile_sql_uses_catalog_not_module_constant():
 
 
 def test_semantic_search_calls_pass_catalog():
-    retrieval_methods = [
-        "_tool_retrieve_material_contracts",
-        "_tool_retrieve_coc_and_termination",
-        "_tool_retrieve_restrictive_covenants",
-        "_tool_retrieve_litigation",
-        "_tool_retrieve_ip_and_data",
-    ]
-    for method_name in retrieval_methods:
-        body = _method_body_source("LegalContractsAgent", method_name)
-        assert "semantic_search(" in body
-        assert "catalog=self._catalog" in body, f"{method_name} must pass catalog=self._catalog"
+    body = _method_body_source("LegalContractsAgent", "_domain_retrieve_pass")
+    assert "_semantic_search_with_fallback" in body
+    assert "catalog=self._catalog" not in body  # delegated to _semantic_search_with_fallback
 
 
 def test_main_passes_catalog_to_run():
@@ -252,3 +249,46 @@ def test_does_not_import_financial_semantic_search_with_fallback():
     assert "from agents.subagents.workstream.financial.context_utils import" not in _AGENT_SOURCE
     assert "context_utils.semantic_search_with_fallback" not in _AGENT_SOURCE
     assert "_semantic_search_with_fallback" in _AGENT_SOURCE
+
+
+def test_run_m1_interim_return_includes_all_pass_register_keys():
+    """Falsifier: D1a interim return must expose every pass-owned register, not only contract/litigation."""
+    body = _method_body_source("LegalContractsAgent", "run")
+    for key in (
+        "contract_register_json",
+        "vendor_register_json",
+        "platform_dependency_register_json",
+        "employment_register_json",
+        "litigation_register_json",
+        "ip_register_json",
+        "privacy_security_register_json",
+        "insurance_register_json",
+    ):
+        assert f'"{key}"' in body, f"run() return missing {key}"
+    assert 'json.dumps([])' in body  # M2 roll-up placeholders
+    assert '"flags":                              []' in body or '"flags":                         []' in body
+
+
+def test_run_does_not_call_m2_rollup_or_flag_builders():
+    """Falsifier: M1 must not invoke roll-up builders or _apply_legal_flags."""
+    body = _method_body_source("LegalContractsAgent", "run")
+    for forbidden in (
+        "_build_coc_consent_list",
+        "_build_termination_exposure",
+        "_build_restrictive_covenant_map",
+        "_apply_legal_flags",
+        "_merge_registers",
+    ):
+        assert forbidden not in body
+
+
+def test_monolithic_retrieve_tools_removed():
+    """Falsifier: legacy single-pass retrieval helpers must not remain callable dead code."""
+    for dead in (
+        "_tool_retrieve_material_contracts",
+        "_tool_retrieve_coc_and_termination",
+        "_tool_retrieve_restrictive_covenants",
+        "_tool_retrieve_litigation",
+        "_tool_retrieve_ip_and_data",
+    ):
+        assert f"def {dead}" not in _AGENT_SOURCE
