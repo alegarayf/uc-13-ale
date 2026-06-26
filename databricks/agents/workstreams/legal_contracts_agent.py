@@ -588,137 +588,6 @@ class LegalContractsAgent(WorkstreamAgent):
     # Retrieval tools
     # -----------------------------------------------------------------------
 
-    def _tool_retrieve_material_contracts(self, spark) -> "ToolResult":  # noqa: F821
-        from agents.shared.retrieval import semantic_search
-        query = (
-            "material customer contract MSA master service agreement "
-            "statement of work change of control termination"
-        )
-        chunks = semantic_search(
-            query=query,
-            spark=spark,
-            company_name=self._company_name,
-            top_k=12,
-            workstream_filter=["LEGAL"],
-            file_name_filter=["Contract", "MSA", "Agreement", "SOW", "Customer", "Client"],
-            min_chunk_length=150,
-            catalog=self._catalog,
-        )
-        source_docs = list({c.file_name for c in chunks})
-        confidence = "high" if chunks else "low"
-        return self._tool_call(
-            tool_name="retrieve_material_contracts",
-            input_summary=f"query='{query[:80]}…' | workstream=LEGAL | top_k=12 | file_name_filter=[Contract, MSA, Agreement, SOW, Customer, Client]",
-            data=chunks,
-            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
-            confidence=confidence,
-            source_docs=source_docs,
-        )
-
-    def _tool_retrieve_coc_and_termination(self, spark) -> "ToolResult":  # noqa: F821
-        from agents.shared.retrieval import semantic_search
-        query = (
-            "change of control consent termination for convenience "
-            "notice period assignment anti-assignment"
-        )
-        chunks = semantic_search(
-            query=query,
-            spark=spark,
-            company_name=self._company_name,
-            top_k=10,
-            workstream_filter=["LEGAL"],
-            min_chunk_length=150,
-            catalog=self._catalog,
-        )
-        source_docs = list({c.file_name for c in chunks})
-        confidence = "high" if chunks else "low"
-        return self._tool_call(
-            tool_name="retrieve_coc_and_termination",
-            input_summary=f"query='{query[:80]}…' | workstream=LEGAL | top_k=10",
-            data=chunks,
-            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
-            confidence=confidence,
-            source_docs=source_docs,
-        )
-
-    def _tool_retrieve_restrictive_covenants(self, spark) -> "ToolResult":  # noqa: F821
-        from agents.shared.retrieval import semantic_search
-        query = (
-            "exclusivity non-compete MFN most favored nation "
-            "non-solicitation restrictive covenant"
-        )
-        chunks = semantic_search(
-            query=query,
-            spark=spark,
-            company_name=self._company_name,
-            top_k=6,
-            workstream_filter=["LEGAL"],
-            min_chunk_length=150,
-            catalog=self._catalog,
-        )
-        source_docs = list({c.file_name for c in chunks})
-        confidence = "high" if chunks else "low"
-        return self._tool_call(
-            tool_name="retrieve_restrictive_covenants",
-            input_summary=f"query='{query[:80]}…' | workstream=LEGAL | top_k=6",
-            data=chunks,
-            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
-            confidence=confidence,
-            source_docs=source_docs,
-        )
-
-    def _tool_retrieve_litigation(self, spark) -> "ToolResult":  # noqa: F821
-        from agents.shared.retrieval import semantic_search
-        query = (
-            "litigation lawsuit dispute regulatory compliance "
-            "arbitration demand letter settlement"
-        )
-        chunks = semantic_search(
-            query=query,
-            spark=spark,
-            company_name=self._company_name,
-            top_k=8,
-            workstream_filter=["LEGAL"],
-            min_chunk_length=150,
-            catalog=self._catalog,
-        )
-        source_docs = list({c.file_name for c in chunks})
-        confidence = "high" if chunks else "low"
-        return self._tool_call(
-            tool_name="retrieve_litigation",
-            input_summary=f"query='{query[:80]}…' | workstream=LEGAL | top_k=8",
-            data=chunks,
-            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
-            confidence=confidence,
-            source_docs=source_docs,
-        )
-
-    def _tool_retrieve_ip_and_data(self, spark) -> "ToolResult":  # noqa: F821
-        from agents.shared.retrieval import semantic_search
-        query = (
-            "intellectual property IP ownership data privacy "
-            "GDPR HIPAA indemnification liability cap"
-        )
-        chunks = semantic_search(
-            query=query,
-            spark=spark,
-            company_name=self._company_name,
-            top_k=6,
-            workstream_filter=["LEGAL"],
-            min_chunk_length=150,
-            catalog=self._catalog,
-        )
-        source_docs = list({c.file_name for c in chunks})
-        confidence = "high" if chunks else "low"
-        return self._tool_call(
-            tool_name="retrieve_ip_and_data",
-            input_summary=f"query='{query[:80]}…' | workstream=LEGAL | top_k=6",
-            data=chunks,
-            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
-            confidence=confidence,
-            source_docs=source_docs,
-        )
-
     def _tool_load_company_profile(self, company_name: str, spark) -> "ToolResult":  # noqa: F821
         try:
             rows = spark.sql(
@@ -1357,19 +1226,25 @@ class LegalContractsAgent(WorkstreamAgent):
             print(f"    [{pass_id}] extract: {register_summary}")
 
         return {
-            "company_name":                  company_name,
-            "executive_summary":             None,
-            "contract_register_json":        json.dumps(registers["contract_register"]),
-            "litigation_register_json":      json.dumps(registers["litigation_register"]),
-            "coc_consent_list_json":         json.dumps([]),
-            "termination_exposure_json":     json.dumps([]),
-            "restrictive_covenant_map_json": json.dumps([]),
-            "triggered_reviews_loaded":      len(contract_triggers),
-            "flags":                         [],
-            "data_room_gaps":                list(self._data_room_gaps),
-            "citations":                     json.dumps(self._citations_as_dicts()),
-            "reasoning_trace":               list(self._trace),
-            "created_at":                    datetime.now(timezone.utc).isoformat(),
+            "company_name":                       company_name,
+            "executive_summary":                  None,
+            "contract_register_json":             json.dumps(registers["contract_register"]),
+            "vendor_register_json":               json.dumps(registers["vendor_register"]),
+            "platform_dependency_register_json":  json.dumps(registers["platform_dependency_register"]),
+            "employment_register_json":           json.dumps(registers["employment_register"]),
+            "litigation_register_json":           json.dumps(registers["litigation_register"]),
+            "ip_register_json":                   json.dumps(registers["ip_register"]),
+            "privacy_security_register_json":     json.dumps(registers["privacy_security_register"]),
+            "insurance_register_json":            json.dumps(registers["insurance_register"]),
+            "coc_consent_list_json":              json.dumps([]),
+            "termination_exposure_json":          json.dumps([]),
+            "restrictive_covenant_map_json":      json.dumps([]),
+            "triggered_reviews_loaded":           len(contract_triggers),
+            "flags":                              [],
+            "data_room_gaps":                     list(self._data_room_gaps),
+            "citations":                          json.dumps(self._citations_as_dicts()),
+            "reasoning_trace":                    list(self._trace),
+            "created_at":                         datetime.now(timezone.utc).isoformat(),
         }
 
 
@@ -1510,14 +1385,14 @@ def _map_legacy_result_to_legal_row(result: dict) -> dict:
         "company_name":                  result["company_name"],
         "executive_summary":             result.get("executive_summary"),
         "section_confidence":            None,
-        "contract_register_json":        result.get("contract_register_json"),
-        "vendor_register_json":          "[]",
-        "platform_dependency_register_json": "[]",
-        "employment_register_json":      "[]",
-        "litigation_register_json":      result.get("litigation_register_json"),
-        "privacy_security_register_json": "[]",
-        "ip_register_json":              "[]",
-        "insurance_register_json":       "[]",
+        "contract_register_json":             result.get("contract_register_json"),
+        "vendor_register_json":               result.get("vendor_register_json", "[]"),
+        "platform_dependency_register_json":  result.get("platform_dependency_register_json", "[]"),
+        "employment_register_json":           result.get("employment_register_json", "[]"),
+        "litigation_register_json":           result.get("litigation_register_json"),
+        "privacy_security_register_json":     result.get("privacy_security_register_json", "[]"),
+        "ip_register_json":                   result.get("ip_register_json", "[]"),
+        "insurance_register_json":            result.get("insurance_register_json", "[]"),
         "coc_consent_list_json":         result.get("coc_consent_list_json"),
         "termination_exposure_json":     result.get("termination_exposure_json"),
         "restrictive_covenant_map_json": result.get("restrictive_covenant_map_json"),
