@@ -1722,43 +1722,35 @@ class LegalContractsAgent(WorkstreamAgent):
 
 
 # ---------------------------------------------------------------------------
-# Stakeholder report export
+# Stakeholder report export (D-M2-3 dual-write)
 # ---------------------------------------------------------------------------
 
-def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
-    """Write a clean, human-readable YAML report to a UC Volume.
+_COVERAGE_ITEM_IDS_BY_SECTION: dict[str, tuple[str, ...]] = {
+    "Customer & Vendor Contracts": ("t4c", "coc", "restrictive", "vendor"),
+    "Platform & Channel Dependencies": ("platform",),
+    "Employment & Founder Agreements": ("employment", "founder"),
+    "Litigation & Disputes": ("litigation",),
+    "IP, Privacy & Security": ("privacy", "ip"),
+    "Insurance": ("insurance",),
+}
 
-    Saves to /Volumes/{catalog}/analysis/reports/{company_name}/
-    legal_contracts_report.yaml (or .json if PyYAML is unavailable).
-    Returns the full volume path of the written file.
-    """
-    company_name = result["company_name"]
+_COVERAGE_DISPLAY_BY_ITEM: dict[str, str] = {
+    req["item_id"]: req["display_name"]
+    for req in STAKEHOLDER_COVERAGE_REQUIREMENTS
+}
 
-    contract_register   = json.loads(result.get("contract_register_json")        or "[]")
-    litigation_register = json.loads(result.get("litigation_register_json")       or "[]")
-    coc_consent_list    = json.loads(result.get("coc_consent_list_json")          or "[]")
-    termination_exp     = json.loads(result.get("termination_exposure_json")      or "[]")
-    covenant_map        = json.loads(result.get("restrictive_covenant_map_json")  or "[]")
-    citations           = json.loads(result.get("citations")                      or "[]")
 
-    report = {
-        "report": {
-            "agent":        "legal_contracts",
-            "company":      company_name,
-            "generated_at": result.get("created_at", ""),
-        },
-        "executive_summary":       result.get("executive_summary"),
-        "contract_register":       contract_register,
-        "coc_consent_list":        coc_consent_list,
-        "termination_exposure":    termination_exp,
-        "restrictive_covenant_map": covenant_map,
-        "litigation_register":     litigation_register,
-        "triggered_reviews_loaded": result.get("triggered_reviews_loaded", 0),
-        "flags":                   result.get("flags") or [],
-        "data_room_gaps":          result.get("data_room_gaps") or [],
-        "citations":               citations,
-    }
+def _report_volume_dir(catalog: str, company_name: str, spark) -> str:
+    """Ensure UC Volume report directory exists; return company report dir path."""
+    spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
+    safe_name = company_name.replace(" ", "_").replace("/", "_")
+    dir_path = f"/Volumes/{catalog}/analysis/reports/{safe_name}"
+    os.makedirs(dir_path, exist_ok=True)
+    return dir_path
 
+
+def _serialize_report_dict(report: dict) -> tuple[str, str]:
+    """Serialize report dict to YAML (or JSON fallback). Returns (content, extension)."""
     try:
         import yaml
 
@@ -1768,22 +1760,138 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
             return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
         yaml.add_representer(str, _str_representer)
-        content = yaml.dump(report, allow_unicode=True, sort_keys=False, width=120)
-        ext = "yaml"
+        return yaml.dump(report, allow_unicode=True, sort_keys=False, width=120), "yaml"
     except ImportError:
-        content = json.dumps(report, indent=2, ensure_ascii=False)
-        ext = "json"
+        return json.dumps(report, indent=2, ensure_ascii=False), "json"
 
-    spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
-    safe_name = company_name.replace(" ", "_").replace("/", "_")
-    dir_path = f"/Volumes/{catalog}/analysis/reports/{safe_name}"
-    os.makedirs(dir_path, exist_ok=True)
 
-    file_path = f"{dir_path}/legal_contracts_report.{ext}"
+def _write_volume_report(
+    report: dict,
+    dir_path: str,
+    filename_stem: str,
+) -> str:
+    """Write serialized report to Volume; return full file path."""
+    content, ext = _serialize_report_dict(report)
+    file_path = f"{dir_path}/{filename_stem}.{ext}"
     with open(file_path, "w", encoding="utf-8") as fh:
         fh.write(content)
-
     return file_path
+
+
+def _unable_to_assess_for_section(
+    unable_to_assess: list[str],
+    item_ids: tuple[str, ...],
+) -> list[str]:
+    """Filter global unable-to-assess bullets to those belonging to a report section."""
+    displays = {_COVERAGE_DISPLAY_BY_ITEM[i] for i in item_ids}
+    return [name for name in unable_to_assess if name in displays]
+
+
+def _write_normative_legal_report(result: dict, catalog: str, spark) -> str:
+    """Write normative stakeholder report per spec Stakeholder Report Outline (§5.9).
+
+    Saves to /Volumes/{catalog}/analysis/reports/{company}/legal_report.yaml
+    (or .json if PyYAML is unavailable). Returns the full volume path.
+    """
+    company_name = result["company_name"]
+    dir_path = _report_volume_dir(catalog, company_name, spark)
+
+    contract_register = json.loads(result.get("contract_register_json") or "[]")
+    vendor_register = json.loads(result.get("vendor_register_json") or "[]")
+    platform_register = json.loads(result.get("platform_dependency_register_json") or "[]")
+    employment_register = json.loads(result.get("employment_register_json") or "[]")
+    litigation_register = json.loads(result.get("litigation_register_json") or "[]")
+    ip_register = json.loads(result.get("ip_register_json") or "[]")
+    privacy_register = json.loads(result.get("privacy_security_register_json") or "[]")
+    insurance_register = json.loads(result.get("insurance_register_json") or "[]")
+    unable_to_assess = json.loads(result.get("unable_to_assess_json") or "[]")
+    recommended_diligence = json.loads(result.get("recommended_diligence_json") or "[]")
+
+    section_registers = {
+        "Customer & Vendor Contracts": {
+            "contract_register": contract_register,
+            "vendor_register": vendor_register,
+        },
+        "Platform & Channel Dependencies": {
+            "platform_dependency_register": platform_register,
+        },
+        "Employment & Founder Agreements": {
+            "employment_register": employment_register,
+        },
+        "Litigation & Disputes": {
+            "litigation_register": litigation_register,
+        },
+        "IP, Privacy & Security": {
+            "ip_register": ip_register,
+            "privacy_security_register": privacy_register,
+        },
+        "Insurance": {
+            "insurance_register": insurance_register,
+        },
+    }
+
+    sections: dict[str, dict] = {}
+    for title, registers in section_registers.items():
+        item_ids = _COVERAGE_ITEM_IDS_BY_SECTION[title]
+        section: dict = dict(registers)
+        section_unable = _unable_to_assess_for_section(unable_to_assess, item_ids)
+        if section_unable:
+            section["unable_to_assess"] = section_unable
+        sections[title] = section
+
+    report = {
+        "report": {
+            "agent": "legal_contracts",
+            "company": company_name,
+            "generated_at": result.get("created_at", ""),
+        },
+        "confidence": result.get("section_confidence"),
+        "executive_summary": result.get("executive_summary"),
+        **sections,
+        "Flags": result.get("flags") or [],
+        "Recommended Legal Diligence": recommended_diligence,
+        "Data Room Gaps": result.get("data_room_gaps") or [],
+    }
+
+    return _write_volume_report(report, dir_path, "legal_report")
+
+
+def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
+    """Write A1-compat legacy YAML report to a UC Volume.
+
+    Saves to /Volumes/{catalog}/analysis/reports/{company_name}/
+    legal_contracts_report.yaml (or .json if PyYAML is unavailable).
+    Returns the full volume path of the written file.
+    """
+    company_name = result["company_name"]
+    dir_path = _report_volume_dir(catalog, company_name, spark)
+
+    contract_register = json.loads(result.get("contract_register_json") or "[]")
+    litigation_register = json.loads(result.get("litigation_register_json") or "[]")
+    coc_consent_list = json.loads(result.get("coc_consent_list_json") or "[]")
+    termination_exp = json.loads(result.get("termination_exposure_json") or "[]")
+    covenant_map = json.loads(result.get("restrictive_covenant_map_json") or "[]")
+    citations = json.loads(result.get("citations") or "[]")
+
+    report = {
+        "report": {
+            "agent": "legal_contracts",
+            "company": company_name,
+            "generated_at": result.get("created_at", ""),
+        },
+        "executive_summary": result.get("executive_summary"),
+        "contract_register": contract_register,
+        "coc_consent_list": coc_consent_list,
+        "termination_exposure": termination_exp,
+        "restrictive_covenant_map": covenant_map,
+        "litigation_register": litigation_register,
+        "triggered_reviews_loaded": result.get("triggered_reviews_loaded", 0),
+        "flags": result.get("flags") or [],
+        "data_room_gaps": result.get("data_room_gaps") or [],
+        "citations": citations,
+    }
+
+    return _write_volume_report(report, dir_path, "legal_contracts_report")
 
 
 # ---------------------------------------------------------------------------
@@ -1977,9 +2085,12 @@ def main() -> dict:
 
     print(f"\n✓ Saved legal output → {table}")
 
-    report_path = _write_stakeholder_report(result, catalog, spark)
-    result["report_path"] = report_path
-    print(f"✓ Stakeholder report → {report_path}")
+    normative_report_path = _write_normative_legal_report(result, catalog, spark)
+    legacy_report_path = _write_stakeholder_report(result, catalog, spark)
+    result["report_path"] = normative_report_path
+    result["legacy_report_path"] = legacy_report_path
+    print(f"✓ Normative stakeholder report → {normative_report_path}")
+    print(f"✓ Legacy stakeholder report → {legacy_report_path}")
 
     return result
 
