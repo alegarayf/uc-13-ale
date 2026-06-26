@@ -2,6 +2,7 @@
 
 ## uc13-m1-multi-pass-retrieval-extraction — 2026-06-26
 
+- T2 (B2 domain retrieval + A0 tuning): Implemented `_semantic_search_with_fallback` with `catalog=self._catalog` (D3a), `_domain_retrieve_pass` helper, and five wired `_domain_retrieve_*` methods with A0-retuned filename filters and per-pass queries; `retrieval_fallback` trace on filter retry. Did not use `context_utils.semantic_search_with_fallback`. See `.dev/decision-logs/m1-t2-retrieval-tuning.md`.
 - T1 (B1 domain pass loop scaffold): Replaced monolithic 6-retrieval + single LLM `run()` path with `_DOMAIN_PASSES` loop (5 spec §5.11 pass IDs), stub `_domain_retrieve_*` / `_extract_*` methods emitting 5+5 domain trace steps, and M1 interim return (empty registers, roll-ups `[]`, `flags=[]`, `executive_summary=null`). Stage 1 retains read-only profile + triggers per D8a. Deferred trace step-count pytest — D4a cluster wet run owned by T5. See `.dev/decision-logs/m1-t1-domain-pass-loop.md`.
 
 ## uc13-m0-corpus-baseline-platform-setup — 2026-06-25

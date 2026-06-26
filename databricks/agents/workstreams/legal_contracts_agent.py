@@ -264,8 +264,10 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "min_chunk_length": 150,
         "max_chars": 20_000,
         "max_tokens": 12_000,
+        # A0: broaden beyond generic MSA tokens — lease/SA/staffing dominate Elder Care LEGAL
         "file_name_filter": [
             "Contract", "MSA", "Agreement", "SOW", "Customer", "Client", "Vendor", "Supplier",
+            "SA", "Lease", "Sublease", "Staffing", "Purchase", "Temp", "Marketing", "Engagement",
         ],
     },
     "employment": {
@@ -273,8 +275,10 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "min_chunk_length": 150,
         "max_chars": 15_000,
         "max_tokens": 10_000,
+        # A0: handbook/orientation/401(k) filenames — default Employment|Offer returned 0 chunks
         "file_name_filter": [
             "Employment", "Offer", "Contractor", "Commission", "Founder",
+            "Handbook", "Orientation", "401", "Restricted", "Stock", "Bylaws",
         ],
     },
     "litigation": {
@@ -282,8 +286,10 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "min_chunk_length": 150,
         "max_chars": 15_000,
         "max_tokens": 10_000,
+        # A0: regulatory survey + bond filenames — default Litigation|Dispute returned 0 chunks
         "file_name_filter": [
             "Litigation", "Dispute", "Legal", "Demand", "Regulatory",
+            "Survey", "DOH", "Bond", "Compliance", "Engagement",
         ],
     },
     "ip_privacy": {
@@ -292,7 +298,7 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "max_chars": 15_000,
         "max_tokens": 10_000,
         "file_name_filter": [
-            "IP", "Privacy", "GDPR", "HIPAA", "OSS", "Data Processing",
+            "IP", "Privacy", "GDPR", "HIPAA", "OSS", "Data Processing", "BAA",
         ],
     },
     "insurance": {
@@ -301,9 +307,36 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "max_chars": 12_000,
         "max_tokens": 8_000,
         "file_name_filter": [
-            "Insurance", "Policy", "COI", "Indemnity",
+            "Insurance", "Policy", "COI", "Indemnity", "Bond", "Renewal",
         ],
     },
+}
+
+# Per-pass semantic queries — tuned from A0 corpus decomposition (§5.6.3 / B2).
+_DOMAIN_PASS_QUERIES: dict[str, str] = {
+    "contracts_vendors_platform": (
+        "material customer contract MSA master service agreement statement of work "
+        "change of control termination vendor supplier platform reseller channel "
+        "staffing agreement lease sublease asset purchase marketing contract"
+    ),
+    "employment": (
+        "employment agreement offer letter contractor commission plan founder key employee "
+        "employee handbook orientation restricted stock non-compete non-solicit "
+        "severance 401k bylaws staffing agreement"
+    ),
+    "litigation": (
+        "litigation lawsuit dispute regulatory compliance arbitration demand letter "
+        "settlement survey DOH approval bond renewal regulatory correspondence "
+        "threatened claim legal engagement letter"
+    ),
+    "ip_privacy": (
+        "intellectual property IP ownership assignment data privacy GDPR HIPAA "
+        "indemnification liability cap open source OSS data processing agreement BAA"
+    ),
+    "insurance": (
+        "insurance certificate policy COI certificate of insurance indemnity "
+        "coverage bond renewal liability unusual indemnity"
+    ),
 }
 
 # Static registry: pass_id + budget_dict per §5.11 (retrieve/extract fns bound at runtime).
@@ -556,58 +589,115 @@ class LegalContractsAgent(WorkstreamAgent):
             )
 
     # -----------------------------------------------------------------------
-    # Domain pass retrieve / extract (B1 loop — stubs until T2/T3)
+    # Domain pass retrieval (B2 — D3a catalog-threaded fallback)
     # -----------------------------------------------------------------------
 
-    def _domain_retrieve_contracts_vendors_platform(self, spark) -> "ToolResult":  # noqa: F821
-        return self._tool_call(
-            tool_name="domain_retrieve_contracts_vendors_platform",
-            input_summary="pass=contracts_vendors_platform | stub (T2)",
-            data=[],
-            output_summary="0 chunks returned from 0 files",
-            confidence="low",
-            source_docs=[],
+    def _semantic_search_with_fallback(
+        self,
+        spark,
+        query: str,
+        workstream_filter: list,
+        top_k: int,
+        file_name_filter,
+        min_chunk_length: int = 150,
+        min_results: int = 3,
+    ) -> list:
+        """Semantic search with filename-filter retry; always passes catalog=self._catalog (D3a).
+
+        Do not use the financial context_utils fallback helper — it defaults catalog to uc13.
+        """
+        from agents.shared.retrieval import semantic_search
+
+        chunks = semantic_search(
+            query=query,
+            spark=spark,
+            company_name=self._company_name,
+            top_k=top_k,
+            workstream_filter=workstream_filter,
+            file_name_filter=file_name_filter,
+            min_chunk_length=min_chunk_length,
+            catalog=self._catalog,
         )
+
+        if len(chunks) < min_results and file_name_filter is not None:
+            step = len(self._trace) + 1
+            self._trace.append({
+                "step":       step,
+                "tool":       "retrieval_fallback",
+                "input":      (
+                    f"file_name_filter returned {len(chunks)} chunks (< {min_results}); "
+                    f"retrying without filter"
+                ),
+                "output":     "fallback retrieval active — all workstream-tagged documents searched",
+                "confidence": "medium",
+                "sources":    [],
+            })
+            print(
+                f"  Step {step} [retrieval_fallback]: filter returned {len(chunks)} chunks, "
+                f"retrying without filename filter"
+            )
+            chunks = semantic_search(
+                query=query,
+                spark=spark,
+                company_name=self._company_name,
+                top_k=top_k,
+                workstream_filter=workstream_filter,
+                file_name_filter=None,
+                min_chunk_length=min_chunk_length,
+                catalog=self._catalog,
+            )
+
+        return chunks
+
+    def _domain_retrieve_pass(self, spark, pass_id: str) -> "ToolResult":  # noqa: F821
+        """Run semantic retrieval for one domain pass using §5.6.3 budgets."""
+        budget = _DOMAIN_PASS_BUDGETS[pass_id]
+        query = _DOMAIN_PASS_QUERIES[pass_id]
+        file_name_filter = budget["file_name_filter"]
+        filter_preview = ", ".join(file_name_filter[:6])
+        if len(file_name_filter) > 6:
+            filter_preview += ", …"
+
+        chunks = self._semantic_search_with_fallback(
+            spark=spark,
+            query=query,
+            workstream_filter=["LEGAL"],
+            top_k=budget["top_k"],
+            file_name_filter=file_name_filter,
+            min_chunk_length=budget["min_chunk_length"],
+        )
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name=f"domain_retrieve_{pass_id}",
+            input_summary=(
+                f"pass={pass_id} | workstream=LEGAL | top_k={budget['top_k']} | "
+                f"file_name_filter=[{filter_preview}]"
+            ),
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
+    def _domain_retrieve_contracts_vendors_platform(self, spark) -> "ToolResult":  # noqa: F821
+        return self._domain_retrieve_pass(spark, "contracts_vendors_platform")
 
     def _domain_retrieve_employment(self, spark) -> "ToolResult":  # noqa: F821
-        return self._tool_call(
-            tool_name="domain_retrieve_employment",
-            input_summary="pass=employment | stub (T2)",
-            data=[],
-            output_summary="0 chunks returned from 0 files",
-            confidence="low",
-            source_docs=[],
-        )
+        return self._domain_retrieve_pass(spark, "employment")
 
     def _domain_retrieve_litigation(self, spark) -> "ToolResult":  # noqa: F821
-        return self._tool_call(
-            tool_name="domain_retrieve_litigation",
-            input_summary="pass=litigation | stub (T2)",
-            data=[],
-            output_summary="0 chunks returned from 0 files",
-            confidence="low",
-            source_docs=[],
-        )
+        return self._domain_retrieve_pass(spark, "litigation")
 
     def _domain_retrieve_ip_privacy(self, spark) -> "ToolResult":  # noqa: F821
-        return self._tool_call(
-            tool_name="domain_retrieve_ip_privacy",
-            input_summary="pass=ip_privacy | stub (T2)",
-            data=[],
-            output_summary="0 chunks returned from 0 files",
-            confidence="low",
-            source_docs=[],
-        )
+        return self._domain_retrieve_pass(spark, "ip_privacy")
 
     def _domain_retrieve_insurance(self, spark) -> "ToolResult":  # noqa: F821
-        return self._tool_call(
-            tool_name="domain_retrieve_insurance",
-            input_summary="pass=insurance | stub (T2)",
-            data=[],
-            output_summary="0 chunks returned from 0 files",
-            confidence="low",
-            source_docs=[],
-        )
+        return self._domain_retrieve_pass(spark, "insurance")
+
+    # -----------------------------------------------------------------------
+    # Domain pass extract (B3 — stubs until T3)
+    # -----------------------------------------------------------------------
 
     def _extract_contracts_vendors_platform(
         self,
