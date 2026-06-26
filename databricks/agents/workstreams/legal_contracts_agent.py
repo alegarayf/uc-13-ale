@@ -143,100 +143,102 @@ def _parse_int(value) -> Optional[int]:
 
 
 # ---------------------------------------------------------------------------
-# LLM prompts
+# Per-pass LLM prompts (spec §5.8.1–5.8.5 — normative field names per D2a)
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = """\
-You are a senior PE investment analyst extracting structured contract terms and
-litigation data from legal due diligence documents. Rules:
+_EXTRACT_SYSTEM_PROMPT = """\
+You are a senior PE investment analyst extracting structured legal diligence facts
+from due diligence documents. Rules:
 1. Extract ONLY what is explicitly stated in the provided context.
 2. Do NOT infer, compute, assume, or hallucinate any value.
 3. If a value is absent from the context, return null for that field.
-4. Every extracted value must have a citation: document name, location
-   (page number or section title), and a quote of ≤30 words.
+4. Every extracted record must include source_doc, source_location, and raw_quote (≤30 words).
 5. Return ONLY valid JSON with no preamble and no markdown fences.
-6. Extract one record per CONTRACT. Each record covers all extractable fields from
-   the schema. A contract may be an MSA, SOW, lease, employment agreement, or other
-   binding agreement.
-7. Change-of-control (CoC): extract whether consent is required, the consent
-   standard, and the ownership % threshold. If absent from the contract text,
-   return null — do not infer.
-8. Termination for convenience: extract yes/no, notice period in days, and any
-   penalty. Language like "either party may terminate upon X days notice" qualifies.
-9. Anti-assignment: extract yes/no and whether it explicitly captures change of
-   control as an assignment trigger.
-10. Litigation register: capture every mention of open legal matters, demand letters,
-    regulatory correspondence, or disclosed litigation. Do not filter or minimize.
-11. IMPORTANT: This agent does NOT provide legal advice. Never opine on
-    enforceability or legal outcome. Extract facts only.\
+6. Tri-state clause fields use JSON STRING tokens "true", "false", or "not_found" —
+   never JSON boolean literals (true/false without quotes).
+7. This agent does NOT provide legal advice. Extract facts only; do not opine on outcome.\
 """
 
-_USER_PROMPT_TEMPLATE = """\
-COMPANY PROFILE (from Phase 2 output):
+_USER_PROMPT_CONTRACTS_VENDORS_PLATFORM = """\
+COMPANY PROFILE (metadata only — do NOT treat as contract evidence):
 {company_profile_json}
 
 {trigger_context}
 
-RETRIEVED DOCUMENT CONTEXT:
-{combined_chunk_text}
+RETRIEVED DOCUMENT CONTEXT (extract ALL contract/vendor/platform facts from here):
+{focused_chunk_text}
 
-Extract legal and contract fields and return this exact JSON structure:
+EXTRACTION TASK — contracts, vendors, and platform/channel dependencies (§5.8.1).
+Extract one record per distinct contract, vendor agreement, or platform dependency.
+Return ONLY this JSON object:
+
 {{
   "contract_register": [
     {{
       "contract_id": "<sequential integer starting at 1>",
       "counterparty_name": "<name as stated>",
-      "contract_type": "<MSA | SOW | Lease | Employment | Partnership | License | Other>",
+      "contract_type": "<MSA | SOW | Lease | Employment | Partnership | License | Vendor | Other>",
       "contract_date": "<date as stated or null>",
-      "revenue_pct": "<% of revenue if identified as material customer, else null>",
-      "triggered_review": "<true if counterparty matches contract_trigger_list, false otherwise>",
       "change_of_control": {{
-        "clause_present": "<true | false | not_found>",
-        "consent_required": "<true | false | null>",
+        "clause_present": "<\"true\" | \"false\" | \"not_found\">",
+        "consent_required": "<\"true\" | \"false\" | null>",
         "consent_standard": "<description as stated or null>",
         "ownership_threshold_pct": "<% as stated or null>"
       }},
       "termination_for_convenience": {{
-        "present": "<true | false | not_found>",
+        "present": "<\"true\" | \"false\" | \"not_found\">",
         "notice_days": "<integer as stated or null>",
         "penalty": "<description as stated or null>"
       }},
-      "anti_assignment": {{
-        "present": "<true | false | not_found>",
-        "captures_coc": "<true | false | null>"
+      "restrictive_covenants": {{
+        "present": "<\"true\" | \"false\" | \"not_found\">",
+        "scope_note": "<description as stated or null>"
       }},
       "auto_renewal": {{
-        "present": "<true | false | not_found>",
+        "present": "<\"true\" | \"false\" | \"not_found\">",
         "notice_for_non_renewal_days": "<integer or null>"
       }},
       "pricing_terms": {{
         "structure": "<fixed | indexed | customer_reset | escalator | null>",
-        "customer_repricing_rights": "<true | false | null>"
+        "customer_repricing_rights": "<\"true\" | \"false\" | null>"
       }},
-      "liability_cap": {{
-        "capped": "<true | false | null>",
+      "liability_indemnity": {{
+        "capped": "<\"true\" | \"false\" | null>",
         "cap_amount_note": "<description or null>",
-        "unusual_indemnity": "<true | false | null>"
+        "unusual_indemnity": "<\"true\" | \"false\" | null>"
       }},
-      "exclusivity_mfn_noncompete": {{
-        "present": "<true | false | not_found>",
-        "scope_note": "<description as stated or null>"
-      }},
-      "ip_data_obligations_note": "<key obligations as stated or null>",
       "source_doc": "<filename>",
       "source_location": "<page or section>",
       "raw_quote": "<≤30 word quote from a key clause>"
     }}
   ],
-  "litigation_register": [
+  "vendor_register": [
     {{
-      "matter_type": "<lawsuit | arbitration | regulatory | demand_letter | settlement | other>",
-      "description": "<as stated>",
-      "counterparty": "<name as stated or null>",
-      "status": "<open | closed | unknown>",
-      "estimated_exposure": "<$ as stated or null>",
+      "vendor_name": "<name as stated>",
+      "agreement_type": "<MSA | SOW | Vendor | Supplier | Other>",
+      "pricing_reset_terms": "<description as stated or null>",
+      "cancellation_rights": "<description as stated or null>",
+      "termination_notice_days": "<integer as stated or null>",
+      "platform_criticality_note": "<description as stated or null>",
+      "liability_indemnity": {{
+        "capped": "<\"true\" | \"false\" | null>",
+        "cap_amount_note": "<description or null>",
+        "unusual_indemnity": "<\"true\" | \"false\" | null>"
+      }},
       "source_doc": "<filename>",
-      "source_location": "<page or section>"
+      "source_location": "<page or section>",
+      "raw_quote": "<≤30 word quote>"
+    }}
+  ],
+  "platform_dependency_register": [
+    {{
+      "platform_or_channel_name": "<name as stated>",
+      "dependency_type": "<platform | reseller | channel | marketplace | other>",
+      "exclusivity_note": "<description as stated or null>",
+      "termination_impact_note": "<description as stated or null>",
+      "source_doc": "<filename>",
+      "source_location": "<page or section>",
+      "raw_quote": "<≤30 word quote>"
     }}
   ],
   "citations": [
@@ -248,10 +250,176 @@ Extract legal and contract fields and return this exact JSON structure:
       "confidence": "<high | medium | low>"
     }}
   ],
-  "executive_summary": "<2–3 sentence factual description of contract register scope, CoC exposure, and any litigation. Describe what was found — do not opine on legal outcome.>",
-  "extraction_notes": "<missing contracts, ambiguous clauses, documents not reviewed>"
+  "pass_notes": "<missing contracts, ambiguous clauses, documents not reviewed — or null>"
 }}\
 """
+
+_USER_PROMPT_EMPLOYMENT = """\
+COMPANY PROFILE (metadata only):
+{company_profile_json}
+
+{trigger_context}
+
+RETRIEVED DOCUMENT CONTEXT:
+{focused_chunk_text}
+
+EXTRACTION TASK — employment, contractor, commission, and founder/key agreements (§5.8.2).
+Return ONLY this JSON object:
+
+{{
+  "employment_register": [
+    {{
+      "person_or_role": "<name or role as stated>",
+      "agreement_class": "<employee | contractor | commission | founder_key>",
+      "non_compete": {{
+        "present": "<\"true\" | \"false\" | \"not_found\">",
+        "scope_note": "<description as stated or null>"
+      }},
+      "non_solicit": {{
+        "present": "<\"true\" | \"false\" | \"not_found\">",
+        "scope_note": "<description as stated or null>"
+      }},
+      "change_of_control": {{
+        "clause_present": "<\"true\" | \"false\" | \"not_found\">",
+        "consent_required": "<\"true\" | \"false\" | null>",
+        "consent_standard": "<description as stated or null>",
+        "ownership_threshold_pct": "<% as stated or null>"
+      }},
+      "commission_terms_note": "<description as stated or null>",
+      "source_doc": "<filename>",
+      "source_location": "<page or section>",
+      "raw_quote": "<≤30 word quote>"
+    }}
+  ],
+  "citations": [ {{ "field", "document", "location", "quote", "confidence" }} ],
+  "pass_notes": "<string or null>"
+}}\
+"""
+
+_USER_PROMPT_LITIGATION = """\
+COMPANY PROFILE (metadata only):
+{company_profile_json}
+
+{trigger_context}
+
+RETRIEVED DOCUMENT CONTEXT:
+{focused_chunk_text}
+
+EXTRACTION TASK — litigation, disputes, regulatory matters, and threatened claims (§5.8.3).
+Capture every disclosed matter; do not filter or minimize.
+Return ONLY this JSON object:
+
+{{
+  "litigation_register": [
+    {{
+      "matter_type": "<lawsuit | arbitration | regulatory | demand_letter | settlement | threatened | other>",
+      "description": "<as stated>",
+      "counterparty": "<name as stated or null>",
+      "status": "<open | closed | unknown>",
+      "estimated_exposure": "<$ as stated or null>",
+      "source_doc": "<filename>",
+      "source_location": "<page or section>",
+      "raw_quote": "<≤30 word quote>"
+    }}
+  ],
+  "citations": [ {{ "field", "document", "location", "quote", "confidence" }} ],
+  "pass_notes": "<string or null>"
+}}\
+"""
+
+_USER_PROMPT_IP_PRIVACY = """\
+COMPANY PROFILE (metadata only):
+{company_profile_json}
+
+{trigger_context}
+
+RETRIEVED DOCUMENT CONTEXT:
+{focused_chunk_text}
+
+EXTRACTION TASK — intellectual property and data privacy/security obligations (§5.8.4).
+Return ONLY this JSON object:
+
+{{
+  "ip_register": [
+    {{
+      "ip_type": "<patent | trademark | copyright | trade_secret | assignment | OSS | other>",
+      "ownership_assignment_note": "<description as stated or null>",
+      "open_source_exposure_note": "<description as stated or null>",
+      "source_doc": "<filename>",
+      "source_location": "<page or section>",
+      "raw_quote": "<≤30 word quote>"
+    }}
+  ],
+  "privacy_security_register": [
+    {{
+      "obligation_type": "<privacy_policy | DPA | BAA | security | breach_notification | other>",
+      "regime": "<GDPR | HIPAA | CCPA | other | null>",
+      "description": "<as stated>",
+      "breach_notification": "<description as stated or null>",
+      "source_doc": "<filename>",
+      "source_location": "<page or section>",
+      "raw_quote": "<≤30 word quote>"
+    }}
+  ],
+  "citations": [ {{ "field", "document", "location", "quote", "confidence" }} ],
+  "pass_notes": "<string or null>"
+}}\
+"""
+
+_USER_PROMPT_INSURANCE = """\
+COMPANY PROFILE (metadata only):
+{company_profile_json}
+
+{trigger_context}
+
+RETRIEVED DOCUMENT CONTEXT:
+{focused_chunk_text}
+
+EXTRACTION TASK — insurance policies, coverage gaps, and unusual indemnity terms (§5.8.5).
+Return ONLY this JSON object:
+
+{{
+  "insurance_register": [
+    {{
+      "policy_type": "<general_liability | professional | cyber | D&O | workers_comp | COI | bond | other>",
+      "coverage_note": "<description as stated or null>",
+      "gap_or_unusual_term_note": "<description as stated or null>",
+      "source_doc": "<filename>",
+      "source_location": "<page or section>",
+      "raw_quote": "<≤30 word quote>"
+    }}
+  ],
+  "citations": [ {{ "field", "document", "location", "quote", "confidence" }} ],
+  "pass_notes": "<string or null>"
+}}\
+"""
+
+_DOMAIN_PASS_EXTRACT: dict[str, dict] = {
+    "contracts_vendors_platform": {
+        "user_prompt": _USER_PROMPT_CONTRACTS_VENDORS_PLATFORM,
+        "register_keys": (
+            "contract_register",
+            "vendor_register",
+            "platform_dependency_register",
+        ),
+    },
+    "employment": {
+        "user_prompt": _USER_PROMPT_EMPLOYMENT,
+        "register_keys": ("employment_register",),
+    },
+    "litigation": {
+        "user_prompt": _USER_PROMPT_LITIGATION,
+        "register_keys": ("litigation_register",),
+    },
+    "ip_privacy": {
+        "user_prompt": _USER_PROMPT_IP_PRIVACY,
+        "register_keys": ("ip_register", "privacy_security_register"),
+    },
+    "insurance": {
+        "user_prompt": _USER_PROMPT_INSURANCE,
+        "register_keys": ("insurance_register",),
+    },
+}
 
 
 # ---------------------------------------------------------------------------
@@ -696,8 +864,152 @@ class LegalContractsAgent(WorkstreamAgent):
         return self._domain_retrieve_pass(spark, "insurance")
 
     # -----------------------------------------------------------------------
-    # Domain pass extract (B3 — stubs until T3)
+    # Domain pass extract (B3 — per-pass LLM extraction)
     # -----------------------------------------------------------------------
+
+    def _build_trigger_context(self, pass_id: str, contract_triggers: list) -> str:
+        """Inject read-only CQA trigger context where relevant (D8a)."""
+        if pass_id != "contracts_vendors_platform" or not contract_triggers:
+            return ""
+        trigger_json = json.dumps(contract_triggers, indent=2, default=str)
+        return (
+            "CONTRACT REVIEW TRIGGERS (from Customer Quality Agent — prioritize these "
+            f"counterparties when extracting contracts):\n{trigger_json}\n"
+        )
+
+    def _ingest_pass_citations(self, citations: list) -> None:
+        for cite in citations or []:
+            if not isinstance(cite, dict):
+                continue
+            self._add_citation(
+                claim=cite.get("field", ""),
+                document=cite.get("document", ""),
+                location=cite.get("location", ""),
+                confidence=cite.get("confidence", "medium"),
+                raw_text=cite.get("quote", ""),
+            )
+
+    def _empty_pass_registers(self, pass_id: str) -> dict:
+        return {key: [] for key in _DOMAIN_PASS_EXTRACT[pass_id]["register_keys"]}
+
+    def _normalize_pass_payload(self, pass_id: str, parsed: dict) -> dict:
+        """Ensure all §5.8 register keys exist; drop unknown top-level keys."""
+        register_keys = _DOMAIN_PASS_EXTRACT[pass_id]["register_keys"]
+        return {
+            key: parsed.get(key) if isinstance(parsed.get(key), list) else []
+            for key in register_keys
+        }
+
+    def _domain_extract_pass(
+        self,
+        pass_id: str,
+        chunks,
+        company_profile,
+        contract_triggers,
+        extraction_endpoint: str,
+        budget: dict,
+    ) -> dict:
+        """Run build_focused_context → _call_llm → _parse_json_response for one pass."""
+        import importlib
+
+        context_utils = importlib.import_module(
+            "agents.subagents.workstream.financial.context_utils"
+        )
+        build_focused_context = context_utils.build_focused_context
+
+        tool_name = f"domain_extract_{pass_id}"
+        empty = self._empty_pass_registers(pass_id)
+        register_keys = _DOMAIN_PASS_EXTRACT[pass_id]["register_keys"]
+        user_template = _DOMAIN_PASS_EXTRACT[pass_id]["user_prompt"]
+        max_chars = budget["max_chars"]
+        max_tokens = budget["max_tokens"]
+
+        if not chunks:
+            summary = ", ".join(f"{k}=0" for k in register_keys)
+            self._tool_call(
+                tool_name=tool_name,
+                input_summary=f"pass={pass_id} | 0 chunks — skipped LLM",
+                data=None,
+                output_summary=summary,
+                confidence="low",
+                source_docs=[],
+            )
+            return empty
+
+        trigger_context = self._build_trigger_context(pass_id, contract_triggers)
+        company_profile_json = json.dumps(company_profile or {}, default=str)
+        source_docs = list({getattr(c, "file_name", "") for c in chunks if getattr(c, "file_name", "")})
+
+        parsed = None
+        context_stats = ""
+        failure_note = ""
+        char_budgets = [max_chars, max(max_chars // 2, 4_000)]
+
+        for attempt, chars_budget in enumerate(char_budgets):
+            try:
+                context_text, context_stats = build_focused_context(chunks, max_chars=chars_budget)
+                user_prompt = user_template.format(
+                    company_profile_json=company_profile_json,
+                    trigger_context=trigger_context,
+                    focused_chunk_text=context_text,
+                )
+                raw = self._call_llm(
+                    _EXTRACT_SYSTEM_PROMPT,
+                    user_prompt,
+                    extraction_endpoint,
+                    max_tokens=max_tokens,
+                )
+                parsed = self._parse_json_response(raw)
+                break
+            except ValueError as exc:
+                failure_note = str(exc)
+                if attempt == 0:
+                    self._add_gap(
+                        f"{pass_id}: LLM JSON parse failed — retrying with halved context "
+                        f"({chars_budget} → {char_budgets[1]} chars)"
+                    )
+                    continue
+                break
+            except Exception as exc:
+                failure_note = str(exc)
+                break
+
+        if parsed is None:
+            summary = ", ".join(f"{k}=0" for k in register_keys)
+            self._tool_call(
+                tool_name=tool_name,
+                input_summary=(
+                    f"pass={pass_id} | {len(chunks)} chunks | context: {context_stats or 'n/a'} | "
+                    f"extraction failed"
+                ),
+                data=None,
+                output_summary=f"{summary} — {failure_note[:120]}" if failure_note else summary,
+                confidence="low",
+                source_docs=source_docs,
+            )
+            return empty
+
+        normalized = self._normalize_pass_payload(pass_id, parsed)
+        self._ingest_pass_citations(parsed.get("citations"))
+
+        counts = ", ".join(f"{k}={len(normalized[k])}" for k in register_keys)
+        pass_notes = parsed.get("pass_notes")
+        output_summary = counts
+        if pass_notes:
+            output_summary += f" | pass_notes: {str(pass_notes)[:80]}"
+
+        self._tool_call(
+            tool_name=tool_name,
+            input_summary=(
+                f"pass={pass_id} | {len(chunks)} chunks | context: {context_stats} | "
+                f"max_tokens={max_tokens}"
+            ),
+            data=normalized,
+            output_summary=output_summary,
+            confidence="high" if any(normalized[k] for k in register_keys) else "medium",
+            source_docs=source_docs,
+        )
+        return normalized
 
     def _extract_contracts_vendors_platform(
         self,
@@ -707,19 +1019,14 @@ class LegalContractsAgent(WorkstreamAgent):
         extraction_endpoint: str,
         budget: dict,
     ) -> dict:
-        self._tool_call(
-            tool_name="domain_extract_contracts_vendors_platform",
-            input_summary=f"pass=contracts_vendors_platform | {len(chunks)} chunks | stub (T3)",
-            data=None,
-            output_summary="0 contracts, 0 vendors, 0 platform deps",
-            confidence="low",
-            source_docs=[],
+        return self._domain_extract_pass(
+            "contracts_vendors_platform",
+            chunks,
+            company_profile,
+            contract_triggers,
+            extraction_endpoint,
+            budget,
         )
-        return {
-            "contract_register": [],
-            "vendor_register": [],
-            "platform_dependency_register": [],
-        }
 
     def _extract_employment(
         self,
@@ -729,15 +1036,14 @@ class LegalContractsAgent(WorkstreamAgent):
         extraction_endpoint: str,
         budget: dict,
     ) -> dict:
-        self._tool_call(
-            tool_name="domain_extract_employment",
-            input_summary=f"pass=employment | {len(chunks)} chunks | stub (T3)",
-            data=None,
-            output_summary="0 employment records",
-            confidence="low",
-            source_docs=[],
+        return self._domain_extract_pass(
+            "employment",
+            chunks,
+            company_profile,
+            contract_triggers,
+            extraction_endpoint,
+            budget,
         )
-        return {"employment_register": []}
 
     def _extract_litigation(
         self,
@@ -747,15 +1053,14 @@ class LegalContractsAgent(WorkstreamAgent):
         extraction_endpoint: str,
         budget: dict,
     ) -> dict:
-        self._tool_call(
-            tool_name="domain_extract_litigation",
-            input_summary=f"pass=litigation | {len(chunks)} chunks | stub (T3)",
-            data=None,
-            output_summary="0 litigation records",
-            confidence="low",
-            source_docs=[],
+        return self._domain_extract_pass(
+            "litigation",
+            chunks,
+            company_profile,
+            contract_triggers,
+            extraction_endpoint,
+            budget,
         )
-        return {"litigation_register": []}
 
     def _extract_ip_privacy(
         self,
@@ -765,15 +1070,14 @@ class LegalContractsAgent(WorkstreamAgent):
         extraction_endpoint: str,
         budget: dict,
     ) -> dict:
-        self._tool_call(
-            tool_name="domain_extract_ip_privacy",
-            input_summary=f"pass=ip_privacy | {len(chunks)} chunks | stub (T3)",
-            data=None,
-            output_summary="0 IP records, 0 privacy/security records",
-            confidence="low",
-            source_docs=[],
+        return self._domain_extract_pass(
+            "ip_privacy",
+            chunks,
+            company_profile,
+            contract_triggers,
+            extraction_endpoint,
+            budget,
         )
-        return {"ip_register": [], "privacy_security_register": []}
 
     def _extract_insurance(
         self,
@@ -783,15 +1087,14 @@ class LegalContractsAgent(WorkstreamAgent):
         extraction_endpoint: str,
         budget: dict,
     ) -> dict:
-        self._tool_call(
-            tool_name="domain_extract_insurance",
-            input_summary=f"pass=insurance | {len(chunks)} chunks | stub (T3)",
-            data=None,
-            output_summary="0 insurance records",
-            confidence="low",
-            source_docs=[],
+        return self._domain_extract_pass(
+            "insurance",
+            chunks,
+            company_profile,
+            contract_triggers,
+            extraction_endpoint,
+            budget,
         )
-        return {"insurance_register": []}
 
     # -----------------------------------------------------------------------
     # Roll-up computations (deterministic Python — no LLM)
