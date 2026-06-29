@@ -1,5 +1,10 @@
 # Changelog
 
+## uc13-m3-schema-guard-tests-e2e-stakeholder-closure — 2026-06-29
+
+- T1 (Inline schema guard in main): Moved `_EXPECTED_COLS` DROP guard from `_ensure_legal_storage()` into `main()` after `agent.run()` and before DELETE+append per D1-A / FTA inline pattern; `_ensure_legal_storage()` is CREATE-only DDL + compat VIEW. Added AST falsifiers for guard placement, no duplicate guard in storage helper, and CREATE-after-guard ordering. See `.dev/decision-logs/m3-t1-schema-guard.md`.
+- T2 (Runtime behavioral tests for helpers, merge, and option-C flags): Added `tests/test_legal_contracts_agent_logic.py` with parametrized tri-state helper tests, register dedupe/merge fixtures, and `_apply_legal_flags` coverage for coc consent, restrictive covenant, unusual indemnity, open matters, and dual regulatory flags. Closes M2 deferrals from m2-t1 and m2-t3 without Spark. Adversarial gap deferred: nested `change_of_control` field conflict when preferred row lacks the nested key.
+
 ## uc13-m2-merge-flags-gaps-stakeholder-report — 2026-06-26
 
 - T7 (CI falsifier + exit gate): Inverted M1 AST falsifiers to positive M2 wiring checks (`_merge_registers`, roll-ups, `_apply_legal_flags`, `_assess_coverage_gaps`); updated interim return-shape test for populated `executive_summary`/`flags`/gap columns; added `STAKEHOLDER_COVERAGE_REQUIREMENTS` / `_is_true` / merged-register serialization falsifiers. Pytest subset 45 passed (`tests/test_legal_contracts_agent.py`, `tests/test_legal_contracts_agent_extract.py`, `tests/test_uc13_ingestion_pipeline.py`). Exit gate closed on workspace (`catalog=uc13_ale`, `sp_company_name=Elder Care`, `2026-06-26T21:43:45Z`): one `uc13_ale.analysis.legal` row with `section_confidence=high`, non-empty gap JSON (`unable_to_assess`=4 items, `recommended_diligence`=1), flags=8 (option-C metrics only), register counts contract=5/vendor=1/employment=2/litigation=1/privacy_security=8/insurance=4; Volume dual-write at `/Volumes/uc13_ale/analysis/reports/Elder_Care/legal_report.yaml` and `legal_contracts_report.yaml`.
