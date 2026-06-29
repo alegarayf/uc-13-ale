@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-orchestrator-m1-phase-a-demo-e2e — 2026-06-29
+
+- T1 (Freeze TL;DR required fields and fill_state rules): Added `databricks/agents/orchestrator/constants.py` with `TLDR_REQUIRED_FIELDS` (17 Appendix B dot-paths) and `FILL_STATE_RULES` (Elder Care typical fill_state map); exported from package `__init__.py`. Single source for T4 `apply_fill_state` and T8 `demo_walkthrough` gates. Adversarial enum-round-trip falsifier deferred per M1 pytest waiver — downstream T4/T8 cluster gates own verification.
+
 ## uc13-m3-schema-guard-tests-e2e-stakeholder-closure — 2026-06-29
 
 - T5 (Golden checklist G3): Wrote `.dev/legal_agent/eval/golden_checklist_elder_care.md` with 11 rows (7 `pass`, 4 `gap-correct`) scored from normative `legal_report.yaml` and T4 POC delta; `display_name` values cross-checked against `STAKEHOLDER_COVERAGE_REQUIREMENTS`. + added `tests/test_golden_checklist_elder_care.py` for row-count, item_id set, verdict enum, and summary-tally contract.
