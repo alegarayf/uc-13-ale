@@ -50,6 +50,19 @@ class _OrchestratorLlm(WorkstreamAgent):
     agent_name = "orchestrator"
 
 
+def _normalize_utc(dt: Any) -> datetime | None:
+    """Normalize Spark / Python timestamps for safe comparison (naive → UTC-aware)."""
+    if dt is None:
+        return None
+    if hasattr(dt, "to_pydatetime"):
+        dt = dt.to_pydatetime()
+    if not isinstance(dt, datetime):
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _deep_merge(base: dict, overlay: dict) -> dict:
     for key, value in overlay.items():
         if key in base and isinstance(base[key], dict) and isinstance(value, dict):
@@ -700,6 +713,7 @@ def _freshness(
     company_name: str,
     generated_at: datetime,
 ) -> str:
+    generated_utc = _normalize_utc(generated_at)
     latest: datetime | None = None
     for agent_key in AGENTS_PRESENT_KEYS:
         table = f"{catalog}.analysis.{_AGENT_TABLES[agent_key]}"
@@ -715,10 +729,10 @@ def _freshness(
             continue
         if not row:
             continue
-        created = row[0]["created_at"]
+        created = _normalize_utc(row[0]["created_at"])
         if created and (latest is None or created > latest):
             latest = created
-    if latest and latest > generated_at:
+    if latest and generated_utc and latest > generated_utc:
         return "stale"
     return "current"
 
