@@ -121,15 +121,29 @@ def _gap_count_for_agent(bundle: dict, agent_key: str) -> int:
     return sum(
         1
         for row in bundle.get("data_room_gaps") or []
-        if row.get("source_agent") == agent_key
+        if isinstance(row, dict) and row.get("source_agent") == agent_key
     )
 
 
-def _kpi_na_ratio(rows: list[dict]) -> float:
-    if not rows:
+def _kpi_na_ratio(rows: list) -> float:
+    dict_rows = [r for r in rows if isinstance(r, dict)]
+    if not dict_rows:
         return 1.0
-    na = sum(1 for r in rows if r.get("flag") == "N/A")
-    return na / len(rows)
+    na = sum(1 for r in dict_rows if r.get("flag") == "N/A")
+    return na / len(dict_rows)
+
+
+def _is_list_of_dicts(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(item, dict) for item in value)
+
+
+def _restore_structural_fields_after_llm(bundle: dict, preserved: dict[str, Any]) -> None:
+    """LLM JSON may replace list[dict] fields with strings; restore deterministic rows."""
+    if not isinstance(bundle.get("meta"), dict):
+        bundle["meta"] = preserved["meta"]
+    for key in ("data_room_gaps", "kpi_dashboard", "risks", "diligence_questions"):
+        if not _is_list_of_dicts(bundle.get(key)):
+            bundle[key] = preserved[key]
 
 
 def _reduce_confidence(level: str) -> str:
@@ -197,7 +211,8 @@ def compute_confidence(bundle: dict, snapshots: dict[str, dict[str, Any]]) -> di
         if agent_key == "business_model":
             cim = delta_row.get("cim_detected")
             if cim is False:
-                deal = (bundle.get("meta") or {}).get("deal_type") or ""
+                meta = bundle.get("meta")
+                deal = meta.get("deal_type") if isinstance(meta, dict) else ""
                 if "bank" in str(deal).lower():
                     level = _reduce_confidence(level)
             areas[agent_key] = level
@@ -232,7 +247,7 @@ def _overall_confidence(
     if not values:
         return "low"
     overall = _CONF_ORDER[max(_CONF_ORDER.index(v) for v in values if v in _CONF_ORDER)]
-    if any(r.get("severity") == "critical" for r in risks):
+    if any(isinstance(r, dict) and r.get("severity") == "critical" for r in risks):
         overall = "low"
     return overall
 
@@ -836,7 +851,15 @@ def populate_bundle(
                 llm_result = {}
 
     if llm_result:
+        preserved_structural = {
+            "meta": dict(bundle["meta"]),
+            "data_room_gaps": bundle["data_room_gaps"],
+            "kpi_dashboard": bundle["kpi_dashboard"],
+            "risks": bundle["risks"],
+            "diligence_questions": bundle["diligence_questions"],
+        }
         _deep_merge(bundle, llm_result)
+        _restore_structural_fields_after_llm(bundle, preserved_structural)
 
     print("[orchestrator] populate: compute confidence")
     bundle["confidence_by_area"] = compute_confidence(bundle, snapshots)
