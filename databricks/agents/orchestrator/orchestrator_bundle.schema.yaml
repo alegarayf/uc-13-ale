@@ -1,0 +1,581 @@
+---
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://uc13.local/orchestrator_bundle.schema.json
+title: UC13 Orchestrator Bundle
+description: Canonical orchestrator bundle shape per uc13_orchestrator_deliverables_spec §5.8
+type: object
+additionalProperties: false
+required:
+  - meta
+  - headline_metrics
+  - executive
+  - company_framing
+  - financials
+  - revenue_quality
+  - kpi_dashboard
+  - qoe
+  - legal
+  - risks
+  - diligence_questions
+  - data_room_gaps
+  - confidence_by_area
+  - provenance
+properties:
+  meta:
+    $ref: "#/definitions/meta"
+  headline_metrics:
+    $ref: "#/definitions/headline_metrics"
+  executive:
+    $ref: "#/definitions/executive"
+  company_framing:
+    $ref: "#/definitions/company_framing"
+  financials:
+    $ref: "#/definitions/financials"
+  revenue_quality:
+    $ref: "#/definitions/revenue_quality"
+  kpi_dashboard:
+    type: array
+    items:
+      $ref: "#/definitions/kpi_dashboard_row"
+  qoe:
+    $ref: "#/definitions/qoe"
+  legal:
+    $ref: "#/definitions/legal"
+  risks:
+    type: array
+    items:
+      $ref: "#/definitions/risk_row"
+  diligence_questions:
+    type: array
+    items:
+      $ref: "#/definitions/diligence_question_row"
+  data_room_gaps:
+    type: array
+    items:
+      $ref: "#/definitions/data_room_gap_row"
+  confidence_by_area:
+    $ref: "#/definitions/confidence_by_area"
+  provenance:
+    $ref: "#/definitions/provenance"
+  reconciliation_issues:
+    type: ["array", "null"]
+    items:
+      type: object
+      additionalProperties: true
+    description: Deferred §5.18 — Cross-Analysis reconciliation feed (M3 C1)
+  claims_unsupported:
+    type: ["array", "null"]
+    items:
+      type: object
+      additionalProperties: true
+    description: Reserved §5.18 — CIM vs data room claims (future)
+
+definitions:
+  fill_state:
+    type: string
+    enum:
+      - filled_cited
+      - filled_synthesized
+      - gap_correct
+      - not_attempted
+
+  area_confidence:
+    type: string
+    enum:
+      - high
+      - medium
+      - low
+
+  overall_confidence:
+    type: string
+    enum:
+      - high
+      - medium
+      - low
+      - medium_low
+
+  workstream_key:
+    type: string
+    enum:
+      - business_model
+      - financial_trends
+      - customer_quality
+      - kpi
+      - legal
+      - quality_of_earnings
+
+  meta:
+    type: object
+    additionalProperties: false
+    required:
+      - schema_version
+      - company_name
+      - company_safe
+      - catalog
+      - vertical_overlay
+      - generated_at
+      - status
+      - freshness
+      - render_state
+      - demo_mode
+      - basis_of_preparation
+      - overall_confidence
+      - agents_present
+    properties:
+      schema_version:
+        type: string
+        const: "0.1.0"
+      company_name:
+        type: string
+        minLength: 1
+      company_safe:
+        type: string
+        minLength: 1
+      catalog:
+        type: string
+        minLength: 1
+      vertical_overlay:
+        type: string
+      deal_type:
+        type: ["string", "null"]
+      generated_at:
+        type: string
+        format: date-time
+      status:
+        type: string
+        enum:
+          - partial
+          - complete
+      freshness:
+        type: string
+        enum:
+          - current
+          - stale
+      render_state:
+        type: string
+        enum:
+          - bundle_only
+          - rendered
+      demo_mode:
+        type: boolean
+      disclaimer_text:
+        type: string
+      basis_of_preparation:
+        type: string
+      overall_confidence:
+        $ref: "#/definitions/overall_confidence"
+      agents_present:
+        type: object
+        additionalProperties: false
+        required:
+          - business_model
+          - financial_trends
+          - customer_quality
+          - kpi
+          - legal
+          - quality_of_earnings
+        properties:
+          business_model:
+            type: boolean
+          financial_trends:
+            type: boolean
+          customer_quality:
+            type: boolean
+          kpi:
+            type: boolean
+          legal:
+            type: boolean
+          quality_of_earnings:
+            type: boolean
+      outputs:
+        type: object
+        additionalProperties:
+          type: string
+    allOf:
+      - if:
+          properties:
+            demo_mode:
+              const: true
+          required:
+            - demo_mode
+        then:
+          required:
+            - disclaimer_text
+
+  headline_metrics:
+    type: object
+    additionalProperties: false
+    required:
+      - ltm_revenue
+      - ltm_ebitda
+      - ltm_ebitda_margin_pct
+      - revenue_cagr
+      - enterprise_value_indicated
+      - rule_of_40
+    properties:
+      ltm_revenue:
+        type: string
+      ltm_ebitda:
+        type: string
+      ltm_ebitda_margin_pct:
+        type: string
+      revenue_cagr:
+        type: string
+      enterprise_value_indicated:
+        type: ["string", "null"]
+      rule_of_40:
+        type: ["string", "null"]
+
+  executive:
+    type: object
+    additionalProperties: false
+    required:
+      - in_one_line
+      - preliminary_view
+    properties:
+      in_one_line:
+        type: string
+      preliminary_view:
+        type: object
+        additionalProperties: false
+        required:
+          - strengths
+          - concerns
+          - closing
+        properties:
+          strengths:
+            type: array
+            items:
+              type: string
+          concerns:
+            type: array
+            items:
+              type: string
+          closing:
+            type: string
+
+  company_framing:
+    type: object
+    additionalProperties: false
+    required:
+      - overview_bullets
+      - revenue_model
+      - recent_changes
+      - thesis
+    properties:
+      overview_bullets:
+        type: array
+        items:
+          type: string
+      revenue_model:
+        type: object
+        additionalProperties: false
+        required:
+          - tag
+          - quality_flag
+          - note
+        properties:
+          tag:
+            type: string
+          quality_flag:
+            type: string
+          note:
+            type: string
+      recent_changes:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      thesis:
+        type: object
+        additionalProperties: false
+        required:
+          - bullets
+          - value_creation_levers
+        properties:
+          bullets:
+            type: array
+            items:
+              type: string
+          value_creation_levers:
+            type: array
+            items:
+              type: string
+
+  financials:
+    type: object
+    additionalProperties: false
+    required:
+      - table_rows
+      - observations
+      - geographic_mix
+    properties:
+      table_rows:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - year
+            - revenue
+            - gross_profit
+            - gross_margin_pct
+            - ebitda
+            - ebitda_margin_pct
+          properties:
+            year:
+              type: string
+            revenue:
+              type: string
+            gross_profit:
+              type: string
+            gross_margin_pct:
+              type: string
+            ebitda:
+              type: string
+            ebitda_margin_pct:
+              type: string
+      observations:
+        type: array
+        items:
+          type: string
+      geographic_mix:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+
+  revenue_quality:
+    type: object
+    additionalProperties: false
+    required:
+      - scale_narrative
+      - concentration
+      - end_market_mix
+      - retention_notes
+    properties:
+      scale_narrative:
+        type: string
+      concentration:
+        type: string
+      end_market_mix:
+        type: string
+      retention_notes:
+        type: string
+
+  kpi_dashboard_row:
+    type: object
+    additionalProperties: false
+    required:
+      - metric_id
+      - display_name
+      - stated_value
+      - threshold
+      - flag
+      - confidence
+      - fill_state
+    properties:
+      metric_id:
+        type: string
+      display_name:
+        type: string
+      stated_value:
+        type: string
+      threshold:
+        type: string
+      flag:
+        type: string
+        enum:
+          - Green
+          - Yellow
+          - Red
+          - N/A
+      confidence:
+        $ref: "#/definitions/area_confidence"
+      fill_state:
+        $ref: "#/definitions/fill_state"
+
+  qoe:
+    type: object
+    additionalProperties: false
+    required:
+      - addback_pct_of_ebitda
+      - tier_summary
+      - flags
+    properties:
+      addback_pct_of_ebitda:
+        type: string
+      tier_summary:
+        type: string
+      flags:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+
+  legal:
+    type: object
+    additionalProperties: false
+    required:
+      - assessed_count
+      - checklist_total
+      - section_confidence
+      - top_flags
+      - top_gaps
+      - recommended_diligence
+    properties:
+      assessed_count:
+        type: integer
+        minimum: 0
+      checklist_total:
+        type: integer
+        const: 11
+      section_confidence:
+        $ref: "#/definitions/area_confidence"
+      top_flags:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      top_gaps:
+        type: array
+        items:
+          type: string
+      recommended_diligence:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+
+  risk_row:
+    type: object
+    additionalProperties: false
+    required:
+      - risk
+      - severity
+      - evidence
+      - mitigant_or_question
+      - source_agent
+      - confidence
+      - fill_state
+    properties:
+      risk:
+        type: string
+      severity:
+        type: string
+        enum:
+          - critical
+          - material
+          - track
+      evidence:
+        type: string
+      mitigant_or_question:
+        type: string
+      source_agent:
+        $ref: "#/definitions/workstream_key"
+      confidence:
+        $ref: "#/definitions/area_confidence"
+      fill_state:
+        $ref: "#/definitions/fill_state"
+
+  diligence_question_row:
+    type: object
+    additionalProperties: false
+    required:
+      - category
+      - question
+      - priority
+      - source_agent
+      - fill_state
+    properties:
+      category:
+        type: string
+      question:
+        type: string
+      priority:
+        type: string
+      source_agent:
+        $ref: "#/definitions/workstream_key"
+      fill_state:
+        $ref: "#/definitions/fill_state"
+
+  data_room_gap_row:
+    type: object
+    additionalProperties: false
+    required:
+      - item
+      - priority
+      - source_agent
+      - fill_state
+    properties:
+      item:
+        type: string
+      priority:
+        type: string
+      source_agent:
+        $ref: "#/definitions/workstream_key"
+      fill_state:
+        $ref: "#/definitions/fill_state"
+
+  confidence_by_area:
+    type: object
+    additionalProperties: false
+    required:
+      - business_model
+      - financial_trends
+      - customer_quality
+      - kpi
+      - legal
+      - quality_of_earnings
+      - forecast_support
+    properties:
+      business_model:
+        $ref: "#/definitions/area_confidence"
+      financial_trends:
+        $ref: "#/definitions/area_confidence"
+      customer_quality:
+        $ref: "#/definitions/area_confidence"
+      kpi:
+        $ref: "#/definitions/area_confidence"
+      legal:
+        $ref: "#/definitions/area_confidence"
+      quality_of_earnings:
+        $ref: "#/definitions/area_confidence"
+      forecast_support:
+        $ref: "#/definitions/area_confidence"
+
+  provenance:
+    type: object
+    additionalProperties: false
+    required:
+      - agent_report_paths
+      - agent_delta_tables
+      - bundle_builder_version
+      - synthesis_gaps
+    properties:
+      agent_report_paths:
+        type: object
+        additionalProperties:
+          type: string
+      agent_delta_tables:
+        type: object
+        additionalProperties:
+          type: string
+      bundle_builder_version:
+        type: string
+      synthesis_gaps:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - field_path
+            - reason
+            - owner
+          properties:
+            field_path:
+              type: string
+            reason:
+              type: string
+            owner:
+              type: string

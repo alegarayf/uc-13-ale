@@ -1,5 +1,15 @@
 """UC13 Orchestrator constants — Appendix B TL;DR field mapping (M1)."""
 
+# Six workstream keys for meta.agents_present (not legal_contracts)
+AGENTS_PRESENT_KEYS: tuple[str, ...] = (
+    "business_model",
+    "financial_trends",
+    "customer_quality",
+    "kpi",
+    "legal",
+    "quality_of_earnings",
+)
+
 # Appendix B — TL;DR required bundle dot-paths (synthesis_gaps + demo_walkthrough gates)
 TLDR_REQUIRED_FIELDS: list[str] = [
     "meta.company_name",
