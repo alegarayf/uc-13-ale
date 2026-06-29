@@ -6,12 +6,29 @@ import pytest
 
 from agents.workstreams.legal_contracts_agent import (
     LegalContractsAgent,
+    STAKEHOLDER_COVERAGE_REQUIREMENTS,
+    _DOMAIN_PASS_IDS,
     _eq_str,
     _is_not_found,
     _is_true,
     _merge_register_records,
     _register_dedupe_key,
 )
+
+_EMPTY_MERGED = {
+    "contract_register": [],
+    "vendor_register": [],
+    "platform_dependency_register": [],
+    "employment_register": [],
+    "litigation_register": [],
+    "privacy_security_register": [],
+    "ip_register": [],
+    "insurance_register": [],
+}
+
+
+def _zero_pass_chunk_counts() -> dict[str, int]:
+    return {pass_id: 0 for pass_id in _DOMAIN_PASS_IDS}
 
 
 @pytest.mark.parametrize(
@@ -214,3 +231,58 @@ def test_apply_legal_flags_open_regulatory_emits_both_flags(agent: LegalContract
     agent._apply_legal_flags(merged)
     metrics = {f.metric for f in agent._flags}
     assert metrics == {"open_legal_matter_regulatory", "regulatory_matter"}
+
+
+def test_stakeholder_coverage_requirements_has_eleven_rows():
+    assert len(STAKEHOLDER_COVERAGE_REQUIREMENTS) == 11
+    assert all(
+        req["domain_pass_id"] in _DOMAIN_PASS_IDS
+        for req in STAKEHOLDER_COVERAGE_REQUIREMENTS
+    )
+
+
+def test_assess_coverage_gaps_step3_retrieval_miss(agent: LegalContractsAgent):
+    """Step-3: chunks=0 → recommended diligence for unassessed item."""
+    agent._assess_coverage_gaps(_EMPTY_MERGED, _zero_pass_chunk_counts(), None)
+    diligence_ids = {row["item_id"] for row in agent._recommended_diligence}
+    assert "litigation" in diligence_ids
+    assert "Litigation exposure" in agent._unable_to_assess_items
+
+
+def test_assess_coverage_gaps_step2_extraction_miss(agent: LegalContractsAgent):
+    """Step-2: chunks>0 but predicate false → unable_to_assess without diligence row."""
+    pass_chunk_counts = _zero_pass_chunk_counts()
+    pass_chunk_counts["litigation"] = 4
+    agent._assess_coverage_gaps(_EMPTY_MERGED, pass_chunk_counts, None)
+    diligence_ids = {row["item_id"] for row in agent._recommended_diligence}
+    assert "litigation" not in diligence_ids
+    assert "Litigation exposure" in agent._unable_to_assess_items
+    gap_text = " ".join(agent._data_room_gaps)
+    assert "litigation: chunks retrieved but no extractable terms" in gap_text
+
+
+def test_assess_coverage_gaps_wrong_pass_chunk_key_misclassifies_step3(agent: LegalContractsAgent):
+    """Falsifier: typo pass_id in pass_chunk_counts defaults to 0 → false step-3."""
+    pass_chunk_counts = _zero_pass_chunk_counts()
+    pass_chunk_counts["litigaton"] = 6  # wrong key — not in _DOMAIN_PASS_IDS
+    agent._assess_coverage_gaps(_EMPTY_MERGED, pass_chunk_counts, None)
+    diligence_ids = {row["item_id"] for row in agent._recommended_diligence}
+    assert "litigation" in diligence_ids
+
+
+@pytest.mark.parametrize(
+    "assessed_count,expected",
+    [
+        (0, "low"),
+        (2, "low"),
+        (3, "medium"),
+        (6, "medium"),
+        (7, "high"),
+        (11, "high"),
+    ],
+)
+def test_compute_section_confidence_band_edges(
+    agent: LegalContractsAgent, assessed_count: int, expected: str
+):
+    agent._assessed_coverage_count = assessed_count
+    assert agent._compute_section_confidence() == expected

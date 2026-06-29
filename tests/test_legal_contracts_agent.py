@@ -367,3 +367,15 @@ def test_monolithic_retrieve_tools_removed():
         "_tool_retrieve_ip_and_data",
     ):
         assert f"def {dead}" not in _AGENT_SOURCE
+
+
+def test_main_dual_write_report_paths():
+    """Falsifier: main() must dual-write normative and legacy stakeholder report paths."""
+    main_body = _function_body_source("main")
+    assert "_write_normative_legal_report(" in main_body
+    assert "_write_stakeholder_report(" in main_body
+    normative_pos = main_body.index("_write_normative_legal_report(")
+    legacy_pos = main_body.index("_write_stakeholder_report(")
+    assert normative_pos < legacy_pos
+    assert "legal_report.yaml" in _AGENT_SOURCE
+    assert "legal_contracts_report.yaml" in _AGENT_SOURCE
