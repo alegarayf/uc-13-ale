@@ -1989,18 +1989,7 @@ def _map_legacy_result_to_legal_row(result: dict) -> dict:
 
 def _ensure_legal_storage(catalog: str, spark) -> None:
     """Idempotent Appendix A DDL: analysis.legal table + legal_contracts compat view."""
-    legal_table = f"{catalog}.analysis.legal"
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
-
-    try:
-        live_cols = {f.name for f in spark.table(legal_table).schema.fields}
-        if not _EXPECTED_COLS.issubset(live_cols):
-            missing = _EXPECTED_COLS - live_cols
-            print(f"  [schema_migration] {legal_table}: dropping stale table. Missing: {sorted(missing)}")
-            spark.sql(f"DROP TABLE IF EXISTS {legal_table}")
-    except Exception:
-        pass
-
     spark.sql(_CREATE_LEGAL_TABLE_SQL.format(catalog=catalog))
     spark.sql(f"DROP TABLE IF EXISTS {catalog}.analysis.legal_contracts")
     spark.sql(_CREATE_LEGAL_CONTRACTS_VIEW_SQL.format(catalog=catalog))
@@ -2046,6 +2035,18 @@ def main() -> dict:
     )
 
     table = f"{catalog}.analysis.legal"
+
+    # Schema migration guard: drop and recreate when expected columns are missing.
+    try:
+        _live_cols = {f.name for f in spark.table(table).schema.fields}
+        if not _EXPECTED_COLS.issubset(_live_cols):
+            _missing = _EXPECTED_COLS - _live_cols
+            print(f"  [schema_migration] {table}: dropping stale table. Missing: {sorted(_missing)}")
+            spark.sql(f"DROP TABLE IF EXISTS {table}")
+    except Exception:
+        pass
+
+    spark.sql(_CREATE_LEGAL_TABLE_SQL.format(catalog=catalog))
     spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
     from pyspark.sql import Row
