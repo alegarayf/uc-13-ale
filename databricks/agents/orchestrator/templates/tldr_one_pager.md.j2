@@ -1,0 +1,232 @@
+# {{ bundle.meta.company_name | default('—', true) }} — TL;DR One-Pager
+
+**Vertical:** {{ bundle.meta.vertical_overlay | default('—', true) }}  
+**Generated:** {{ bundle.meta.generated_at | default('—', true) }}  
+**Overall Confidence:** {{ bundle.meta.overall_confidence | default('—', true) }}
+
+---
+
+## Headline Metrics
+
+| Metric | Value |
+|--------|-------|
+| LTM Revenue | {{ bundle.headline_metrics.ltm_revenue | default('—', true) }} |
+| LTM EBITDA | {{ bundle.headline_metrics.ltm_ebitda | default('—', true) }} |
+| LTM EBITDA Margin | {{ bundle.headline_metrics.ltm_ebitda_margin_pct | default('—', true) }} |
+| Revenue CAGR | {{ bundle.headline_metrics.revenue_cagr | default('—', true) }} |
+{% if bundle.headline_metrics.enterprise_value_indicated | default('', true) %}
+| Enterprise Value (Indicated) | {{ bundle.headline_metrics.enterprise_value_indicated }} |
+{% endif %}
+{% if bundle.headline_metrics.rule_of_40 | default('', true) %}
+| Rule of 40 | {{ bundle.headline_metrics.rule_of_40 }} |
+{% endif %}
+
+---
+
+## In One Line
+
+{{ bundle.executive.in_one_line | default('—', true) }}
+
+---
+
+## Preliminary View
+
+### Strengths
+
+{% for strength in bundle.executive.preliminary_view.strengths | default([], true) %}
+- {{ strength }}
+{% else %}
+- —
+{% endfor %}
+
+### Concerns
+
+{% for concern in bundle.executive.preliminary_view.concerns | default([], true) %}
+- {{ concern }}
+{% else %}
+- —
+{% endfor %}
+
+---
+
+## Company Framing
+
+{% for bullet in bundle.company_framing.overview_bullets | default([], true) %}
+- {{ bullet }}
+{% else %}
+- —
+{% endfor %}
+
+**Revenue model:** {{ bundle.company_framing.revenue_model.tag | default('—', true) }} — {{ bundle.company_framing.revenue_model.quality_flag | default('—', true) }}
+
+{% if bundle.company_framing.revenue_model.note | default('', true) %}
+{{ bundle.company_framing.revenue_model.note }}
+{% endif %}
+
+{% if bundle.company_framing.thesis.bullets | default([], true) or bundle.company_framing.thesis.value_creation_levers | default([], true) %}
+### Forecast Watchouts & Value Levers
+
+{% for bullet in bundle.company_framing.thesis.bullets | default([], true) %}
+- {{ bullet }}
+{% endfor %}
+{% for lever in bundle.company_framing.thesis.value_creation_levers | default([], true) %}
+- {{ lever }}
+{% endfor %}
+{% endif %}
+
+---
+
+## Financial Strip
+
+{% set fin_rows = bundle.financials.table_rows | default([], true) %}
+{% if fin_rows %}
+| Year | Revenue | Gross Profit | Gross Margin | EBITDA | EBITDA Margin |
+|------|---------|--------------|--------------|--------|---------------|
+{% for row in fin_rows %}
+| {{ row.year | default('—', true) }} | {{ row.revenue | default('—', true) }} | {{ row.gross_profit | default('—', true) }} | {{ row.gross_margin_pct | default('—', true) }} | {{ row.ebitda | default('—', true) }} | {{ row.ebitda_margin_pct | default('—', true) }} |
+{% endfor %}
+{% else %}
+_No financial table rows available._
+{% endif %}
+
+{% set fin_obs = (bundle.financials.observations | default([], true))[:2] %}
+{% if fin_obs %}
+**Observations**
+
+{% for obs in fin_obs %}
+- {{ obs }}
+{% endfor %}
+{% endif %}
+
+---
+
+## Revenue Quality
+
+**Concentration:** {{ bundle.revenue_quality.concentration | default('—', true) }}
+
+{% if bundle.revenue_quality.scale_narrative | default('', true) %}
+**Scale:** {{ bundle.revenue_quality.scale_narrative }}
+{% endif %}
+
+{% if bundle.revenue_quality.end_market_mix | default('', true) %}
+**End-market mix:** {{ bundle.revenue_quality.end_market_mix }}
+{% endif %}
+
+**Retention:** {{ bundle.revenue_quality.retention_notes | default('—', true) }}
+
+---
+
+## KPI Dashboard
+
+{% set kpi_rows = bundle.kpi_dashboard | default([], true) %}
+{% if kpi_rows %}
+| Metric | Value | Threshold | Flag | Confidence |
+|--------|-------|-----------|------|------------|
+{% for kpi in kpi_rows %}
+| {{ kpi.display_name | default('—', true) }} | {{ kpi.stated_value | default('—', true) }} | {{ kpi.threshold | default('—', true) }} | {{ kpi.flag | default('—', true) }} | {{ kpi.confidence | default('—', true) }} |
+{% endfor %}
+{% else %}
+_No KPI dashboard rows available._
+{% endif %}
+
+---
+
+## Legal Snapshot
+
+- **Assessed:** {{ bundle.legal.assessed_count | default('—', true) }} / {{ bundle.legal.checklist_total | default(11, true) }}
+- **Section confidence:** {{ bundle.legal.section_confidence | default('—', true) }}
+
+{% for flag in bundle.legal.top_flags | default([], true) %}
+- {% if flag is mapping %}{{ flag.get('description', flag.get('flag', flag)) }}{% else %}{{ flag }}{% endif %}
+{% endfor %}
+
+{% for gap in bundle.legal.top_gaps | default([], true) %}
+- {{ gap }}
+{% endfor %}
+
+{% for item in bundle.legal.recommended_diligence | default([], true) %}
+- {% if item is mapping %}{{ item.get('question', item.get('item', item)) }}{% else %}{{ item }}{% endif %}
+{% endfor %}
+
+---
+
+## Quality of Earnings
+
+- **Addbacks (% of EBITDA):** {{ bundle.qoe.addback_pct_of_ebitda | default('—', true) }}
+- **Tier summary:** {{ bundle.qoe.tier_summary | default('—', true) }}
+
+{% for flag in bundle.qoe.flags | default([], true) %}
+- {% if flag is mapping %}{{ flag.get('description', flag.get('flag', flag)) }}{% else %}{{ flag }}{% endif %}
+{% else %}
+- —
+{% endfor %}
+
+---
+
+## Top Risks
+
+{% set top_risks = (bundle.risks | default([], true))[:8] %}
+{% if top_risks %}
+| Risk | Severity | Evidence | Mitigant / Question |
+|------|----------|----------|---------------------|
+{% for risk in top_risks %}
+| {{ risk.risk | default('—', true) }} | {{ risk.severity | default('—', true) }} | {{ risk.evidence | default('—', true) }} | {{ risk.mitigant_or_question | default('—', true) }} |
+{% endfor %}
+{% else %}
+_No risks recorded._
+{% endif %}
+
+---
+
+## Priority Diligence Questions
+
+{% set top_questions = (bundle.diligence_questions | default([], true))[:8] %}
+{% if top_questions %}
+| Category | Question | Priority |
+|----------|----------|----------|
+{% for q in top_questions %}
+| {{ q.category | default('—', true) }} | {{ q.question | default('—', true) }} | {{ q.priority | default('—', true) }} |
+{% endfor %}
+{% else %}
+_No diligence questions recorded._
+{% endif %}
+
+---
+
+## Data Room Gaps
+
+{% for gap in bundle.data_room_gaps | default([], true) %}
+- [{{ gap.priority | default('—', true) }}] {{ gap.item | default('—', true) }}
+{% else %}
+- —
+{% endfor %}
+
+---
+
+## Confidence by Area
+
+{% set conf = bundle.confidence_by_area | default({}, true) %}
+| Area | Confidence |
+|------|------------|
+| Business Model | {{ conf.business_model | default('—', true) }} |
+| Financial Trends | {{ conf.financial_trends | default('—', true) }} |
+| Customer Quality | {{ conf.customer_quality | default('—', true) }} |
+| KPI | {{ conf.kpi | default('—', true) }} |
+| Legal | {{ conf.legal | default('—', true) }} |
+| Quality of Earnings | {{ conf.quality_of_earnings | default('—', true) }} |
+| Forecast Support | {{ conf.forecast_support | default('—', true) }} |
+
+---
+
+{% if bundle.meta.demo_mode %}
+> **Demo Disclaimer**
+>
+> {{ bundle.meta.disclaimer_text | default('This output is for demonstration purposes only.', true) }}
+
+---
+
+{% endif %}
+
+## Closing
+
+{{ bundle.executive.preliminary_view.closing | default('—', true) }}
