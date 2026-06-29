@@ -38,10 +38,10 @@ _DEMO_DISCLAIMER = (
 
 _LLM_SYSTEM_PROMPT = """You are the UC13 orchestrator synthesis agent (M1 demo).
 Populate orchestrator bundle fields from workstream agent snapshots provided in the user message.
-Return ONLY valid JSON (no markdown fences) with these top-level keys when you can support them
-from the agent data:
-  executive, headline_metrics, company_framing, financials, revenue_quality,
-  kpi_dashboard, qoe, diligence_questions
+Return ONLY valid JSON (no markdown fences) with these optional top-level keys:
+  executive, headline_metrics, company_framing, financials, revenue_quality, qoe
+Use exact field names from current_bundle_skeleton — do not invent keys.
+Do not include kpi_dashboard, risks, data_room_gaps, diligence_questions, meta, legal, or provenance.
 Use stated figures and agent summaries only — do not invent financial metrics.
 Leave arrays empty rather than fabricating rows. preliminary_view.closing must avoid invest advice."""
 
@@ -146,17 +146,144 @@ def _kpi_na_ratio(rows: list) -> float:
     return na / len(dict_rows)
 
 
-def _is_list_of_dicts(value: Any) -> bool:
-    return isinstance(value, list) and all(isinstance(item, dict) for item in value)
+def _pick_dict(obj: Any, allowed: frozenset[str]) -> dict[str, Any]:
+    if not isinstance(obj, dict):
+        return {}
+    return {k: v for k, v in obj.items() if k in allowed}
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if isinstance(item, str) and str(item).strip()]
+
+
+def _valid_financial_table_rows(rows: Any) -> list[dict[str, str]] | None:
+    if not isinstance(rows, list) or not rows:
+        return None
+    required = (
+        "year",
+        "revenue",
+        "gross_profit",
+        "gross_margin_pct",
+        "ebitda",
+        "ebitda_margin_pct",
+    )
+    valid: list[dict[str, str]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            return None
+        picked = {key: str(row.get(key) or "") for key in required}
+        if any(picked.values()):
+            valid.append(picked)
+    return valid or None
+
+
+def _merge_llm_narrative(bundle: dict[str, Any], llm_result: dict[str, Any]) -> None:
+    """Overlay LLM narrative fields only — never replace deterministic structural blocks."""
+    if not llm_result:
+        return
+
+    executive = llm_result.get("executive")
+    if isinstance(executive, dict):
+        exc = _pick_dict(
+            executive,
+            frozenset({"in_one_line", "preliminary_view"}),
+        )
+        if isinstance(exc.get("in_one_line"), str) and exc["in_one_line"].strip():
+            bundle["executive"]["in_one_line"] = exc["in_one_line"].strip()
+        pv = exc.get("preliminary_view")
+        if isinstance(pv, dict):
+            pv = _pick_dict(pv, frozenset({"strengths", "concerns", "closing"}))
+            for key in ("strengths", "concerns"):
+                strings = _string_list(pv.get(key))
+                if strings:
+                    bundle["executive"]["preliminary_view"][key] = strings
+            if isinstance(pv.get("closing"), str) and pv["closing"].strip():
+                bundle["executive"]["preliminary_view"]["closing"] = pv["closing"].strip()
+
+    headline = llm_result.get("headline_metrics")
+    if isinstance(headline, dict):
+        for key in (
+            "ltm_revenue",
+            "ltm_ebitda",
+            "ltm_ebitda_margin_pct",
+            "revenue_cagr",
+            "enterprise_value_indicated",
+            "rule_of_40",
+        ):
+            if key not in headline:
+                continue
+            val = headline[key]
+            if val is None:
+                continue
+            text = str(val).strip()
+            if text:
+                bundle["headline_metrics"][key] = text
+
+    framing = llm_result.get("company_framing")
+    if isinstance(framing, dict):
+        framing = _pick_dict(
+            framing,
+            frozenset({"overview_bullets", "revenue_model", "recent_changes", "thesis"}),
+        )
+        bullets = _string_list(framing.get("overview_bullets"))
+        if bullets:
+            bundle["company_framing"]["overview_bullets"] = bullets
+        rev = framing.get("revenue_model")
+        if isinstance(rev, dict):
+            rev = _pick_dict(rev, frozenset({"tag", "quality_flag", "note"}))
+            for key, val in rev.items():
+                if val is not None and str(val).strip():
+                    bundle["company_framing"]["revenue_model"][key] = str(val).strip()
+        thesis = framing.get("thesis")
+        if isinstance(thesis, dict):
+            thesis = _pick_dict(thesis, frozenset({"bullets", "value_creation_levers"}))
+            for key in ("bullets", "value_creation_levers"):
+                strings = _string_list(thesis.get(key))
+                if strings:
+                    bundle["company_framing"]["thesis"][key] = strings
+        if isinstance(framing.get("recent_changes"), list):
+            bundle["company_framing"]["recent_changes"] = framing["recent_changes"]
+
+    financials = llm_result.get("financials")
+    if isinstance(financials, dict):
+        financials = _pick_dict(
+            financials,
+            frozenset({"table_rows", "observations", "geographic_mix"}),
+        )
+        observations = _string_list(financials.get("observations"))
+        if observations:
+            bundle["financials"]["observations"] = observations
+        table_rows = _valid_financial_table_rows(financials.get("table_rows"))
+        if table_rows:
+            bundle["financials"]["table_rows"] = table_rows
+        if isinstance(financials.get("geographic_mix"), list):
+            bundle["financials"]["geographic_mix"] = financials["geographic_mix"]
+
+    revenue_quality = llm_result.get("revenue_quality")
+    if isinstance(revenue_quality, dict):
+        for key in ("scale_narrative", "concentration", "end_market_mix", "retention_notes"):
+            val = revenue_quality.get(key)
+            if isinstance(val, str) and val.strip():
+                bundle["revenue_quality"][key] = val.strip()
+
+    qoe = llm_result.get("qoe")
+    if isinstance(qoe, dict):
+        qoe = _pick_dict(qoe, frozenset({"addback_pct_of_ebitda", "tier_summary", "flags"}))
+        for key in ("addback_pct_of_ebitda", "tier_summary"):
+            val = qoe.get(key)
+            if isinstance(val, str) and val.strip():
+                bundle["qoe"][key] = val.strip()
+        if isinstance(qoe.get("flags"), list):
+            bundle["qoe"]["flags"] = [f for f in qoe["flags"] if isinstance(f, dict)]
 
 
 def _restore_structural_fields_after_llm(bundle: dict, preserved: dict[str, Any]) -> None:
-    """LLM JSON may replace list[dict] fields with strings; restore deterministic rows."""
-    if not isinstance(bundle.get("meta"), dict):
-        bundle["meta"] = preserved["meta"]
-    for key in ("data_room_gaps", "kpi_dashboard", "risks", "diligence_questions"):
-        if not _is_list_of_dicts(bundle.get(key)):
-            bundle[key] = preserved[key]
+    """Always restore deterministic blocks the LLM must not overwrite."""
+    bundle["meta"] = preserved["meta"]
+    for key in ("legal", "data_room_gaps", "kpi_dashboard", "risks", "diligence_questions"):
+        bundle[key] = preserved[key]
 
 
 def _reduce_confidence(level: str) -> str:
@@ -867,12 +994,13 @@ def populate_bundle(
     if llm_result:
         preserved_structural = {
             "meta": dict(bundle["meta"]),
-            "data_room_gaps": bundle["data_room_gaps"],
-            "kpi_dashboard": bundle["kpi_dashboard"],
-            "risks": bundle["risks"],
-            "diligence_questions": bundle["diligence_questions"],
+            "legal": deepcopy(bundle["legal"]),
+            "data_room_gaps": deepcopy(bundle["data_room_gaps"]),
+            "kpi_dashboard": deepcopy(bundle["kpi_dashboard"]),
+            "risks": deepcopy(bundle["risks"]),
+            "diligence_questions": deepcopy(bundle["diligence_questions"]),
         }
-        _deep_merge(bundle, llm_result)
+        _merge_llm_narrative(bundle, llm_result)
         _restore_structural_fields_after_llm(bundle, preserved_structural)
 
     print("[orchestrator] populate: compute confidence")
