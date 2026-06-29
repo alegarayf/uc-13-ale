@@ -96,6 +96,16 @@ def test_run_fails_when_docx_artifact_missing(tmp_path, monkeypatch, capsys):
     assert "full_report.docx" in capsys.readouterr().out
 
 
+def test_format_diligence_question_parses_legacy_dict_repr():
+    row = {
+        "category": "legal",
+        "question": "{'doc_type': 'Healthcare Referral Agreements', 'item_id': 'healthcare_referral'}",
+    }
+    assert dw._format_diligence_question(row) == (
+        "Request and review Healthcare Referral Agreements"
+    )
+
+
 def test_reports_volume_dir_uses_company_safe():
     from agents.orchestrator.paths import reports_volume_dir
 
