@@ -2,6 +2,7 @@
 
 ## uc13-orchestrator-m1-phase-a-demo-e2e — 2026-06-29
 
+- T3 (Delta + Volume YAML snapshot ingest): Added `ingest.py` with `ingest_snapshots()` reading latest `{catalog}.analysis.*` row per agent (legal from `analysis.legal`, not `legal_contracts`), Volume YAML under `reports_volume_dir()`, Delta-only `flags` parsing, KPI/legal `report_path` Volume fallbacks, and missing-table/no-row omission without raise. Adversarial corrupt-YAML falsifier deferred per M1 pytest waiver — T4 Elder Care cluster ingest owns proof.
 - T2 (Bundle JSON Schema, Volume paths, agents_present keys): Added `orchestrator_bundle.schema.yaml` (draft-07, §5.8 shape with closed `meta.agents_present` and `confidence_by_area`), `paths.py` (`company_safe`, `reports_volume_dir`), and `AGENTS_PRESENT_KEYS` in `constants.py`. Establishes validate-or-HALT contract for T4 and Volume writes for T3+. Adversarial jsonschema falsifier deferred per M1 pytest waiver — T4 `validate_bundle()` owns proof. See `.dev/decision-logs/m1-t2-bundle-schema.md`.
 - T1 (Freeze TL;DR required fields and fill_state rules): Added `databricks/agents/orchestrator/constants.py` with `TLDR_REQUIRED_FIELDS` (17 Appendix B dot-paths) and `FILL_STATE_RULES` (Elder Care typical fill_state map); exported from package `__init__.py`. Single source for T4 `apply_fill_state` and T8 `demo_walkthrough` gates. Adversarial enum-round-trip falsifier deferred per M1 pytest waiver — downstream T4/T8 cluster gates own verification.
 
