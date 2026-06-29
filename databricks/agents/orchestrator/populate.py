@@ -593,6 +593,18 @@ def _merge_data_room_gaps(snapshots: dict) -> list[dict[str, Any]]:
     return rows
 
 
+def _legal_diligence_question_text(entry: dict[str, Any]) -> str:
+    if question := entry.get("question"):
+        return str(question)
+    if item := entry.get("item"):
+        return str(item)
+    if doc_type := entry.get("doc_type"):
+        return f"Request and review {doc_type}"
+    if item_id := entry.get("item_id"):
+        return f"Complete diligence item: {str(item_id).replace('_', ' ')}"
+    return str(entry)
+
+
 def _build_diligence_questions(snapshots: dict) -> list[dict[str, Any]]:
     questions: list[dict[str, Any]] = []
     legal = snapshots.get("legal", {}).get("delta_row") or {}
@@ -604,7 +616,7 @@ def _build_diligence_questions(snapshots: dict) -> list[dict[str, Any]]:
             questions.append(
                 {
                     "category": entry.get("category") or "legal",
-                    "question": entry.get("question") or entry.get("item") or str(entry),
+                    "question": _legal_diligence_question_text(entry),
                     "priority": entry.get("priority") or "high",
                     "source_agent": "legal",
                     "fill_state": "filled_synthesized",
