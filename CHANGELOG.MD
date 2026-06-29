@@ -4,6 +4,7 @@
 
 - T1 (Inline schema guard in main): Moved `_EXPECTED_COLS` DROP guard from `_ensure_legal_storage()` into `main()` after `agent.run()` and before DELETE+append per D1-A / FTA inline pattern; `_ensure_legal_storage()` is CREATE-only DDL + compat VIEW. Added AST falsifiers for guard placement, no duplicate guard in storage helper, and CREATE-after-guard ordering. See `.dev/decision-logs/m3-t1-schema-guard.md`.
 - T2 (Runtime behavioral tests for helpers, merge, and option-C flags): Added `tests/test_legal_contracts_agent_logic.py` with parametrized tri-state helper tests, register dedupe/merge fixtures, and `_apply_legal_flags` coverage for coc consent, restrictive covenant, unusual indemnity, open matters, and dual regulatory flags. Closes M2 deferrals from m2-t1 and m2-t3 without Spark. Adversarial gap deferred: nested `change_of_control` field conflict when preferred row lacks the nested key.
+- T3 (Gap step-2/step-3, confidence bands, dual-write AST): Added `_assess_coverage_gaps` step-2/step-3 classification tests, `_compute_section_confidence` boundary parametrization (0/2/3/6/7/11), `STAKEHOLDER_COVERAGE_REQUIREMENTS` row-count contract, adversarial wrong-key `pass_chunk_counts` falsifier, and `test_main_dual_write_report_paths` in the AST file. Closes W-M2-COV deferral from m2-t2 and dual-write AST deferral from m2-t6.
 
 ## uc13-m2-merge-flags-gaps-stakeholder-report — 2026-06-26
 
