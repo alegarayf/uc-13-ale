@@ -118,6 +118,32 @@ def test_drop_table_before_view_in_ensure_legal_storage():
     assert drop_pos < view_pos
 
 
+def test_schema_guard_in_main_after_run_before_delete():
+    """Falsifier: inline guard must run after agent.run() and before DELETE (D1-A / FTA pattern)."""
+    main_body = _function_body_source("main")
+    run_pos = main_body.index("agent.run(")
+    guard_pos = main_body.index("[schema_migration]")
+    delete_pos = main_body.index("DELETE FROM {table}")
+    assert run_pos < guard_pos < delete_pos
+
+
+def test_ensure_legal_storage_has_no_schema_migration_guard():
+    """Falsifier: DROP guard must live only in main(), not _ensure_legal_storage (D1-A)."""
+    body = _function_body_source("_ensure_legal_storage")
+    assert "[schema_migration]" not in body
+    assert "_EXPECTED_COLS" not in body
+    assert "issubset" not in body
+
+
+def test_main_recreates_legal_table_after_schema_guard():
+    """Adversarial: CREATE must follow guard so DROP path does not leave table missing on append."""
+    main_body = _function_body_source("main")
+    guard_pos = main_body.index("[schema_migration]")
+    create_pos = main_body.index("_CREATE_LEGAL_TABLE_SQL.format")
+    delete_pos = main_body.index("DELETE FROM {table}")
+    assert guard_pos < create_pos < delete_pos
+
+
 def _function_body_source(name: str) -> str:
     tree = ast.parse(_AGENT_SOURCE)
     fn = next(
