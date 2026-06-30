@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import re
 from pathlib import Path
 
 import pytest
+import yaml
 from jinja2 import Environment, FileSystemLoader
 
 from agents.orchestrator import formatters as fmt
+from agents.orchestrator import tldr_quality_check as tqc
 from agents.orchestrator.renderers import ReportRenderer, render_to_volume
 from agents.orchestrator.tldr_compress import compress_for_tldr
 
 _TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "databricks" / "agents" / "orchestrator" / "templates"
 _COMPRESSED_TEMPLATE = "tldr_one_pager_compressed.md.j2"
+_LEGACY_TEMPLATE = "tldr_one_pager.md.j2"
+_FULL_REPORT_TEMPLATE = "full_report.md.j2"
+_ELDER_CARE_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "elder_care_bundle_compression.yaml"
 
 
 @pytest.mark.parametrize(
@@ -561,3 +567,74 @@ def test_render_to_volume_legacy_skips_compress_for_tldr(monkeypatch, tmp_path):
         lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
     )
     render_to_volume(bundle, "uc13_ale", "Elder Care")
+
+
+def _write_tldr_md(vol_dir: Path, body: str) -> None:
+    vol_dir.mkdir(parents=True, exist_ok=True)
+    (vol_dir / "tldr_one_pager.md").write_text(body, encoding="utf-8")
+
+
+def test_tldr_quality_check_passes_clean_fixture(tmp_path, monkeypatch, capsys):
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    _write_tldr_md(vol_dir, "# TL;DR\n\nClean stakeholder summary with no leaks.\n")
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "TLDR quality PASS" in out
+    assert "WARN" not in out.split("TLDR quality PASS")[0].split("TLDR quality check")[-1]
+
+
+def test_tldr_quality_check_warns_but_exits_zero_on_word_count(tmp_path, monkeypatch, capsys):
+    """Falsifier: soft gates must not hard-fail when word count exceeds 1,200."""
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    body = " ".join(["word"] * 1201)
+    _write_tldr_md(vol_dir, body)
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "word_count" in out
+    assert "WARN" in out
+    assert "TLDR quality WARN" in out
+
+
+def test_tldr_quality_check_warns_on_dict_leak(tmp_path, monkeypatch, capsys):
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    _write_tldr_md(vol_dir, "Flag row leaked as {'metric': 'coc_consent'} in body.\n")
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "dict_leak" in out
+    assert "WARN" in out
+
+
+def test_tldr_quality_check_warns_on_operator_gap_substring(tmp_path, monkeypatch, capsys):
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    _write_tldr_md(vol_dir, "Legal workstream: LLM response was truncated at token limit.\n")
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "operator_gaps" in out
+    assert "WARN" in out
+
+
+def test_tldr_quality_check_exits_one_when_file_missing(tmp_path, monkeypatch, capsys):
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    vol_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 1
+    assert "file not found" in capsys.readouterr().out
