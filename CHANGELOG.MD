@@ -2,6 +2,7 @@
 
 ## uc13-tldr-compression — 2026-06-30
 
+- T2 (TL;DR projection engine): Added `tldr_compress.py` with `compress_for_tldr()` implementing spec §4.1–4.10 (headline fallback, financial strip, gap filter, QoE collapse, risk theme dedupe, preliminary caps, business snapshot); D3-A `mitigant` mapping; K1 deepcopy immutability guard. + added T2 unit tests in `tests/test_tldr_compression.py` including severity-rank falsifier. See `.dev/decision-logs/tldr-t2-compress.md`.
 - T1 (Shared formatting helpers): Added `formatters.py` with `normalize_gap`, `is_operator_gap`, `format_agent_flag`, and `format_diligence_entry`; extracted gap normalization from `populate.py` (D1-A) and consolidated diligence text formatting for populate and demo_walkthrough (D2-A). + added `tests/test_tldr_compression.py` T1 unit tests including Elder Care dict-repr falsifier. See `.dev/decision-logs/tldr-t1-formatters.md`.
 
 ## uc13-orchestrator-m1-phase-a-demo-e2e — 2026-06-29
