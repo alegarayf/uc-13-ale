@@ -1,5 +1,10 @@
 # Changelog
 
+## uc13-orchestrator-m2-phase-b-bundle-builder-mvp — 2026-06-30
+
+- T1 (Appendix B field mapping + agent table dedup): Added `field_mapping.py` with `FieldMapping`, 17-row `FIELD_MAPPINGS`, and stage-2 `apply_field_mappings()`; moved `_AGENT_TABLES` to `constants.AGENT_DELTA_TABLE_SUFFIXES` and updated `ingest.py` to import the single source (D-M2-8). + added `tests/test_orchestrator_bundle_builder.py` with Appendix B row-coverage and suffix round-trip tests. Adversarial transform-string falsifier deferred — T5 Elder Care parity owns proof. See `.dev/decision-logs/m2-t1-field-mapping.md`.
+- T2 (ConfidenceEngine extraction): Added `confidence.py` with `ConfidenceEngine.compute_by_area` (§5.12 per-area rules, seven keys incl. `forecast_support`) and `compute_overall` implementing min-area-wins, Red-flag floor, and D-M2-7 `medium_low` when area spread ≥ 2 steps; logic extracted from M1 `populate.py` inline helpers. + added `tests/test_confidence.py` including BMA bank/no-CIM falsifier. See `.dev/decision-logs/m2-t2-confidence-engine.md`.
+
 ## uc13-tldr-compression — 2026-06-30
 
 - T12b (TL;DR quality-check regression gates): Extended `tldr_quality_check` with soft gates `headline_duplicate_labels`, `risk_raw_metric_keys`, and `headline_spurious_dollar` so operator/CI can catch duplicate headline labels, raw risk metric keys, and spurious small-dollar Revenue values before promoting compressed render as default. Adversarial falsifier: `test_tldr_quality_check_spurious_dollar_scoped_to_headline` (QoE `$2,773` must not trip headline gate).
