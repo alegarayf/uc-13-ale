@@ -638,3 +638,112 @@ def test_tldr_quality_check_exits_one_when_file_missing(tmp_path, monkeypatch, c
 
     assert exit_code == 1
     assert "file not found" in capsys.readouterr().out
+
+
+# --- T6 §7.1 integration tests (Elder Care synthetic fixture) ---
+
+
+def _load_elder_care_fixture() -> dict:
+    with _ELDER_CARE_FIXTURE.open(encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+def _render_compressed_tldr(bundle: dict) -> str:
+    tldr = compress_for_tldr(bundle)
+    return ReportRenderer().render(
+        bundle,
+        _TEMPLATES_DIR / _COMPRESSED_TEMPLATE,
+        tldr=tldr,
+    )
+
+
+def _word_count(text: str) -> int:
+    return len(text.split())
+
+
+def _risk_table_tier4_rows(md: str) -> int:
+    in_risks = False
+    count = 0
+    for line in md.splitlines():
+        if line.strip() == "## Top Risks":
+            in_risks = True
+            continue
+        if in_risks and line.startswith("## "):
+            break
+        if in_risks and line.startswith("| tier4_addback"):
+            count += 1
+    return count
+
+
+@pytest.fixture
+def elder_care_bundle() -> dict:
+    return _load_elder_care_fixture()
+
+
+def test_compress_word_budget(elder_care_bundle: dict):
+    md = _render_compressed_tldr(elder_care_bundle)
+    assert _word_count(md) <= 1200
+
+
+def test_no_raw_dicts_in_render(elder_care_bundle: dict):
+    md = _render_compressed_tldr(elder_care_bundle)
+    assert "{'metric':" not in md
+
+
+def test_operator_gaps_excluded(elder_care_bundle: dict):
+    md = _render_compressed_tldr(elder_care_bundle)
+    assert "LLM response was truncated" not in md
+
+
+def test_risk_dedupe_tier4(elder_care_bundle: dict):
+    md = _render_compressed_tldr(elder_care_bundle)
+    assert _risk_table_tier4_rows(md) <= 2
+
+
+def test_empty_financial_omitted(elder_care_bundle: dict):
+    md = _render_compressed_tldr(elder_care_bundle)
+    assert "## Financial Strip" not in md
+
+
+def test_flag_formatting(elder_care_bundle: dict):
+    md = _render_compressed_tldr(elder_care_bundle)
+    assert "Change-of-control consent required on three MSAs." in md
+    assert "{'metric':" not in md
+
+
+def test_diligence_question_formatting(elder_care_bundle: dict):
+    md = _render_compressed_tldr(elder_care_bundle)
+    assert "Request and review Healthcare Referral Agreements" in md
+
+
+def test_legacy_mode_unchanged(elder_care_bundle: dict, monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.reports_volume_dir",
+        lambda _catalog, _company: str(tmp_path),
+    )
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.get_param",
+        lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
+    )
+    render_to_volume(elder_care_bundle, "uc13_ale", "Elder Care")
+    legacy_md = (tmp_path / "tldr_one_pager.md").read_text(encoding="utf-8")
+    direct_md = ReportRenderer().render(
+        elder_care_bundle,
+        _TEMPLATES_DIR / _LEGACY_TEMPLATE,
+    )
+    assert legacy_md == direct_md
+    assert "## Headline Metrics" in legacy_md
+    assert "Headline financial metrics incomplete" not in legacy_md
+
+
+# Baseline captured from full_report.md.j2 render of elder_care_bundle_compression.yaml (T6).
+_FULL_REPORT_BASELINE_SHA256 = (
+    "db16711f44880b5a0ef5305d3b080f4f43ab59d51429836ea217878539ac1ef1"
+)
+
+
+def test_full_report_unaffected(elder_care_bundle: dict):
+    renderer = ReportRenderer()
+    md = renderer.render(elder_care_bundle, _TEMPLATES_DIR / _FULL_REPORT_TEMPLATE)
+    digest = hashlib.sha256(md.encode("utf-8")).hexdigest()
+    assert digest == _FULL_REPORT_BASELINE_SHA256

@@ -1,0 +1,342 @@
+meta:
+  schema_version: "0.1.0"
+  company_name: Elder Care
+  company_safe: Elder_Care
+  catalog: uc13_ale
+  vertical_overlay: healthcare
+  generated_at: "2026-06-30T12:00:00Z"
+  status: partial
+  freshness: current
+  render_state: bundle_only
+  demo_mode: false
+  disclaimer_text: ""
+  basis_of_preparation: Management-prepared materials
+  overall_confidence: medium
+  agents_present:
+    business_model: true
+    financial_trends: true
+    customer_quality: true
+    kpi: true
+    legal: true
+    quality_of_earnings: true
+
+headline_metrics:
+  ltm_revenue: ""
+  ltm_ebitda: ""
+  ltm_ebitda_margin_pct: ""
+  revenue_cagr: ""
+  enterprise_value_indicated: null
+  rule_of_40: null
+
+executive:
+  in_one_line: Regional home health and elder care provider serving the Southeast.
+  preliminary_view:
+    strengths:
+      - LTM revenue of $21M with 18% revenue CAGR and 22% EBITDA margin.
+      - Stable census and payer mix with limited customer concentration.
+      - Experienced regional management team with long tenure.
+    concerns:
+      - Undocumented QoE addbacks may not survive buyer diligence.
+      - Referral agreement coverage gaps in several states.
+      - Monthly financial detail thin relative to annual summaries.
+    closing: Further diligence recommended before proceeding to LOI.
+
+company_framing:
+  overview_bullets:
+    - Multi-site home health operator with skilled nursing and therapy lines.
+    - Revenue primarily Medicare and managed care with modest private pay.
+  revenue_model:
+    tag: Fee-for-service home health
+    quality_flag: medium
+    note: Census-driven with episodic billing.
+  recent_changes:
+    - year: "2025"
+      change: Added two de novo branches in Georgia.
+  thesis:
+    bullets:
+      - Platform roll-up opportunity in fragmented Southeast markets.
+    value_creation_levers:
+      - Standardize clinical protocols and back-office.
+
+financials:
+  table_rows:
+    - year: Jan 2024
+      revenue: ""
+      gross_profit: ""
+      gross_margin_pct: ""
+      ebitda: ""
+      ebitda_margin_pct: ""
+    - year: Feb 2024
+      revenue: ""
+      gross_profit: ""
+      gross_margin_pct: ""
+      ebitda: ""
+      ebitda_margin_pct: ""
+    - year: Mar 2024
+      revenue: ""
+      gross_profit: ""
+      gross_margin_pct: ""
+      ebitda: ""
+      ebitda_margin_pct: ""
+    - year: Apr 2024
+      revenue: ""
+      gross_profit: ""
+      gross_margin_pct: ""
+      ebitda: ""
+      ebitda_margin_pct: ""
+    - year: May 2024
+      revenue: ""
+      gross_profit: ""
+      gross_margin_pct: ""
+      ebitda: ""
+      ebitda_margin_pct: ""
+    - year: Jun 2024
+      revenue: ""
+      gross_profit: ""
+      gross_margin_pct: ""
+      ebitda: ""
+      ebitda_margin_pct: ""
+  observations: []
+  geographic_mix: []
+
+revenue_quality:
+  scale_narrative: ""
+  concentration: Top three referral sources represent under 35% of admissions.
+  end_market_mix: ""
+  retention_notes: ""
+
+kpi_dashboard: []
+
+qoe:
+  addback_pct_of_ebitda: "12%"
+  tier_summary: Multiple Tier 4 addbacks with limited support in the data room.
+  flags:
+    - metric: tier4_addback
+      value: "0"
+      note: Owner discretionary expense with no third-party support.
+      source_doc: CIM p.45
+    - metric: tier4_addback
+      value: "0"
+      note: One-time legal settlement characterized as recurring.
+      source_doc: QoE workbook
+    - metric: tier4_addback
+      value: "0"
+      note: Related-party rent adjustment lacking lease documentation.
+      source_doc: CIM p.52
+
+legal:
+  assessed_count: 7
+  checklist_total: 11
+  section_confidence: high
+  top_flags:
+    - metric: coc_consent
+      value: required
+      note: Change-of-control consent required on three MSAs.
+      source_doc: MSA Schedule B
+    - metric: open_legal_matter
+      value: pending
+      note: Pending wage-and-hour claim in Florida.
+      source_doc: Legal memo
+    - metric: restrictive_covenant
+      value: "true"
+      note: Non-compete breadth may be unenforceable in two states.
+      source_doc: Employment agreements
+  top_gaps:
+    - Healthcare referral agreements not provided for two states.
+  recommended_diligence:
+    - doc_type: Healthcare Referral Agreements
+      item_id: healthcare_referral
+
+risks:
+  - risk: tier4_addback
+    severity: track
+    evidence: Undocumented owner addback $125K
+    mitigant_or_question: Request support schedules
+    source_agent: quality_of_earnings
+    confidence: low
+    fill_state: filled_cited
+  - risk: tier4_addback
+    severity: track
+    evidence: Related-party rent addback $80K
+    mitigant_or_question: Obtain lease copies
+    source_agent: quality_of_earnings
+    confidence: low
+    fill_state: filled_cited
+  - risk: tier4_addback
+    severity: material
+    evidence: Legal settlement addback $200K
+    mitigant_or_question: Confirm non-recurring
+    source_agent: quality_of_earnings
+    confidence: medium
+    fill_state: filled_cited
+  - risk: tier4_addback
+    severity: track
+    evidence: Bonus normalization addback $50K
+    mitigant_or_question: Review comp plan
+    source_agent: quality_of_earnings
+    confidence: low
+    fill_state: filled_cited
+  - risk: tier4_addback
+    severity: track
+    evidence: Marketing reclass addback $30K
+    mitigant_or_question: Validate GL mapping
+    source_agent: quality_of_earnings
+    confidence: low
+    fill_state: filled_cited
+  - risk: tier4_addback
+    severity: track
+    evidence: Insurance true-up addback $15K
+    mitigant_or_question: Tie to carrier invoice
+    source_agent: quality_of_earnings
+    confidence: low
+    fill_state: filled_cited
+  - risk: tier4_addback
+    severity: track
+    evidence: Travel normalization addback $22K
+    mitigant_or_question: Sample expense detail
+    source_agent: quality_of_earnings
+    confidence: low
+    fill_state: filled_cited
+  - risk: tier4_addback
+    severity: track
+    evidence: IT capitalization addback $40K
+    mitigant_or_question: Cap policy review
+    source_agent: quality_of_earnings
+    confidence: low
+    fill_state: filled_cited
+  - risk: tier4_addback
+    severity: track
+    evidence: Consulting fee addback $60K
+    mitigant_or_question: Vendor contracts
+    source_agent: quality_of_earnings
+    confidence: low
+    fill_state: filled_cited
+  - risk: coc_consent
+    severity: critical
+    evidence: Three MSAs require buyer consent on change of control.
+    mitigant_or_question: Obtain executed consent forms or estoppel letters.
+    source_agent: legal
+    confidence: high
+    fill_state: filled_cited
+
+diligence_questions:
+  - category: legal
+    question: "{'doc_type': 'Healthcare Referral Agreements', 'item_id': 'healthcare_referral'}"
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - category: financial
+    question: Provide monthly census and payer mix for trailing twelve months.
+    priority: high
+    source_agent: financial_trends
+    fill_state: filled_cited
+  - category: legal
+    question: Supply executed change-of-control consent templates for top MSAs.
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+
+data_room_gaps:
+  - item: LLM response was truncated at 8192 tokens for financial_trends synthesis
+    priority: high
+    source_agent: financial_trends
+    fill_state: filled_synthesized
+  - item: Check TOKEN LIMIT configuration on extraction endpoint
+    priority: medium
+    source_agent: business_model
+    fill_state: not_attempted
+  - item: Partial JSON was recovered from agent output during KPI pass
+    priority: medium
+    source_agent: kpi
+    fill_state: not_attempted
+  - item: Retrieval coverage below threshold for legal contracts register
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Please re-run the agent after fixing prompt template for QoE
+    priority: medium
+    source_agent: quality_of_earnings
+    fill_state: not_attempted
+  - item: Customer contracts for top 10 referral sources not provided
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Executed referral agreements missing for Alabama and Mississippi
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Medicare cost reports for FY2022-FY2024 not in data room
+    priority: high
+    source_agent: financial_trends
+    fill_state: gap_correct
+  - item: Detailed addback support schedules not provided
+    priority: high
+    source_agent: quality_of_earnings
+    fill_state: gap_correct
+  - item: Insurance certificates of coverage expired
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Employment agreements for regional directors missing
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Cap table and equity incentive plan not provided
+    priority: medium
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Quality metrics dashboard export not available
+    priority: medium
+    source_agent: kpi
+    fill_state: gap_correct
+  - item: Payer contract rate schedules not provided
+    priority: high
+    source_agent: customer_quality
+    fill_state: gap_correct
+  - item: Litigation reserve support not in data room
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Related-party transaction schedule incomplete
+    priority: high
+    source_agent: quality_of_earnings
+    fill_state: gap_correct
+  - item: Branch-level P&L detail not provided
+    priority: medium
+    source_agent: financial_trends
+    fill_state: gap_correct
+  - item: HIPAA business associate agreements not provided
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Therapy utilization reports missing
+    priority: medium
+    source_agent: business_model
+    fill_state: gap_correct
+  - item: Working capital peg methodology not documented
+    priority: medium
+    source_agent: financial_trends
+    fill_state: gap_correct
+  - item: State licensure renewals not provided for two branches
+    priority: high
+    source_agent: legal
+    fill_state: gap_correct
+  - item: Vendor concentration contracts not provided
+    priority: medium
+    source_agent: business_model
+    fill_state: gap_correct
+
+confidence_by_area:
+  business_model: medium
+  financial_trends: low
+  customer_quality: medium
+  kpi: low
+  legal: high
+  quality_of_earnings: low
+  forecast_support: low
+
+provenance:
+  agent_report_paths: {}
+  agent_delta_tables: {}
+  bundle_builder_version: "0.1.0-test-fixture"
+  synthesis_gaps: []
