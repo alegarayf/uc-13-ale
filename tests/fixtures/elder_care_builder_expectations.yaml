@@ -1,0 +1,64 @@
+# Golden expectations for Elder Care BundleBuilder output (D-M2-3 / G4)
+# Capture date: 2026-06-30 — calibrated against BundleBuilder.build() with elder_care_agent_snapshots.yaml
+
+company_name: Elder Care
+catalog: uc13_ale
+
+production_meta:
+  demo_mode: false
+  disclaimer_text: ""
+  bundle_builder_version: "0.2.0-m2"
+  freshness: current
+  render_state: bundle_only
+
+data_room_gaps:
+  count_min: 14
+  count_max: 16
+
+risks:
+  count_min: 2
+  count_max: 8
+
+diligence_questions:
+  count_min: 1
+  count_max: 8
+
+confidence_by_area:
+  business_model: medium
+  financial_trends: medium
+  customer_quality: medium
+  kpi: low
+  legal: medium
+  quality_of_earnings: medium
+  forecast_support: low
+
+overall_confidence: low
+
+headline_metrics:
+  ltm_revenue_nonempty: true
+  ltm_ebitda_margin_pct_nonempty: true
+
+legal:
+  assessed_count_min: 7
+
+synthesis_gaps:
+  count_min: 1
+  required_keys:
+    - field_path
+    - reason
+    - owner
+  expected_field_paths:
+    - executive.in_one_line
+    - kpi_dashboard[]
+
+gap_dedupe:
+  duplicate_inputs:
+    agent: legal
+    gaps:
+      - missing coc document
+      - Missing CoC document
+  expected_extra_merged: 1
+
+medium_low_case:
+  overall_confidence: medium_low
+  notes: Snapshots with no critical flags, FTA high (3 cited years, <=2 gaps), legal high, kpi low.

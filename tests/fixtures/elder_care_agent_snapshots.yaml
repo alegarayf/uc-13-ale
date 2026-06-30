@@ -1,0 +1,114 @@
+# Elder Care agent snapshots — ingest_snapshots-shaped fixture (D-M2-3)
+# Capture date: 2026-06-30
+# Shape: {agent_key: {delta_row, yaml_dict, report_path}}
+# Source: synthetic from Elder Care cluster workstream shapes; trimmed operator diagnostic gaps.
+business_model:
+  delta_row:
+    cim_detected: true
+    flags:
+    - severity: Red
+      metric: key_person
+      value: 92%
+      note: Founder holds 92% equity
+      source_doc: Cap table
+      confidence: medium
+    data_room_gaps:
+    - Therapy utilization reports missing
+    - Vendor concentration contracts not provided
+  yaml_dict:
+    executive_summary: Regional home health and elder care provider serving the Southeast.
+    revenue_model:
+      tag: Fee-for-service home health
+      durability_rating: medium
+      note: Census-driven
+  report_path: /Volumes/uc13_ale/analysis/reports/Elder_Care/business_model_report.yaml
+financial_trends:
+  delta_row:
+    flags: []
+    data_room_gaps:
+    - Medicare cost reports for FY2022-FY2024 not in data room
+    - Branch-level P&L detail not provided
+    - Working capital peg methodology not documented
+  yaml_dict:
+    revenue_trend:
+    - period: '2022'
+      revenue: $18M
+    - period: '2023'
+      revenue: $20M
+    - period: '2024'
+      revenue: $21M
+      yoy_growth_pct: 18%
+    ebitda:
+    - period: '2024'
+      ebitda: $4.6M
+      ebitda_margin_pct: 22%
+    gross_margin:
+    - period: '2024'
+      gross_profit: $8.6M
+      gm_pct_stated: 41%
+  report_path: /Volumes/uc13_ale/analysis/reports/Elder_Care/financial_trends_report.yaml
+customer_quality:
+  delta_row:
+    flags: []
+    data_room_gaps:
+    - Payer contract rate schedules not provided
+  yaml_dict:
+    customer_concentration:
+      top_customers:
+      - name: Hospital A
+        pct: 12%
+      summary: Top three referral sources represent under 35% of admissions.
+  report_path: /Volumes/uc13_ale/analysis/reports/Elder_Care/customer_quality_report.yaml
+kpi:
+  delta_row:
+    flags: []
+    data_room_gaps:
+    - Quality metrics dashboard export not available
+  yaml_dict:
+    missing_kpis:
+    - Census turnover
+    - Therapy utilization
+  report_path: /Volumes/uc13_ale/analysis/reports/Elder_Care/kpi_report.yaml
+legal:
+  delta_row:
+    section_confidence: high
+    flags:
+    - severity: Red
+      metric: coc_consent
+      value: required
+      note: Change-of-control consent required on three MSAs.
+      source_doc: MSA Schedule B
+      confidence: high
+    data_room_gaps:
+    - Retrieval coverage below threshold for legal contracts register
+    - Customer contracts for top 10 referral sources not provided
+    - Executed referral agreements missing for Alabama and Mississippi
+    - Insurance certificates of coverage expired
+    - Employment agreements for regional directors missing
+    unable_to_assess_json: '["Healthcare referral agreements not provided for two states."]'
+    recommended_diligence_json: '[{"category": "legal", "doc_type": "Healthcare Referral Agreements", "item_id": "healthcare_referral",
+      "priority": "high"}]'
+  yaml_dict: {}
+  report_path: /Volumes/uc13_ale/analysis/reports/Elder_Care/legal_report.yaml
+quality_of_earnings:
+  delta_row:
+    addback_pct_of_ebitda: 12%
+    tier_summary: Multiple Tier 4 addbacks with limited support in the data room.
+    flags:
+    - severity: Green
+      metric: tier4_addback
+      value: '0'
+      note: Owner discretionary expense
+      source_doc: CIM p.45
+      confidence: low
+    - severity: Yellow
+      metric: tier4_addback
+      value: '0'
+      note: Legal settlement addback
+      source_doc: QoE workbook
+      confidence: medium
+    data_room_gaps:
+    - Detailed addback support schedules not provided
+    - Related-party transaction schedule incomplete
+  yaml_dict: {}
+  report_path: /Volumes/uc13_ale/analysis/reports/Elder_Care/quality_of_earnings_report.yaml
