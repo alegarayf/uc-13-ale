@@ -1,4 +1,9 @@
-"""UC13 Orchestrator — LLM populate, confidence, fill_state, validate, persist (M1)."""
+"""UC13 Orchestrator — M1 demo populate path (LLM synthesis + ``demo_mode: true``).
+
+For production bundles use :class:`~agents.orchestrator.bundle_builder.BundleBuilder`
+(``BundleBuilder.build()``) — deterministic stages 0–8 with ``demo_mode: false``.
+This module preserves the notebook render fallback when a demo bundle is needed.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +23,7 @@ from agents.orchestrator.bundle_builder import (
     merge_risks_from_flags,
     write_bundle_yaml,
 )
+from agents.orchestrator.confidence import ConfidenceEngine
 from agents.orchestrator.constants import AGENT_DELTA_TABLE_SUFFIXES, AGENTS_PRESENT_KEYS
 from agents.orchestrator.ingest import ingest_snapshots
 from agents.orchestrator.paths import company_safe, reports_volume_dir
@@ -25,6 +31,7 @@ from agents.orchestrator.validate import BundleValidationError, validate_bundle
 from agents.shared.agent_base import WorkstreamAgent
 
 _gap_aggregator = GapAggregator()
+_confidence_engine = ConfidenceEngine()
 
 _SEVERITY_ORDER = {"Red": 0, "Yellow": 1, "Green": 2}
 _CONF_ORDER = ["high", "medium", "low"]
@@ -70,22 +77,6 @@ def _parse_json_column(raw: Any) -> Any:
 def _flag_sort_key(flag: dict) -> tuple:
     sev = _SEVERITY_ORDER.get(flag.get("severity", "Green"), 9)
     return (sev, flag.get("metric") or "", flag.get("note") or "")
-
-
-def _gap_count_for_agent(bundle: dict, agent_key: str) -> int:
-    return sum(
-        1
-        for row in bundle.get("data_room_gaps") or []
-        if isinstance(row, dict) and row.get("source_agent") == agent_key
-    )
-
-
-def _kpi_na_ratio(rows: list) -> float:
-    dict_rows = [r for r in rows if isinstance(r, dict)]
-    if not dict_rows:
-        return 1.0
-    na = sum(1 for r in dict_rows if r.get("flag") == "N/A")
-    return na / len(dict_rows)
 
 
 def _pick_dict(obj: Any, allowed: frozenset[str]) -> dict[str, Any]:
@@ -226,112 +217,6 @@ def _restore_structural_fields_after_llm(bundle: dict, preserved: dict[str, Any]
     bundle["meta"] = preserved["meta"]
     for key in ("legal", "data_room_gaps", "kpi_dashboard", "risks", "diligence_questions"):
         bundle[key] = preserved[key]
-
-
-def _reduce_confidence(level: str) -> str:
-    if level not in _CONF_ORDER:
-        return "low"
-    idx = _CONF_ORDER.index(level)
-    return _CONF_ORDER[min(idx + 1, len(_CONF_ORDER) - 1)]
-
-
-def compute_confidence(bundle: dict, snapshots: dict[str, dict[str, Any]]) -> dict[str, str]:
-    """Inline §5.12 rules; sets ``confidence_by_area`` values (not overall)."""
-    areas: dict[str, str] = {}
-
-    for agent_key in (
-        "business_model",
-        "financial_trends",
-        "customer_quality",
-        "kpi",
-        "legal",
-        "quality_of_earnings",
-    ):
-        if agent_key not in snapshots:
-            areas[agent_key] = "low"
-            continue
-
-        level = "medium"
-        snap = snapshots[agent_key]
-        delta_row = snap.get("delta_row") or {}
-        yaml_dict = snap.get("yaml_dict") or {}
-
-        if agent_key == "legal":
-            section = delta_row.get("section_confidence")
-            areas[agent_key] = section if section in _CONF_ORDER else "medium"
-            continue
-
-        if agent_key == "kpi":
-            rows = bundle.get("kpi_dashboard") or []
-            if _kpi_na_ratio(rows) > 0.5:
-                level = "low"
-            areas[agent_key] = level
-            continue
-
-        if agent_key == "customer_quality":
-            cqa_yaml = yaml_dict
-            customers = (
-                (cqa_yaml.get("customer_concentration") or {}).get("top_customers")
-                if isinstance(cqa_yaml.get("customer_concentration"), dict)
-                else None
-            )
-            if not customers:
-                customers = cqa_yaml.get("top_customers")
-            if not customers:
-                level = "low"
-            areas[agent_key] = level
-            continue
-
-        if agent_key == "financial_trends":
-            revenue_trend = yaml_dict.get("revenue_trend") or []
-            cited_years = len(
-                [r for r in revenue_trend if isinstance(r, dict) and r.get("period")]
-            )
-            areas[agent_key] = "high" if cited_years >= 3 else "medium"
-            continue
-
-        if agent_key == "business_model":
-            cim = delta_row.get("cim_detected")
-            if cim is False:
-                meta = bundle.get("meta")
-                deal = meta.get("deal_type") if isinstance(meta, dict) else ""
-                if "bank" in str(deal).lower():
-                    level = _reduce_confidence(level)
-            areas[agent_key] = level
-            continue
-
-        if agent_key == "quality_of_earnings":
-            areas[agent_key] = "medium"
-            continue
-
-        areas[agent_key] = level
-
-    if _gap_count_for_agent(bundle, "business_model") >= 3:
-        areas["business_model"] = _reduce_confidence(areas.get("business_model", "medium"))
-    for key in list(areas):
-        if _gap_count_for_agent(bundle, key) >= 3 and areas[key] == "high":
-            areas[key] = "medium"
-
-    areas["forecast_support"] = "low"
-    return areas
-
-
-def _overall_confidence(
-    confidence_by_area: dict[str, str],
-    risks: list[dict],
-    *,
-    include_forecast: bool = False,
-) -> str:
-    keys = list(confidence_by_area.keys())
-    if not include_forecast:
-        keys = [k for k in keys if k != "forecast_support"]
-    values = [confidence_by_area[k] for k in keys if k in confidence_by_area]
-    if not values:
-        return "low"
-    overall = _CONF_ORDER[max(_CONF_ORDER.index(v) for v in values if v in _CONF_ORDER)]
-    if any(isinstance(r, dict) and r.get("severity") == "critical" for r in risks):
-        overall = "low"
-    return overall
 
 
 def _load_company_profile(
@@ -596,7 +481,11 @@ def populate_bundle(
     spark: SparkSession | None = None,
     llm_endpoint: str = "databricks-claude-sonnet-4-6",
 ) -> dict:
-    """Ingest → LLM → merge → confidence → fill_state → validate → Volume write."""
+    """M1 demo path: ingest → LLM narrative → shared stages → validate → Volume write.
+
+    Production bundles should use :class:`~agents.orchestrator.bundle_builder.BundleBuilder`.
+    Sets ``meta.demo_mode`` to ``True`` and preserves the LLM synthesis stage.
+    """
     if spark is None:
         spark = SparkSession.getActiveSession()
     if spark is None:
@@ -716,11 +605,10 @@ def populate_bundle(
         _restore_structural_fields_after_llm(bundle, preserved_structural)
 
     print("[orchestrator] populate: compute confidence")
-    bundle["confidence_by_area"] = compute_confidence(bundle, snapshots)
-    bundle["meta"]["overall_confidence"] = _overall_confidence(
+    bundle["confidence_by_area"] = _confidence_engine.compute_by_area(bundle, snapshots)
+    bundle["meta"]["overall_confidence"] = _confidence_engine.compute_overall(
         bundle["confidence_by_area"],
         bundle.get("risks") or [],
-        include_forecast=False,
     )
     bundle["meta"]["freshness"] = freshness(spark, catalog, company_name, generated_at)
 
