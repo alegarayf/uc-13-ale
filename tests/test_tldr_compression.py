@@ -14,7 +14,13 @@ from jinja2 import Environment, FileSystemLoader
 from agents.orchestrator import formatters as fmt
 from agents.orchestrator import tldr_quality_check as tqc
 from agents.orchestrator.renderers import ReportRenderer, render_to_volume
-from agents.orchestrator.tldr_compress import _first_sentence, compress_for_tldr
+from agents.orchestrator.tldr_compress import (
+    RISK_DISPLAY_TITLES,
+    _first_sentence,
+    _risk_display_title,
+    _truncate_table_cell,
+    compress_for_tldr,
+)
 
 _TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "databricks" / "agents" / "orchestrator" / "templates"
 _COMPRESSED_TEMPLATE = "tldr_one_pager_compressed.md.j2"
@@ -499,6 +505,109 @@ def test_elder_care_concerns_surface_founder_lease_insurance(elder_care_bundle: 
     assert "insurance" in joined
 
 
+# --- T10 risk display titles + table cell trim ---
+
+
+def test_risk_display_title_maps_tier4_addback():
+    assert _risk_display_title("tier4_addback") == "Undocumented Tier 4 addbacks"
+    tldr = compress_for_tldr(
+        _minimal_bundle(
+            risks=[
+                {
+                    "risk": "tier4_addback",
+                    "severity": "material",
+                    "evidence": "ev",
+                    "mitigant_or_question": "q",
+                    "source_agent": "quality_of_earnings",
+                    "confidence": "low",
+                    "fill_state": "filled_cited",
+                }
+            ],
+        )
+    )
+    assert tldr["risks"][0]["display_title"] == "Undocumented Tier 4 addbacks"
+
+
+def test_risk_display_title_maps_open_legal_matter():
+    assert _risk_display_title("open_legal_matter_other") == "Open legal matters"
+    tldr = compress_for_tldr(
+        _minimal_bundle(
+            risks=[
+                {
+                    "risk": "open_legal_matter_other",
+                    "severity": "critical",
+                    "evidence": "Pending litigation",
+                    "mitigant_or_question": "Review docket",
+                    "source_agent": "legal",
+                    "confidence": "high",
+                    "fill_state": "filled_cited",
+                }
+            ],
+        )
+    )
+    assert tldr["risks"][0]["display_title"] == "Open legal matters"
+
+
+def test_rendered_risk_table_no_raw_metric_keys():
+    risks = [
+        {
+            "risk": "tier4_addback",
+            "severity": "material",
+            "evidence": "x" * 200,
+            "mitigant_or_question": "y" * 200,
+            "source_agent": "quality_of_earnings",
+            "confidence": "low",
+            "fill_state": "filled_cited",
+        },
+        {
+            "risk": "open_legal_matter_other",
+            "severity": "critical",
+            "evidence": "Open matter evidence",
+            "mitigant_or_question": "Legal review",
+            "source_agent": "legal",
+            "confidence": "high",
+            "fill_state": "filled_cited",
+        },
+    ]
+    md = _render_compressed_tldr(_volume_test_bundle(risks=risks))
+    risks_section = md.split("## Top Risks", maxsplit=1)[1].split("## ", maxsplit=1)[0]
+    assert "tier4_addback" not in risks_section
+    assert "open_legal_matter_other" not in risks_section
+    assert "Undocumented Tier 4 addbacks" in risks_section
+    assert "Open legal matters" in risks_section
+    tldr_risks = compress_for_tldr(_minimal_bundle(risks=risks))["risks"]
+    tier4 = next(r for r in tldr_risks if r["risk"] == "tier4_addback")
+    assert len(tier4["evidence"]) <= 120
+    assert tier4["evidence"].endswith("...")
+
+
+def test_risk_evidence_trim_preserves_dedupe_suffix():
+    """Falsifier: truncate after merge must keep (+N related) suffix."""
+    risks = [
+        {
+            "risk": "tier4_addback",
+            "severity": "track",
+            "evidence": " ".join(["word"] * 40),
+            "mitigant_or_question": "mit",
+            "source_agent": "quality_of_earnings",
+            "confidence": "low",
+            "fill_state": "filled_cited",
+        }
+        for _ in range(3)
+    ]
+    row = compress_for_tldr(_minimal_bundle(risks=risks))["risks"][0]
+    assert "(+2 related)" in row["evidence"]
+    assert len(row["evidence"]) <= 120
+
+
+def test_truncate_table_cell_word_boundary():
+    text = " ".join(["token"] * 30)
+    result = _truncate_table_cell(text, max_len=120)
+    assert len(result) <= 120
+    assert result.endswith("...")
+    assert not result[:-3].endswith("toke")
+
+
 # --- T3 compressed template tests ---
 
 
@@ -529,6 +638,7 @@ def _mock_tldr_view() -> dict:
         "risks": [
             {
                 "risk": "tier4_addback",
+                "display_title": RISK_DISPLAY_TITLES["tier4_addback"],
                 "severity": "material",
                 "evidence": "Undocumented addback",
                 "mitigant": "Request support",
@@ -809,13 +919,14 @@ def _word_count(text: str) -> int:
 def _risk_table_tier4_rows(md: str) -> int:
     in_risks = False
     count = 0
+    display = RISK_DISPLAY_TITLES["tier4_addback"]
     for line in md.splitlines():
         if line.strip() == "## Top Risks":
             in_risks = True
             continue
         if in_risks and line.startswith("## "):
             break
-        if in_risks and line.startswith("| tier4_addback"):
+        if in_risks and line.startswith(f"| {display}"):
             count += 1
     return count
 
