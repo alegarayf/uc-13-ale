@@ -16,17 +16,8 @@ from typing import Any
 import yaml
 from pyspark.sql import SparkSession
 
-from agents.orchestrator.constants import AGENTS_PRESENT_KEYS
+from agents.orchestrator.constants import AGENT_DELTA_TABLE_SUFFIXES, AGENTS_PRESENT_KEYS
 from agents.orchestrator.paths import reports_volume_dir
-
-_AGENT_TABLES: dict[str, str] = {
-    "business_model": "business_model",
-    "financial_trends": "financial_trends",
-    "customer_quality": "customer_quality",
-    "kpi": "kpi",
-    "legal": "legal",
-    "quality_of_earnings": "quality_of_earnings",
-}
 
 _AGENT_YAML_FILES: dict[str, str] = {
     "business_model": "business_model_report.yaml",
@@ -129,7 +120,7 @@ def ingest_snapshots(
     snapshots: dict[str, dict[str, Any]] = {}
 
     for agent_key in AGENTS_PRESENT_KEYS:
-        table = f"{catalog}.analysis.{_AGENT_TABLES[agent_key]}"
+        table = f"{catalog}.analysis.{AGENT_DELTA_TABLE_SUFFIXES[agent_key]}"
         delta_row = _latest_delta_row(spark, table, company_name)
         if delta_row is None:
             continue
