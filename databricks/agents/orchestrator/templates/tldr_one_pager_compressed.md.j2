@@ -138,7 +138,7 @@
 | Risk | Severity | Evidence | Mitigant |
 |------|----------|----------|----------|
 {% for risk in tldr.risks %}
-| {{ risk.risk }} | {{ risk.severity }} | {{ risk.evidence }} | {{ risk.mitigant }} |
+| {{ risk.display_title }} | {{ risk.severity }} | {{ risk.evidence }} | {{ risk.mitigant }} |
 {% endfor %}
 {% endif %}
 

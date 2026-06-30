@@ -37,6 +37,7 @@ _EBITDA_MARGIN_RE = re.compile(
 _ANNUAL_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 _MONTHLY_YEAR_RE = re.compile(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{4}\b", re.IGNORECASE)
 _YEAR_EXTRACT_RE = re.compile(r"(?:19|20)\d{2}")
+_RELATED_SUFFIX_RE = re.compile(r" \(\+\d+ related\)$")
 
 _QOE_COLLAPSE_METRIC = "tier4_addback"
 _QOE_COLLAPSE_BULLET = (
@@ -65,6 +66,11 @@ _CONCERN_PRIORITY_KEYWORDS: tuple[str, ...] = (
 )
 
 _SEVERITY_SCORE: dict[str, int] = {"critical": 3, "material": 2, "track": 1}
+
+RISK_DISPLAY_TITLES: dict[str, str] = {
+    "tier4_addback": "Undocumented Tier 4 addbacks",
+    "open_legal_matter_other": "Open legal matters",
+}
 
 
 def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
@@ -398,6 +404,33 @@ def _truncate(text: str, max_len: int) -> str:
     return text[: max_len - 3] + "..."
 
 
+def _truncate_table_cell(text: str, max_len: int = 120) -> str:
+    """Trim table cell text at word boundary with ellipsis (T10)."""
+    text = text.strip()
+    if len(text) <= max_len:
+        return text
+
+    suffix_match = _RELATED_SUFFIX_RE.search(text)
+    suffix = suffix_match.group(0) if suffix_match else ""
+    base = text[: -len(suffix)] if suffix else text
+    budget = max_len - len(suffix)
+
+    if len(base) <= budget:
+        return base + suffix
+
+    cut = base[: budget - 3]
+    last_space = cut.rfind(" ")
+    if last_space > 0:
+        cut = cut[:last_space]
+    return cut + "..." + suffix
+
+
+def _risk_display_title(key: str) -> str:
+    if key in RISK_DISPLAY_TITLES:
+        return RISK_DISPLAY_TITLES[key]
+    return " ".join(word.capitalize() for word in key.split("_"))
+
+
 def _compress_qoe(qoe: dict[str, Any]) -> dict[str, Any]:
     flags = [f for f in (qoe.get("flags") or []) if isinstance(f, dict)]
     summary = _truncate(str(qoe.get("tier_summary") or "").strip(), 200)
@@ -451,12 +484,14 @@ def _compress_risks(risks: list[Any]) -> list[dict[str, Any]]:
         if len(group) > 1:
             suffix = f" (+{len(group) - 1} related)"
             evidence = (evidence + suffix) if evidence else suffix.strip()
+        mitigant = str(best.get("mitigant_or_question") or "").strip()
         merged.append(
             {
                 "risk": risk_key,
+                "display_title": _risk_display_title(risk_key),
                 "severity": str(best.get("severity") or "track"),
-                "evidence": evidence,
-                "mitigant": str(best.get("mitigant_or_question") or ""),
+                "evidence": _truncate_table_cell(evidence),
+                "mitigant": _truncate_table_cell(mitigant),
             }
         )
 
