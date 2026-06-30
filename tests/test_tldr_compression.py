@@ -925,6 +925,105 @@ def test_tldr_quality_check_exits_one_when_file_missing(tmp_path, monkeypatch, c
     assert "file not found" in capsys.readouterr().out
 
 
+def _headline_table_md(*rows: tuple[str, str]) -> str:
+    lines = [
+        "# TL;DR",
+        "",
+        "| Metric | Value |",
+        "|--------|-------|",
+    ]
+    lines.extend(f"| {label} | {value} |" for label, value in rows)
+    lines.append("---")
+    return "\n".join(lines) + "\n"
+
+
+def _risk_table_md(risk_cell: str) -> str:
+    return (
+        "# TL;DR\n\n"
+        "## Top Risks\n\n"
+        "| Risk | Severity | Evidence | Mitigant |\n"
+        "|------|----------|----------|----------|\n"
+        f"| {risk_cell} | critical | sample evidence | sample mitigant |\n"
+        "---\n"
+    )
+
+
+def test_tldr_quality_check_warns_on_duplicate_headline_labels(tmp_path, monkeypatch, capsys):
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    body = _headline_table_md(
+        ("Revenue CAGR", "376%"),
+        ("Gross Margin", "43.4%"),
+        ("Gross Margin", "54.2%"),
+    )
+    _write_tldr_md(vol_dir, body)
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "headline_duplicate_labels" in out
+    assert "WARN" in out
+    assert "Gross Margin" in out
+
+
+def test_tldr_quality_check_passes_post_t12_headline(tmp_path, monkeypatch, capsys, elder_care_bundle):
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    _write_tldr_md(vol_dir, _render_compressed_tldr(elder_care_bundle))
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert re.search(r"headline_duplicate_labels\s*\|\s*PASS", out)
+
+
+def test_tldr_quality_check_warns_on_raw_risk_metric_key(tmp_path, monkeypatch, capsys):
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    _write_tldr_md(vol_dir, _risk_table_md("tier4_addback"))
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "risk_raw_metric_keys" in out
+    assert "WARN" in out
+
+
+def test_tldr_quality_check_warns_on_spurious_headline_dollar(tmp_path, monkeypatch, capsys):
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    body = _headline_table_md(("Revenue", "$2"), ("Revenue CAGR", "72%"))
+    _write_tldr_md(vol_dir, body)
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "headline_spurious_dollar" in out
+    assert "WARN" in out
+
+
+def test_tldr_quality_check_spurious_dollar_scoped_to_headline(tmp_path, monkeypatch, capsys):
+    """Falsifier: QoE prose dollars must not trip headline_spurious_dollar."""
+    vol_dir = tmp_path / "reports" / "Elder_Care"
+    body = (
+        _headline_table_md(("Revenue", "$21M"), ("Revenue CAGR", "22%"))
+        + "\n## Quality of Earnings\n\n"
+        "The reported EBITDA for 2023 is $2,773.\n"
+    )
+    _write_tldr_md(vol_dir, body)
+    monkeypatch.setattr(tqc, "reports_volume_dir", lambda _c, _n: str(vol_dir))
+
+    exit_code = tqc.run(company_name="Elder Care", catalog="uc13_ale")
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert re.search(r"headline_spurious_dollar\s*\|\s*PASS", out)
+
+
 # --- T6 §7.1 integration tests (Elder Care synthetic fixture) ---
 
 
