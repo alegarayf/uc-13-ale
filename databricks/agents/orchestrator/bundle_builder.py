@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
-import warnings
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -27,8 +25,6 @@ from agents.shared.agent_base import WorkstreamAgent
 
 if TYPE_CHECKING:
     from pyspark.sql import SparkSession
-
-_logger = logging.getLogger(__name__)
 
 _BUNDLE_BUILDER_VERSION = "0.2.0-m2"
 
@@ -148,15 +144,12 @@ def synthesize_executive_narrative(
             llm_result = llm._parse_json_response(raw)
             break
         except (ValueError, KeyError, json.JSONDecodeError) as exc:
-            _logger.warning(
-                "[orchestrator] build:synthesis LLM parse failed (attempt %d): %s",
-                attempt + 1,
-                exc,
+            print(
+                f"[orchestrator] build:synthesis LLM parse failed (attempt {attempt + 1}): {exc}"
             )
             if attempt == 1:
-                warnings.warn(
-                    f"[orchestrator] build:synthesis keeping deterministic executive shell: {exc}",
-                    stacklevel=2,
+                print(
+                    f"[orchestrator] build:synthesis keeping deterministic executive shell: {exc}"
                 )
                 return
 
