@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-tldr-compression — 2026-06-30
+
+- T1 (Shared formatting helpers): Added `formatters.py` with `normalize_gap`, `is_operator_gap`, `format_agent_flag`, and `format_diligence_entry`; extracted gap normalization from `populate.py` (D1-A) and consolidated diligence text formatting for populate and demo_walkthrough (D2-A). + added `tests/test_tldr_compression.py` T1 unit tests including Elder Care dict-repr falsifier. See `.dev/decision-logs/tldr-t1-formatters.md`.
+
 ## uc13-orchestrator-m1-phase-a-demo-e2e — 2026-06-29
 
 - T8 (DOCX export, demo walkthrough, architecture refresh): Added `demo_walkthrough.py` with seven stdout gates (bundle load, demo disclaimer, confidence table, top-8 risks/questions, synthesis_gaps table, Volume artifact existence) and `[orchestrator] DEMO FAIL` exit envelope; notebook cells for `full_report.docx` + `tldr_one_pager.docx` via `md_to_word` on `company_safe` paths and demo walkthrough cell (D-M1-5); refreshed `.dev/architecture/rallyday/` for orchestrator hub. + added `tests/test_demo_walkthrough.py` including missing-DOCX falsifier. Cluster Elder Care exit gate owned by operator notebook run post-T7.
