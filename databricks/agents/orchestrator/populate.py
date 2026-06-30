@@ -13,6 +13,7 @@ import yaml
 from pyspark.sql import SparkSession
 
 from agents.orchestrator.constants import AGENTS_PRESENT_KEYS, FILL_STATE_RULES, TLDR_REQUIRED_FIELDS
+from agents.orchestrator.formatters import format_diligence_entry, normalize_gap
 from agents.orchestrator.ingest import ingest_snapshots
 from agents.orchestrator.paths import company_safe, reports_volume_dir
 from agents.orchestrator.validate import BundleValidationError, validate_bundle
@@ -80,12 +81,6 @@ def _parse_json_column(raw: Any) -> Any:
     if isinstance(raw, str):
         return json.loads(raw or "null")
     return raw
-
-
-def _normalize_gap(text: str) -> str:
-    lowered = text.lower()
-    lowered = re.sub(r"[^\w\s]", "", lowered)
-    return re.sub(r"\s+", " ", lowered).strip()
 
 
 def _flag_sort_key(flag: dict) -> tuple:
@@ -561,7 +556,7 @@ def _merge_data_room_gaps(snapshots: dict) -> list[dict[str, Any]]:
     for agent_key, snap in snapshots.items():
         delta_row = snap.get("delta_row") or {}
         for gap_text in delta_row.get("data_room_gaps") or []:
-            norm = _normalize_gap(str(gap_text))
+            norm = normalize_gap(str(gap_text))
             dedupe_key = (norm, agent_key)
             if dedupe_key in seen:
                 continue
@@ -577,7 +572,7 @@ def _merge_data_room_gaps(snapshots: dict) -> list[dict[str, Any]]:
         if agent_key == "legal":
             unable = _parse_json_column(delta_row.get("unable_to_assess_json")) or []
             for item in unable if isinstance(unable, list) else []:
-                norm = _normalize_gap(str(item))
+                norm = normalize_gap(str(item))
                 dedupe_key = (norm, agent_key)
                 if dedupe_key in seen:
                     continue
@@ -594,15 +589,7 @@ def _merge_data_room_gaps(snapshots: dict) -> list[dict[str, Any]]:
 
 
 def _legal_diligence_question_text(entry: dict[str, Any]) -> str:
-    if question := entry.get("question"):
-        return str(question)
-    if item := entry.get("item"):
-        return str(item)
-    if doc_type := entry.get("doc_type"):
-        return f"Request and review {doc_type}"
-    if item_id := entry.get("item_id"):
-        return f"Complete diligence item: {str(item_id).replace('_', ' ')}"
-    return str(entry)
+    return format_diligence_entry(entry)
 
 
 def _build_diligence_questions(snapshots: dict) -> list[dict[str, Any]]:

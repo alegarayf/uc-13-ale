@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import ast
 import os
 from typing import Any, Sequence
 
 import yaml
 
+from agents.orchestrator.formatters import format_diligence_entry
 from agents.orchestrator.paths import reports_volume_dir
 
 CONFIDENCE_AREAS: tuple[str, ...] = (
@@ -91,36 +91,12 @@ def _print_section(title: str, table: str) -> None:
     print(table)
 
 
-def _diligence_text_from_entry(entry: dict[str, Any]) -> str:
-    """Build stakeholder-readable diligence text from a legal recommended_diligence row."""
-    if question := entry.get("question"):
-        return str(question)
-    if item := entry.get("item"):
-        return str(item)
-    if doc_type := entry.get("doc_type"):
-        return f"Request and review {doc_type}"
-    if item_id := entry.get("item_id"):
-        return f"Complete diligence item: {str(item_id).replace('_', ' ')}"
-    return str(entry)
-
-
 def _format_diligence_question(row: dict[str, Any]) -> str:
     """Normalize diligence question for display (handles dict rows and legacy str(entry) values)."""
     raw = row.get("question")
-    if isinstance(raw, dict):
-        return _diligence_text_from_entry(raw)
-    if isinstance(raw, str):
-        stripped = raw.strip()
-        if stripped.startswith("{"):
-            try:
-                parsed = ast.literal_eval(stripped)
-            except (ValueError, SyntaxError):
-                parsed = None
-            if isinstance(parsed, dict):
-                return _diligence_text_from_entry(parsed)
-        if stripped:
-            return stripped
-    return ""
+    if raw is None:
+        return ""
+    return format_diligence_entry(raw)
 
 
 def run(company_name: str | None = None, catalog: str | None = None) -> int:
