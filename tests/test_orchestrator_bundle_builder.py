@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
-from agents.orchestrator.bundle_builder import BundleBuilder
+from agents.orchestrator.bundle_builder import BundleBuilder, GapAggregator
 from agents.orchestrator.constants import (
     AGENT_DELTA_TABLE_SUFFIXES,
     AGENTS_PRESENT_KEYS,
@@ -260,3 +260,24 @@ def test_validate_bundle_rejects_invalid_overall_confidence_enum():
     bad["meta"]["overall_confidence"] = "very_high"
     with pytest.raises(BundleValidationError):
         validate_bundle(bad)
+
+
+def test_kpi_missing_dict_diligence_question_readable():
+    """F-M2-KPI-DILIGENCE-REPR: dict missing_kpis must not render Python dict repr."""
+    kpi_item = {
+        "kpi_name": "Census turnover",
+        "management_question": "Provide monthly census turnover for trailing 12 months.",
+    }
+    snapshots = {
+        "kpi": {
+            "delta_row": {"flags": [], "data_room_gaps": []},
+            "yaml_dict": {"missing_kpis": [kpi_item]},
+        },
+    }
+    questions = GapAggregator().build_diligence_questions({}, snapshots)
+    kpi_questions = [q for q in questions if q.get("source_agent") == "kpi"]
+    assert len(kpi_questions) == 1
+    question = kpi_questions[0]["question"]
+    assert question == kpi_item["management_question"]
+    assert "{" not in question
+    assert "kpi_name" not in question

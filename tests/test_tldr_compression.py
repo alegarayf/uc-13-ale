@@ -190,6 +190,19 @@ def test_format_diligence_entry_malformed_dict_literal_returns_stripped_string()
     assert fmt.format_diligence_entry(raw) == raw
 
 
+def test_format_diligence_entry_kpi_missing_dict():
+    """KPI missing_kpis dict shape: management_question wins over kpi_name."""
+    assert fmt.format_diligence_entry(
+        {
+            "kpi_name": "Census turnover",
+            "management_question": "Provide monthly census turnover for trailing 12 months.",
+        }
+    ) == "Provide monthly census turnover for trailing 12 months."
+    assert fmt.format_diligence_entry({"kpi_name": "Census turnover"}) == (
+        "Provide supporting data for KPI: Census turnover"
+    )
+
+
 # --- T2 compress_for_tldr unit tests ---
 
 

@@ -60,6 +60,10 @@ def _diligence_text_from_entry(entry: dict[str, Any]) -> str:
         return str(question)
     if item := entry.get("item"):
         return str(item)
+    if mq := entry.get("management_question"):
+        return str(mq)
+    if kn := entry.get("kpi_name"):
+        return f"Provide supporting data for KPI: {kn}"
     if doc_type := entry.get("doc_type"):
         return f"Request and review {doc_type}"
     if item_id := entry.get("item_id"):
@@ -68,7 +72,7 @@ def _diligence_text_from_entry(entry: dict[str, Any]) -> str:
 
 
 def format_diligence_entry(entry: dict[str, Any] | str) -> str:
-    """Legal recommended_diligence row or legacy str(dict) → human question text."""
+    """Legal recommended_diligence, kpi_agent missing_kpis dict, or legacy str(dict) → question text."""
     if isinstance(entry, dict):
         return _diligence_text_from_entry(entry)
     if isinstance(entry, str):

@@ -166,7 +166,8 @@ def synthesize_executive_narrative(
     preserved = _capture_structural_fields(bundle)
     _merge_executive_llm_narrative(bundle, llm_result)
     _restore_structural_fields_after_llm(bundle, preserved)
-_SEVERITY_ORDER = {"Red": 0, "Yellow": 1, "Green": 2}
+
+
 _FLAG_TO_RISK = {"Red": "critical", "Yellow": "material", "Green": "track"}
 
 
@@ -461,10 +462,14 @@ class GapAggregator:
         missing = (kpi_snap.get("yaml_dict") or {}).get("missing_kpis") or []
         if isinstance(missing, list):
             for item in missing[:4]:
+                if isinstance(item, dict):
+                    question = format_diligence_entry(item)
+                else:
+                    question = f"Provide supporting data for KPI: {item}"
                 questions.append(
                     {
                         "category": "kpi",
-                        "question": f"Provide supporting data for KPI: {item}",
+                        "question": question,
                         "priority": "medium",
                         "source_agent": "kpi",
                         "fill_state": "gap_correct",
