@@ -47,7 +47,11 @@ def format_agent_flag(flag: dict[str, Any]) -> str:
         source_doc = str(flag.get("source_doc") or "")
         text = f"{metric}: {value} — {source_doc}".strip(" :—")
     if len(text) > _FLAG_MAX_LEN:
-        return text[: _FLAG_MAX_LEN - 3] + "..."
+        cut = text[: _FLAG_MAX_LEN - 3]
+        last_space = cut.rfind(" ")
+        if last_space > 0:
+            cut = cut[:last_space]
+        return cut + "..."
     return text
 
 
