@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import copy
+import re
+from pathlib import Path
 
 import pytest
+from jinja2 import Environment, FileSystemLoader
 
 from agents.orchestrator import formatters as fmt
 from agents.orchestrator.tldr_compress import compress_for_tldr
+
+_TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "databricks" / "agents" / "orchestrator" / "templates"
+_COMPRESSED_TEMPLATE = "tldr_one_pager_compressed.md.j2"
 
 
 @pytest.mark.parametrize(
@@ -340,3 +346,95 @@ def test_empty_financial_rows_omitted():
     )
     assert tldr["financial"]["show"] is False
     assert tldr["financial"]["rows"] == []
+
+
+# --- T3 compressed template tests ---
+
+
+def _render_compressed_template(bundle: dict, tldr: dict) -> str:
+    env = Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=False)
+    template = env.get_template(_COMPRESSED_TEMPLATE)
+    return template.render(bundle=bundle, tldr=tldr)
+
+
+def _mock_tldr_view() -> dict:
+    return {
+        "headline": {"metrics": [{"label": "LTM Revenue", "value": "$12M"}], "fallback_note": None},
+        "in_one_line": "Regional home health provider with stable census.",
+        "strengths": ["Strength 1"],
+        "concerns": ["Concern 1"],
+        "business_snapshot": None,
+        "financial": {"rows": [], "observations": [], "show": False},
+        "revenue_quality": {"lines": [], "show": False},
+        "kpi": {"rows": [], "show": False},
+        "legal": {
+            "assessed_label": "7 / 11",
+            "section_confidence": "medium",
+            "bullets": ["Sample legal bullet."],
+            "show": True,
+        },
+        "qoe": {"summary": "", "bullets": [], "show": False},
+        "risks": [
+            {
+                "risk": "tier4_addback",
+                "severity": "material",
+                "evidence": "Undocumented addback",
+                "mitigant": "Request support",
+            }
+        ],
+        "questions": [
+            {
+                "category": "legal",
+                "question": "Request and review Healthcare Referral Agreements",
+                "priority": "high",
+            }
+        ],
+        "open_items": ["Customer contracts for top 10 accounts"],
+        "confidence_by_area": {"legal": "medium"},
+        "show_confidence_table": True,
+    }
+
+
+def _mock_bundle() -> dict:
+    return {
+        "meta": {
+            "company_name": "Elder Care",
+            "vertical_overlay": "healthcare",
+            "generated_at": "2026-06-30",
+            "overall_confidence": "medium",
+            "demo_mode": False,
+            "disclaimer_text": "",
+        },
+        "executive": {"preliminary_view": {"closing": "Further diligence recommended."}},
+    }
+
+
+def test_compressed_template_bundle_refs_allowlisted_only():
+    content = (_TEMPLATES_DIR / _COMPRESSED_TEMPLATE).read_text(encoding="utf-8")
+    refs = set(re.findall(r"bundle\.[\w.]+", content))
+    for ref in refs:
+        assert ref.startswith("bundle.meta.") or ref == "bundle.executive.preliminary_view.closing", ref
+
+
+def test_compressed_template_omits_hidden_sections_and_uses_mitigant():
+    md = _render_compressed_template(_mock_bundle(), _mock_tldr_view())
+    assert "Request support" in md
+    assert "Mitigant" in md
+    assert "mitigant_or_question" not in md
+    assert "_No " not in md
+    assert "No KPI dashboard rows available" not in md
+    assert "## Financial Strip" not in md
+    assert "## KPI Dashboard" not in md
+    assert "## Revenue Quality" not in md
+    assert "## Quality of Earnings" not in md
+
+
+def test_compressed_template_hides_kpi_when_show_false_despite_stale_rows():
+    """Falsifier: show=False must omit KPI block even if rows were left populated."""
+    tldr = _mock_tldr_view()
+    tldr["kpi"] = {
+        "rows": [{"display_name": "NRR", "stated_value": "95%", "threshold": "", "flag": "", "confidence": ""}],
+        "show": False,
+    }
+    md = _render_compressed_template(_mock_bundle(), tldr)
+    assert "## KPI Dashboard" not in md

@@ -1,0 +1,203 @@
+# {{ bundle.meta.company_name | default('Company', true) }} — TL;DR One-Pager
+
+**Vertical:** {{ bundle.meta.vertical_overlay | default('', true) }}  
+**Generated:** {{ bundle.meta.generated_at | default('', true) }}  
+**Overall Confidence:** {{ bundle.meta.overall_confidence | default('', true) }}
+
+{% if tldr.headline.metrics %}
+| Metric | Value |
+|--------|-------|
+{% for metric in tldr.headline.metrics %}
+| {{ metric.label }} | {{ metric.value }} |
+{% endfor %}
+{% endif %}
+{% if tldr.headline.fallback_note %}
+*{{ tldr.headline.fallback_note }}*
+{% endif %}
+
+{% if tldr.in_one_line %}
+
+---
+
+## In One Line
+
+{{ tldr.in_one_line }}
+{% endif %}
+
+{% if tldr.strengths or tldr.concerns %}
+
+---
+
+## Preliminary View
+
+{% if tldr.strengths %}
+### Strengths
+
+{% for strength in tldr.strengths %}
+- {{ strength }}
+{% endfor %}
+{% endif %}
+{% if tldr.concerns %}
+### Concerns
+
+{% for concern in tldr.concerns %}
+- {{ concern }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if tldr.business_snapshot %}
+
+---
+
+## Business Snapshot
+
+{{ tldr.business_snapshot }}
+{% endif %}
+
+{% if tldr.financial.show %}
+
+---
+
+## Financial Strip
+
+{% if tldr.financial.rows %}
+| Year | Revenue | Gross Profit | Gross Margin | EBITDA | EBITDA Margin |
+|------|---------|--------------|--------------|--------|---------------|
+{% for row in tldr.financial.rows %}
+| {{ row.year | default('', true) }} | {{ row.revenue | default('', true) }} | {{ row.gross_profit | default('', true) }} | {{ row.gross_margin_pct | default('', true) }} | {{ row.ebitda | default('', true) }} | {{ row.ebitda_margin_pct | default('', true) }} |
+{% endfor %}
+{% endif %}
+{% if tldr.financial.observations %}
+**Observations**
+
+{% for obs in tldr.financial.observations %}
+- {{ obs }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if tldr.revenue_quality.show %}
+
+---
+
+## Revenue Quality
+
+{% for line in tldr.revenue_quality.lines %}
+- {{ line }}
+{% endfor %}
+{% endif %}
+
+{% if tldr.kpi.show %}
+
+---
+
+## KPI Dashboard
+
+| Metric | Value | Threshold | Flag | Confidence |
+|--------|-------|-----------|------|------------|
+{% for kpi in tldr.kpi.rows %}
+| {{ kpi.display_name | default('', true) }} | {{ kpi.stated_value | default('', true) }} | {{ kpi.threshold | default('', true) }} | {{ kpi.flag | default('', true) }} | {{ kpi.confidence | default('', true) }} |
+{% endfor %}
+{% endif %}
+
+{% if tldr.legal.show %}
+
+---
+
+## Legal Snapshot
+
+- **Assessed:** {{ tldr.legal.assessed_label }}
+- **Section confidence:** {{ tldr.legal.section_confidence }}
+
+{% for bullet in tldr.legal.bullets %}
+- {{ bullet }}
+{% endfor %}
+{% endif %}
+
+{% if tldr.qoe.show %}
+
+---
+
+## Quality of Earnings
+
+{% if tldr.qoe.summary %}
+- **Tier summary:** {{ tldr.qoe.summary }}
+{% endif %}
+{% for bullet in tldr.qoe.bullets %}
+- {{ bullet }}
+{% endfor %}
+{% endif %}
+
+{% if tldr.risks %}
+
+---
+
+## Top Risks
+
+| Risk | Severity | Evidence | Mitigant |
+|------|----------|----------|----------|
+{% for risk in tldr.risks %}
+| {{ risk.risk }} | {{ risk.severity }} | {{ risk.evidence }} | {{ risk.mitigant }} |
+{% endfor %}
+{% endif %}
+
+{% if tldr.questions %}
+
+---
+
+## Priority Diligence Questions
+
+| Category | Question | Priority |
+|----------|----------|----------|
+{% for q in tldr.questions %}
+| {{ q.category }} | {{ q.question }} | {{ q.priority }} |
+{% endfor %}
+{% endif %}
+
+{% if tldr.open_items %}
+
+---
+
+## Open Items / Data Requests
+
+{% for item in tldr.open_items %}
+- {{ item }}
+{% endfor %}
+{% endif %}
+
+{% if tldr.show_confidence_table %}
+{% set conf = tldr.confidence_by_area %}
+
+---
+
+## Confidence by Area
+
+| Area | Confidence |
+|------|------------|
+| Business Model | {{ conf.business_model | default('', true) }} |
+| Financial Trends | {{ conf.financial_trends | default('', true) }} |
+| Customer Quality | {{ conf.customer_quality | default('', true) }} |
+| KPI | {{ conf.kpi | default('', true) }} |
+| Legal | {{ conf.legal | default('', true) }} |
+| Quality of Earnings | {{ conf.quality_of_earnings | default('', true) }} |
+| Forecast Support | {{ conf.forecast_support | default('', true) }} |
+{% endif %}
+
+{% if bundle.meta.demo_mode %}
+
+---
+
+> **Demo Disclaimer**
+>
+> {{ bundle.meta.disclaimer_text | default('This output is for demonstration purposes only.', true) }}
+{% endif %}
+
+{% if bundle.executive.preliminary_view.closing %}
+
+---
+
+## Closing
+
+{{ bundle.executive.preliminary_view.closing }}
+{% endif %}
