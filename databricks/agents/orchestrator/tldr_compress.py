@@ -23,10 +23,17 @@ _HEADLINE_FIELD_LABELS: tuple[tuple[str, str], ...] = (
     ("revenue_cagr", "Revenue CAGR"),
 )
 
-_REVENUE_RE = re.compile(r"\$[\d.]+[MBK]?", re.IGNORECASE)
+_DOLLAR_RE = re.compile(r"\$[\d,]+(?:\.\d+)?[MBK]?", re.IGNORECASE)
 _CAGR_RE = re.compile(r"(?:cagr|growth)[^\d%]*(\d+\.?\d*%)", re.IGNORECASE)
 _GROWTH_PCT_RE = re.compile(r"\d+\.?\d*%\s*(?:cagr|growth|yoy)", re.IGNORECASE)
-_MARGIN_RE = re.compile(r"(?:ebitda\s*)?margin[^\d%]*(\d+\.?\d*%)", re.IGNORECASE)
+_GROSS_MARGIN_RE = re.compile(
+    r"(?:gross\s+margin[^\d%]*(\d+\.?\d*%)|(\d+\.?\d*%)\s*gross\s+margin)",
+    re.IGNORECASE,
+)
+_EBITDA_MARGIN_RE = re.compile(
+    r"(?:ebitda\s+margin[^\d%]*(\d+\.?\d*%)|(\d+\.?\d*%)\s*ebitda\s+margin)",
+    re.IGNORECASE,
+)
 _ANNUAL_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 _MONTHLY_YEAR_RE = re.compile(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{4}\b", re.IGNORECASE)
 _YEAR_EXTRACT_RE = re.compile(r"(?:19|20)\d{2}")
@@ -110,6 +117,44 @@ def _compress_headline(
     return {"metrics": metrics[:4], "fallback_note": fallback_note}
 
 
+def _parse_dollar_magnitude(amount: str) -> float:
+    """Numeric magnitude for comparing dollar matches in the same sentence."""
+    stripped = amount.lstrip("$").replace(",", "")
+    multiplier = 1.0
+    if stripped and stripped[-1].upper() in "KMB":
+        suffix = stripped[-1].upper()
+        stripped = stripped[:-1]
+        multiplier = {"K": 1_000.0, "M": 1_000_000.0, "B": 1_000_000_000.0}[suffix]
+    try:
+        return float(stripped) * multiplier
+    except ValueError:
+        return 0.0
+
+
+def _best_dollar_match(text: str) -> str | None:
+    """Return the single best dollar amount per text block (F-004)."""
+    matches = list(_DOLLAR_RE.finditer(text))
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0].group(0)
+
+    ranked = sorted(
+        matches,
+        key=lambda m: (
+            _parse_dollar_magnitude(m.group(0)),
+            bool(re.search(r"[KMB]$", m.group(0), re.IGNORECASE)),
+            len(m.group(0)),
+        ),
+        reverse=True,
+    )
+    return ranked[0].group(0)
+
+
+def _margin_pct_from_match(match: re.Match[str]) -> str:
+    return match.group(1) or match.group(2)
+
+
 def _headline_from_preliminary(preliminary: dict[str, Any]) -> list[dict[str, str]]:
     texts: list[str] = []
     for key in ("strengths", "concerns"):
@@ -127,14 +172,17 @@ def _headline_from_preliminary(preliminary: dict[str, Any]) -> list[dict[str, st
         metrics.append({"label": label, "value": value})
 
     for text in texts:
-        for match in _REVENUE_RE.finditer(text):
-            _add("Revenue", match.group(0))
+        dollar = _best_dollar_match(text)
+        if dollar:
+            _add("Revenue", dollar)
         for match in _CAGR_RE.finditer(text):
             _add("Revenue CAGR", match.group(1))
         for match in _GROWTH_PCT_RE.finditer(text):
             _add("Growth", match.group(0))
-        for match in _MARGIN_RE.finditer(text):
-            _add("EBITDA Margin", match.group(1))
+        for match in _GROSS_MARGIN_RE.finditer(text):
+            _add("Gross Margin", _margin_pct_from_match(match))
+        for match in _EBITDA_MARGIN_RE.finditer(text):
+            _add("EBITDA Margin", _margin_pct_from_match(match))
 
     return metrics
 

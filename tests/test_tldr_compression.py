@@ -80,6 +80,57 @@ def test_format_agent_flag_truncates_at_220_chars():
     assert result.endswith("...")
 
 
+def test_format_agent_flag_truncates_on_word_boundary():
+    words = " ".join(["token"] * 80)
+    flag = {"note": words}
+    result = fmt.format_agent_flag(flag)
+    assert len(result) <= 220
+    assert result.endswith("...")
+    assert not result[:-3].endswith("toke")
+    assert " token" in result or result.startswith("token")
+
+
+def test_headline_no_spurious_small_dollar_match():
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {
+                "strengths": [
+                    "Revenue reached $2,773K in the latest period with strong unit economics.",
+                ],
+                "concerns": [],
+                "closing": "",
+            },
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    revenue_values = [
+        m["value"] for m in tldr["headline"]["metrics"] if m["label"] == "Revenue"
+    ]
+    assert revenue_values
+    assert all(v != "$2" for v in revenue_values)
+    assert any("773" in v or "2,773" in v for v in revenue_values)
+
+
+def test_headline_gross_margin_not_labeled_ebitda():
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {
+                "strengths": [
+                    "43.4% gross margin on LTM revenue of $2,773K with 72% YoY growth.",
+                ],
+                "concerns": [],
+                "closing": "",
+            },
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    labels = {m["label"] for m in tldr["headline"]["metrics"]}
+    assert "Gross Margin" in labels
+    assert "EBITDA Margin" not in labels
+
+
 def test_format_diligence_entry_dict_doc_type():
     entry = {"doc_type": "Healthcare Referral Agreements", "item_id": "healthcare_referral"}
     assert fmt.format_diligence_entry(entry) == "Request and review Healthcare Referral Agreements"
