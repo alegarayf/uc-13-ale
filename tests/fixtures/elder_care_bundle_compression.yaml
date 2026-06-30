@@ -39,6 +39,11 @@ executive:
       - Undocumented QoE addbacks may not survive buyer diligence.
       - Referral agreement coverage gaps in several states.
       - Monthly financial detail thin relative to annual summaries.
+      - Founder retains 92% equity — key-person dependency on CEO.
+      - Primary facility lease assignment requires landlord consent.
+      - Insurance gaps including workers' comp and cyber coverage.
+      - Back-office systems integration risk across acquired branches.
+      - Payer mix shift toward lower-margin managed care plans.
     closing: Further diligence recommended before proceeding to LOI.
 
 company_framing:
@@ -217,6 +222,13 @@ risks:
     mitigant_or_question: Obtain executed consent forms or estoppel letters.
     source_agent: legal
     confidence: high
+    fill_state: filled_cited
+  - risk: key_person
+    severity: critical
+    evidence: Founder holds 92% equity and leads all clinical operations.
+    mitigant_or_question: Assess succession and employment agreements.
+    source_agent: business_model
+    confidence: medium
     fill_state: filled_cited
 
 diligence_questions:

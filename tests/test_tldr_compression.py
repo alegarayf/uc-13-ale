@@ -14,7 +14,7 @@ from jinja2 import Environment, FileSystemLoader
 from agents.orchestrator import formatters as fmt
 from agents.orchestrator import tldr_quality_check as tqc
 from agents.orchestrator.renderers import ReportRenderer, render_to_volume
-from agents.orchestrator.tldr_compress import compress_for_tldr
+from agents.orchestrator.tldr_compress import _first_sentence, compress_for_tldr
 
 _TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "databricks" / "agents" / "orchestrator" / "templates"
 _COMPRESSED_TEMPLATE = "tldr_one_pager_compressed.md.j2"
@@ -406,6 +406,99 @@ def test_empty_financial_rows_omitted():
     assert tldr["financial"]["rows"] == []
 
 
+# --- T9 in_one_line + preliminary rank-before-cap ---
+
+
+def test_in_one_line_uses_sentence_boundary_not_char_160():
+    long_strength = (
+        "Strong revenue growth: clients expanded 376% over three years driven by "
+        "acquisitions in New Jersey, Pennsylvania, and surrounding markets with "
+        "improving unit economics and expanding payer mix across skilled nursing lines. "
+        "Second sentence should not appear in the one-liner."
+    )
+    line = _first_sentence(long_strength)
+    assert line
+    assert line.endswith((".", "!", "?"))
+    assert "Second sentence" not in line
+    assert len(line) > 160
+
+
+def test_in_one_line_omitted_when_duplicates_first_strength():
+    strength = "LTM revenue of $21M with 18% revenue CAGR and 22% EBITDA margin."
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {
+                "strengths": [strength],
+                "concerns": [],
+                "closing": "",
+            },
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    assert tldr["in_one_line"] == ""
+    assert tldr["show_in_one_line"] is False
+    md = _render_compressed_template(
+        _mock_bundle(),
+        {**_mock_tldr_view(), "in_one_line": "", "show_in_one_line": False},
+    )
+    assert "## In One Line" not in md
+
+
+def test_concerns_rank_key_person_before_cap():
+    concerns = [
+        "Generic operational noise item alpha.",
+        "Generic operational noise item beta.",
+        "Generic operational noise item gamma.",
+        "Generic operational noise item delta.",
+        "Founder retains 92% equity — key-person dependency on CEO.",
+        "Primary facility lease assignment requires landlord consent.",
+        "Insurance gaps including workers' comp and cyber coverage.",
+        "Generic operational noise item epsilon.",
+    ]
+    risks = [
+        {
+            "risk": "key_person",
+            "severity": "critical",
+            "evidence": "ev",
+            "mitigant_or_question": "q",
+            "source_agent": "business_model",
+            "confidence": "medium",
+            "fill_state": "filled_cited",
+        },
+        {
+            "risk": "coc_consent",
+            "severity": "critical",
+            "evidence": "ev",
+            "mitigant_or_question": "q",
+            "source_agent": "legal",
+            "confidence": "high",
+            "fill_state": "filled_cited",
+        },
+    ]
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "Standalone summary.",
+            "preliminary_view": {"strengths": [], "concerns": concerns, "closing": ""},
+        },
+        risks=risks,
+    )
+    tldr = compress_for_tldr(bundle)
+    assert len(tldr["concerns"]) == 3
+    joined = " ".join(tldr["concerns"]).casefold()
+    assert "founder" in joined
+    assert "lease" in joined
+    assert "insurance" in joined
+
+
+def test_elder_care_concerns_surface_founder_lease_insurance(elder_care_bundle: dict):
+    tldr = compress_for_tldr(elder_care_bundle)
+    joined = " ".join(tldr["concerns"]).casefold()
+    assert "founder" in joined
+    assert "lease" in joined
+    assert "insurance" in joined
+
+
 # --- T3 compressed template tests ---
 
 
@@ -419,6 +512,7 @@ def _mock_tldr_view() -> dict:
     return {
         "headline": {"metrics": [{"label": "LTM Revenue", "value": "$12M"}], "fallback_note": None},
         "in_one_line": "Regional home health provider with stable census.",
+        "show_in_one_line": True,
         "strengths": ["Strength 1"],
         "concerns": ["Concern 1"],
         "business_snapshot": None,
@@ -789,7 +883,7 @@ def test_legacy_mode_unchanged(elder_care_bundle: dict, monkeypatch, tmp_path):
 
 # Baseline captured from full_report.md.j2 render of elder_care_bundle_compression.yaml (T6).
 _FULL_REPORT_BASELINE_SHA256 = (
-    "db16711f44880b5a0ef5305d3b080f4f43ab59d51429836ea217878539ac1ef1"
+    "5eb12eb0b43f966d26666803bb066d183aed0693537b3c18ef3499f264449567"
 )
 
 

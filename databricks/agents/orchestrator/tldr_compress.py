@@ -48,6 +48,24 @@ _HEADLINE_FALLBACK_NOTE = (
     "see Preliminary View and full report."
 )
 
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+_CONCERN_PRIORITY_KEYWORDS: tuple[str, ...] = (
+    "founder",
+    "key-person",
+    "key person",
+    "lease",
+    "insurance",
+    "change-of-control",
+    "consent",
+    "e&o",
+    "cyber",
+    "d&o",
+    "workers' comp",
+)
+
+_SEVERITY_SCORE: dict[str, int] = {"critical": 3, "material": 2, "track": 1}
+
 
 def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
     """Build lossy ``tldr_view`` projection; never mutates ``bundle`` (K1)."""
@@ -62,13 +80,18 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
     legal = source.get("legal") or {}
     qoe = source.get("qoe") or {}
 
+    risks = source.get("risks") or []
     headline = _compress_headline(headline_metrics, preliminary)
-    strengths, concerns = _compress_preliminary_lists(preliminary)
-    in_one_line = _compress_in_one_line(executive.get("in_one_line") or "", strengths)
+    strengths = _rank_preliminary_items(preliminary.get("strengths") or [], risks)
+    concerns = _rank_preliminary_items(preliminary.get("concerns") or [], risks)
+    in_one_line, show_in_one_line = _compress_in_one_line(
+        executive.get("in_one_line") or "", strengths
+    )
 
     view = {
         "headline": headline,
         "in_one_line": in_one_line,
+        "show_in_one_line": show_in_one_line,
         "strengths": strengths,
         "concerns": concerns,
         "business_snapshot": _compress_business_snapshot(company_framing, revenue_quality),
@@ -187,27 +210,69 @@ def _headline_from_preliminary(preliminary: dict[str, Any]) -> list[dict[str, st
     return metrics
 
 
-def _compress_preliminary_lists(preliminary: dict[str, Any]) -> tuple[list[str], list[str]]:
-    strengths = [
-        str(s).strip()
-        for s in (preliminary.get("strengths") or [])
-        if not _is_blank(s)
-    ][:3]
-    concerns = [
-        str(c).strip()
-        for c in (preliminary.get("concerns") or [])
-        if not _is_blank(c)
-    ][:3]
-    return strengths, concerns
+def _first_sentence(text: str, max_len: int = 200) -> str:
+    """Return the first complete sentence, capped at a sentence boundary within max_len."""
+    text = text.strip()
+    if not text:
+        return ""
+    parts = _SENTENCE_SPLIT_RE.split(text, maxsplit=1)
+    first = parts[0]
+    if len(first) <= max_len:
+        return first
+    window = first[:max_len]
+    best_end = max(window.rfind(ch) for ch in ".!?")
+    if best_end >= 0:
+        return first[: best_end + 1]
+    return first
 
 
-def _compress_in_one_line(in_one_line: str, strengths: list[str]) -> str:
+def _item_severity_score(item: str, risks: list[Any], keywords: tuple[str, ...]) -> int:
+    """Rank score: max risk-severity crosswalk hit + keyword hits (T9 §4.8)."""
+    text = item.casefold()
+    score = 0
+    for risk in risks:
+        if not isinstance(risk, dict):
+            continue
+        risk_token = str(risk.get("risk") or "").casefold()
+        if not risk_token or risk_token not in text:
+            continue
+        severity = str(risk.get("severity") or "track").casefold()
+        score = max(score, _SEVERITY_SCORE.get(severity, 1))
+    for keyword in keywords:
+        if keyword.casefold() in text:
+            score += 1
+    return score
+
+
+def _rank_preliminary_items(
+    items: list[Any],
+    risks: list[Any],
+    keywords: tuple[str, ...] = _CONCERN_PRIORITY_KEYWORDS,
+) -> list[str]:
+    indexed = [
+        (idx, str(item).strip())
+        for idx, item in enumerate(items)
+        if not _is_blank(item)
+    ]
+    ranked = sorted(
+        indexed,
+        key=lambda pair: (-_item_severity_score(pair[1], risks, keywords), pair[0]),
+    )
+    return [text for _, text in ranked[:3]]
+
+
+def _compress_in_one_line(in_one_line: str, strengths: list[str]) -> tuple[str, bool]:
     text = in_one_line.strip()
-    if text:
-        return text
+    if not text and strengths:
+        text = _first_sentence(strengths[0])
+    if not text:
+        return "", False
     if strengths:
-        return strengths[0][:160]
-    return ""
+        strength_head = strengths[0].strip().casefold()
+        candidate = text.strip().casefold()
+        if strength_head.startswith(candidate) or candidate == strength_head:
+            return "", False
+    return text, True
 
 
 def _compress_business_snapshot(
