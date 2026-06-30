@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import warnings
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -21,11 +23,149 @@ from agents.orchestrator.field_mapping import apply_field_mappings
 from agents.orchestrator.formatters import format_diligence_entry, normalize_gap
 from agents.orchestrator.paths import company_safe, reports_volume_dir
 from agents.orchestrator.validate import BundleValidationError, validate_bundle
+from agents.shared.agent_base import WorkstreamAgent
 
 if TYPE_CHECKING:
     from pyspark.sql import SparkSession
 
+_logger = logging.getLogger(__name__)
+
 _BUNDLE_BUILDER_VERSION = "0.2.0-m2"
+
+_EXECUTIVE_LLM_SYSTEM_PROMPT = """You are the UC13 orchestrator stage-6 synthesis agent (M2 production).
+From workstream agent snapshots in the user message, populate ONLY the executive narrative fields.
+Return ONLY valid JSON (no markdown fences) with optional top-level key "executive" containing:
+  in_one_line (string)
+  preliminary_view: { strengths (string[]), concerns (string[]), closing (string) }
+Do not include risks, legal, kpi_dashboard, headline_metrics, company_framing, financials, or any other keys.
+Use stated figures and agent summaries only — do not invent financial metrics.
+preliminary_view.closing must avoid investment advice (no buy/sell/hold recommendations)."""
+
+
+class _OrchestratorLlm(WorkstreamAgent):
+    agent_name = "orchestrator"
+
+
+def _pick_dict(obj: Any, allowed: frozenset[str]) -> dict[str, Any]:
+    if not isinstance(obj, dict):
+        return {}
+    return {k: v for k, v in obj.items() if k in allowed}
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if isinstance(item, str) and str(item).strip()]
+
+
+def _merge_executive_llm_narrative(bundle: dict[str, Any], llm_result: dict[str, Any]) -> None:
+    """Overlay executive narrative only — never replace deterministic structural blocks."""
+    if not llm_result:
+        return
+
+    executive = llm_result.get("executive")
+    if not isinstance(executive, dict):
+        return
+
+    exc = _pick_dict(executive, frozenset({"in_one_line", "preliminary_view"}))
+    if isinstance(exc.get("in_one_line"), str) and exc["in_one_line"].strip():
+        bundle["executive"]["in_one_line"] = exc["in_one_line"].strip()
+
+    pv = exc.get("preliminary_view")
+    if isinstance(pv, dict):
+        pv = _pick_dict(pv, frozenset({"strengths", "concerns", "closing"}))
+        for key in ("strengths", "concerns"):
+            strings = _string_list(pv.get(key))
+            if strings:
+                bundle["executive"]["preliminary_view"][key] = strings
+        if isinstance(pv.get("closing"), str) and pv["closing"].strip():
+            bundle["executive"]["preliminary_view"]["closing"] = pv["closing"].strip()
+
+
+def _capture_structural_fields(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Snapshot deterministic blocks the LLM must not overwrite."""
+    return {
+        "meta": dict(bundle.get("meta") or {}),
+        "legal": deepcopy(bundle.get("legal")),
+        "data_room_gaps": deepcopy(bundle.get("data_room_gaps")),
+        "kpi_dashboard": deepcopy(bundle.get("kpi_dashboard")),
+        "risks": deepcopy(bundle.get("risks")),
+        "diligence_questions": deepcopy(bundle.get("diligence_questions")),
+        "headline_metrics": deepcopy(bundle.get("headline_metrics")),
+        "company_framing": deepcopy(bundle.get("company_framing")),
+    }
+
+
+def _restore_structural_fields_after_llm(bundle: dict, preserved: dict[str, Any]) -> None:
+    """Always restore deterministic blocks the LLM must not overwrite."""
+    bundle["meta"] = preserved["meta"]
+    bundle["headline_metrics"] = preserved["headline_metrics"]
+    bundle["company_framing"] = preserved["company_framing"]
+    for key in ("legal", "data_room_gaps", "kpi_dashboard", "risks", "diligence_questions"):
+        bundle[key] = preserved[key]
+
+
+def _agent_context_payload(snapshots: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    for key, snap in snapshots.items():
+        payload[key] = {
+            "delta_row": {
+                k: v for k, v in (snap.get("delta_row") or {}).items() if k != "flags"
+            },
+            "yaml_dict": snap.get("yaml_dict"),
+            "report_path": snap.get("report_path"),
+        }
+    return payload
+
+
+def synthesize_executive_narrative(
+    bundle: dict[str, Any],
+    snapshots: dict[str, dict[str, Any]],
+    llm_endpoint: str,
+) -> None:
+    """Stage 6: LLM polish on ``executive.*`` from agent snapshots (not rendered MD)."""
+    company_name = str((bundle.get("meta") or {}).get("company_name") or "")
+    context = _agent_context_payload(snapshots)
+    llm = _OrchestratorLlm()
+    user_prompt = json.dumps(
+        {
+            "company_name": company_name,
+            "agent_snapshots": context,
+            "current_executive_shell": bundle.get("executive"),
+        },
+        default=str,
+    )[:120_000]
+
+    llm_result: dict[str, Any] = {}
+    for attempt in range(2):
+        try:
+            raw = llm._call_llm(
+                _EXECUTIVE_LLM_SYSTEM_PROMPT,
+                user_prompt,
+                llm_endpoint,
+                max_tokens=12_000,
+            )
+            llm_result = llm._parse_json_response(raw)
+            break
+        except (ValueError, KeyError, json.JSONDecodeError) as exc:
+            _logger.warning(
+                "[orchestrator] build:synthesis LLM parse failed (attempt %d): %s",
+                attempt + 1,
+                exc,
+            )
+            if attempt == 1:
+                warnings.warn(
+                    f"[orchestrator] build:synthesis keeping deterministic executive shell: {exc}",
+                    stacklevel=2,
+                )
+                return
+
+    if not llm_result:
+        return
+
+    preserved = _capture_structural_fields(bundle)
+    _merge_executive_llm_narrative(bundle, llm_result)
+    _restore_structural_fields_after_llm(bundle, preserved)
 _SEVERITY_ORDER = {"Red": 0, "Yellow": 1, "Green": 2}
 _FLAG_TO_RISK = {"Red": "critical", "Yellow": "material", "Green": "track"}
 
@@ -369,8 +509,7 @@ class BundleBuilder:
         spark: SparkSession | None = None,
         llm_endpoint: str | None = None,
     ) -> dict:
-        """Ingest → map → flags → gaps → confidence → fill_state → validate → persist."""
-        del llm_endpoint  # B6 polish deferred to T7
+        """Ingest → map → flags → gaps → confidence → fill_state → synthesis → validate → persist."""
 
         print("[orchestrator] build:gate checking Spark session")
         if spark is None:
@@ -460,6 +599,13 @@ class BundleBuilder:
 
         print("[orchestrator] build:fill_state applying fill_state rules")
         bundle = apply_fill_state(bundle)
+
+        if llm_endpoint:
+            print("[orchestrator] build:synthesis executive narrative")
+            synthesize_executive_narrative(bundle, snapshots, llm_endpoint)
+        else:
+            print("[orchestrator] build:synthesis:skip llm_endpoint absent")
+
         bundle["provenance"]["synthesis_gaps"] = collect_synthesis_gaps(bundle)
 
         print("[orchestrator] build:validate jsonschema")
