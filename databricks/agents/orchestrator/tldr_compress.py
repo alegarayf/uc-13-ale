@@ -184,6 +184,43 @@ def _margin_pct_from_match(match: re.Match[str]) -> str:
     return match.group(1) or match.group(2)
 
 
+_BLENDED_MARGIN_KEYWORDS: tuple[str, ...] = (
+    "pro forma",
+    "adjusted",
+    "ttm",
+    "blended",
+    "company-wide",
+)
+_SEGMENT_MARGIN_KEYWORDS: tuple[str, ...] = ("hha", "live-in", "live in")
+
+
+def _margin_label_from_context(
+    text: str,
+    match: re.Match[str],
+    *,
+    is_only_margin: bool,
+    margin_ordinal: int,
+) -> str:
+    """Disambiguate gross margin ribbon label from ±80 char context (T12)."""
+    start = max(0, match.start() - 80)
+    end = min(len(text), match.end() + 80)
+    before = text[start:match.start()].casefold()
+    local = text[max(0, match.start() - 40):min(len(text), match.end() + 20)].casefold()
+    window = text[start:end].casefold()
+
+    if any(kw in local for kw in _SEGMENT_MARGIN_KEYWORDS):
+        return "Gross Margin (HHA/Live-In)"
+    if any(kw in before for kw in _BLENDED_MARGIN_KEYWORDS):
+        return "Gross Margin (Blended)"
+    if any(kw in window for kw in _BLENDED_MARGIN_KEYWORDS):
+        return "Gross Margin (Blended)"
+    if is_only_margin:
+        return "Gross Margin"
+    if margin_ordinal > 0:
+        return "Gross Margin (Segment)"
+    return "Gross Margin"
+
+
 def _headline_from_preliminary(preliminary: dict[str, Any]) -> list[dict[str, str]]:
     texts: list[str] = []
     for key in ("strengths", "concerns"):
@@ -192,15 +229,26 @@ def _headline_from_preliminary(preliminary: dict[str, Any]) -> list[dict[str, st
                 texts.append(str(item))
 
     metrics: list[dict[str, str]] = []
-    seen_values: set[str] = set()
+    seen_pairs: set[tuple[str, str]] = set()
+
+    gross_margin_occurrences: list[tuple[int, str, re.Match[str]]] = []
+    for text_idx, text in enumerate(texts):
+        for match in _GROSS_MARGIN_RE.finditer(text):
+            gross_margin_occurrences.append((text_idx, text, match))
+    total_margins = len(gross_margin_occurrences)
+    margin_ordinals = {
+        (text_idx, match.start(), match.end()): idx
+        for idx, (text_idx, _, match) in enumerate(gross_margin_occurrences)
+    }
 
     def _add(label: str, value: str) -> None:
-        if value in seen_values or len(metrics) >= 4:
+        key = (label, value)
+        if key in seen_pairs or len(metrics) >= 4:
             return
-        seen_values.add(value)
+        seen_pairs.add(key)
         metrics.append({"label": label, "value": value})
 
-    for text in texts:
+    for text_idx, text in enumerate(texts):
         dollar = _best_dollar_match(text)
         if dollar:
             _add("Revenue", dollar)
@@ -209,7 +257,13 @@ def _headline_from_preliminary(preliminary: dict[str, Any]) -> list[dict[str, st
         for match in _GROWTH_PCT_RE.finditer(text):
             _add("Growth", match.group(0))
         for match in _GROSS_MARGIN_RE.finditer(text):
-            _add("Gross Margin", _margin_pct_from_match(match))
+            label = _margin_label_from_context(
+                text,
+                match,
+                is_only_margin=(total_margins == 1),
+                margin_ordinal=margin_ordinals[(text_idx, match.start(), match.end())],
+            )
+            _add(label, _margin_pct_from_match(match))
         for match in _EBITDA_MARGIN_RE.finditer(text):
             _add("EBITDA Margin", _margin_pct_from_match(match))
 
