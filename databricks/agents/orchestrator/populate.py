@@ -3,33 +3,30 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
 
-import yaml
 from pyspark.sql import SparkSession
 
-from agents.orchestrator.constants import AGENTS_PRESENT_KEYS, FILL_STATE_RULES, TLDR_REQUIRED_FIELDS
-from agents.orchestrator.formatters import format_diligence_entry, normalize_gap
+from agents.orchestrator.bundle_builder import (
+    GapAggregator,
+    apply_fill_state,
+    collect_synthesis_gaps,
+    freshness,
+    merge_risks_from_flags,
+    write_bundle_yaml,
+)
+from agents.orchestrator.constants import AGENT_DELTA_TABLE_SUFFIXES, AGENTS_PRESENT_KEYS
 from agents.orchestrator.ingest import ingest_snapshots
 from agents.orchestrator.paths import company_safe, reports_volume_dir
 from agents.orchestrator.validate import BundleValidationError, validate_bundle
 from agents.shared.agent_base import WorkstreamAgent
 
-_AGENT_TABLES: dict[str, str] = {
-    "business_model": "business_model",
-    "financial_trends": "financial_trends",
-    "customer_quality": "customer_quality",
-    "kpi": "kpi",
-    "legal": "legal",
-    "quality_of_earnings": "quality_of_earnings",
-}
+_gap_aggregator = GapAggregator()
 
 _SEVERITY_ORDER = {"Red": 0, "Yellow": 1, "Green": 2}
-_FLAG_TO_RISK = {"Red": "critical", "Yellow": "material", "Green": "track"}
 _CONF_ORDER = ["high", "medium", "low"]
 
 _DEMO_DISCLAIMER = (
@@ -49,19 +46,6 @@ Leave arrays empty rather than fabricating rows. preliminary_view.closing must a
 
 class _OrchestratorLlm(WorkstreamAgent):
     agent_name = "orchestrator"
-
-
-def _normalize_utc(dt: Any) -> datetime | None:
-    """Normalize Spark / Python timestamps for safe comparison (naive → UTC-aware)."""
-    if dt is None:
-        return None
-    if hasattr(dt, "to_pydatetime"):
-        dt = dt.to_pydatetime()
-    if not isinstance(dt, datetime):
-        return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -86,43 +70,6 @@ def _parse_json_column(raw: Any) -> Any:
 def _flag_sort_key(flag: dict) -> tuple:
     sev = _SEVERITY_ORDER.get(flag.get("severity", "Green"), 9)
     return (sev, flag.get("metric") or "", flag.get("note") or "")
-
-
-def merge_risks_from_flags(snapshots: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
-    """Project Delta flags to ``risks[]`` per §5.6.1; sort Red→Yellow→Green; top 8."""
-    projected: list[dict[str, Any]] = []
-    for agent_key, snap in snapshots.items():
-        flags = snap.get("delta_row", {}).get("flags") or []
-        if not isinstance(flags, list):
-            continue
-        for flag in flags:
-            if not isinstance(flag, dict):
-                continue
-            metric = flag.get("metric") or ""
-            note = flag.get("note") or ""
-            value = flag.get("value") or ""
-            source_doc = flag.get("source_doc") or ""
-            evidence = f"{value} ({source_doc})".strip(" ()") if value or source_doc else ""
-            projected.append(
-                {
-                    "risk": metric or note or "Flag",
-                    "severity": _FLAG_TO_RISK.get(flag.get("severity", "Green"), "track"),
-                    "evidence": evidence,
-                    "mitigant_or_question": note or flag.get("threshold") or "",
-                    "source_agent": agent_key,
-                    "confidence": flag.get("confidence") or "medium",
-                    "fill_state": "filled_cited",
-                }
-            )
-    severity_rank = {"critical": 0, "material": 1, "track": 2}
-    projected.sort(
-        key=lambda r: (
-            severity_rank.get(r.get("severity", "track"), 9),
-            r.get("risk") or "",
-            r.get("mitigant_or_question") or "",
-        )
-    )
-    return projected[:8]
 
 
 def _gap_count_for_agent(bundle: dict, agent_key: str) -> int:
@@ -387,121 +334,6 @@ def _overall_confidence(
     return overall
 
 
-def _get_by_path(obj: dict, path: str) -> Any:
-    if path.endswith("[]"):
-        key = path[:-2]
-        parts = key.split(".")
-        cur: Any = obj
-        for part in parts:
-            if not isinstance(cur, dict):
-                return None
-            cur = cur.get(part)
-        return cur
-    if path.endswith(".*"):
-        prefix = path[:-2]
-        parts = prefix.split(".")
-        cur: Any = obj
-        for part in parts:
-            if not isinstance(cur, dict):
-                return None
-            cur = cur.get(part)
-        if not isinstance(cur, dict):
-            return cur
-        return cur
-    cur = obj
-    for part in path.split("."):
-        if not isinstance(cur, dict):
-            return None
-        cur = cur.get(part)
-    return cur
-
-
-def _is_field_empty(bundle: dict, path: str) -> bool:
-    if path.endswith("[]"):
-        val = _get_by_path(bundle, path)
-        return not val
-    if path.endswith(".*"):
-        block = _get_by_path(bundle, path)
-        if not isinstance(block, dict):
-            return True
-        return not any(v not in (None, "", [], {}) for v in block.values())
-    val = _get_by_path(bundle, path)
-    if val is None:
-        return True
-    if isinstance(val, str):
-        return not val.strip()
-    if isinstance(val, (list, dict)):
-        return len(val) == 0
-    return False
-
-
-def _collect_synthesis_gaps(bundle: dict) -> list[dict[str, str]]:
-    gaps: list[dict[str, str]] = []
-    for field_path in TLDR_REQUIRED_FIELDS:
-        if _is_field_empty(bundle, field_path):
-            gaps.append(
-                {
-                    "field_path": field_path,
-                    "reason": "Required TL;DR field empty after populate",
-                    "owner": "orchestrator",
-                }
-            )
-    return gaps
-
-
-def apply_fill_state(bundle: dict) -> dict:
-    """Deterministic §5.6 stage 6b post-pass using ``FILL_STATE_RULES``."""
-    result = deepcopy(bundle)
-
-    def _assign_list(rule_path: str, items: list | None, default: str) -> None:
-        if not items:
-            return
-        for item in items:
-            if isinstance(item, dict) and "fill_state" in item:
-                if _is_field_empty({"x": item}, "x.item") and "item" in item:
-                    item["fill_state"] = "gap_correct" if default == "gap_correct" else "not_attempted"
-                elif not item.get("fill_state"):
-                    item["fill_state"] = default
-
-    for path, typical in FILL_STATE_RULES.items():
-        if path.endswith("[]"):
-            key_parts = path[:-2].split(".")
-            cur: Any = result
-            for part in key_parts:
-                cur = cur.get(part) if isinstance(cur, dict) else None
-            if isinstance(cur, list):
-                _assign_list(path, cur, typical)
-        elif path.endswith(".*"):
-            block = _get_by_path(result, path)
-            if isinstance(block, dict):
-                for sub_key, sub_val in block.items():
-                    if sub_val in (None, "", []):
-                        continue
-        # Scalar / object paths: fill_state lives on child rows only in M1 schema.
-
-    for row in result.get("kpi_dashboard") or []:
-        if not isinstance(row, dict):
-            continue
-        if row.get("flag") == "N/A":
-            row["fill_state"] = "gap_correct"
-        elif not row.get("fill_state"):
-            row["fill_state"] = FILL_STATE_RULES.get("kpi_dashboard[]", "filled_cited")
-
-    for row in result.get("risks") or []:
-        if isinstance(row, dict) and not row.get("fill_state"):
-            row["fill_state"] = FILL_STATE_RULES.get("risks[]", "filled_synthesized")
-
-    for row in result.get("diligence_questions") or []:
-        if isinstance(row, dict) and not row.get("fill_state"):
-            row["fill_state"] = FILL_STATE_RULES.get("diligence_questions[]", "filled_synthesized")
-
-    for row in result.get("data_room_gaps") or []:
-        if isinstance(row, dict) and not row.get("fill_state"):
-            row["fill_state"] = FILL_STATE_RULES.get("data_room_gaps[]", "filled_cited")
-
-    return result
-
-
 def _load_company_profile(
     spark: SparkSession, catalog: str, company_name: str
 ) -> dict[str, Any]:
@@ -548,81 +380,6 @@ def _build_legal_block(delta_row: dict[str, Any]) -> dict[str, Any]:
         "top_gaps": [str(g) for g in unable[:8]],
         "recommended_diligence": diligence[:8],
     }
-
-
-def _merge_data_room_gaps(snapshots: dict) -> list[dict[str, Any]]:
-    seen: set[tuple[str, str]] = set()
-    rows: list[dict[str, Any]] = []
-    for agent_key, snap in snapshots.items():
-        delta_row = snap.get("delta_row") or {}
-        for gap_text in delta_row.get("data_room_gaps") or []:
-            norm = normalize_gap(str(gap_text))
-            dedupe_key = (norm, agent_key)
-            if dedupe_key in seen:
-                continue
-            seen.add(dedupe_key)
-            rows.append(
-                {
-                    "item": str(gap_text),
-                    "priority": "medium",
-                    "source_agent": agent_key,
-                    "fill_state": "filled_cited",
-                }
-            )
-        if agent_key == "legal":
-            unable = _parse_json_column(delta_row.get("unable_to_assess_json")) or []
-            for item in unable if isinstance(unable, list) else []:
-                norm = normalize_gap(str(item))
-                dedupe_key = (norm, agent_key)
-                if dedupe_key in seen:
-                    continue
-                seen.add(dedupe_key)
-                rows.append(
-                    {
-                        "item": str(item),
-                        "priority": "high",
-                        "source_agent": agent_key,
-                        "fill_state": "gap_correct",
-                    }
-                )
-    return rows
-
-
-def _legal_diligence_question_text(entry: dict[str, Any]) -> str:
-    return format_diligence_entry(entry)
-
-
-def _build_diligence_questions(snapshots: dict) -> list[dict[str, Any]]:
-    questions: list[dict[str, Any]] = []
-    legal = snapshots.get("legal", {}).get("delta_row") or {}
-    diligence = _parse_json_column(legal.get("recommended_diligence_json")) or []
-    if isinstance(diligence, list):
-        for entry in diligence[:8]:
-            if not isinstance(entry, dict):
-                continue
-            questions.append(
-                {
-                    "category": entry.get("category") or "legal",
-                    "question": _legal_diligence_question_text(entry),
-                    "priority": entry.get("priority") or "high",
-                    "source_agent": "legal",
-                    "fill_state": "filled_synthesized",
-                }
-            )
-    kpi_snap = snapshots.get("kpi", {})
-    missing = (kpi_snap.get("yaml_dict") or {}).get("missing_kpis") or []
-    if isinstance(missing, list):
-        for item in missing[:4]:
-            questions.append(
-                {
-                    "category": "kpi",
-                    "question": f"Provide supporting data for KPI: {item}",
-                    "priority": "medium",
-                    "source_agent": "kpi",
-                    "fill_state": "gap_correct",
-                }
-            )
-    return questions[:8]
 
 
 def _fta_table_rows(fta_yaml: dict | None) -> list[dict[str, str]]:
@@ -833,50 +590,6 @@ def _llm_populate(
     return llm._parse_json_response(raw)
 
 
-def _freshness(
-    spark: SparkSession,
-    catalog: str,
-    company_name: str,
-    generated_at: datetime,
-) -> str:
-    generated_utc = _normalize_utc(generated_at)
-    latest: datetime | None = None
-    for agent_key in AGENTS_PRESENT_KEYS:
-        table = f"{catalog}.analysis.{_AGENT_TABLES[agent_key]}"
-        try:
-            row = spark.sql(
-                f"""
-                SELECT created_at FROM {table}
-                WHERE company_name = '{company_name}'
-                ORDER BY created_at DESC LIMIT 1
-                """
-            ).collect()
-        except Exception:
-            continue
-        if not row:
-            continue
-        created = _normalize_utc(row[0]["created_at"])
-        if created and (latest is None or created > latest):
-            latest = created
-    if latest and generated_utc and latest > generated_utc:
-        return "stale"
-    return "current"
-
-
-def _write_bundle_yaml(bundle: dict, path: str, spark: SparkSession, catalog: str) -> None:
-    spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    def _str_representer(dumper, data):
-        if "\n" in data:
-            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
-
-    yaml.add_representer(str, _str_representer)
-    with open(path, "w", encoding="utf-8") as fh:
-        yaml.dump(bundle, fh, allow_unicode=True, sort_keys=False, width=120)
-
-
 def populate_bundle(
     company_name: str,
     catalog: str,
@@ -955,8 +668,8 @@ def populate_bundle(
             "recommended_diligence": [],
         },
         "risks": merge_risks_from_flags(snapshots),
-        "diligence_questions": _build_diligence_questions(snapshots),
-        "data_room_gaps": _merge_data_room_gaps(snapshots),
+        "diligence_questions": _gap_aggregator.build_diligence_questions({}, snapshots),
+        "data_room_gaps": _gap_aggregator.merge_data_room_gaps(snapshots),
         "confidence_by_area": {k: "low" for k in (
             "business_model",
             "financial_trends",
@@ -972,7 +685,7 @@ def populate_bundle(
                 for k, snap in snapshots.items()
             },
             "agent_delta_tables": {
-                k: f"{catalog}.analysis.{_AGENT_TABLES[k]}" for k in snapshots
+                k: f"{catalog}.analysis.{AGENT_DELTA_TABLE_SUFFIXES[k]}" for k in snapshots
             },
             "bundle_builder_version": "0.1.0-m1",
             "synthesis_gaps": [],
@@ -1009,13 +722,11 @@ def populate_bundle(
         bundle.get("risks") or [],
         include_forecast=False,
     )
-    bundle["meta"]["freshness"] = _freshness(
-        spark, catalog, company_name, generated_at
-    )
+    bundle["meta"]["freshness"] = freshness(spark, catalog, company_name, generated_at)
 
     print("[orchestrator] populate: apply fill_state")
     bundle = apply_fill_state(bundle)
-    bundle["provenance"]["synthesis_gaps"] = _collect_synthesis_gaps(bundle)
+    bundle["provenance"]["synthesis_gaps"] = collect_synthesis_gaps(bundle)
 
     print("[orchestrator] validate: jsonschema")
     try:
@@ -1026,6 +737,6 @@ def populate_bundle(
     vol_dir = reports_volume_dir(catalog, company_name)
     out_path = f"{vol_dir}/orchestrator_bundle.yaml"
     print(f"[orchestrator] populate: writing {out_path}")
-    _write_bundle_yaml(bundle, out_path, spark, catalog)
+    write_bundle_yaml(bundle, out_path, spark, catalog)
 
     return bundle
