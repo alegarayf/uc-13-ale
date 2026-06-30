@@ -137,6 +137,36 @@ def test_headline_gross_margin_not_labeled_ebitda():
     assert "EBITDA Margin" not in labels
 
 
+def test_headline_margin_labels_disambiguate_blended_vs_segment():
+    """T12: Elder Care strength bullet must not emit duplicate Gross Margin labels."""
+    elder_care_strength = (
+        "Pro forma adjusted gross margin of 43.4% (TTM Aug-2024) is above typical "
+        "home care benchmarks; HHA/Live-In line carries 54.2% gross margin"
+    )
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {
+                "strengths": [elder_care_strength],
+                "concerns": [],
+                "closing": "",
+            },
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    margin_rows = [
+        m for m in tldr["headline"]["metrics"] if m["label"].startswith("Gross Margin")
+    ]
+    assert len(margin_rows) == 2
+    labels = [m["label"] for m in margin_rows]
+    values = [m["value"] for m in margin_rows]
+    assert labels.count("Gross Margin") == 0
+    assert "Gross Margin (Blended)" in labels
+    assert "Gross Margin (HHA/Live-In)" in labels
+    assert "43.4%" in values
+    assert "54.2%" in values
+
+
 def test_format_diligence_entry_dict_doc_type():
     entry = {"doc_type": "Healthcare Referral Agreements", "item_id": "healthcare_referral"}
     assert fmt.format_diligence_entry(entry) == "Request and review Healthcare Referral Agreements"
