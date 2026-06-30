@@ -7,9 +7,13 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, UndefinedError
 
+from agents.orchestrator.demo_walkthrough import get_param
 from agents.orchestrator.paths import reports_volume_dir
+from agents.orchestrator.tldr_compress import compress_for_tldr
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+_COMPRESSED_TLDR_TEMPLATE = "tldr_one_pager_compressed.md.j2"
+_LEGACY_TLDR_TEMPLATE = "tldr_one_pager.md.j2"
 
 
 class ReportRenderer:
@@ -22,19 +26,30 @@ class ReportRenderer:
             autoescape=False,
         )
 
-    def render(self, bundle: dict[str, Any], template_path: str | Path) -> str:
-        """Render *template_path* with root context ``bundle`` only."""
+    def render(
+        self,
+        bundle: dict[str, Any],
+        template_path: str | Path,
+        tldr: dict[str, Any] | None = None,
+    ) -> str:
+        """Render *template_path* with ``bundle``; optional ``tldr`` projection (D5-A)."""
         template_name = Path(template_path).name
         try:
             template = self._env.get_template(template_name)
-            return template.render(bundle=bundle)
+            if tldr is None:
+                return template.render(bundle=bundle)
+            return template.render(bundle=bundle, tldr=tldr)
         except UndefinedError as exc:
             raise UndefinedError(f"{template_name}: {exc}") from exc
 
 
-def render(bundle: dict[str, Any], template_path: str | Path) -> str:
+def render(
+    bundle: dict[str, Any],
+    template_path: str | Path,
+    tldr: dict[str, Any] | None = None,
+) -> str:
     """Module-level convenience wrapper for :meth:`ReportRenderer.render`."""
-    return ReportRenderer().render(bundle, template_path)
+    return ReportRenderer().render(bundle, template_path, tldr=tldr)
 
 
 def render_to_volume(
@@ -43,19 +58,33 @@ def render_to_volume(
     company_name: str,
 ) -> dict[str, str]:
     """Render full report + TL;DR markdown files under the reports Volume dir."""
+    mode = get_param("TLDR_RENDER_MODE", "compressed")
+    print(f"[orchestrator] TLDR_RENDER_MODE={mode}")
+
     vol_dir = reports_volume_dir(catalog, company_name)
     renderer = ReportRenderer()
     written: dict[str, str] = {}
 
-    for log_key, template_file, out_file in (
-        ("full_report", "full_report.md.j2", "full_report.md"),
-        ("tldr", "tldr_one_pager.md.j2", "tldr_one_pager.md"),
-    ):
-        out_path = f"{vol_dir}/{out_file}"
-        md = renderer.render(bundle, _TEMPLATES_DIR / template_file)
-        with open(out_path, "w", encoding="utf-8") as fh:
-            fh.write(md)
-        print(f"[orchestrator] render {log_key} → {out_path}")
-        written[log_key] = out_path
+    full_out = f"{vol_dir}/full_report.md"
+    full_md = renderer.render(bundle, _TEMPLATES_DIR / "full_report.md.j2")
+    with open(full_out, "w", encoding="utf-8") as fh:
+        fh.write(full_md)
+    print(f"[orchestrator] render full_report → {full_out}")
+    written["full_report"] = full_out
+
+    tldr_out = f"{vol_dir}/tldr_one_pager.md"
+    if mode == "legacy":
+        tldr_md = renderer.render(bundle, _TEMPLATES_DIR / _LEGACY_TLDR_TEMPLATE)
+    else:
+        tldr_view = compress_for_tldr(bundle)
+        tldr_md = renderer.render(
+            bundle,
+            _TEMPLATES_DIR / _COMPRESSED_TLDR_TEMPLATE,
+            tldr=tldr_view,
+        )
+    with open(tldr_out, "w", encoding="utf-8") as fh:
+        fh.write(tldr_md)
+    print(f"[orchestrator] render tldr → {tldr_out}")
+    written["tldr"] = tldr_out
 
     return written

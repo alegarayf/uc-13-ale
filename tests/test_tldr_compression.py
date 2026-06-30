@@ -10,6 +10,7 @@ import pytest
 from jinja2 import Environment, FileSystemLoader
 
 from agents.orchestrator import formatters as fmt
+from agents.orchestrator.renderers import ReportRenderer, render_to_volume
 from agents.orchestrator.tldr_compress import compress_for_tldr
 
 _TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "databricks" / "agents" / "orchestrator" / "templates"
@@ -409,6 +410,31 @@ def _mock_bundle() -> dict:
     }
 
 
+def _volume_test_bundle(**overrides: object) -> dict:
+    bundle = _minimal_bundle(
+        meta={
+            "company_name": "Elder Care",
+            "vertical_overlay": "healthcare",
+            "generated_at": "2026-06-30",
+            "overall_confidence": "medium",
+            "demo_mode": False,
+            "disclaimer_text": "",
+            "agents_present": {},
+            "render_state": "pending",
+        },
+        executive={
+            "in_one_line": "Regional provider.",
+            "preliminary_view": {
+                "strengths": [],
+                "concerns": [],
+                "closing": "Further diligence recommended.",
+            },
+        },
+    )
+    bundle.update(overrides)
+    return bundle
+
+
 def test_compressed_template_bundle_refs_allowlisted_only():
     content = (_TEMPLATES_DIR / _COMPRESSED_TEMPLATE).read_text(encoding="utf-8")
     refs = set(re.findall(r"bundle\.[\w.]+", content))
@@ -438,3 +464,100 @@ def test_compressed_template_hides_kpi_when_show_false_despite_stale_rows():
     }
     md = _render_compressed_template(_mock_bundle(), tldr)
     assert "## KPI Dashboard" not in md
+
+
+# --- T4 renderers mode switch tests ---
+
+
+def test_report_renderer_legacy_context_bundle_only():
+    renderer = ReportRenderer()
+    md = renderer.render(_volume_test_bundle(), _TEMPLATES_DIR / "tldr_one_pager.md.j2")
+    assert "Further diligence recommended." in md
+
+
+def test_report_renderer_compressed_context_includes_tldr():
+    renderer = ReportRenderer()
+    md = renderer.render(
+        _mock_bundle(),
+        _TEMPLATES_DIR / _COMPRESSED_TEMPLATE,
+        tldr=_mock_tldr_view(),
+    )
+    assert "Request support" in md
+    assert "Regional home health provider" in md
+
+
+def test_render_to_volume_full_report_bytes_independent_of_mode(monkeypatch, tmp_path):
+    """K4: full_report.md path must not depend on TLDR_RENDER_MODE."""
+    bundle = _volume_test_bundle()
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.reports_volume_dir",
+        lambda _catalog, _company: str(tmp_path),
+    )
+
+    def _mode_param(key: str, default: str | None = None) -> str:
+        assert key == "TLDR_RENDER_MODE"
+        return default or "compressed"
+
+    monkeypatch.setattr("agents.orchestrator.renderers.get_param", _mode_param)
+    render_to_volume(bundle, "uc13_ale", "Elder Care")
+    compressed_full = (tmp_path / "full_report.md").read_text(encoding="utf-8")
+
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.get_param",
+        lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
+    )
+    render_to_volume(bundle, "uc13_ale", "Elder Care")
+    legacy_full = (tmp_path / "full_report.md").read_text(encoding="utf-8")
+
+    assert compressed_full == legacy_full
+
+
+def test_render_to_volume_compressed_uses_projection_template(monkeypatch, tmp_path):
+    bundle = _volume_test_bundle()
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.reports_volume_dir",
+        lambda _catalog, _company: str(tmp_path),
+    )
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.get_param",
+        lambda key, default=None: "compressed" if key == "TLDR_RENDER_MODE" else (default or ""),
+    )
+    render_to_volume(bundle, "uc13_ale", "Elder Care")
+    md = (tmp_path / "tldr_one_pager.md").read_text(encoding="utf-8")
+    assert "Headline financial metrics incomplete" in md
+    assert "Regional provider." in md
+
+
+def test_render_to_volume_legacy_uses_m1_template(monkeypatch, tmp_path):
+    bundle = _volume_test_bundle()
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.reports_volume_dir",
+        lambda _catalog, _company: str(tmp_path),
+    )
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.get_param",
+        lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
+    )
+    render_to_volume(bundle, "uc13_ale", "Elder Care")
+    md = (tmp_path / "tldr_one_pager.md").read_text(encoding="utf-8")
+    assert "Further diligence recommended." in md
+    assert "Headline financial metrics incomplete" not in md
+
+
+def test_render_to_volume_legacy_skips_compress_for_tldr(monkeypatch, tmp_path):
+    """Falsifier: legacy mode must not invoke compress_for_tldr."""
+    bundle = _volume_test_bundle()
+
+    def _fail_compress(_bundle: dict) -> dict:
+        raise AssertionError("compress_for_tldr must not run in legacy mode")
+
+    monkeypatch.setattr("agents.orchestrator.renderers.compress_for_tldr", _fail_compress)
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.reports_volume_dir",
+        lambda _catalog, _company: str(tmp_path),
+    )
+    monkeypatch.setattr(
+        "agents.orchestrator.renderers.get_param",
+        lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
+    )
+    render_to_volume(bundle, "uc13_ale", "Elder Care")
