@@ -1,5 +1,15 @@
 """UC13 Orchestrator constants — Appendix B TL;DR field mapping (M1)."""
 
+# Agent key → Delta table suffix under `{catalog}.analysis.*` (D-M2-8 single source)
+AGENT_DELTA_TABLE_SUFFIXES: dict[str, str] = {
+    "business_model": "business_model",
+    "financial_trends": "financial_trends",
+    "customer_quality": "customer_quality",
+    "kpi": "kpi",
+    "legal": "legal",
+    "quality_of_earnings": "quality_of_earnings",
+}
+
 # Six workstream keys for meta.agents_present (not legal_contracts)
 AGENTS_PRESENT_KEYS: tuple[str, ...] = (
     "business_model",
