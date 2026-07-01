@@ -14,6 +14,8 @@ import os
 from databricks.sdk import WorkspaceClient
 import mlflow.deployments
 
+from agents.shared._types import RouteResult
+
 # B-W4: merge-rank tier weights (documented in .dev/decision-logs/T4-retrieval-enhancements.md)
 _TIER_WEIGHT = {1: 1.0, 2: 0.7, 3: 0.4}
 _DEFAULT_TIER_WEIGHT = 0.3
@@ -179,7 +181,7 @@ def semantic_search(
     embedding_endpoint: str = "databricks-bge-large-en",
     source_type_priority: bool = False,
     source_type_filter: list[str] | None = None,
-) -> list:
+) -> RouteResult:
     """Search for relevant chunks using semantic similarity.
 
     Fetches top_k * 3 candidates from the vector index and applies all filters
@@ -214,9 +216,8 @@ def semantic_search(
             queries). Applied after all other filters, before top_k cap.
 
     Returns:
-        List of Spark Row objects with fields:
-        chunk_id, file_name, chunk_text, section_header, page_start,
-        source_type, workstream, priority_tier.
+        RouteResult with chunks (Spark Row objects), mode
+        (``semantic`` | ``keyword`` | ``empty``), and parallel scores.
     """
     catalog = (catalog or _default_catalog()).strip()
     if not index_name:
@@ -235,6 +236,7 @@ def semantic_search(
     # Fetch more candidates than needed so post-retrieval filters have margin.
     fetch_k = top_k * 3
     score_map: dict[str, float] = {}
+    used_keyword_fallback = False
 
     try:
         results = _query_vector_index(
@@ -256,6 +258,7 @@ def semantic_search(
 
     except Exception as e:
         print(f"Vector search failed: {e} — falling back to keyword search")
+        used_keyword_fallback = True
         keywords = [k for k in query.replace("'", "").split()[:5] if k]
         if not keywords:
             keywords = [query[:20]]
@@ -322,4 +325,16 @@ def semantic_search(
     source_files = list(dict.fromkeys(c.file_name for c in chunks))
     print(f"  Query '{query[:50]}': retrieved {len(chunks)} chunks from {source_files}")
 
-    return chunks
+    if not chunks:
+        return RouteResult(chunks=[], mode="empty", scores=[])
+    if used_keyword_fallback:
+        return RouteResult(
+            chunks=chunks,
+            mode="keyword",
+            scores=[0.0] * len(chunks),
+        )
+    return RouteResult(
+        chunks=chunks,
+        mode="semantic",
+        scores=[_merge_score(c, score_map) for c in chunks],
+    )
