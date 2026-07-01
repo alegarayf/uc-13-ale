@@ -9,5 +9,5 @@ from dataclasses import dataclass
 class RouteResult:
     chunks: list  # Spark Rows: chunk_id, file_name, chunk_text, section_header,
                   # page_start, source_type, workstream, priority_tier
-    mode: str     # "routed" | "semantic" | "keyword_fallback"
-    scores: list | None = None
+    mode: str     # "semantic" | "keyword" | "empty" — §5.16 retrieval_execution_mode
+    scores: list[float]  # parallel to chunks; non-empty when chunks non-empty (enforced T2)
