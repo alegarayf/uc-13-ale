@@ -947,14 +947,14 @@ class LegalContractsAgent(WorkstreamAgent):
         file_name_filter,
         min_chunk_length: int = 150,
         min_results: int = 3,
-    ) -> list:
+    ) -> "RouteResult":
         """Semantic search with filename-filter retry; always passes catalog=self._catalog (D3a).
 
         Do not use the financial context_utils fallback helper — it defaults catalog to uc13.
         """
         from agents.shared.retrieval import semantic_search
 
-        chunks = semantic_search(
+        search_kwargs = dict(
             query=query,
             spark=spark,
             company_name=self._company_name,
@@ -964,14 +964,15 @@ class LegalContractsAgent(WorkstreamAgent):
             min_chunk_length=min_chunk_length,
             catalog=self._catalog,
         )
+        result = semantic_search(**search_kwargs)
 
-        if len(chunks) < min_results and file_name_filter is not None:
+        if len(result.chunks) < min_results and file_name_filter is not None:
             step = len(self._trace) + 1
             self._trace.append({
                 "step":       step,
                 "tool":       "retrieval_fallback",
                 "input":      (
-                    f"file_name_filter returned {len(chunks)} chunks (< {min_results}); "
+                    f"file_name_filter returned {len(result.chunks)} chunks (< {min_results}); "
                     f"retrying without filter"
                 ),
                 "output":     "fallback retrieval active — all workstream-tagged documents searched",
@@ -979,21 +980,12 @@ class LegalContractsAgent(WorkstreamAgent):
                 "sources":    [],
             })
             print(
-                f"  Step {step} [retrieval_fallback]: filter returned {len(chunks)} chunks, "
+                f"  Step {step} [retrieval_fallback]: filter returned {len(result.chunks)} chunks, "
                 f"retrying without filename filter"
             )
-            chunks = semantic_search(
-                query=query,
-                spark=spark,
-                company_name=self._company_name,
-                top_k=top_k,
-                workstream_filter=workstream_filter,
-                file_name_filter=None,
-                min_chunk_length=min_chunk_length,
-                catalog=self._catalog,
-            )
+            result = semantic_search(**{**search_kwargs, "file_name_filter": None})
 
-        return chunks
+        return result
 
     def _domain_retrieve_pass(self, spark, pass_id: str) -> "ToolResult":  # noqa: F821
         """Run semantic retrieval for one domain pass using §5.6.3 budgets."""
@@ -1011,7 +1003,7 @@ class LegalContractsAgent(WorkstreamAgent):
             top_k=budget["top_k"],
             file_name_filter=file_name_filter,
             min_chunk_length=budget["min_chunk_length"],
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
