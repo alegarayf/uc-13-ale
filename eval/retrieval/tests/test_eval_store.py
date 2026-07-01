@@ -392,3 +392,14 @@ def test_apply_ops_ddl_sql_contains_catalog_placeholder():
     text = sql_path.read_text(encoding="utf-8")
     assert "{catalog}.ops.retrieval_harness_runs" in text
     assert "retrieval_harness_latest_baseline" in text
+
+
+def test_apply_ops_ddl_load_statements_includes_create_schema_after_file_comments():
+    from eval.retrieval.scripts.apply_ops_ddl import _load_statements
+
+    sql_path = (
+        Path(__file__).resolve().parents[1] / "scripts" / "apply_ops_ddl.sql"
+    )
+    statements = _load_statements(sql_path, "uc13_ale")
+    assert statements[0].startswith("CREATE SCHEMA IF NOT EXISTS uc13_ale.ops")
+    assert any("retrieval_harness_runs" in s for s in statements)
