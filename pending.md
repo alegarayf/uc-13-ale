@@ -1,5 +1,6 @@
 
-- remove route a related files and others [route_chunks]
+- ~~remove route a related files and others [route_chunks]~~ (done — kept retrieval_mode plumbing)
+
 
 
 - 2/3 charter: .dev\orchestrator\uc13_orchestrator_milestone_charter.md
