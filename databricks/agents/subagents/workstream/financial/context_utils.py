@@ -114,42 +114,20 @@ def semantic_search_with_fallback(
     source_type_filter: list | None = None,
     retrieval_mode: str = "semantic",
 ) -> RouteResult:
-    """Dispatch retrieval by mode with automatic filename-filter fallback on semantic paths.
+    """Semantic search with automatic filename-filter fallback.
 
-    ``retrieval_mode="routed"`` calls Route A (``route_chunks``); ``"semantic"`` and
-    ``"enhanced_semantic"`` call ``semantic_search`` (Route B enhancements are in
-    ``retrieval.py``). Any unrecognized value falls through to the semantic path.
+    Calls ``semantic_search`` (merge-rank enhancements live in ``retrieval.py``).
+    ``retrieval_mode`` is accepted for FTA/sub-agent call-site compatibility but
+    does not alter dispatch after Route A removal.
 
     If result count < min_results with the filename filter, retries without it so
-    documents with non-standard names are not silently excluded (routed and semantic).
+    documents with non-standard names are not silently excluded.
     """
-    if retrieval_mode == "routed":
-        from agents.shared.route_chunks import route_chunks
-
-        route_kwargs = dict(
-            company_name=company_name,
-            spark=spark,
-            workstream_filter=workstream_filter,
-            top_k=top_k,
-            min_chunk_length=min_chunk_length,
-            source_type_filter=source_type_filter,
-        )
-        result = route_chunks(**route_kwargs, file_name_filter=file_name_filter)
-        if len(result.chunks) < min_results and file_name_filter is not None:
-            result = route_chunks(**route_kwargs, file_name_filter=None)
-        print(f"  retrieval_mode={retrieval_mode} returned {len(result.chunks)} chunks")
-        return result
-
     from agents.shared.retrieval import semantic_search
 
     catalog = _default_catalog()
     index_name = f"{catalog}.ingestion.embeddings_index"
     search_kwargs = dict(
-        catalog=catalog,
-        index_name=index_name,
-    )
-
-    chunks = semantic_search(
         query=query,
         spark=spark,
         company_name=company_name,
@@ -159,22 +137,13 @@ def semantic_search_with_fallback(
         min_chunk_length=min_chunk_length,
         source_type_priority=source_type_priority,
         source_type_filter=source_type_filter,
-        **search_kwargs,
+        catalog=catalog,
+        index_name=index_name,
     )
-    if len(chunks) < min_results and file_name_filter is not None:
-        chunks = semantic_search(
-            query=query,
-            spark=spark,
-            company_name=company_name,
-            top_k=top_k,
-            workstream_filter=workstream_filter,
-            file_name_filter=None,
-            min_chunk_length=min_chunk_length,
-            source_type_priority=source_type_priority,
-            source_type_filter=source_type_filter,
-            **search_kwargs,
-        )
-    mode = "semantic" if retrieval_mode in ("semantic", "enhanced_semantic") else "semantic"
-    result = RouteResult(chunks=chunks, mode=mode, scores=None)
+
+    result = semantic_search(**search_kwargs)
+    if len(result.chunks) < min_results and file_name_filter is not None:
+        result = semantic_search(**{**search_kwargs, "file_name_filter": None})
+
     print(f"  retrieval_mode={retrieval_mode} returned {len(result.chunks)} chunks")
     return result

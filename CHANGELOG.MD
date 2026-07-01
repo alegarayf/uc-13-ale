@@ -2,6 +2,7 @@
 
 ## uc13-m-re1-foundation-eval-store — 2026-07-01
 
+- T3 (wrapper RouteResult propagation + Route A removal): Propagated inner `mode`/`scores` through `context_utils`, BMA, and Legal `_semantic_search_with_fallback`; deleted `route_chunks.py` and routed tests. `retrieval_mode` kept on FTA wrapper for sub-agent compat only. See `.dev/decision-logs/T3-wrapper-route-a-removal.md`.
 - T2 (semantic_search RouteResult API): Migrated `semantic_search()` to return `RouteResult` with D3-A mode assignment (`semantic` | `keyword` | `empty`) and D4-A′ parallel scores (merge-rank on semantic, `0.0` on keyword, `[]` on empty); expanded `tests/test_retrieval.py` with semantic/keyword/empty path falsifiers. Wrappers and agent callers deferred to T3/T4. See `.dev/decision-logs/T2-route-result-api.md`.
 - T1 (RE² types + eval package scaffold): Created `eval/retrieval/` with Pydantic v2 models for spec §5.8 eval artifacts, error envelope, and local requirements; froze `RouteResult` contract in `_types.py` (`mode` vocabulary, `scores: list[float]`). Eval package imports production `RouteResult` in later subtasks — not duplicated in eval models (D1-A/D2-A). See `.dev/decision-logs/T1-re2-types.md`.
 

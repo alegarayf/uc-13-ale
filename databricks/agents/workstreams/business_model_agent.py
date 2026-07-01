@@ -763,7 +763,7 @@ class BusinessModelAgent:
         file_name_filter,
         min_chunk_length: int = 150,
         min_results: int = 3,
-    ) -> list:
+    ) -> "RouteResult":
         """Semantic search with automatic fallback when the filename filter is too narrow.
 
         Strategy:
@@ -776,7 +776,7 @@ class BusinessModelAgent:
         """
         from agents.shared.retrieval import semantic_search
 
-        chunks = semantic_search(
+        search_kwargs = dict(
             query=query,
             spark=spark,
             company_name=self._company_name,
@@ -785,29 +785,22 @@ class BusinessModelAgent:
             file_name_filter=file_name_filter,
             min_chunk_length=min_chunk_length,
         )
+        result = semantic_search(**search_kwargs)
 
-        if len(chunks) < min_results and file_name_filter is not None:
+        if len(result.chunks) < min_results and file_name_filter is not None:
             step = len(self._base._trace) + 1
             self._base._trace.append({
                 "step":       step,
                 "tool":       "retrieval_fallback",
-                "input":      f"file_name_filter returned {len(chunks)} chunks (< {min_results}); retrying without filter",
+                "input":      f"file_name_filter returned {len(result.chunks)} chunks (< {min_results}); retrying without filter",
                 "output":     "fallback retrieval active — all workstream-tagged documents searched",
                 "confidence": "medium",
                 "sources":    [],
             })
-            print(f"  Step {step} [retrieval_fallback]: filter returned {len(chunks)} chunks, retrying without filename filter")
-            chunks = semantic_search(
-                query=query,
-                spark=spark,
-                company_name=self._company_name,
-                top_k=top_k,
-                workstream_filter=workstream_filter,
-                file_name_filter=None,
-                min_chunk_length=min_chunk_length,
-            )
+            print(f"  Step {step} [retrieval_fallback]: filter returned {len(result.chunks)} chunks, retrying without filename filter")
+            result = semantic_search(**{**search_kwargs, "file_name_filter": None})
 
-        return chunks
+        return result
 
     def _log_no_flag(self, metric: str, value_str: str, threshold: str, note: str = ""):
         """Log a threshold evaluation that did NOT trigger a flag."""
@@ -846,7 +839,7 @@ class BusinessModelAgent:
                               "Management", "Executive"],
             min_chunk_length=150,
             min_results=3,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_business_overview",
@@ -885,7 +878,7 @@ class BusinessModelAgent:
                               "Executive", "Leadership", "Presentation"],
             min_chunk_length=100,
             min_results=3,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_people_and_org",
@@ -933,7 +926,7 @@ class BusinessModelAgent:
                               "Overview", "KPI", "Dashboard", "Metrics"],
             min_chunk_length=100,
             min_results=3,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_workforce_and_capacity",
@@ -968,7 +961,7 @@ class BusinessModelAgent:
                               "OM", "Overview", "Rate", "Card"],
             min_chunk_length=100,
             min_results=3,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_pricing_and_margins",
@@ -1009,7 +1002,7 @@ class BusinessModelAgent:
                               "Overview", "Summary", "KPI", "Dashboard"],
             min_chunk_length=100,
             min_results=3,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_revenue_by_location_and_metrics",
@@ -1044,7 +1037,7 @@ class BusinessModelAgent:
                               "Overview", "OM", "Strategy", "Presentation"],
             min_chunk_length=150,
             min_results=3,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_sales_and_customers",
@@ -1079,7 +1072,7 @@ class BusinessModelAgent:
                               "KPI", "Metrics", "Overview", "Model"],
             min_chunk_length=100,
             min_results=3,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_revenue_visibility",
@@ -1115,7 +1108,7 @@ class BusinessModelAgent:
                               "Strategy", "Presentation", "Management", "Deck"],
             min_chunk_length=150,
             min_results=5,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
             tool_name="retrieve_model_changes_and_dependencies",
@@ -1147,7 +1140,7 @@ class BusinessModelAgent:
                               "Overview", "Presentation"],
             min_chunk_length=50,
             min_results=1,
-        )
+        ).chunks
         cim_found = len(chunks) > 0
         source_docs = list({c.file_name for c in chunks})
         return self._tool_call(
