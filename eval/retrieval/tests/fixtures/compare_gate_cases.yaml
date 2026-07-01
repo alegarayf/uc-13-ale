@@ -1,0 +1,177 @@
+# Golden gate aggregation cases — spec §5.12.9 kill criterion (M-RE1)
+cases:
+  - id: recall_pass
+    intent_id: test.intent.recall
+    baseline:
+      eval_status: evaluated
+      recall_at_10: 0.5
+      mrr: 0.5
+      result_count: 5
+      mode: semantic
+    current:
+      eval_status: evaluated
+      recall_at_10: 0.8
+      mrr: 0.5
+      result_count: 5
+      mode: semantic
+    expect:
+      intent_gate_pass: true
+      gate_metrics:
+        recall_at_10: true
+
+  - id: recall_fail
+    intent_id: test.intent.recall_fail
+    baseline:
+      eval_status: evaluated
+      recall_at_10: 0.9
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    current:
+      eval_status: evaluated
+      recall_at_10: 0.4
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    expect:
+      intent_gate_pass: false
+      gate_metrics:
+        recall_at_10: false
+
+  - id: precision_pass
+    intent_id: test.intent.precision
+    baseline:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      precision_at_10: 0.7
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    current:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      precision_at_10: 0.9
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    expect:
+      intent_gate_pass: true
+      gate_metrics:
+        precision_at_10: true
+
+  - id: precision_fail
+    intent_id: test.intent.precision_fail
+    baseline:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      precision_at_10: 0.9
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    current:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      precision_at_10: 0.5
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    expect:
+      intent_gate_pass: false
+      gate_metrics:
+        precision_at_10: false
+
+  - id: basis_conflict_pass_lower_is_better
+    intent_id: test.intent.basis
+    baseline:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      basis_conflict_at_10: 0.4
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    current:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      basis_conflict_at_10: 0.2
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    expect:
+      intent_gate_pass: true
+      gate_metrics:
+        basis_conflict_at_10: true
+
+  - id: basis_conflict_fail_inverted_direction
+    intent_id: test.intent.basis_fail
+    baseline:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      basis_conflict_at_10: 0.2
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    current:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      basis_conflict_at_10: 0.5
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    expect:
+      intent_gate_pass: false
+      gate_metrics:
+        basis_conflict_at_10: false
+
+  - id: omitted_precision_excluded_from_and
+    intent_id: test.intent.no_negatives
+    baseline:
+      eval_status: evaluated
+      recall_at_10: 0.5
+      mrr: 0.5
+      result_count: 3
+      mode: semantic
+    current:
+      eval_status: evaluated
+      recall_at_10: 0.8
+      mrr: 0.25
+      result_count: 3
+      mode: semantic
+    expect:
+      intent_gate_pass: true
+      gate_metrics:
+        recall_at_10: true
+      audit_only:
+        mrr: false
+
+  - id: skipped_bootstrap_failed_excluded
+    intent_id: test.intent.skipped
+    baseline:
+      eval_status: skipped_bootstrap_failed
+      result_count: 0
+    current:
+      eval_status: skipped_bootstrap_failed
+      result_count: 2
+    expect:
+      intent_gate_pass: true
+      in_gated_scope: false
+
+  - id: mrr_audit_only_excluded_from_intent_gate_pass
+    intent_id: test.intent.mrr_audit
+    baseline:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      mrr: 1.0
+      result_count: 5
+      mode: semantic
+    current:
+      eval_status: evaluated
+      recall_at_10: 1.0
+      mrr: 0.25
+      result_count: 5
+      mode: semantic
+    expect:
+      intent_gate_pass: true
+      gate_metrics:
+        recall_at_10: true
+      audit_only:
+        mrr: false

@@ -1,0 +1,43 @@
+# Golden scope resolver cases — spec §5.12.10 kill criterion (M-RE1)
+cases:
+  - id: global_retrieval_change
+    git_diff_paths:
+      - databricks/agents/shared/retrieval.py
+    expect:
+      affected_all: true
+      gated_subset: gate_eligible_only
+
+  - id: context_utils_global_change
+    git_diff_paths:
+      - databricks/agents/subagents/workstream/financial/context_utils.py
+    expect:
+      affected_all: true
+      gated_subset: gate_eligible_only
+
+  - id: agent_specific_kpi
+    git_diff_paths:
+      - databricks/agents/workstreams/kpi_agent.py
+    expect:
+      affected_prefix: kpi.
+      gated_subset: gate_eligible_only
+
+  - id: agent_specific_legal
+    git_diff_paths:
+      - databricks/agents/workstreams/legal_contracts_agent.py
+    expect:
+      affected_prefix: legal.
+      gated_subset: gate_eligible_only
+
+  - id: bootstrap_failed_in_affected_not_gated
+    git_diff_paths:
+      - databricks/agents/shared/retrieval.py
+    expect:
+      affected_all: true
+      gated_subset: gate_eligible_only
+      bootstrap_failed_in_affected_not_gated: bma.detect_cim_presence
+
+  - id: registry_only_raises
+    git_diff_paths:
+      - eval/retrieval/intent_registry.yaml
+    expect:
+      error: ScopeResolutionError
