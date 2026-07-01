@@ -295,10 +295,10 @@ def main():
             top_k=5,
             file_name_filter=fn_filter,
             workstream_filter=ws_filter,
-            tier_filter=True,
+            tier_filter=1,
             min_chunk_length=100,
             embedding_endpoint=embedding_endpoint,
-        )
+        ).chunks
 
         if not chunks:
             # Try again without the tier filter to widen the net.
@@ -310,7 +310,7 @@ def main():
                 workstream_filter=ws_filter,
                 min_chunk_length=100,
                 embedding_endpoint=embedding_endpoint,
-            )
+            ).chunks
 
         if chunks:
             retrieved_context[dimension] = "\n---\n".join([
