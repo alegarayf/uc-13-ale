@@ -403,3 +403,12 @@ def test_apply_ops_ddl_load_statements_includes_create_schema_after_file_comment
     statements = _load_statements(sql_path, "uc13_ale")
     assert statements[0].startswith("CREATE SCHEMA IF NOT EXISTS uc13_ale.ops")
     assert any("retrieval_harness_runs" in s for s in statements)
+
+
+def test_v_retrieval_harness_delta_view_uses_runs_baseline_ref():
+    sql_path = (
+        Path(__file__).resolve().parents[1] / "scripts" / "apply_ops_ddl.sql"
+    )
+    text = sql_path.read_text(encoding="utf-8")
+    assert "r.baseline_ref_run_id" in text
+    assert "cur.baseline_ref_run_id" not in text
