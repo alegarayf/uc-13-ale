@@ -100,13 +100,13 @@ WHERE rn = 1;
 CREATE OR REPLACE VIEW {catalog}.ops.v_retrieval_harness_delta AS
 SELECT
     cur.run_id,
-    cur.baseline_ref_run_id,
+    r.baseline_ref_run_id,
     cur.intent_id,
     b.recall_at_10 AS recall_before,
     cur.recall_at_10 AS recall_after,
     cur.recall_at_10 - b.recall_at_10 AS recall_delta
 FROM {catalog}.ops.retrieval_harness_results cur
-JOIN {catalog}.ops.retrieval_harness_results b
-    ON b.run_id = cur.baseline_ref_run_id AND b.intent_id = cur.intent_id
 JOIN {catalog}.ops.retrieval_harness_runs r ON r.run_id = cur.run_id
+JOIN {catalog}.ops.retrieval_harness_results b
+    ON b.run_id = r.baseline_ref_run_id AND b.intent_id = cur.intent_id
 WHERE r.baseline_ref_run_id IS NOT NULL;
