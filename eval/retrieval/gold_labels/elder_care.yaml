@@ -1,0 +1,453 @@
+- intent_id: bma.detect_cim_presence
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: bma.retrieve_business_overview
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: bma.retrieve_model_changes_and_dependencies
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: bma.retrieve_people_and_org
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: bma.retrieve_pricing_and_margins
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: bma.retrieve_revenue_by_location_and_metrics
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: bma.retrieve_revenue_visibility
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: bma.retrieve_sales_and_customers
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: bma.retrieve_workforce_and_capacity
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: cqa.retrieve_account_size
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: cqa.retrieve_customer_concentration
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: cqa.retrieve_customer_tenure
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: cqa.retrieve_payor_mix
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: cqa.retrieve_retention_metrics
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.ebitda.q1_financial_statements
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.ebitda.q2_ebitda_and_margins
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.ebitda.q3_working_capital
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.ebitda.q4_addback_schedule
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.opex.q1_financial_statements
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: ready
+  positive_chunk_ids:
+  - chunk_abc123
+  - chunk_abc124
+  negative_chunk_ids:
+  - chunk_xyz789
+  negative_rule: section_header ILIKE '%Projection%' OR '%Pro Forma Income%' on CIM
+  negative_method: basis_rule
+  gold_method: section_range
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: high
+  negative_confidence: medium
+- intent_id: fta.opex.q2_working_capital
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.opex.q3_projected_financials
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: ready
+  positive_chunk_ids:
+  - chunk_proj001
+  - chunk_proj002
+  negative_chunk_ids:
+  - chunk_xyz789
+  negative_rule: section_header ILIKE '%Projection%' OR '%Pro Forma Income%' on CIM
+  negative_method: basis_rule
+  gold_method: section_range
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: high
+  negative_confidence: medium
+- intent_id: fta.revenue.q1_financial_statements
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.revenue.q2_revenue_by_segment
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.revenue.q3_revenue_by_geography
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.revenue.q4_customer_concentration
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.revenue.q4_customer_concentration_fallback
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: fta.revenue.q5_quickbooks_pl
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: kpi.retrieve_delivery_model
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: kpi.retrieve_headcount_attrition
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: kpi.retrieve_healthcare_ops
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: kpi.retrieve_kpi_dashboard
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: kpi.retrieve_pipeline_backlog
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: legal.contracts_vendors_platform
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: ready
+  positive_chunk_ids:
+  - chunk_legal001
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: high
+- intent_id: legal.employment
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: legal.insurance
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: legal.ip_privacy
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: legal.litigation
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: profiler.banked_vs_nonbanked
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: profiler.business_description
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: profiler.company_size_indicators
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: profiler.deal_type
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: profiler.industry_overlay
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: profiler.revenue_model
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: profiler.vertical_subsector
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: qoe.retrieve_ebitda_bridge
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: qoe.retrieve_owner_comp_support
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: qoe.retrieve_qofe_report
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: qoe.retrieve_revenue_footnotes
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
+- intent_id: qoe.retrieve_revenue_quality
+  company_name: Elder Care
+  catalog: uc13_ale
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
+  gold_method: citation_backfill
+  ingestion_snapshot: uc13_ale:35034:2026-06-25
+  confidence: low
+  notes: Awaiting cluster bootstrap after Cell 7
