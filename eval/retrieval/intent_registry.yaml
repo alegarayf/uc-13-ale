@@ -1,0 +1,1037 @@
+- intent_id: bma.detect_cim_presence
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: confidential information memorandum offering memorandum investment overview
+    executive summary business overview financial highlights deal overview transaction
+    overview management presentation
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - OM
+  - Offering
+  - Memorandum
+  - Investment
+  - Overview
+  - Presentation
+  top_k: 3
+  min_chunk_length: 50
+  min_results: 1
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: bma.retrieve_business_overview
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: company overview what does this company do products services offerings geographic
+    footprint locations markets business description revenue streams what the company
+    sells how it makes money
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - OM
+  - Overview
+  - Offering
+  - Memorandum
+  - Profile
+  - Summary
+  - Presentation
+  - Deck
+  - Management
+  - Executive
+  top_k: 18
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: bma.retrieve_model_changes_and_dependencies
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: business model change pricing change go to market change recent initiative
+    ERP CRM EMR payroll HR software scheduling platform technology system outsourcing
+    offshore remote team global staffing third-party operations acquisition M&A history
+    strategic initiative timeline milestones launched expanded hired opened acquired
+    transitioned implemented automated key dependency concentration risk single vendor
+    platform tool new product new service new geography new channel new pricing model
+    digital transformation process improvement technology adoption
+  workstream_filter:
+  - BUSINESS_MODEL
+  - KPI_OPS
+  file_name_filter:
+  - CIM
+  - Overview
+  - Timeline
+  - History
+  - OM
+  - Strategy
+  - Presentation
+  - Management
+  - Deck
+  top_k: 18
+  min_chunk_length: 150
+  min_results: 5
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: bma.retrieve_people_and_org
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: management team key executives CEO founder CTO COO VP president director
+    ownership structure capitalization shareholder equity ownership percentage organizational
+    chart org chart key personnel management depth bench entity structure subsidiary
+    holding company operating entity executive biography background experience years
+    tenure key man risk leadership team senior management
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - OM
+  - Management
+  - Team
+  - Overview
+  - Org
+  - Chart
+  - Cap
+  - Table
+  - Personnel
+  - Executive
+  - Leadership
+  - Presentation
+  top_k: 15
+  min_chunk_length: 100
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: bma.retrieve_pricing_and_margins
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: pricing gross margin by product service offering bill rate price per unit
+    margin by service type average selling price ASP revenue per offering contribution
+    margin by product line pricing table rate card
+  workstream_filter:
+  - BUSINESS_MODEL
+  - FINANCIAL
+  file_name_filter:
+  - CIM
+  - Pricing
+  - Financial
+  - Revenue
+  - Margin
+  - OM
+  - Overview
+  - Rate
+  - Card
+  top_k: 15
+  min_chunk_length: 100
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: bma.retrieve_revenue_by_location_and_metrics
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: clients served active accounts customers by location by market by segment
+    billed hours per client revenue per customer revenue per account utilization per
+    customer sessions per user visits per patient customer count trend quarterly growth
+    by location by geography length of stay customer tenure distribution cohort by
+    duration revenue per location revenue by market adjusted revenue by geography
+    revenue CAGR financial highlights headline metrics acquisition pipeline same store
+    revenue organic growth by market revenue goal by location
+  workstream_filter:
+  - BUSINESS_MODEL
+  - FINANCIAL
+  - KPI_OPS
+  file_name_filter:
+  - CIM
+  - OM
+  - Financial
+  - Revenue
+  - Metrics
+  - Overview
+  - Summary
+  - KPI
+  - Dashboard
+  top_k: 15
+  min_chunk_length: 100
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: bma.retrieve_revenue_visibility
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: backlog contracted revenue pipeline forward revenue visibility renewal rate
+    retention MSA SOW retainer recurring revenue customer tenure average tenure length
+    of stay cohort distribution revenue per customer units per client usage per account
+    sessions per user acquisition pipeline M&A targets addressable market revenue
+    goal by market revenue predictability pipeline coverage months weighted pipeline
+    repeat purchase rate retention cohort same store revenue trajectory order backlog
+    booking rate renewal cadence contract coverage
+  workstream_filter:
+  - BUSINESS_MODEL
+  - FINANCIAL
+  - KPI_OPS
+  file_name_filter:
+  - CIM
+  - Pipeline
+  - Backlog
+  - Contract
+  - Revenue
+  - KPI
+  - Metrics
+  - Overview
+  - Model
+  top_k: 12
+  min_chunk_length: 100
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: bma.retrieve_sales_and_customers
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: sales motion go to market customer acquisition business development customer
+    segment end market vertical buyer persona channel partner referral network enterprise
+    sales inbound outbound sales process new customer acquisition how we sell who
+    we sell to
+  workstream_filter:
+  - BUSINESS_MODEL
+  - KPI_OPS
+  file_name_filter:
+  - CIM
+  - Sales
+  - GTM
+  - Customer
+  - Marketing
+  - Overview
+  - OM
+  - Strategy
+  - Presentation
+  top_k: 15
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: bma.retrieve_workforce_and_capacity
+  agent_id: bma
+  source_file: databricks/agents/workstreams/business_model_agent.py
+  catalog: uc13_ale
+  query: headcount employees staff workforce count by location by function average
+    salary compensation payroll cost by team by department hires per week hires per
+    year recruiting rate caregivers hired annually hiring rate new hires per week
+    per location average caregivers hired US versus offshore global outsourced contract
+    versus full-time employees workforce growth headcount trend prior period current
+    period growth rate billable staff delivery team bench utilization per employee
+    caregiver count clinician count consultant count engineer count scheduled workforce
+    active workforce capacity by market by region North America global resources offshore
+    team functional area count remote recruiting time to fill cost per hire recruiting
+    efficiency
+  workstream_filter:
+  - BUSINESS_MODEL
+  - KPI_OPS
+  - FINANCIAL
+  file_name_filter:
+  - CIM
+  - OM
+  - Team
+  - Headcount
+  - Workforce
+  - Staff
+  - Recruiting
+  - Capacity
+  - Operations
+  - Overview
+  - KPI
+  - Dashboard
+  - Metrics
+  top_k: 15
+  min_chunk_length: 100
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: cqa.retrieve_account_size
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve account size
+  workstream_filter:
+  - CUSTOMER
+  - KPI_OPS
+  top_k: 6
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: cqa.retrieve_customer_concentration
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve customer concentration
+  workstream_filter:
+  - CUSTOMER
+  file_name_filter:
+  - Customer
+  - Revenue
+  - Concentration
+  - CIM
+  - QofE
+  top_k: 12
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: cqa.retrieve_customer_tenure
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve customer tenure
+  workstream_filter:
+  - CUSTOMER
+  - BUSINESS_MODEL
+  top_k: 6
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: cqa.retrieve_payor_mix
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve payor mix
+  workstream_filter:
+  - CUSTOMER
+  - FINANCIAL
+  top_k: 6
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: cqa.retrieve_retention_metrics
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve retention metrics
+  workstream_filter:
+  - CUSTOMER
+  - QUALITY_EARNINGS
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: fta.ebitda.q1_financial_statements
+  agent_id: fta.ebitda
+  source_file: databricks/agents/subagents/workstream/financial/ebitda_sub_agent.py
+  catalog: uc13_ale
+  query: EBITDA profit loss income statement operating income earnings before interest
+    tax depreciation amortization reported EBITDA clinic level EBITDA pro forma adjusted
+    EBITDA management accounts P&L summary historical financials diligence adjusted
+    EBITDA summary P&L
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  file_name_filter:
+  - P&L
+  - Profit
+  - Loss
+  - Income
+  - Financial
+  - Accounts
+  - Financials
+  - Audited
+  - Management
+  - QofE
+  - Quality
+  - CIM
+  - Model
+  - Summary
+  top_k: 10
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.ebitda.q2_ebitda_and_margins
+  agent_id: fta.ebitda
+  source_file: databricks/agents/subagents/workstream/financial/ebitda_sub_agent.py
+  catalog: uc13_ale
+  query: EBITDA margin gross margin adjusted EBITDA addback bridge earnings profitability
+    clinic level EBITDA diligence adjusted pro forma margin operating income adjusted
+    operating profit contribution margin historical P&L summary
+  workstream_filter:
+  - FINANCIAL
+  - QUALITY_EARNINGS
+  - BUSINESS_MODEL
+  file_name_filter:
+  - EBITDA
+  - Margin
+  - Addback
+  - Bridge
+  - Adjusted
+  - QofE
+  - Quality
+  - P&L
+  - CIM
+  - Financial
+  top_k: 8
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.ebitda.q3_working_capital
+  agent_id: fta.ebitda
+  source_file: databricks/agents/subagents/workstream/financial/ebitda_sub_agent.py
+  catalog: uc13_ale
+  query: DSO DPO days sales outstanding accounts receivable aging working capital
+    cash collection cash conversion cycle AR balance sheet current assets
+  workstream_filter:
+  - FINANCIAL
+  file_name_filter:
+  - Balance Sheet
+  - Financial
+  - Accounts
+  - AR
+  - Aging
+  - Working Capital
+  - CIM
+  top_k: 4
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.ebitda.q4_addback_schedule
+  agent_id: fta.ebitda
+  source_file: databricks/agents/subagents/workstream/financial/ebitda_sub_agent.py
+  catalog: uc13_ale
+  query: EBITDA adjustment detail addback schedule non-recurring one-time owner salary
+    management fee adjustment reported adjusted EBITDA reconciliation pro forma adjustments
+    normalization items addback bridge diligence adjustment normalized expense run-rate
+    executive compensation credit card allocation non-operating transactions management
+    addbacks seller adjustments earnings quality
+  workstream_filter:
+  - FINANCIAL
+  - QUALITY_EARNINGS
+  - BUSINESS_MODEL
+  file_name_filter:
+  - Addback
+  - Bridge
+  - EBITDA
+  - QofE
+  - Quality
+  - Adjusted
+  - CIM
+  - Adjustment
+  - Financial
+  - P&L
+  top_k: 10
+  min_chunk_length: 50
+  min_results: 3
+  source_type_priority: true
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.opex.q1_financial_statements
+  agent_id: fta.opex
+  source_file: databricks/agents/subagents/workstream/financial/opex_sub_agent.py
+  catalog: uc13_ale
+  query: operating expenses OPEX cost of revenue salaries compensation benefits payroll
+    expenses rent overhead G&A selling expenses labor costs cost structure headcount
+    expenses breakdown income statement
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  file_name_filter:
+  - P&L
+  - Profit
+  - Loss
+  - Income
+  - Financial
+  - Accounts
+  - Financials
+  - Audited
+  - Management
+  - CIM
+  - Model
+  - Summary
+  top_k: 8
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.opex.q2_working_capital
+  agent_id: fta.opex
+  source_file: databricks/agents/subagents/workstream/financial/opex_sub_agent.py
+  catalog: uc13_ale
+  query: accounts payable DPO days payable outstanding operating expenses working
+    capital current liabilities cash flow from operations
+  workstream_filter:
+  - FINANCIAL
+  file_name_filter:
+  - Balance Sheet
+  - Financial
+  - Accounts
+  - Working Capital
+  - CIM
+  top_k: 4
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.opex.q3_projected_financials
+  agent_id: fta.opex
+  source_file: databricks/agents/subagents/workstream/financial/opex_sub_agent.py
+  catalog: uc13_ale
+  query: projected revenue forecast 2025 2026 2027 2028 2029 gross profit gross margin
+    operating expenses OPEX salaries labor projected EBITDA summary P&L income statement
+    forward projections revenue projection plan financial model projection assumptions
+    cost of revenue compensation benefits G&A overhead
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  file_name_filter:
+  - Model
+  - Projection
+  - Forecast
+  - Budget
+  - CIM
+  - Financial
+  - P&L
+  top_k: 8
+  min_chunk_length: 100
+  min_results: 3
+  source_type_priority: true
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.revenue.q1_financial_statements
+  agent_id: fta.revenue
+  source_file: databricks/agents/subagents/workstream/financial/revenue_sub_agent.py
+  catalog: uc13_ale
+  query: annual revenue gross profit income statement financial results reported net
+    revenue pro forma adjusted revenue P&L summary historical financials cost of revenue
+    gross margin management accounts
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  file_name_filter:
+  - P&L
+  - Profit
+  - Loss
+  - Income
+  - Financial
+  - Accounts
+  - Financials
+  - Audited
+  - Management
+  - CIM
+  - Model
+  - Summary
+  top_k: 10
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.revenue.q2_revenue_by_segment
+  agent_id: fta.revenue
+  source_file: databricks/agents/subagents/workstream/financial/revenue_sub_agent.py
+  catalog: uc13_ale
+  query: revenue by segment product line geography service line revenue split breakdown
+    revenue by location revenue by office revenue by division revenue by customer
+    type
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  file_name_filter:
+  - P&L
+  - Financial
+  - Revenue
+  - Segment
+  - CIM
+  top_k: 5
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.revenue.q3_revenue_by_geography
+  agent_id: fta.revenue
+  source_file: databricks/agents/subagents/workstream/financial/revenue_sub_agent.py
+  catalog: uc13_ale
+  query: revenue by location geography region state city office clinic Revenue New
+    York Westchester Long Island Connecticut Massachusetts New Jersey revenue breakdown
+    by office location segment revenue by geography per location revenue by clinic
+    by state regional revenue split location P&L
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  file_name_filter:
+  - P&L
+  - Financial
+  - Revenue
+  - Segment
+  - CIM
+  - Model
+  - Projection
+  top_k: 6
+  min_chunk_length: 100
+  min_results: 3
+  source_type_priority: true
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.revenue.q4_customer_concentration
+  agent_id: fta.revenue
+  source_file: databricks/agents/subagents/workstream/financial/revenue_sub_agent.py
+  catalog: uc13_ale
+  query: customer concentration top customers revenue by customer largest customers
+    customer mix payor mix client revenue key customers top 10 customers customer
+    revenue breakdown revenue by payor revenue by client
+  workstream_filter:
+  - BUSINESS_MODEL
+  - FINANCIAL
+  - CUSTOMER_QUALITY
+  file_name_filter:
+  - CIM
+  top_k: 6
+  min_chunk_length: 80
+  min_results: 2
+  source_type_priority: true
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.revenue.q4_customer_concentration_fallback
+  agent_id: fta.revenue
+  source_file: databricks/agents/subagents/workstream/financial/revenue_sub_agent.py
+  catalog: uc13_ale
+  query: top customers revenue by customer customer concentration sales by customer
+    client revenue largest customers QuickBooks customer summary revenue concentration
+    payor concentration revenue by client top 10 customers
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  - CUSTOMER_QUALITY
+  file_name_filter:
+  - Customer
+  - QuickBooks
+  - QBO
+  - Sales
+  - Concentration
+  - Client
+  - Payor
+  - Revenue
+  top_k: 6
+  min_chunk_length: 80
+  min_results: 2
+  source_type_priority: true
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: fta.revenue.q5_quickbooks_pl
+  agent_id: fta.revenue
+  source_file: databricks/agents/subagents/workstream/financial/revenue_sub_agent.py
+  catalog: uc13_ale
+  query: total income total revenue net revenue gross revenue QuickBooks P&L annual
+    income statement 2020 2021 2022 2023 revenue expenses total sales income from
+    operations total operating revenue
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  file_name_filter:
+  - QuickBooks
+  - QBO
+  - '2020'
+  - '2021'
+  - '2022'
+  - '2023'
+  - '2024'
+  - P&L
+  - Income
+  - Profit
+  - Annual
+  - Financial
+  top_k: 8
+  min_chunk_length: 100
+  min_results: 3
+  source_type_priority: true
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: kpi.retrieve_delivery_model
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: contractor employee utilization bill rate delivery model geography offshore
+    onshore
+  workstream_filter:
+  - KPI_OPS
+  - BUSINESS_MODEL
+  top_k: 6
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: kpi.retrieve_headcount_attrition
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: headcount full time employees FTE attrition turnover rate hiring plan revenue
+    per employee
+  workstream_filter:
+  - KPI_OPS
+  - FINANCIAL
+  top_k: 6
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: kpi.retrieve_healthcare_ops
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: caregiver clinician turnover attrition census patient headcount referral
+    compliance credentialing
+  workstream_filter:
+  - KPI_OPS
+  - FINANCIAL
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: kpi.retrieve_kpi_dashboard
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: KPI dashboard metrics scorecard utilization revenue per FTE headcount operating
+  workstream_filter:
+  - KPI_OPS
+  file_name_filter:
+  - KPI
+  - Dashboard
+  - Metrics
+  - Scorecard
+  - Operating
+  - Performance
+  top_k: 12
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: kpi.retrieve_pipeline_backlog
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: pipeline backlog weighted pipeline bookings conversion forecast coverage
+    months
+  workstream_filter:
+  - KPI_OPS
+  - FINANCIAL
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: legal.contracts_vendors_platform
+  agent_id: legal
+  source_file: databricks/agents/workstreams/legal_contracts_agent.py
+  catalog: uc13_ale
+  query: material customer contract MSA master service agreement statement of work
+    change of control termination vendor supplier platform reseller channel staffing
+    agreement lease sublease asset purchase marketing contract
+  workstream_filter:
+  - LEGAL
+  file_name_filter:
+  - Contract
+  - MSA
+  - Agreement
+  - SOW
+  - Customer
+  - Client
+  - Vendor
+  - Supplier
+  - SA
+  - Lease
+  - Sublease
+  - Staffing
+  - Purchase
+  - Temp
+  - Marketing
+  - Engagement
+  top_k: 14
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: legal.employment
+  agent_id: legal
+  source_file: databricks/agents/workstreams/legal_contracts_agent.py
+  catalog: uc13_ale
+  query: employment agreement offer letter contractor commission plan founder key
+    employee employee handbook orientation restricted stock non-compete non-solicit
+    severance 401k bylaws staffing agreement
+  workstream_filter:
+  - LEGAL
+  file_name_filter:
+  - Employment
+  - Offer
+  - Contractor
+  - Commission
+  - Founder
+  - Handbook
+  - Orientation
+  - '401'
+  - Restricted
+  - Stock
+  - Bylaws
+  top_k: 10
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: legal.insurance
+  agent_id: legal
+  source_file: databricks/agents/workstreams/legal_contracts_agent.py
+  catalog: uc13_ale
+  query: insurance certificate policy COI certificate of insurance indemnity coverage
+    bond renewal liability unusual indemnity
+  workstream_filter:
+  - LEGAL
+  file_name_filter:
+  - Insurance
+  - Policy
+  - COI
+  - Indemnity
+  - Bond
+  - Renewal
+  top_k: 6
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: legal.ip_privacy
+  agent_id: legal
+  source_file: databricks/agents/workstreams/legal_contracts_agent.py
+  catalog: uc13_ale
+  query: intellectual property IP ownership assignment data privacy GDPR HIPAA indemnification
+    liability cap open source OSS data processing agreement BAA
+  workstream_filter:
+  - LEGAL
+  file_name_filter:
+  - IP
+  - Privacy
+  - GDPR
+  - HIPAA
+  - OSS
+  - Data Processing
+  - BAA
+  top_k: 8
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: legal.litigation
+  agent_id: legal
+  source_file: databricks/agents/workstreams/legal_contracts_agent.py
+  catalog: uc13_ale
+  query: litigation lawsuit dispute regulatory compliance arbitration demand letter
+    settlement survey DOH approval bond renewal regulatory correspondence threatened
+    claim legal engagement letter
+  workstream_filter:
+  - LEGAL
+  file_name_filter:
+  - Litigation
+  - Dispute
+  - Legal
+  - Demand
+  - Regulatory
+  - Survey
+  - DOH
+  - Bond
+  - Compliance
+  - Engagement
+  top_k: 8
+  min_chunk_length: 150
+  min_results: 3
+  invocation_path: with_fallback
+  extraction_confidence: static
+- intent_id: profiler.banked_vs_nonbanked
+  agent_id: profiler
+  source_file: databricks/jobs/scripts/company_profiler.py
+  catalog: uc13_ale
+  query: CIM offering memorandum banker investment bank process
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - Offering
+  - OM
+  top_k: 5
+  min_chunk_length: 100
+  tier_filter: 1
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: profiler.business_description
+  agent_id: profiler
+  source_file: databricks/jobs/scripts/company_profiler.py
+  catalog: uc13_ale
+  query: company description what the company does services offered overview
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - Business
+  - Overview
+  - Summary
+  - Profile
+  top_k: 5
+  min_chunk_length: 100
+  tier_filter: 1
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: profiler.company_size_indicators
+  agent_id: profiler
+  source_file: databricks/jobs/scripts/company_profiler.py
+  catalog: uc13_ale
+  query: revenue headcount EBITDA gross margin employees size scale
+  workstream_filter:
+  - FINANCIAL
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - Financial
+  - P&L
+  - Profit
+  - EBITDA
+  top_k: 5
+  min_chunk_length: 100
+  tier_filter: 1
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: profiler.deal_type
+  agent_id: profiler
+  source_file: databricks/jobs/scripts/company_profiler.py
+  catalog: uc13_ale
+  query: buyout growth equity recapitalization transaction type deal structure
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - Business
+  - Overview
+  - Summary
+  top_k: 5
+  min_chunk_length: 100
+  tier_filter: 1
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: profiler.industry_overlay
+  agent_id: profiler
+  source_file: databricks/jobs/scripts/company_profiler.py
+  catalog: uc13_ale
+  query: industry sector service type end market vertical
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - Business
+  - Overview
+  - Summary
+  - Profile
+  top_k: 5
+  min_chunk_length: 100
+  tier_filter: 1
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: profiler.revenue_model
+  agent_id: profiler
+  source_file: databricks/jobs/scripts/company_profiler.py
+  catalog: uc13_ale
+  query: revenue model contract type recurring revenue subscription retainer
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - Business
+  - Overview
+  - Summary
+  - Profile
+  top_k: 5
+  min_chunk_length: 100
+  tier_filter: 1
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: profiler.vertical_subsector
+  agent_id: profiler
+  source_file: databricks/jobs/scripts/company_profiler.py
+  catalog: uc13_ale
+  query: sub-sector specialty product lines service lines niche segment
+  workstream_filter:
+  - BUSINESS_MODEL
+  file_name_filter:
+  - CIM
+  - Business
+  - Overview
+  - Summary
+  - Profile
+  top_k: 5
+  min_chunk_length: 100
+  tier_filter: 1
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: qoe.retrieve_ebitda_bridge
+  agent_id: qoe
+  source_file: databricks/agents/workstreams/quality_of_earnings_agent.py
+  catalog: uc13_ale
+  query: EBITDA bridge adjusted EBITDA reported EBITDA walkthrough reconciliation
+    addback adjustment
+  workstream_filter:
+  - QUALITY_EARNINGS
+  - FINANCIAL
+  top_k: 10
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: qoe.retrieve_owner_comp_support
+  agent_id: qoe
+  source_file: databricks/agents/workstreams/quality_of_earnings_agent.py
+  catalog: uc13_ale
+  query: owner compensation above market salary family members payroll personal expenses
+    comp survey
+  workstream_filter:
+  - QUALITY_EARNINGS
+  - FINANCIAL
+  top_k: 6
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: qoe.retrieve_qofe_report
+  agent_id: qoe
+  source_file: databricks/agents/workstreams/quality_of_earnings_agent.py
+  catalog: uc13_ale
+  query: quality of earnings QofE adjusted EBITDA addback schedule sell-side accounting
+    due diligence
+  workstream_filter:
+  - QUALITY_EARNINGS
+  file_name_filter:
+  - QofE
+  - Quality
+  - Earnings
+  - Due Diligence
+  - Accounting
+  - Addback
+  top_k: 12
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: qoe.retrieve_revenue_footnotes
+  agent_id: qoe
+  source_file: databricks/agents/workstreams/quality_of_earnings_agent.py
+  catalog: uc13_ale
+  query: revenue recognition policy footnote accounting policy change prior year restatement
+    audit
+  workstream_filter:
+  - QUALITY_EARNINGS
+  - FINANCIAL
+  top_k: 6
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: qoe.retrieve_revenue_quality
+  agent_id: qoe
+  source_file: databricks/agents/workstreams/quality_of_earnings_agent.py
+  catalog: uc13_ale
+  query: revenue recognition deferred revenue bill and hold DSO period end spike one-time
+    non-recurring
+  workstream_filter:
+  - QUALITY_EARNINGS
+  - FINANCIAL
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
