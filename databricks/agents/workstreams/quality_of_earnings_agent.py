@@ -318,7 +318,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
             workstream_filter=["QUALITY_EARNINGS"],
             file_name_filter=["QofE", "Quality", "Earnings", "Due Diligence", "Accounting", "Addback"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -339,7 +339,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
             top_k=10,
             workstream_filter=["QUALITY_EARNINGS", "FINANCIAL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -360,7 +360,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
             top_k=8,
             workstream_filter=["QUALITY_EARNINGS", "FINANCIAL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -381,7 +381,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["QUALITY_EARNINGS", "FINANCIAL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -402,7 +402,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["QUALITY_EARNINGS", "FINANCIAL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(

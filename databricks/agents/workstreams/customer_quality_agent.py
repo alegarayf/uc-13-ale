@@ -304,7 +304,7 @@ class CustomerQualityAgent(WorkstreamAgent):
             workstream_filter=["CUSTOMER"],
             file_name_filter=["Customer", "Revenue", "Concentration", "CIM", "QofE"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -326,7 +326,7 @@ class CustomerQualityAgent(WorkstreamAgent):
             top_k=8,
             workstream_filter=["CUSTOMER", "QUALITY_EARNINGS"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -348,7 +348,7 @@ class CustomerQualityAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["CUSTOMER", "BUSINESS_MODEL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -370,7 +370,7 @@ class CustomerQualityAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["CUSTOMER", "FINANCIAL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -392,7 +392,7 @@ class CustomerQualityAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["CUSTOMER", "KPI_OPS"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(

@@ -318,7 +318,7 @@ class KPIAgent(WorkstreamAgent):
             workstream_filter=["KPI_OPS"],
             file_name_filter=["KPI", "Dashboard", "Metrics", "Scorecard", "Operating", "Performance"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -339,7 +339,7 @@ class KPIAgent(WorkstreamAgent):
             top_k=8,
             workstream_filter=["KPI_OPS", "FINANCIAL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -360,7 +360,7 @@ class KPIAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["KPI_OPS", "BUSINESS_MODEL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -381,7 +381,7 @@ class KPIAgent(WorkstreamAgent):
             top_k=8,
             workstream_filter=["KPI_OPS", "FINANCIAL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
@@ -402,7 +402,7 @@ class KPIAgent(WorkstreamAgent):
             top_k=6,
             workstream_filter=["KPI_OPS", "FINANCIAL"],
             min_chunk_length=150,
-        )
+        ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
