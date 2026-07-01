@@ -1,0 +1,150 @@
+{
+  "catalog": "uc13_ale",
+  "company_name": "Elder Care",
+  "ingestion_snapshot": "uc13_ale:35034:2026-06-25",
+  "chunks": [
+    {
+      "chunk_id": "chunk_abc123",
+      "chunk_text_preview": "Historical income statement and balance sheet excerpts for the trailing three fiscal years.",
+      "file_name": "CIM.pdf",
+      "page_start": 42,
+      "priority_tier": 1,
+      "section_header": "Financial Statements",
+      "source_type": "table"
+    },
+    {
+      "chunk_id": "chunk_abc124",
+      "chunk_text_preview": "Adjusted EBITDA bridge and operating expense detail supporting diligence financial review.",
+      "file_name": "CIM.pdf",
+      "page_start": 44,
+      "priority_tier": 1,
+      "section_header": "Historical P&L Summary",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "chunk_xyz789",
+      "chunk_text_preview": "Management projection assumptions and pro forma income sensitivity for base and upside cases.",
+      "file_name": "CIM.pdf",
+      "page_start": 58,
+      "priority_tier": 2,
+      "section_header": "Pro Forma Income Statement",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "chunk_proj001",
+      "chunk_text_preview": "Five-year revenue and EBITDA forecast with key growth drivers and margin expansion plan.",
+      "file_name": "CIM.pdf",
+      "page_start": 60,
+      "priority_tier": 2,
+      "section_header": "Projected Financials",
+      "source_type": "table"
+    },
+    {
+      "chunk_id": "chunk_proj002",
+      "chunk_text_preview": "Projected cash flow and capex schedule supporting management case financial projections.",
+      "file_name": "CIM.pdf",
+      "page_start": 62,
+      "priority_tier": 2,
+      "section_header": "Projected Financials",
+      "source_type": "table"
+    },
+    {
+      "chunk_id": "chunk_legal001",
+      "chunk_text_preview": "Summary of material vendor and platform agreements including termination and assignment provisions.",
+      "file_name": "Vendor_Agreements_Summary.pdf",
+      "page_start": 3,
+      "priority_tier": 1,
+      "section_header": "Platform and Vendor Contracts",
+      "source_type": "text"
+    }
+  ],
+  "intents": [
+    {
+      "catalog": "uc13_ale",
+      "company_name": "Elder Care",
+      "confidence": "high",
+      "gold_method": "section_range",
+      "gold_status": "ready",
+      "ingestion_snapshot": "uc13_ale:35034:2026-06-25",
+      "intent_id": "fta.opex.q1_financial_statements",
+      "negative_chunk_ids": [
+        "chunk_xyz789"
+      ],
+      "negative_confidence": "medium",
+      "negative_method": "basis_rule",
+      "negative_rule": "section_header ILIKE '%Projection%' OR '%Pro Forma Income%' on CIM",
+      "positive_chunk_ids": [
+        "chunk_abc123",
+        "chunk_abc124"
+      ]
+    },
+    {
+      "catalog": "uc13_ale",
+      "company_name": "Elder Care",
+      "confidence": "low",
+      "gold_method": "citation_backfill",
+      "gold_status": "bootstrap_failed",
+      "ingestion_snapshot": "uc13_ale:35034:2026-06-25",
+      "intent_id": "fta.opex.q2_working_capital",
+      "notes": "Awaiting cluster bootstrap after Cell 7",
+      "positive_chunk_ids": []
+    },
+    {
+      "catalog": "uc13_ale",
+      "company_name": "Elder Care",
+      "confidence": "high",
+      "gold_method": "section_range",
+      "gold_status": "ready",
+      "ingestion_snapshot": "uc13_ale:35034:2026-06-25",
+      "intent_id": "fta.opex.q3_projected_financials",
+      "negative_chunk_ids": [
+        "chunk_xyz789"
+      ],
+      "negative_confidence": "medium",
+      "negative_method": "basis_rule",
+      "negative_rule": "section_header ILIKE '%Projection%' OR '%Pro Forma Income%' on CIM",
+      "positive_chunk_ids": [
+        "chunk_proj001",
+        "chunk_proj002"
+      ]
+    },
+    {
+      "catalog": "uc13_ale",
+      "company_name": "Elder Care",
+      "confidence": "high",
+      "gold_method": "citation_backfill",
+      "gold_status": "ready",
+      "ingestion_snapshot": "uc13_ale:35034:2026-06-25",
+      "intent_id": "legal.contracts_vendors_platform",
+      "positive_chunk_ids": [
+        "chunk_legal001"
+      ]
+    },
+    {
+      "catalog": "uc13_ale",
+      "company_name": "Elder Care",
+      "confidence": "low",
+      "gold_method": "citation_backfill",
+      "gold_status": "bootstrap_failed",
+      "ingestion_snapshot": "uc13_ale:35034:2026-06-25",
+      "intent_id": "kpi.retrieve_delivery_model",
+      "notes": "Awaiting cluster bootstrap after Cell 7",
+      "positive_chunk_ids": []
+    }
+  ],
+  "mock_vs_scores": {
+    "fta.opex.q1_financial_statements": {
+      "chunk_abc123": 0.92,
+      "chunk_abc124": 0.88,
+      "chunk_xyz789": 0.71
+    },
+    "fta.opex.q3_projected_financials": {
+      "chunk_proj001": 0.9,
+      "chunk_proj002": 0.86,
+      "chunk_xyz789": 0.65
+    },
+    "legal.contracts_vendors_platform": {
+      "chunk_legal001": 0.94
+    }
+  }
+}
