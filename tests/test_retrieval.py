@@ -44,6 +44,7 @@ from agents.shared.retrieval import (  # noqa: E402
     _tier_weight,
     semantic_search,
 )
+from agents.shared._types import RouteResult  # noqa: E402
 
 
 def _row(*, chunk_id: str, priority_tier: int = 2, source_type: str = "text"):
@@ -139,7 +140,7 @@ def test_query_vector_index_retries_without_filters_on_sdk_error():
 
 @patch("agents.shared.retrieval.WorkspaceClient")
 @patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
-def test_semantic_search_returns_list_and_preserves_row_fields(
+def test_semantic_search_returns_route_result(
     mock_get_deploy_client,
     mock_workspace_client,
     monkeypatch,
@@ -167,10 +168,105 @@ def test_semantic_search_returns_list_and_preserves_row_fields(
         min_chunk_length=50,
     )
 
-    assert isinstance(result, list)
-    assert len(result) == 1
-    assert result[0].chunk_id == "c1"
-    assert result[0].priority_tier == 1
-    assert hasattr(result[0], "source_type")
+    assert isinstance(result, RouteResult)
+    assert result.mode == "semantic"
+    assert len(result.chunks) == 1
+    assert result.chunks[0].chunk_id == "c1"
+    assert result.chunks[0].priority_tier == 1
+    assert hasattr(result.chunks[0], "source_type")
+    assert len(result.scores) == 1
+    assert result.scores[0] == pytest.approx(_merge_score(hydrated, {"c1": 0.95}))
+    assert all(s is not None for s in result.scores)
     query_call = mock_w.vector_search_indexes.query_index.call_args
     assert query_call.kwargs["index_name"] == "uc13_ale.ingestion.embeddings_index"
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_keyword_fallback_emits_zero_scores(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.side_effect = RuntimeError("VS down")
+    mock_workspace_client.return_value = mock_w
+
+    rows = [_row(chunk_id="k1"), _row(chunk_id="k2")]
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = rows
+
+    result = semantic_search("revenue trends", spark, top_k=5, min_chunk_length=50)
+
+    assert result.mode == "keyword"
+    assert len(result.chunks) == 2
+    assert result.scores == [0.0, 0.0]
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_empty_after_filters_emits_empty_mode(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    vs_result = MagicMock()
+    vs_result.result.data_array = [["c1", "d1", "CIM.pdf", 0.95]]
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.return_value = vs_result
+    mock_workspace_client.return_value = mock_w
+
+    short_text = _row(chunk_id="c1")
+    short_text.chunk_text = "short"
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [short_text]
+
+    result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        min_chunk_length=500,
+    )
+
+    assert result.mode == "empty"
+    assert result.chunks == []
+    assert result.scores == []
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_keyword_fallback_empty_after_filters_is_empty_mode(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    """Keyword path with zero surviving chunks must use empty mode, not keyword + []."""
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.side_effect = RuntimeError("VS down")
+    mock_workspace_client.return_value = mock_w
+
+    short = _row(chunk_id="k1")
+    short.chunk_text = "x"
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [short]
+
+    result = semantic_search("revenue trends", spark, top_k=5, min_chunk_length=500)
+
+    assert result.mode == "empty"
+    assert result.chunks == []
+    assert result.scores == []
