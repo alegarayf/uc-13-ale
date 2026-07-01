@@ -19,6 +19,8 @@ Frozen organic slice: `fixtures/elder_care_slice.json` (`EvalFixtureSlice`). Chu
 
 Run once per Cell 7 ingestion rebuild or retrieval code change. Charter exit gate G2 (VS `company_name` pushdown) is verified during setup.
 
+**Workspace catalog:** Elder Care baseline uses **`uc13_ale` for everything** — corpus, VS index, gold labels, **and** ops tables (`uc13_ale.ops.*`). The program charter examples use `uc13.ops` for a shared merge target; keep ops in `uc13_ale` until you promote upstream.
+
 ### 1. Upstream preconditions (§5.15)
 
 - Cell 8c coverage PASS; Vector Search index sync current; join integrity spot-check (R-08).
@@ -26,10 +28,26 @@ Run once per Cell 7 ingestion rebuild or retrieval code change. Charter exit gat
 
 ### 2. DDL preflight — required before delta baseline
 
-Apply ops DDL **once** per workspace/catalog before the first `DeltaEvalStore` write:
+Apply ops DDL **once** before the first `DeltaEvalStore` write. Use the **same catalog as the harness** (`uc13_ale`).
+
+**Notebook cell** (after Cell 1 — `REPO_ROOT` on `sys.path`):
+
+```python
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from eval.retrieval.scripts.apply_ops_ddl import apply_ops_ddl
+
+OPS_CATALOG = "uc13_ale"
+n = apply_ops_ddl(OPS_CATALOG)
+print(f"Applied {n} statements → {OPS_CATALOG}.ops")
+display(spark.sql(f"SHOW TABLES IN {OPS_CATALOG}.ops"))
+```
+
+Shell equivalent (repo root on cluster):
 
 ```bash
-python eval/retrieval/scripts/apply_ops_ddl.py --catalog uc13
+python eval/retrieval/scripts/apply_ops_ddl.py --catalog uc13_ale
 ```
 
 HALT: do not attempt `--store-backend delta` baseline until this succeeds. Missing DDL causes `insert_run` failures (blocked, not `invalid`).
@@ -74,6 +92,33 @@ Save probe output in the job log or PR notes. The harness does not auto-mark inv
 
 ### 4. Cluster baseline harness
 
+**Notebook cell** (recommended):
+
+```python
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from eval.retrieval.harness import EvalHarness
+from eval.retrieval.store import DeltaEvalStore
+
+CATALOG = "uc13_ale"
+harness = EvalHarness()
+store = DeltaEvalStore(spark, catalog=CATALOG)
+
+report = harness.run(
+    run_type="baseline",
+    company_name="Elder Care",
+    catalog=CATALOG,
+    store=store,
+    store_backend="delta",
+    spark=spark,
+)
+print("run_id:", report.manifest.run_id)
+print("harness_status:", report.manifest.harness_status)
+```
+
+Shell equivalent:
+
 ```bash
 python -m eval.retrieval.harness_cli run \
   --store-backend delta \
@@ -84,7 +129,19 @@ python -m eval.retrieval.harness_cli run \
 
 - **Must** pass `--store-backend delta` on cluster (not sqlite).
 - Report written to `eval/retrieval/reports/{run_id}.json`.
-- Query manifest: `SELECT * FROM uc13.ops.retrieval_harness_runs WHERE run_id = '<id>'`.
+- Query manifest:
+
+```sql
+SELECT * FROM uc13_ale.ops.retrieval_harness_runs WHERE run_id = '<id>';
+```
+
+**G4 verify** (Elder Care workspace):
+
+```sql
+SELECT run_id, harness_status, completed_at
+FROM uc13_ale.ops.retrieval_harness_latest_baseline
+WHERE company_name = 'Elder Care' AND catalog = 'uc13_ale';
+```
 
 If G2 probe failed, set `harness_status: invalid` on the manifest (operator step) and do not use the run as `baseline_ref_run_id`.
 
@@ -109,16 +166,17 @@ When a completed sqlite run should be shared on the cluster:
 ```bash
 python -m eval.retrieval.scripts.sync_eval_store \
   --run-id <id> \
-  --direction sqlite_to_delta
+  --direction sqlite_to_delta \
+  --catalog uc13_ale
 ```
 
-Optional: `--catalog uc13`, `--sqlite-path <path>`. Idempotent on `run_id` when Delta already has a complete run. Does **not** sync Delta → SQLite.
+Optional: `--sqlite-path <path>`. Idempotent on `run_id` when Delta already has a complete run. Does **not** sync Delta → SQLite.
 
 ## Related CLIs
 
 | Command | Purpose |
 |---------|---------|
-| `python eval/retrieval/scripts/apply_ops_ddl.py --catalog uc13` | One-time `uc13.ops` DDL |
+| `python eval/retrieval/scripts/apply_ops_ddl.py --catalog uc13_ale` | One-time `uc13_ale.ops` DDL (Elder Care workspace) |
 | `python -m eval.retrieval.harness_cli run ...` | Harness execution |
 | `python -m eval.retrieval.harness_cli validate-baseline ...` | Preflight baseline_ref checks |
 | `python -m eval.retrieval.scripts.sync_eval_store --run-id <id> --direction sqlite_to_delta` | SQLite → Delta promotion |

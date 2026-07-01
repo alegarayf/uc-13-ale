@@ -8,14 +8,24 @@ import sys
 from pathlib import Path
 
 
+def _strip_leading_sql_comments(block: str) -> str:
+    """Drop full-line ``--`` comments; keep executable SQL in the block."""
+    lines = [
+        line
+        for line in block.splitlines()
+        if line.strip() and not line.strip().startswith("--")
+    ]
+    return "\n".join(lines).strip()
+
+
 def _load_statements(sql_path: Path, catalog: str) -> list[str]:
     text = sql_path.read_text(encoding="utf-8")
     text = text.replace("{catalog}", catalog)
-    statements = [
-        statement.strip()
-        for statement in re.split(r";\s*\n", text)
-        if statement.strip() and not statement.strip().startswith("--")
-    ]
+    statements: list[str] = []
+    for raw in re.split(r";\s*\n", text):
+        statement = _strip_leading_sql_comments(raw.strip())
+        if statement:
+            statements.append(statement)
     return statements
 
 
