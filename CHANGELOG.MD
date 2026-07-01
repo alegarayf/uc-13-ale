@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-m-re1-foundation-eval-store — 2026-07-01
+
+- T1 (RE² types + eval package scaffold): Created `eval/retrieval/` with Pydantic v2 models for spec §5.8 eval artifacts, error envelope, and local requirements; froze `RouteResult` contract in `_types.py` (`mode` vocabulary, `scores: list[float]`). Eval package imports production `RouteResult` in later subtasks — not duplicated in eval models (D1-A/D2-A). See `.dev/decision-logs/T1-re2-types.md`.
+
 ## uc13-orchestrator-m2-phase-b-bundle-builder-mvp — 2026-06-30
 
 - T10 (Synthesis fail-open logging + notebook hygiene): Replaced `_logger.warning` and `warnings.warn` in `synthesize_executive_narrative` with `print("[orchestrator] build:synthesis …")` per plan §2 Logging; committed BMA/FTA DOCX cells using `reports_volume_dir` (Cell 19 unchanged). Closes audit F-M2-LOG-SYNTH and F-M2-NB-DIRTY. Adversarial gap deferred: print-side-effect assertion on synthesis parse failure (behavior-only fail-open test already covers envelope).

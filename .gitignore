@@ -225,6 +225,9 @@ frontend/node_modules/.tmp/
 # AI-generated rule JSON (experiment; directory kept via rules-config/.gitkeep)
 rules-config/rule-*.json
 
+# RE² eval local SQLite store (spec §5.9)
+eval/retrieval/.local/
+
 # Rallyday — local dev, agent workflow, and generated artifacts
 .dev/
 databricks/.env
