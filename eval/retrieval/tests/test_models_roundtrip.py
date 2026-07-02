@@ -117,6 +117,26 @@ def test_harness_run_yaml_roundtrip():
     _roundtrip_yaml(HarnessRun, run)
 
 
+def test_harness_run_pipeline_type_and_thread_roundtrip():
+    run = HarnessRun(
+        run_id="pipeline_fta_a1b2c3",
+        run_type="pipeline",
+        pipeline_thread_id="outer-thread-uuid",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        ingestion_snapshot="pipeline-run",
+        registry_hash="pipeline-run",
+        gold_snapshot="pipeline-run",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        gated_intents=[],
+        store_backend="sqlite",
+        harness_status="incomplete",
+        intent_count=1,
+        created_at=datetime(2026, 7, 2, 12, 0, tzinfo=timezone.utc),
+    )
+    _roundtrip_json(HarnessRun, run)
+
+
 def test_harness_result_and_delta_json_roundtrip():
     result = HarnessResult(
         intent_id="fta.opex.q1_financial_statements",

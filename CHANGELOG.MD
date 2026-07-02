@@ -1,5 +1,9 @@
 # Changelog
 
+## m-re2-observability-fta-context — 2026-07-02
+
+- T1 (Run context + pipeline manifest): Landed `run_context.py` with `set_pipeline_thread`, `open_agent_run`, and `close_agent_run`; extended `HarnessRun` with `run_type: pipeline` and `pipeline_thread_id`; updated sqlite/delta store, ops DDL, and additive sqlite migration; pipeline finalize skips harness-result count check and computes fallback/empty rates from provenance modes. + added `tests/test_run_context.py`. Adversarial gap deferred: Delta `compute_provenance_rates` Spark integration (sqlite covered). See `.dev/decision-logs/T1-m-re2-run-context.md`.
+
 ## uc13-m-re1-foundation-eval-store — 2026-07-01
 
 - T11 (CI gold-pin alignment + G3 restore): Re-pinned `INGESTION_SNAPSHOT` to `uc13_ale:35034:2026-07-02` in gold bootstrap and harness fixture tests; updated `elder_care_slice.json` with cluster UUIDs for `fta.opex.q3_projected_financials`, `legal.contracts_vendors_platform`, and `cqa.retrieve_customer_concentration` (`bootstrap_failed`); relaxed slice falsifier to fixture ⊆ gold ready rows; scope resolver golden case → `cqa.retrieve_customer_concentration`; refreshed plan §8 auditor handoff (G3 PASS). Added `sys.path` bootstrap in `test_harness_fixture.py` mirroring `pytest.ini` when comma-separated `pythonpath` is misparsed on Windows. Adversarial gap deferred: `mock_vs_scores` orphan-key drift (cosmetic; chunk coverage tested separately).

@@ -6,6 +6,7 @@ CREATE SCHEMA IF NOT EXISTS {catalog}.ops;
 CREATE TABLE IF NOT EXISTS {catalog}.ops.retrieval_harness_runs (
     run_id STRING NOT NULL,
     run_type STRING NOT NULL,
+    pipeline_thread_id STRING,
     company_name STRING NOT NULL,
     catalog STRING NOT NULL,
     ingestion_snapshot STRING NOT NULL,

@@ -1,0 +1,216 @@
+"""Unit tests for databricks/agents/shared/run_context.py — M-RE2 T1."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+_DATABRICKS_ROOT = Path(__file__).resolve().parents[1] / "databricks"
+if str(_DATABRICKS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_DATABRICKS_ROOT))
+
+from agents.shared.run_context import (
+    RunContextError,
+    close_agent_run,
+    get_agent_run_id,
+    get_current_agent_id,
+    get_pipeline_thread,
+    open_agent_run,
+    set_pipeline_thread,
+)
+from eval.retrieval.models import ProvenanceChunk, ProvenanceRecord
+from eval.retrieval.store import SqliteEvalStore
+
+
+@pytest.fixture
+def store(tmp_path) -> SqliteEvalStore:
+    db = SqliteEvalStore(tmp_path / "re2_store.sqlite")
+    yield db
+    db.close()
+
+
+@pytest.fixture(autouse=True)
+def _reset_context():
+    yield
+    try:
+        close_agent_run()
+    except RunContextError:
+        pass
+
+
+def _provenance_record(*, intent_id: str, mode: str) -> ProvenanceRecord:
+    return ProvenanceRecord(
+        intent_id=intent_id,
+        company_name="Elder Care",
+        query="test query",
+        mode=mode,
+        chunks=[
+            ProvenanceChunk(
+                chunk_id=f"{intent_id}-chunk",
+                rank=1,
+                sim_score=0.9,
+                merge_score=0.9,
+                tier=1,
+                section_header="Section",
+                file_name="CIM.pdf",
+                source_type="text",
+            )
+        ],
+    )
+
+
+def test_set_and_get_pipeline_thread():
+    set_pipeline_thread("thread-abc")
+    assert get_pipeline_thread() == "thread-abc"
+
+
+def test_open_agent_run_inserts_incomplete_pipeline_manifest(store: SqliteEvalStore):
+    set_pipeline_thread("thread-001")
+    run_id = open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=store,
+    )
+
+    assert run_id == get_agent_run_id()
+    assert get_current_agent_id() == "fta"
+
+    report = store.get_run(run_id)
+    manifest = report.manifest
+    assert manifest.run_type == "pipeline"
+    assert manifest.pipeline_thread_id == "thread-001"
+    assert manifest.harness_status == "incomplete"
+    assert manifest.intent_count == 1
+    assert manifest.ingestion_snapshot == "pipeline-run"
+
+    close_agent_run()
+
+
+def test_close_agent_run_computes_provenance_rates(store: SqliteEvalStore):
+    set_pipeline_thread("thread-rates")
+    run_id = open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=[
+            "fta.opex.q1_financial_statements",
+            "fta.opex.q2_opex_detail",
+            "fta.revenue.q1_revenue",
+        ],
+        store=store,
+    )
+    store.append_provenance(
+        run_id,
+        [
+            _provenance_record(
+                intent_id="fta.opex.q1_financial_statements",
+                mode="semantic",
+            ),
+            _provenance_record(
+                intent_id="fta.opex.q2_opex_detail",
+                mode="keyword",
+            ),
+            _provenance_record(
+                intent_id="fta.revenue.q1_revenue",
+                mode="empty",
+            ),
+        ],
+    )
+
+    finalized = close_agent_run()
+    assert finalized.harness_status == "complete"
+    assert finalized.fallback_rate == pytest.approx(1 / 3)
+    assert finalized.empty_rate == pytest.approx(1 / 3)
+    assert get_agent_run_id() is None
+
+
+def test_double_open_agent_run_raises(store: SqliteEvalStore):
+    set_pipeline_thread("thread-double")
+    open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=store,
+    )
+    with pytest.raises(RunContextError, match="already open"):
+        open_agent_run(
+            "fta",
+            company_name="Elder Care",
+            catalog="uc13_ale",
+            affected_intents=["fta.opex.q1_financial_statements"],
+            store=store,
+        )
+    close_agent_run()
+
+
+def test_close_without_open_raises():
+    with pytest.raises(RunContextError, match="no open agent run"):
+        close_agent_run()
+
+
+def test_pipeline_manifest_allows_finalize_without_harness_results(
+    store: SqliteEvalStore,
+):
+    """Pipeline runs finalize on provenance only — no HarnessResult rows required."""
+    set_pipeline_thread("thread-no-results")
+    run_id = open_agent_run(
+        "bma",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["bma.overview"],
+        store=store,
+    )
+    finalized = close_agent_run()
+    assert finalized.run_id == run_id
+    assert finalized.harness_status == "complete"
+
+
+def test_pipeline_manifest_accepts_env_pins(store: SqliteEvalStore, monkeypatch):
+    monkeypatch.setenv("RE2_INGESTION_SNAPSHOT", "uc13_ale:99:2026-07-02")
+    monkeypatch.setenv("RE2_REGISTRY_HASH", "c" * 64)
+    monkeypatch.setenv("RE2_GOLD_SNAPSHOT", "d" * 64)
+
+    set_pipeline_thread("thread-env")
+    run_id = open_agent_run(
+        "legal",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=[],
+        store=store,
+    )
+    manifest = store.get_run(run_id).manifest
+    assert manifest.ingestion_snapshot == "uc13_ale:99:2026-07-02"
+    assert manifest.registry_hash == "c" * 64
+    assert manifest.gold_snapshot == "d" * 64
+    close_agent_run()
+
+
+def test_compute_provenance_rates_normalizes_keyword_fallback_alias(
+    store: SqliteEvalStore,
+):
+    """keyword_fallback must count toward fallback_rate (MODE_ALIASES parity)."""
+    set_pipeline_thread("thread-alias")
+    run_id = open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=store,
+    )
+    store.append_provenance(
+        run_id,
+        [
+            _provenance_record(
+                intent_id="fta.opex.q1_financial_statements",
+                mode="keyword_fallback",
+            )
+        ],
+    )
+    fallback_rate, _ = store.compute_provenance_rates(run_id)
+    assert fallback_rate == pytest.approx(1.0)
+    close_agent_run()
