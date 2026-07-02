@@ -49,6 +49,10 @@ class IngestionSnapshotMismatchError(PreconditionError):
     """ingestion_snapshot pin mismatch between runs."""
 
 
+class ProvenanceEmitError(EvalError):
+    """Pipeline provenance emit failed under RE2_PROVENANCE_REQUIRED=1."""
+
+
 class ScopeResolutionError(EvalError):
     """IntentScopeResolver could not resolve scope."""
 

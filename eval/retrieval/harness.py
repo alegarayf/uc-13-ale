@@ -33,19 +33,14 @@ from eval.retrieval.models import (
     HarnessResult,
     HarnessRun,
     IntentGateSummary,
-    ProvenanceChunk,
     ProvenanceRecord,
     RetrievalIntent,
 )
+from eval.retrieval.provenance import build_provenance_record, normalize_mode
 from eval.retrieval.scope_resolver import gate_eligible_intent_ids
 from eval.retrieval.store import EvalStore, SqliteEvalStore, derive_agent_id
 
 logger = logging.getLogger(__name__)
-
-MODE_ALIASES = {
-    "vector": "semantic",
-    "keyword_fallback": "keyword",
-}
 
 GATE_METRICS = ("recall_at_10", "precision_at_10", "basis_conflict_at_10")
 AUDIT_METRICS = ("mrr",)
@@ -72,12 +67,6 @@ def default_reports_dir() -> Path:
 
 def default_sqlite_path() -> Path:
     return _repo_root() / "eval" / "retrieval" / ".local" / "re2_store.sqlite"
-
-
-def normalize_mode(mode: str | None) -> str:
-    if mode is None:
-        return "semantic"
-    return MODE_ALIASES.get(mode, mode)
 
 
 def compute_registry_hash(registry_path: Path) -> str:
@@ -109,12 +98,6 @@ def _chunk_id_from_row(chunk: Any) -> str:
     if isinstance(chunk, Mapping):
         return str(chunk["chunk_id"])
     return str(chunk.chunk_id)
-
-
-def _row_attr(chunk: Any, name: str, default: Any = "") -> Any:
-    if isinstance(chunk, Mapping):
-        return chunk.get(name, default)
-    return getattr(chunk, name, default)
 
 
 def uses_fallback_wrapper(intent: RetrievalIntent) -> bool:
@@ -408,40 +391,6 @@ def rollup_by_agent(
             "empty_rate": empty / evaluated if evaluated else None,
         }
     return rollup
-
-
-def build_provenance_record(
-    intent: RetrievalIntent,
-    *,
-    company_name: str,
-    route_result: Any,
-    run_id: str,
-) -> ProvenanceRecord:
-    chunks: list[ProvenanceChunk] = []
-    scores = list(route_result.scores or [])
-    for rank, chunk in enumerate(route_result.chunks, start=1):
-        score = scores[rank - 1] if rank - 1 < len(scores) else 0.0
-        tier = _row_attr(chunk, "priority_tier", 99)
-        chunks.append(
-            ProvenanceChunk(
-                chunk_id=_chunk_id_from_row(chunk),
-                rank=rank,
-                sim_score=0.0 if route_result.mode == "keyword" else float(score),
-                merge_score=float(score),
-                tier=int(tier) if tier is not None else 99,
-                section_header=str(_row_attr(chunk, "section_header", "")),
-                file_name=str(_row_attr(chunk, "file_name", "")),
-                source_type=str(_row_attr(chunk, "source_type", "text")),
-            )
-        )
-    return ProvenanceRecord(
-        intent_id=intent.intent_id,
-        company_name=company_name,
-        query=intent.query,
-        mode=normalize_mode(route_result.mode),
-        chunks=chunks,
-        run_id=run_id,
-    )
 
 
 def _utc_now() -> datetime:
