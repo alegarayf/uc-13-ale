@@ -167,6 +167,31 @@ def _keyword_fallback_sql(
     """
 
 
+def _emit_provenance(
+    route_result: RouteResult,
+    *,
+    query: str,
+    company_name: str | None,
+    intent_id: str | None,
+) -> None:
+    """Append pipeline provenance after merge-rank + top_k cap (M-RE2 T3, D2).
+
+    Lazy-imports ``eval.retrieval.provenance`` so the databricks agents package
+    never imports eval at module load. The emitter no-ops when no agent run is
+    open (unless ``RE2_PROVENANCE_REQUIRED=1``, which raises
+    ``ProvenanceEmitError``). Intent-id fallback to ``unknown.{agent_id}`` is
+    handled inside the emitter per plan §2.
+    """
+    from eval.retrieval.provenance import ProvenanceEmitter
+
+    ProvenanceEmitter.emit(
+        route_result=route_result,
+        company_name=company_name or "",
+        query=query,
+        intent_id=intent_id,
+    )
+
+
 def semantic_search(
     query: str,
     spark,
@@ -181,6 +206,7 @@ def semantic_search(
     embedding_endpoint: str = "databricks-bge-large-en",
     source_type_priority: bool = False,
     source_type_filter: list[str] | None = None,
+    intent_id: str | None = None,
 ) -> RouteResult:
     """Search for relevant chunks using semantic similarity.
 
@@ -214,6 +240,11 @@ def semantic_search(
         source_type_filter: When provided, keep only chunks whose source_type
             is in this list (e.g. ["table", "vision"] for structured-data-only
             queries). Applied after all other filters, before top_k cap.
+        intent_id: Optional registry intent id (M-RE2 D3). When an agent run is
+            open, provenance is emitted for this retrieval under this intent_id;
+            when None the emitter falls back to ``unknown.{agent_id}``. FTA
+            sub-agents must pass the registry id. No-op when no agent run is
+            open unless ``RE2_PROVENANCE_REQUIRED=1``.
 
     Returns:
         RouteResult with chunks (Spark Row objects), mode
@@ -326,15 +357,26 @@ def semantic_search(
     print(f"  Query '{query[:50]}': retrieved {len(chunks)} chunks from {source_files}")
 
     if not chunks:
-        return RouteResult(chunks=[], mode="empty", scores=[])
-    if used_keyword_fallback:
-        return RouteResult(
+        result = RouteResult(chunks=[], mode="empty", scores=[])
+    elif used_keyword_fallback:
+        result = RouteResult(
             chunks=chunks,
             mode="keyword",
             scores=[0.0] * len(chunks),
         )
-    return RouteResult(
-        chunks=chunks,
-        mode="semantic",
-        scores=[_merge_score(c, score_map) for c in chunks],
+    else:
+        result = RouteResult(
+            chunks=chunks,
+            mode="semantic",
+            scores=[_merge_score(c, score_map) for c in chunks],
+        )
+
+    # M-RE2 T3/D2: emit provenance after merge-rank + top_k cap, before return.
+    # No-op when no agent run is open unless RE2_PROVENANCE_REQUIRED=1.
+    _emit_provenance(
+        result,
+        query=query,
+        company_name=company_name,
+        intent_id=intent_id,
     )
+    return result
