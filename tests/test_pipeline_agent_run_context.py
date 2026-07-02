@@ -136,6 +136,49 @@ def test_fta_intent_ids_match_registry_subset() -> None:
     assert seen == EXPECTED_FTA_INTENT_IDS
 
 
+def test_fta_threadpool_submits_wrap_context_for_provenance_propagation() -> None:
+    """Falsifier for the zero-provenance-rows bug.
+
+    ThreadPoolExecutor worker threads do not inherit the submitting thread's
+    contextvars.Context (unlike asyncio tasks). FinancialTrendsAgent.run() fans out
+    to three sub-agents via ThreadPoolExecutor; each .submit() must wrap the sub-agent
+    callable with contextvars.copy_context().run(...) so run_context's agent_run_id /
+    active_store ContextVars (set by open_agent_run() on the main thread) are visible
+    inside the worker thread's semantic_search_with_fallback → provenance emit path.
+    """
+    path = REPO_ROOT / "databricks/agents/workstreams/financial_trends_agent.py"
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    submit_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "submit"
+    ]
+    assert submit_calls, "expected ThreadPoolExecutor.submit(...) calls in financial_trends_agent.py"
+
+    def _is_copy_context_run(arg: ast.expr) -> bool:
+        return (
+            isinstance(arg, ast.Attribute)
+            and arg.attr == "run"
+            and isinstance(arg.value, ast.Call)
+            and isinstance(arg.value.func, ast.Attribute)
+            and arg.value.func.attr == "copy_context"
+        )
+
+    unwrapped = [
+        call.lineno
+        for call in submit_calls
+        if not call.args or not _is_copy_context_run(call.args[0])
+    ]
+    assert not unwrapped, (
+        f"financial_trends_agent.py: .submit() at lines {unwrapped} must pass "
+        "contextvars.copy_context().run as the callable to propagate agent_run_id"
+    )
+
+
 def test_notebook_cell1_sets_pipeline_thread() -> None:
     nb_path = REPO_ROOT / "databricks" / "jobs" / "notebooks" / "test_pipeline.ipynb"
     notebook = json.loads(nb_path.read_text(encoding="utf-8"))
