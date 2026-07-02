@@ -28,6 +28,28 @@ from eval.retrieval.models import (
 
 logger = logging.getLogger(__name__)
 
+_MODE_ALIASES = {
+    "vector": "semantic",
+    "keyword_fallback": "keyword",
+}
+
+
+def _normalize_provenance_mode(mode: str | None) -> str:
+    if mode is None:
+        return "semantic"
+    return _MODE_ALIASES.get(mode, mode)
+
+
+def _compute_provenance_rates_from_modes(modes: list[str]) -> tuple[float | None, float | None]:
+    if not modes:
+        return None, None
+    normalized = [_normalize_provenance_mode(mode) for mode in modes]
+    total = len(normalized)
+    fallback_rate = sum(1 for mode in normalized if mode == "keyword") / total
+    empty_rate = sum(1 for mode in normalized if mode == "empty") / total
+    return fallback_rate, empty_rate
+
+
 _LIST_RUNS_MAX_LIMIT = 500
 
 # Explicit Spark schemas for Delta writes — single-row manifests with many null
@@ -58,6 +80,7 @@ def _delta_types():
         [
             StructField("run_id", StringType(), False),
             StructField("run_type", StringType(), False),
+            StructField("pipeline_thread_id", StringType(), True),
             StructField("company_name", StringType(), False),
             StructField("catalog", StringType(), False),
             StructField("ingestion_snapshot", StringType(), False),
@@ -144,6 +167,7 @@ def _manifest_to_delta_row(manifest: HarnessRun) -> dict[str, Any]:
     return {
         "run_id": manifest.run_id,
         "run_type": manifest.run_type,
+        "pipeline_thread_id": manifest.pipeline_thread_id,
         "company_name": manifest.company_name,
         "catalog": manifest.catalog,
         "ingestion_snapshot": manifest.ingestion_snapshot,
@@ -259,6 +283,9 @@ class EvalStore(Protocol):
     ) -> HarnessRun:
         ...
 
+    def compute_provenance_rates(self, run_id: str) -> tuple[float | None, float | None]:
+        ...
+
     def get_run(self, run_id: str) -> HarnessReport:
         ...
 
@@ -291,6 +318,8 @@ class _StoreBase:
             )
 
     def _validate_result_count(self, manifest: HarnessRun, result_count: int) -> None:
+        if manifest.run_type == "pipeline":
+            return
         if result_count != manifest.intent_count:
             raise IncompleteResultsError(
                 f"finalize_run expected {manifest.intent_count} results, found {result_count}"
@@ -317,6 +346,7 @@ class SqliteEvalStore(_StoreBase):
             CREATE TABLE IF NOT EXISTS retrieval_harness_runs (
                 run_id TEXT PRIMARY KEY,
                 run_type TEXT NOT NULL,
+                pipeline_thread_id TEXT,
                 company_name TEXT NOT NULL,
                 catalog TEXT NOT NULL,
                 ingestion_snapshot TEXT NOT NULL,
@@ -404,6 +434,14 @@ class SqliteEvalStore(_StoreBase):
             );
             """
         )
+        columns = {
+            row[1]
+            for row in self._conn.execute("PRAGMA table_info(retrieval_harness_runs)")
+        }
+        if "pipeline_thread_id" not in columns:
+            self._conn.execute(
+                "ALTER TABLE retrieval_harness_runs ADD COLUMN pipeline_thread_id TEXT"
+            )
         self._conn.commit()
 
     def _get_manifest_row(self, run_id: str) -> sqlite3.Row:
@@ -420,6 +458,9 @@ class SqliteEvalStore(_StoreBase):
         return HarnessRun(
             run_id=row["run_id"],
             run_type=row["run_type"],
+            pipeline_thread_id=row["pipeline_thread_id"]
+            if "pipeline_thread_id" in row.keys()
+            else None,
             company_name=row["company_name"],
             catalog=row["catalog"],
             ingestion_snapshot=row["ingestion_snapshot"],
@@ -468,17 +509,18 @@ class SqliteEvalStore(_StoreBase):
         self._conn.execute(
             """
             INSERT INTO retrieval_harness_runs (
-                run_id, run_type, company_name, catalog, ingestion_snapshot,
+                run_id, run_type, pipeline_thread_id, company_name, catalog, ingestion_snapshot,
                 registry_hash, gold_snapshot, git_sha, git_branch, pr_url, hypothesis,
                 affected_intents_json, gated_intents_json, ablation_config_json, ablation_arm,
                 baseline_ref_run_id, store_backend, harness_status, intent_count,
                 gate_pass, fallback_rate, empty_rate, e2e_agent_id, e2e_snapshot_table,
                 e2e_checklist_score, e2e_checklist_total, created_at, completed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 manifest.run_id,
                 manifest.run_type,
+                manifest.pipeline_thread_id,
                 manifest.company_name,
                 manifest.catalog,
                 manifest.ingestion_snapshot,
@@ -657,6 +699,19 @@ class SqliteEvalStore(_StoreBase):
             )
         self._conn.commit()
         return len(deltas)
+
+    def compute_provenance_rates(self, run_id: str) -> tuple[float | None, float | None]:
+        self._get_manifest_row(run_id)
+        rows = self._conn.execute(
+            """
+            SELECT mode
+            FROM retrieval_provenance
+            WHERE run_id = ?
+            GROUP BY intent_id
+            """,
+            (run_id,),
+        ).fetchall()
+        return _compute_provenance_rates_from_modes([row["mode"] for row in rows])
 
     def set_report_extras(
         self,
@@ -895,6 +950,7 @@ class DeltaEvalStore(_StoreBase):
         return HarnessRun(
             run_id=row["run_id"],
             run_type=row["run_type"],
+            pipeline_thread_id=row.get("pipeline_thread_id"),
             company_name=row["company_name"],
             catalog=row["catalog"],
             ingestion_snapshot=row["ingestion_snapshot"],
@@ -1076,6 +1132,19 @@ class DeltaEvalStore(_StoreBase):
             """
         )
         return len(deltas)
+
+    def compute_provenance_rates(self, run_id: str) -> tuple[float | None, float | None]:
+        self._fetch_manifest_row(run_id)
+        rows = self.spark.sql(
+            f"""
+            SELECT mode
+            FROM {self._table('retrieval_provenance')}
+            WHERE run_id = :run_id
+            GROUP BY intent_id, mode
+            """,
+            args={"run_id": run_id},
+        ).collect()
+        return _compute_provenance_rates_from_modes([row["mode"] for row in rows])
 
     def finalize_run(
         self,

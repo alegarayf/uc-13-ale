@@ -146,7 +146,8 @@ class HarnessRun(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     run_id: str
-    run_type: Literal["baseline", "enhancement", "ablation", "ci_fixture"]
+    run_type: Literal["baseline", "enhancement", "ablation", "ci_fixture", "pipeline"]
+    pipeline_thread_id: str | None = None
     company_name: str
     catalog: str
     ingestion_snapshot: str
