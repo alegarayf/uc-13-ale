@@ -10,7 +10,12 @@ from typing import Any
 
 from eval.retrieval.errors import ProvenanceEmitError
 from eval.retrieval.models import ProvenanceChunk, ProvenanceRecord, RetrievalIntent
-from eval.retrieval.store import DeltaEvalStore, EvalStore, SqliteEvalStore
+from eval.retrieval.store import (
+    DeltaEvalStore,
+    EvalStore,
+    SqliteEvalStore,
+    retry_on_delta_conflict,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -259,16 +264,23 @@ class ProvenanceEmitter:
 
         if isinstance(store, DeltaEvalStore):
             for chars_allocated, context_section, chunk_id in patch_rows:
-                store.spark.sql(
-                    f"""
-                    UPDATE {store._table('retrieval_provenance')}
-                    SET chars_allocated = {int(chars_allocated)},
-                        context_section = '{context_section.replace("'", "''")}'
-                    WHERE run_id = '{agent_run_id}'
-                      AND intent_id = '{intent_id}'
-                      AND chunk_id = '{chunk_id.replace("'", "''")}'
-                    """
-                )
+                def _run_update(
+                    chars_allocated: int = chars_allocated,
+                    context_section: str = context_section,
+                    chunk_id: str = chunk_id,
+                ) -> None:
+                    store.spark.sql(
+                        f"""
+                        UPDATE {store._table('retrieval_provenance')}
+                        SET chars_allocated = {int(chars_allocated)},
+                            context_section = '{context_section.replace("'", "''")}'
+                        WHERE run_id = '{agent_run_id}'
+                          AND intent_id = '{intent_id}'
+                          AND chunk_id = '{chunk_id.replace("'", "''")}'
+                        """
+                    )
+
+                retry_on_delta_conflict(_run_update)
             return
 
         if _provenance_required():
