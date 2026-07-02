@@ -816,6 +816,23 @@ class FinancialTrendsAgent:
                     "≤10%",
                 )
 
+    def _append_basis_cross_check_discrepancies(self, extracted: dict) -> None:
+        """Append Option D basis_mismatch flags without overwriting LLM discrepancies (D6)."""
+        from agents.subagents.workstream.financial.basis_cross_check import (
+            basis_cross_check,
+            is_duplicate_basis_discrepancy,
+        )
+
+        existing = list(extracted.get("discrepancies_found") or [])
+        for entry in basis_cross_check(
+            extracted.get("opex_breakdown") or [],
+            extracted.get("revenue_trend") or [],
+        ):
+            if is_duplicate_basis_discrepancy(entry, existing):
+                continue
+            existing.append(entry)
+        extracted["discrepancies_found"] = existing
+
     # ------------------------------------------------------------------
     # Main run() orchestration
     # ------------------------------------------------------------------
@@ -980,6 +997,7 @@ class FinancialTrendsAgent:
         addback_pct = self._apply_addback_flag(extracted)
         self._apply_ebitda_growth_divergence_check(extracted)
         self._apply_budget_miss_flags(extracted)
+        self._append_basis_cross_check_discrepancies(extracted)
 
         # ── Build result dict ─────────────────────────────────────────
         return {
