@@ -210,6 +210,35 @@ def test_emit_intent_id_fallback_unknown_agent(store: SqliteEvalStore):
     close_agent_run()
 
 
+def test_patch_context_allocations_noop_without_prior_emit(store: SqliteEvalStore):
+    """T6 deferral: patch without prior emit must not raise and must not insert rows."""
+    set_pipeline_thread("thread-patch-no-emit")
+    run_id = open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=store,
+    )
+    chunk = _FakeChunk("chunk-no-emit")
+    allocation = SimpleNamespace(
+        chunk=chunk,
+        chars_allocated=256,
+        context_section="=== Historical / reported P&L sources ===",
+    )
+    ProvenanceEmitter.patch_context_allocations(
+        "fta.opex.q1_financial_statements",
+        [allocation],
+    )
+
+    rows = store._conn.execute(
+        "SELECT chunk_id FROM retrieval_provenance WHERE run_id = ?",
+        (run_id,),
+    ).fetchall()
+    assert rows == []
+    close_agent_run()
+
+
 def test_patch_context_allocations_updates_existing_rows(store: SqliteEvalStore):
     set_pipeline_thread("thread-patch")
     run_id = open_agent_run(
