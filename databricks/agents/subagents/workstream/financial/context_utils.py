@@ -3,6 +3,7 @@
 Provides:
   semantic_search_with_fallback(...)  — semantic_search with filename-filter retry
   build_focused_context(chunks, max_chars)  — CIM-first, source-type-aware truncation
+  assemble_labeled_context(chunk_groups, ...)  — per-query budgets + section headers (OPEX)
 
 Extracted from financial_trends_agent.py so each sub-agent can own its own
 retrieval without duplicating the fallback and budget logic.
@@ -15,6 +16,16 @@ import os
 from agents.shared._types import RouteResult
 
 _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
+
+# OPEX per-query budgets — spec §5.12.4 Option C (Q1 financial statements, Q2 WC, Q3 projections).
+OPEX_QUERY_BUDGETS = (8_000, 3_000, 4_000)
+
+# Section headers — spec §5.12.4 Option A.
+OPEX_SECTION_LABELS = (
+    "=== Historical / reported P&L sources ===",
+    "=== Working capital sources ===",
+    "=== Projection / model sources ===",
+)
 
 
 def _default_catalog() -> str:
@@ -99,6 +110,40 @@ def build_focused_context(chunks: list, max_chars: int = 25_000) -> tuple[str, s
     )
 
     return "\n\n---\n\n".join(parts), stats
+
+
+def assemble_labeled_context(
+    chunk_groups: list[list],
+    budgets: tuple[int, ...] | None = None,
+    section_labels: tuple[str, ...] | None = None,
+) -> tuple[str, str]:
+    """Build labeled multi-section context from per-query chunk groups.
+
+    Each group is ranked and truncated independently via ``build_focused_context``
+    with its own budget (spec §5.12.4 Options A + C). T6 widens the return type to
+    include ``ContextAllocation`` metadata without rewriting this loop.
+    """
+    budgets = budgets or OPEX_QUERY_BUDGETS
+    section_labels = section_labels or OPEX_SECTION_LABELS
+    if len(chunk_groups) != len(budgets) or len(chunk_groups) != len(section_labels):
+        raise ValueError(
+            f"chunk_groups ({len(chunk_groups)}), budgets ({len(budgets)}), "
+            f"and section_labels ({len(section_labels)}) must align"
+        )
+
+    sections: list[str] = []
+    stats_parts: list[str] = []
+    for idx, (group, budget, label) in enumerate(
+        zip(chunk_groups, budgets, section_labels, strict=True),
+    ):
+        body, group_stats = build_focused_context(group, max_chars=budget)
+        if body:
+            sections.append(f"{label}\n{body}")
+        else:
+            sections.append(f"{label}\n(no chunks retrieved)")
+        stats_parts.append(f"Q{idx + 1}({budget:,}): {group_stats}")
+
+    return "\n\n".join(sections), " | ".join(stats_parts)
 
 
 def semantic_search_with_fallback(

@@ -68,6 +68,14 @@ rules apply regardless of layout:
     as revenue_trend or ebitda data.\
 """
 
+OPEX_BASIS_PREFERENCE_INSTRUCTION = """\
+BASIS PREFERENCE (OPEX): For opex_breakdown, prefer figures from Historical P&L Summary \
+or other reported/audited P&L sections (see "Historical / reported P&L sources" above). \
+Use Projection / model sources only when historical reported figures are absent for a \
+category. Always cite source_location including the document section name so the \
+accounting basis (reported vs pro forma vs projected) is explicit.\
+"""
+
 SYSTEM_PROMPT_EBITDA = SYSTEM_PROMPT_BASE + """
 
 EXTRACTING MULTIPLE NAMED EBITDA LINES:

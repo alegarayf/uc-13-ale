@@ -6,17 +6,16 @@ Responsibility:
   Extraction — opex_breakdown, cost_structure, executive_summary, extraction_notes
 
 Each instance is autonomous: it runs its own semantic_search calls, builds its
-own focused context (~15K chars), and performs a single LLM extraction call.
+own labeled context (8K + 3K + 4K per-query budgets), and performs a single LLM extraction call.
 Designed to run in parallel with RevenueSubAgent and EbitdaSubAgent.
 
 max_tokens = 3,000 — OPEX has at most ~10 category records; light schema.
 """
 
 import json
-from .shared_prompts import SYSTEM_PROMPT_BASE
-from .context_utils import build_focused_context, semantic_search_with_fallback
+from .shared_prompts import OPEX_BASIS_PREFERENCE_INSTRUCTION, SYSTEM_PROMPT_BASE
+from .context_utils import assemble_labeled_context, semantic_search_with_fallback
 
-_MAX_CONTEXT_CHARS = 15_000
 _MAX_TOKENS = 3_000
 
 _USER_PROMPT = """\
@@ -25,6 +24,8 @@ COMPANY PROFILE (metadata only — do NOT extract financial figures from this bl
 
 RETRIEVED FINANCIAL DOCUMENT CONTEXT (extract ALL financial figures from here only):
 {focused_chunk_text}
+
+{opex_basis_preference}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EXTRACTION TASK — OPEX & COST STRUCTURE
@@ -81,30 +82,32 @@ class OpexSubAgent:
         """
         _wa = self._make_base()
 
-        chunks = self._retrieve(company_name, spark, retrieval_mode)
-        context_text, stats = build_focused_context(chunks, max_chars=_MAX_CONTEXT_CHARS)
+        q1_chunks, q2_chunks, q3_chunks = self._retrieve(company_name, spark, retrieval_mode)
+        context_text, stats = assemble_labeled_context([q1_chunks, q2_chunks, q3_chunks])
         print(f"  [Opex]    {stats}")
 
         company_profile_json = json.dumps(company_profile or {}, default=str)
         user_prompt = _USER_PROMPT.format(
             company_profile_json=company_profile_json,
             focused_chunk_text=context_text,
+            opex_basis_preference=OPEX_BASIS_PREFERENCE_INSTRUCTION,
         )
         raw = _wa._call_llm(SYSTEM_PROMPT_BASE, user_prompt, llm_endpoint, max_tokens=_MAX_TOKENS)
         parsed = _wa._parse_json_response(raw)
-        source_files = list({getattr(c, "file_name", "") for c in chunks})
+        all_chunks = q1_chunks + q2_chunks + q3_chunks
+        source_files = list({getattr(c, "file_name", "") for c in all_chunks})
         return {
             "extracted":    parsed,
             "gaps":         list(_wa._data_room_gaps),
             "source_files": source_files,
         }
 
-    def _retrieve(self, company_name: str, spark, retrieval_mode: str = "semantic") -> list:
-        """Run all OPEX-domain retrieval queries."""
-        chunks: list = []
-
+    def _retrieve(
+        self, company_name: str, spark, retrieval_mode: str = "semantic",
+    ) -> tuple[list, list, list]:
+        """Run OPEX-domain retrieval queries; return three independent chunk groups."""
         # 1. Financial statements — P&L opex rows (salaries, G&A, overhead, etc.)
-        chunks += semantic_search_with_fallback(
+        q1_chunks = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "operating expenses OPEX cost of revenue salaries compensation benefits "
@@ -122,7 +125,7 @@ class OpexSubAgent:
         ).chunks
 
         # 2. Working capital
-        chunks += semantic_search_with_fallback(
+        q2_chunks = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "accounts payable DPO days payable outstanding operating expenses "
@@ -136,7 +139,7 @@ class OpexSubAgent:
         ).chunks
 
         # 3. Projected financials
-        chunks += semantic_search_with_fallback(
+        q3_chunks = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "projected revenue forecast 2025 2026 2027 2028 2029 "
@@ -153,7 +156,7 @@ class OpexSubAgent:
             retrieval_mode=retrieval_mode,
         ).chunks
 
-        return chunks
+        return q1_chunks, q2_chunks, q3_chunks
 
     @staticmethod
     def _make_base():
