@@ -226,6 +226,8 @@ Expect `provenance_rows > 0` after a full FTA pipeline run with M-RE2 wiring.
 
 **If `harness_status: complete` but `provenance_rows = 0` and `fallback_rate`/`empty_rate` are both `NULL`:** you are hitting a fixed bug, not a config gap — confirm you have pulled the commit containing the `contextvars.copy_context()` fix in `FinancialTrendsAgent.run()`. `ThreadPoolExecutor.submit()` does not inherit the main thread's `agent_run_id` ContextVar by default, so the three FTA sub-agents (Revenue/EBITDA/OPEX) silently skipped provenance emission before this fix. See `.dev/decision-logs/T4-m-re2-threadpool-context-propagation.md`.
 
+**If Cell 12 fails with `ConcurrentAppendException [DELTA_CONCURRENT_APPEND_ROW_LEVEL_CHANGES]` on `retrieval_provenance`:** this is expected the *first* time provenance actually starts flowing — FTA's three sub-agent threads now write concurrently to the same Delta table. Confirm you've pulled the commit adding `retry_on_delta_conflict()` (wraps `append_provenance`'s `MERGE` and `patch_context_allocations`'s Delta `UPDATE` with backoff retry). If it still fails after 5 retries under real contention, that's the signal to escalate — batching provenance per sub-agent (accumulate, single `append_provenance` call at end of each sub-agent's `.run()`) is the documented fallback; see "Follow-on fix" in the same decision log.
+
 ### Item 23 — Elder Care E2E checklist re-score
 
 1. Run Cell 12 (Financial Trends Agent) on Elder Care with `catalog=uc13_ale`.

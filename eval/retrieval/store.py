@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import sqlite3
+import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Callable, Protocol, TypeVar, runtime_checkable
 
 from eval.retrieval.errors import (
     IncompleteResultsError,
@@ -38,6 +41,63 @@ def _normalize_provenance_mode(mode: str | None) -> str:
     if mode is None:
         return "semantic"
     return _MODE_ALIASES.get(mode, mode)
+
+
+_DELTA_CONCURRENCY_CONFLICT_MARKERS = (
+    "ConcurrentAppendException",
+    "ConcurrentDeleteReadException",
+    "ConcurrentDeleteDeleteException",
+    "ConcurrentTransactionException",
+    "MetadataChangedException",
+    "DELTA_CONCURRENT_APPEND",
+    "DELTA_CONCURRENT_DELETE",
+    "DELTA_CONCURRENT_TRANSACTION",
+)
+
+_T = TypeVar("_T")
+
+
+def _is_delta_concurrency_conflict(exc: BaseException) -> bool:
+    """Match Delta optimistic-concurrency conflicts by name/message substring.
+
+    Deliberately string-based rather than isinstance-based: classic PySpark,
+    Spark Connect, and Databricks Runtime versions surface these conflicts as
+    different concrete exception classes, but all preserve the Delta exception
+    name and DELTA_* error code in ``type(exc).__name__`` / ``str(exc)``.
+    """
+    text = f"{type(exc).__name__}: {exc}"
+    return any(marker in text for marker in _DELTA_CONCURRENCY_CONFLICT_MARKERS)
+
+
+def retry_on_delta_conflict(
+    fn: Callable[[], _T],
+    *,
+    max_attempts: int = 5,
+    base_delay: float = 0.5,
+) -> _T:
+    """Retry ``fn`` with jittered backoff on Delta optimistic-concurrency conflicts.
+
+    Concurrent MERGE/UPDATE transactions from multiple threads writing to the
+    same Delta table (e.g. FTA's parallel Revenue/EBITDA/OPEX sub-agents each
+    emitting provenance) can raise ConcurrentAppendException /
+    DELTA_CONCURRENT_APPEND_ROW_LEVEL_CHANGES even when the row sets touched
+    are logically disjoint. Retrying is Databricks' own documented guidance
+    for this exception. Non-conflict exceptions are re-raised immediately.
+    """
+    last_exc: BaseException | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001 - re-raised below when not a conflict
+            if not _is_delta_concurrency_conflict(exc):
+                raise
+            last_exc = exc
+            if attempt == max_attempts:
+                break
+            delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, base_delay)
+            time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
 
 
 def _compute_provenance_rates_from_modes(modes: list[str]) -> tuple[float | None, float | None]:
@@ -1077,18 +1137,21 @@ class DeltaEvalStore(_StoreBase):
             return 0
         _delta_types()
         frame = self.spark.createDataFrame(rows, schema=_DELTA_PROVENANCE_SCHEMA)
-        frame.createOrReplaceTempView("incoming_provenance")
-        self.spark.sql(
-            f"""
-            MERGE INTO {self._table('retrieval_provenance')} AS target
-            USING incoming_provenance AS source
-            ON target.run_id = source.run_id
-              AND target.intent_id = source.intent_id
-              AND target.chunk_id = source.chunk_id
-              AND target.rank = source.rank
-            WHEN MATCHED THEN UPDATE SET *
-            WHEN NOT MATCHED THEN INSERT *
-            """
+        temp_view = f"incoming_provenance_{uuid.uuid4().hex}"
+        frame.createOrReplaceTempView(temp_view)
+        retry_on_delta_conflict(
+            lambda: self.spark.sql(
+                f"""
+                MERGE INTO {self._table('retrieval_provenance')} AS target
+                USING {temp_view} AS source
+                ON target.run_id = source.run_id
+                  AND target.intent_id = source.intent_id
+                  AND target.chunk_id = source.chunk_id
+                  AND target.rank = source.rank
+                WHEN MATCHED THEN UPDATE SET *
+                WHEN NOT MATCHED THEN INSERT *
+                """
+            )
         )
         return len(rows)
 
