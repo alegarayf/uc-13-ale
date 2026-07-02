@@ -161,6 +161,7 @@ class EbitdaSubAgent:
             ],
             min_chunk_length=150, min_results=3,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.ebitda.q1_financial_statements",
         ).chunks
 
         # 2. EBITDA and margins
@@ -176,6 +177,7 @@ class EbitdaSubAgent:
             file_name_filter=["EBITDA", "Margin", "Addback", "Bridge", "Adjusted", "QofE", "Quality", "P&L", "CIM", "Financial"],
             min_chunk_length=150, min_results=3,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.ebitda.q2_ebitda_and_margins",
         ).chunks
 
         # 3. Working capital
@@ -190,6 +192,7 @@ class EbitdaSubAgent:
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "AR", "Aging", "Working Capital", "CIM"],
             min_chunk_length=150, min_results=3,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.ebitda.q3_working_capital",
         ).chunks
 
         # 4. Addback schedule
@@ -210,6 +213,7 @@ class EbitdaSubAgent:
             min_results=3,
             source_type_priority=True,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.ebitda.q4_addback_schedule",
         ).chunks
         if not addback_chunks:
             retrieval_gaps.append(
