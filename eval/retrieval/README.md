@@ -180,7 +180,19 @@ Operator steps for M-RE2 exit gates **item 18** (fallback rate) and **item 23** 
 
 ### Item 18 — keyword fallback rate
 
-After FTA `main()` with an open agent run (`open_agent_run` / `close_agent_run`), read `fallback_rate` on the pipeline manifest:
+**Store backend (read this first):** On a Databricks cluster with an active Spark session, `open_agent_run()` writes pipeline manifests and provenance to **`{catalog}.ops.*` Delta tables** (default catalog from Cell 1 → `uc13_ale`). SQLite at `eval/retrieval/.local/re2_store.sqlite` is the **laptop / no-Spark** fallback only.
+
+**One-time cluster preflight (Delta only):** If you have never created `uc13_ale.ops` on this workspace, run once before Cell 12:
+
+```python
+from eval.retrieval.scripts.apply_ops_ddl import apply_ops_ddl
+n = apply_ops_ddl("uc13_ale")
+print(f"Applied {n} DDL statements")
+```
+
+No migration is needed for SQLite — `SqliteEvalStore` creates tables on first write.
+
+After FTA `main()` completes (`open_agent_run` / `close_agent_run` inside `fta.main()`), read `fallback_rate` from Delta:
 
 ```sql
 SELECT run_id, harness_status, run_type, fallback_rate, empty_rate, completed_at
@@ -190,13 +202,11 @@ ORDER BY completed_at DESC
 LIMIT 5;
 ```
 
-Notebook equivalent (post-`close_agent_run`):
+**Do not** build the sqlite path from `REPO_ROOT` in Cell 1 — that variable points at `databricks/`, not the git repo root. If you must inspect sqlite (local only), use:
 
 ```python
-from agents.shared.run_context import get_agent_run_id
-# agent_run_id is cleared after close — capture from close_agent_run() return value instead:
-# finalized = close_agent_run()
-# print(finalized.run_id, finalized.fallback_rate)
+from eval.retrieval.provenance import default_sqlite_path
+print(default_sqlite_path())
 ```
 
 ### Provenance verify
