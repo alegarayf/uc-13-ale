@@ -6,6 +6,7 @@ import json
 import logging
 import random
 import sqlite3
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -990,6 +991,13 @@ class DeltaEvalStore(_StoreBase):
         self.catalog = catalog
         self.ops = f"{catalog}.ops"
         self.sqlite_path = Path(sqlite_path) if sqlite_path is not None else None
+        # Serializes MERGE/UPDATE writes to retrieval_provenance across threads that
+        # share this instance (e.g. FTA's parallel Revenue/EBITDA/OPEX sub-agents via
+        # a copied run_context ContextVar). Delta's optimistic concurrency control
+        # rejects concurrent MERGE/UPDATE transactions on the same table even when
+        # row sets are disjoint; serializing our own writes eliminates that class of
+        # conflict outright, on top of retry_on_delta_conflict as defense-in-depth.
+        self._provenance_write_lock = threading.Lock()
 
     def _table(self, name: str) -> str:
         return f"{self.ops}.{name}"
@@ -1139,20 +1147,21 @@ class DeltaEvalStore(_StoreBase):
         frame = self.spark.createDataFrame(rows, schema=_DELTA_PROVENANCE_SCHEMA)
         temp_view = f"incoming_provenance_{uuid.uuid4().hex}"
         frame.createOrReplaceTempView(temp_view)
-        retry_on_delta_conflict(
-            lambda: self.spark.sql(
-                f"""
-                MERGE INTO {self._table('retrieval_provenance')} AS target
-                USING {temp_view} AS source
-                ON target.run_id = source.run_id
-                  AND target.intent_id = source.intent_id
-                  AND target.chunk_id = source.chunk_id
-                  AND target.rank = source.rank
-                WHEN MATCHED THEN UPDATE SET *
-                WHEN NOT MATCHED THEN INSERT *
-                """
+        with self._provenance_write_lock:
+            retry_on_delta_conflict(
+                lambda: self.spark.sql(
+                    f"""
+                    MERGE INTO {self._table('retrieval_provenance')} AS target
+                    USING {temp_view} AS source
+                    ON target.run_id = source.run_id
+                      AND target.intent_id = source.intent_id
+                      AND target.chunk_id = source.chunk_id
+                      AND target.rank = source.rank
+                    WHEN MATCHED THEN UPDATE SET *
+                    WHEN NOT MATCHED THEN INSERT *
+                    """
+                )
             )
-        )
         return len(rows)
 
     def append_deltas(self, run_id: str, deltas: list[HarnessDelta]) -> int:
