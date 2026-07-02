@@ -122,6 +122,7 @@ class OpexSubAgent:
             ],
             min_chunk_length=150, min_results=3,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.opex.q1_financial_statements",
         ).chunks
 
         # 2. Working capital
@@ -136,6 +137,7 @@ class OpexSubAgent:
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "Working Capital", "CIM"],
             min_chunk_length=150, min_results=3,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.opex.q2_working_capital",
         ).chunks
 
         # 3. Projected financials
@@ -154,6 +156,7 @@ class OpexSubAgent:
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.opex.q3_projected_financials",
         ).chunks
 
         return q1_chunks, q2_chunks, q3_chunks

@@ -793,6 +793,19 @@ CREATE TABLE IF NOT EXISTS {table} (
 # main()
 # ---------------------------------------------------------------------------
 
+
+def _load_affected_intents(repo_root: str, agent_prefix: str) -> list[str]:
+    import yaml
+
+    registry = Path(repo_root) / "eval" / "retrieval" / "intent_registry.yaml"
+    entries = yaml.safe_load(registry.read_text(encoding="utf-8"))
+    return sorted(
+        entry["intent_id"]
+        for entry in entries
+        if str(entry.get("agent_id", "")).startswith(agent_prefix)
+    )
+
+
 def main() -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
@@ -803,70 +816,80 @@ def main() -> dict:
     llm_endpoint = get_param("llm_endpoint", default="databricks-meta-llama-3-3-70b-instruct")
 
     from pyspark.sql import SparkSession
+    from agents.shared.run_context import close_agent_run, open_agent_run
     spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
 
     print(f"\n=== Customer Quality Agent ({company_name}) ===")
 
-    agent = CustomerQualityAgent()
-    result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint)
-
-    table = f"{catalog}.analysis.customer_quality"
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
-    spark.sql(_CREATE_TABLE_SQL.format(table=table))
-    spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
-
-    from pyspark.sql import Row
-    from pyspark.sql.types import (
-        StructType, StructField, StringType, ArrayType, TimestampType,
+    open_agent_run(
+        "cqa",
+        company_name=company_name,
+        catalog=catalog,
+        affected_intents=_load_affected_intents(repo_root, "cqa"),
     )
+    try:
+        agent = CustomerQualityAgent()
+        result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint)
 
-    schema = StructType([
-        StructField("company_name",               StringType(),  True),
-        StructField("executive_summary",           StringType(),  True),
-        StructField("top_customers_json",          StringType(),  True),
-        StructField("concentration_summary_json",  StringType(),  True),
-        StructField("retention_json",              StringType(),  True),
-        StructField("customer_tenure_json",        StringType(),  True),
-        StructField("average_account_size_json",   StringType(),  True),
-        StructField("payor_mix_json",              StringType(),  True),
-        StructField("contract_trigger_list",       ArrayType(StringType()), True),
-        StructField("flags",                       StringType(),  True),
-        StructField("discrepancies_json",          StringType(),  True),
-        StructField("data_room_gaps",              ArrayType(StringType()), True),
-        StructField("citations",                   StringType(),  True),
-        StructField("reasoning_trace",             StringType(),  True),
-        StructField("created_at",                  TimestampType(), True),
-    ])
+        table = f"{catalog}.analysis.customer_quality"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
+        spark.sql(_CREATE_TABLE_SQL.format(table=table))
+        spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
-    row_data = {
-        "company_name":               result["company_name"],
-        "executive_summary":          result.get("executive_summary"),
-        "top_customers_json":         result.get("top_customers_json"),
-        "concentration_summary_json": result.get("concentration_summary_json"),
-        "retention_json":             result.get("retention_json"),
-        "customer_tenure_json":       result.get("customer_tenure_json"),
-        "average_account_size_json":  result.get("average_account_size_json"),
-        "payor_mix_json":             result.get("payor_mix_json"),
-        "contract_trigger_list":      result.get("contract_trigger_list") or [],
-        "flags":                      json.dumps(result.get("flags") or []),
-        "discrepancies_json":         result.get("discrepancies_json"),
-        "data_room_gaps":             result.get("data_room_gaps") or [],
-        "citations":                  result.get("citations"),
-        "reasoning_trace":            json.dumps(result.get("reasoning_trace") or []),
-        "created_at":                 datetime.now(timezone.utc),
-    }
+        from pyspark.sql import Row
+        from pyspark.sql.types import (
+            StructType, StructField, StringType, ArrayType, TimestampType,
+        )
 
-    df = spark.createDataFrame([Row(**row_data)], schema=schema)
-    df.write.format("delta").mode("append").saveAsTable(table)
+        schema = StructType([
+            StructField("company_name",               StringType(),  True),
+            StructField("executive_summary",           StringType(),  True),
+            StructField("top_customers_json",          StringType(),  True),
+            StructField("concentration_summary_json",  StringType(),  True),
+            StructField("retention_json",              StringType(),  True),
+            StructField("customer_tenure_json",        StringType(),  True),
+            StructField("average_account_size_json",   StringType(),  True),
+            StructField("payor_mix_json",              StringType(),  True),
+            StructField("contract_trigger_list",       ArrayType(StringType()), True),
+            StructField("flags",                       StringType(),  True),
+            StructField("discrepancies_json",          StringType(),  True),
+            StructField("data_room_gaps",              ArrayType(StringType()), True),
+            StructField("citations",                   StringType(),  True),
+            StructField("reasoning_trace",             StringType(),  True),
+            StructField("created_at",                  TimestampType(), True),
+        ])
 
-    print(f"\n✓ Saved customer quality output → {table}")
+        row_data = {
+            "company_name":               result["company_name"],
+            "executive_summary":          result.get("executive_summary"),
+            "top_customers_json":         result.get("top_customers_json"),
+            "concentration_summary_json": result.get("concentration_summary_json"),
+            "retention_json":             result.get("retention_json"),
+            "customer_tenure_json":       result.get("customer_tenure_json"),
+            "average_account_size_json":  result.get("average_account_size_json"),
+            "payor_mix_json":             result.get("payor_mix_json"),
+            "contract_trigger_list":      result.get("contract_trigger_list") or [],
+            "flags":                      json.dumps(result.get("flags") or []),
+            "discrepancies_json":         result.get("discrepancies_json"),
+            "data_room_gaps":             result.get("data_room_gaps") or [],
+            "citations":                  result.get("citations"),
+            "reasoning_trace":            json.dumps(result.get("reasoning_trace") or []),
+            "created_at":                 datetime.now(timezone.utc),
+        }
 
-    report_path = _write_stakeholder_report(result, catalog, spark)
-    result["report_path"] = report_path
-    print(f"✓ Stakeholder report → {report_path}")
-    return result
+        df = spark.createDataFrame([Row(**row_data)], schema=schema)
+        df.write.format("delta").mode("append").saveAsTable(table)
+
+        print(f"\n✓ Saved customer quality output → {table}")
+
+        report_path = _write_stakeholder_report(result, catalog, spark)
+        result["report_path"] = report_path
+        print(f"✓ Stakeholder report → {report_path}")
+        return result
+    finally:
+        close_agent_run()
 
 
 if __name__ == "__main__":

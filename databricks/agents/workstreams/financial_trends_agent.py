@@ -1699,6 +1699,18 @@ USING DELTA
 """
 
 
+def _load_affected_intents(repo_root: str, agent_prefix: str) -> list[str]:
+    import yaml
+
+    registry = Path(repo_root) / "eval" / "retrieval" / "intent_registry.yaml"
+    entries = yaml.safe_load(registry.read_text(encoding="utf-8"))
+    return sorted(
+        entry["intent_id"]
+        for entry in entries
+        if str(entry.get("agent_id", "")).startswith(agent_prefix)
+    )
+
+
 def main() -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
@@ -1720,6 +1732,8 @@ def main() -> dict:
     retrieval_mode       = get_param("retrieval_mode", default="semantic")
 
     from pyspark.sql import SparkSession
+    from agents.shared.run_context import close_agent_run, open_agent_run
+
     spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
@@ -1728,103 +1742,112 @@ def main() -> dict:
     print(f"  extraction: {extraction_endpoint or llm_endpoint}  narrative: {llm_endpoint}")
     print(f"  retrieval_mode: {retrieval_mode}")
 
-    agent = FinancialTrendsAgent()
-    result = agent.run(
+    open_agent_run(
+        "fta",
         company_name=company_name,
-        spark=spark,
-        llm_endpoint=llm_endpoint,
-        extraction_endpoint=extraction_endpoint,
-        retrieval_mode=retrieval_mode,
+        catalog=catalog,
+        affected_intents=_load_affected_intents(repo_root, "fta"),
     )
-
-    # ── Save to Delta ─────────────────────────────────────────────────
-    table = f"{catalog}.analysis.financial_trends"
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
-
-    # Schema migration guard: drop and recreate when expected columns are missing.
-    _EXPECTED_COLS = {
-        "company_name", "executive_summary", "industry_overlay_used",
-        "revenue_trend_json", "gross_margin_json", "ebitda_json",
-        "revenue_by_segment_json", "revenue_by_customer_json", "cost_structure_json", "working_capital_json",
-        "budget_vs_actual_json", "addback_schedule_json", "opex_breakdown_json",
-        "addback_pct_of_ebitda", "flags", "discrepancies", "data_room_gaps",
-        "citations", "reasoning_trace", "created_at",
-    }
     try:
-        _live_cols = {f.name for f in spark.table(table).schema.fields}
-        if not _EXPECTED_COLS.issubset(_live_cols):
-            _missing = _EXPECTED_COLS - _live_cols
-            print(f"  [schema_migration] {table}: dropping stale table. Missing: {sorted(_missing)}")
-            spark.sql(f"DROP TABLE IF EXISTS {table}")
-    except Exception:
-        pass
+        agent = FinancialTrendsAgent()
+        result = agent.run(
+            company_name=company_name,
+            spark=spark,
+            llm_endpoint=llm_endpoint,
+            extraction_endpoint=extraction_endpoint,
+            retrieval_mode=retrieval_mode,
+        )
 
-    spark.sql(_CREATE_TABLE_SQL.format(table=table))
-    spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
+        # ── Save to Delta ─────────────────────────────────────────────────
+        table = f"{catalog}.analysis.financial_trends"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
 
-    from pyspark.sql import Row
-    from pyspark.sql.types import (
-        StructType, StructField, StringType, FloatType,
-        ArrayType, TimestampType,
-    )
+        # Schema migration guard: drop and recreate when expected columns are missing.
+        _EXPECTED_COLS = {
+            "company_name", "executive_summary", "industry_overlay_used",
+            "revenue_trend_json", "gross_margin_json", "ebitda_json",
+            "revenue_by_segment_json", "revenue_by_customer_json", "cost_structure_json", "working_capital_json",
+            "budget_vs_actual_json", "addback_schedule_json", "opex_breakdown_json",
+            "addback_pct_of_ebitda", "flags", "discrepancies", "data_room_gaps",
+            "citations", "reasoning_trace", "created_at",
+        }
+        try:
+            _live_cols = {f.name for f in spark.table(table).schema.fields}
+            if not _EXPECTED_COLS.issubset(_live_cols):
+                _missing = _EXPECTED_COLS - _live_cols
+                print(f"  [schema_migration] {table}: dropping stale table. Missing: {sorted(_missing)}")
+                spark.sql(f"DROP TABLE IF EXISTS {table}")
+        except Exception:
+            pass
 
-    schema = StructType([
-        StructField("company_name",             StringType(),  True),
-        StructField("executive_summary",        StringType(),  True),
-        StructField("industry_overlay_used",    StringType(),  True),
-        StructField("revenue_trend_json",       StringType(),  True),
-        StructField("gross_margin_json",        StringType(),  True),
-        StructField("ebitda_json",              StringType(),  True),
-        StructField("revenue_by_segment_json",  StringType(),  True),
-        StructField("revenue_by_customer_json", StringType(),  True),
-        StructField("cost_structure_json",      StringType(),  True),
-        StructField("working_capital_json",     StringType(),  True),
-        StructField("budget_vs_actual_json",    StringType(),  True),
-        StructField("addback_schedule_json",    StringType(),  True),
-        StructField("opex_breakdown_json",      StringType(),  True),
-        StructField("addback_pct_of_ebitda",    FloatType(),   True),
-        StructField("flags",                    StringType(),  True),
-        StructField("discrepancies",            StringType(),  True),
-        StructField("data_room_gaps",           ArrayType(StringType()), True),
-        StructField("citations",                StringType(),  True),
-        StructField("reasoning_trace",          StringType(),  True),
-        StructField("created_at",               TimestampType(), True),
-    ])
+        spark.sql(_CREATE_TABLE_SQL.format(table=table))
+        spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
-    row_data = {
-        "company_name":             result["company_name"],
-        "executive_summary":        result.get("executive_summary"),
-        "industry_overlay_used":    result.get("industry_overlay_used"),
-        "revenue_trend_json":       result.get("revenue_trend_json"),
-        "gross_margin_json":        result.get("gross_margin_json"),
-        "ebitda_json":              result.get("ebitda_json"),
-        "revenue_by_segment_json":  result.get("revenue_by_segment_json"),
-        "revenue_by_customer_json": result.get("revenue_by_customer_json"),
-        "cost_structure_json":      result.get("cost_structure_json"),
-        "working_capital_json":     result.get("working_capital_json"),
-        "budget_vs_actual_json":    result.get("budget_vs_actual_json"),
-        "addback_schedule_json":    result.get("addback_schedule_json"),
-        "opex_breakdown_json":          result.get("opex_breakdown_json"),
-        "addback_pct_of_ebitda":    result.get("addback_pct_of_ebitda"),
-        "flags":                    json.dumps(result.get("flags") or []),
-        "discrepancies":            result.get("discrepancies"),
-        "data_room_gaps":           result.get("data_room_gaps") or [],
-        "citations":                result.get("citations"),
-        "reasoning_trace":          json.dumps(result.get("reasoning_trace") or []),
-        "created_at":               datetime.now(timezone.utc),
-    }
+        from pyspark.sql import Row
+        from pyspark.sql.types import (
+            StructType, StructField, StringType, FloatType,
+            ArrayType, TimestampType,
+        )
 
-    df = spark.createDataFrame([Row(**row_data)], schema=schema)
-    df.write.format("delta").mode("append").saveAsTable(table)
+        schema = StructType([
+            StructField("company_name",             StringType(),  True),
+            StructField("executive_summary",        StringType(),  True),
+            StructField("industry_overlay_used",    StringType(),  True),
+            StructField("revenue_trend_json",       StringType(),  True),
+            StructField("gross_margin_json",        StringType(),  True),
+            StructField("ebitda_json",              StringType(),  True),
+            StructField("revenue_by_segment_json",  StringType(),  True),
+            StructField("revenue_by_customer_json", StringType(),  True),
+            StructField("cost_structure_json",      StringType(),  True),
+            StructField("working_capital_json",     StringType(),  True),
+            StructField("budget_vs_actual_json",    StringType(),  True),
+            StructField("addback_schedule_json",    StringType(),  True),
+            StructField("opex_breakdown_json",      StringType(),  True),
+            StructField("addback_pct_of_ebitda",    FloatType(),   True),
+            StructField("flags",                    StringType(),  True),
+            StructField("discrepancies",            StringType(),  True),
+            StructField("data_room_gaps",           ArrayType(StringType()), True),
+            StructField("citations",                StringType(),  True),
+            StructField("reasoning_trace",          StringType(),  True),
+            StructField("created_at",               TimestampType(), True),
+        ])
 
-    print(f"\n✓ Saved financial trends output → {table}")
+        row_data = {
+            "company_name":             result["company_name"],
+            "executive_summary":        result.get("executive_summary"),
+            "industry_overlay_used":    result.get("industry_overlay_used"),
+            "revenue_trend_json":       result.get("revenue_trend_json"),
+            "gross_margin_json":        result.get("gross_margin_json"),
+            "ebitda_json":              result.get("ebitda_json"),
+            "revenue_by_segment_json":  result.get("revenue_by_segment_json"),
+            "revenue_by_customer_json": result.get("revenue_by_customer_json"),
+            "cost_structure_json":      result.get("cost_structure_json"),
+            "working_capital_json":     result.get("working_capital_json"),
+            "budget_vs_actual_json":    result.get("budget_vs_actual_json"),
+            "addback_schedule_json":    result.get("addback_schedule_json"),
+            "opex_breakdown_json":          result.get("opex_breakdown_json"),
+            "addback_pct_of_ebitda":    result.get("addback_pct_of_ebitda"),
+            "flags":                    json.dumps(result.get("flags") or []),
+            "discrepancies":            result.get("discrepancies"),
+            "data_room_gaps":           result.get("data_room_gaps") or [],
+            "citations":                result.get("citations"),
+            "reasoning_trace":          json.dumps(result.get("reasoning_trace") or []),
+            "created_at":               datetime.now(timezone.utc),
+        }
 
-    # ── Export stakeholder report ──────────────────────────────────────
-    report_path = _write_stakeholder_report(result, catalog, spark)
-    result["report_path"] = report_path
-    print(f"✓ Stakeholder report → {report_path}")
+        df = spark.createDataFrame([Row(**row_data)], schema=schema)
+        df.write.format("delta").mode("append").saveAsTable(table)
 
-    return result
+        print(f"\n✓ Saved financial trends output → {table}")
+
+        # ── Export stakeholder report ──────────────────────────────────────
+        report_path = _write_stakeholder_report(result, catalog, spark)
+        result["report_path"] = report_path
+        print(f"✓ Stakeholder report → {report_path}")
+
+        return result
+    finally:
+        close_agent_run()
 
 
 if __name__ == "__main__":

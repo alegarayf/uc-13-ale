@@ -2420,6 +2420,19 @@ CREATE TABLE IF NOT EXISTS {table} (
 """
 
 
+
+def _load_affected_intents(repo_root: str, agent_prefix: str) -> list[str]:
+    import yaml
+
+    registry = Path(repo_root) / "eval" / "retrieval" / "intent_registry.yaml"
+    entries = yaml.safe_load(registry.read_text(encoding="utf-8"))
+    return sorted(
+        entry["intent_id"]
+        for entry in entries
+        if str(entry.get("agent_id", "")).startswith(agent_prefix)
+    )
+
+
 def main() -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
@@ -2431,6 +2444,7 @@ def main() -> dict:
     extraction_endpoint  = get_param("extraction_endpoint",  default="databricks-claude-haiku-4-5") or None
 
     from pyspark.sql import SparkSession
+    from agents.shared.run_context import close_agent_run, open_agent_run
     spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
@@ -2438,131 +2452,140 @@ def main() -> dict:
     print(f"\n=== Business Model Agent ({company_name}) ===")
     print(f"  extraction: {extraction_endpoint or llm_endpoint}  narrative: {llm_endpoint}")
 
-    agent = BusinessModelAgent()
-    result = agent.run(
+    open_agent_run(
+        "bma",
         company_name=company_name,
-        spark=spark,
-        llm_endpoint=llm_endpoint,
-        extraction_endpoint=extraction_endpoint,
+        catalog=catalog,
+        affected_intents=_load_affected_intents(repo_root, "bma"),
     )
-
-    # ── Save to Delta ─────────────────────────────────────────────────
-    table = f"{catalog}.analysis.business_model"
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
-
-    # Schema migration guard: compare live column names against the expected set.
-    # When they diverge (schema was updated), DROP and recreate so the new columns
-    # are picked up cleanly. All prior rows are lost on a migration — intentional
-    # in development. Production deployments should use ALTER TABLE instead.
-    _EXPECTED_COLS = {
-        "company_name", "cim_detected", "executive_summary",
-        "revenue_model_tag", "revenue_model_pct_split", "revenue_model_note",
-        "revenue_durability_flag", "flag_confidence", "flag_rule_applied",
-        "products_services_json", "revenue_by_location_json",
-        "people_and_org_json", "workforce_capacity_json", "customer_operational_metrics_json",
-        "customer_profile_json",
-        "sales_motion_tag", "sales_motion_json", "revenue_visibility_json",
-        "key_dependencies_json", "recent_model_changes_json",
-        "overlay_conflict", "overlay_conflict_note", "overlay_conflict_evidence",
-        "data_room_gaps", "citations", "reasoning_trace",
-        "flags", "report_path", "created_at",
-    }
     try:
-        _live_cols = {f.name for f in spark.table(table).schema.fields}
-        if not _EXPECTED_COLS.issubset(_live_cols):
-            _missing = _EXPECTED_COLS - _live_cols
-            print(
-                f"  [schema_migration] {table} has stale schema — dropping and "
-                f"recreating. Missing columns: {sorted(_missing)}"
-            )
-            spark.sql(f"DROP TABLE IF EXISTS {table}")
-    except Exception:
-        pass  # Table doesn't exist yet — CREATE below handles it.
+        agent = BusinessModelAgent()
+        result = agent.run(
+            company_name=company_name,
+            spark=spark,
+            llm_endpoint=llm_endpoint,
+            extraction_endpoint=extraction_endpoint,
+        )
 
-    spark.sql(_CREATE_TABLE_SQL.format(table=table))
-    spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
+        # ── Save to Delta ─────────────────────────────────────────────────
+        table = f"{catalog}.analysis.business_model"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
 
-    from pyspark.sql import Row
-    from pyspark.sql.types import (
-        StructType, StructField, StringType, BooleanType,
-        ArrayType, TimestampType,
-    )
+        # Schema migration guard: compare live column names against the expected set.
+        # When they diverge (schema was updated), DROP and recreate so the new columns
+        # are picked up cleanly. All prior rows are lost on a migration — intentional
+        # in development. Production deployments should use ALTER TABLE instead.
+        _EXPECTED_COLS = {
+            "company_name", "cim_detected", "executive_summary",
+            "revenue_model_tag", "revenue_model_pct_split", "revenue_model_note",
+            "revenue_durability_flag", "flag_confidence", "flag_rule_applied",
+            "products_services_json", "revenue_by_location_json",
+            "people_and_org_json", "workforce_capacity_json", "customer_operational_metrics_json",
+            "customer_profile_json",
+            "sales_motion_tag", "sales_motion_json", "revenue_visibility_json",
+            "key_dependencies_json", "recent_model_changes_json",
+            "overlay_conflict", "overlay_conflict_note", "overlay_conflict_evidence",
+            "data_room_gaps", "citations", "reasoning_trace",
+            "flags", "report_path", "created_at",
+        }
+        try:
+            _live_cols = {f.name for f in spark.table(table).schema.fields}
+            if not _EXPECTED_COLS.issubset(_live_cols):
+                _missing = _EXPECTED_COLS - _live_cols
+                print(
+                    f"  [schema_migration] {table} has stale schema — dropping and "
+                    f"recreating. Missing columns: {sorted(_missing)}"
+                )
+                spark.sql(f"DROP TABLE IF EXISTS {table}")
+        except Exception:
+            pass  # Table doesn't exist yet — CREATE below handles it.
 
-    schema = StructType([
-        StructField("company_name",               StringType(),            True),
-        StructField("cim_detected",               BooleanType(),           True),
-        StructField("executive_summary",           StringType(),            True),
-        StructField("revenue_model_tag",           StringType(),            True),
-        StructField("revenue_model_pct_split",     StringType(),            True),
-        StructField("revenue_model_note",          StringType(),            True),
-        StructField("revenue_durability_flag",     StringType(),            True),
-        StructField("flag_confidence",             StringType(),            True),
-        StructField("flag_rule_applied",           StringType(),            True),
-        StructField("products_services_json",               StringType(),            True),
-        StructField("revenue_by_location_json",             StringType(),            True),
-        StructField("people_and_org_json",                  StringType(),            True),
-        StructField("workforce_capacity_json",              StringType(),            True),
-        StructField("customer_operational_metrics_json",    StringType(),            True),
-        StructField("customer_profile_json",                StringType(),            True),
-        StructField("sales_motion_tag",            StringType(),            True),
-        StructField("sales_motion_json",           StringType(),            True),
-        StructField("revenue_visibility_json",     StringType(),            True),
-        StructField("key_dependencies_json",       StringType(),            True),
-        StructField("recent_model_changes_json",   StringType(),            True),
-        StructField("overlay_conflict",            BooleanType(),           True),
-        StructField("overlay_conflict_note",       StringType(),            True),
-        StructField("overlay_conflict_evidence",   StringType(),            True),
-        StructField("data_room_gaps",              ArrayType(StringType()), True),
-        StructField("citations",                   StringType(),            True),
-        StructField("reasoning_trace",             StringType(),            True),
-        StructField("flags",                       StringType(),            True),
-        StructField("report_path",                 StringType(),            True),
-        StructField("created_at",                  TimestampType(),         True),
-    ])
+        spark.sql(_CREATE_TABLE_SQL.format(table=table))
+        spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
-    row_data = {
-        "company_name":               result["company_name"],
-        "cim_detected":               result.get("cim_detected", False),
-        "executive_summary":          result.get("executive_summary"),
-        "revenue_model_tag":          result.get("revenue_model_tag"),
-        "revenue_model_pct_split":    result.get("revenue_model_pct_split"),
-        "revenue_model_note":         result.get("revenue_model_note"),
-        "revenue_durability_flag":    result.get("revenue_durability_flag"),
-        "flag_confidence":            result.get("flag_confidence"),
-        "flag_rule_applied":          result.get("flag_rule_applied"),
-        "products_services_json":               result.get("products_services_json"),
-        "revenue_by_location_json":             result.get("revenue_by_location_json"),
-        "people_and_org_json":                  result.get("people_and_org_json"),
-        "workforce_capacity_json":              result.get("workforce_capacity_json"),
-        "customer_operational_metrics_json":    result.get("customer_operational_metrics_json"),
-        "customer_profile_json":                result.get("customer_profile_json"),
-        "sales_motion_tag":           result.get("sales_motion_tag"),
-        "sales_motion_json":          result.get("sales_motion_json"),
-        "revenue_visibility_json":    result.get("revenue_visibility_json"),
-        "key_dependencies_json":      result.get("key_dependencies_json"),
-        "recent_model_changes_json":  result.get("recent_model_changes_json"),
-        "overlay_conflict":           result.get("overlay_conflict", False),
-        "overlay_conflict_note":      result.get("overlay_conflict_note"),
-        "overlay_conflict_evidence":  result.get("overlay_conflict_evidence"),
-        "data_room_gaps":             result.get("data_room_gaps") or [],
-        "citations":                  result.get("citations"),
-        "reasoning_trace":            json.dumps(result.get("reasoning_trace") or []),
-        "flags":                      json.dumps(result.get("flags") or []),
-        "report_path":                result.get("report_path"),
-        "created_at":                 datetime.now(timezone.utc),
-    }
+        from pyspark.sql import Row
+        from pyspark.sql.types import (
+            StructType, StructField, StringType, BooleanType,
+            ArrayType, TimestampType,
+        )
 
-    df = spark.createDataFrame([Row(**row_data)], schema=schema)
-    df.write.format("delta").mode("append").saveAsTable(table)
+        schema = StructType([
+            StructField("company_name",               StringType(),            True),
+            StructField("cim_detected",               BooleanType(),           True),
+            StructField("executive_summary",           StringType(),            True),
+            StructField("revenue_model_tag",           StringType(),            True),
+            StructField("revenue_model_pct_split",     StringType(),            True),
+            StructField("revenue_model_note",          StringType(),            True),
+            StructField("revenue_durability_flag",     StringType(),            True),
+            StructField("flag_confidence",             StringType(),            True),
+            StructField("flag_rule_applied",           StringType(),            True),
+            StructField("products_services_json",               StringType(),            True),
+            StructField("revenue_by_location_json",             StringType(),            True),
+            StructField("people_and_org_json",                  StringType(),            True),
+            StructField("workforce_capacity_json",              StringType(),            True),
+            StructField("customer_operational_metrics_json",    StringType(),            True),
+            StructField("customer_profile_json",                StringType(),            True),
+            StructField("sales_motion_tag",            StringType(),            True),
+            StructField("sales_motion_json",           StringType(),            True),
+            StructField("revenue_visibility_json",     StringType(),            True),
+            StructField("key_dependencies_json",       StringType(),            True),
+            StructField("recent_model_changes_json",   StringType(),            True),
+            StructField("overlay_conflict",            BooleanType(),           True),
+            StructField("overlay_conflict_note",       StringType(),            True),
+            StructField("overlay_conflict_evidence",   StringType(),            True),
+            StructField("data_room_gaps",              ArrayType(StringType()), True),
+            StructField("citations",                   StringType(),            True),
+            StructField("reasoning_trace",             StringType(),            True),
+            StructField("flags",                       StringType(),            True),
+            StructField("report_path",                 StringType(),            True),
+            StructField("created_at",                  TimestampType(),         True),
+        ])
 
-    print(f"\n✓ Saved business model output → {table}")
+        row_data = {
+            "company_name":               result["company_name"],
+            "cim_detected":               result.get("cim_detected", False),
+            "executive_summary":          result.get("executive_summary"),
+            "revenue_model_tag":          result.get("revenue_model_tag"),
+            "revenue_model_pct_split":    result.get("revenue_model_pct_split"),
+            "revenue_model_note":         result.get("revenue_model_note"),
+            "revenue_durability_flag":    result.get("revenue_durability_flag"),
+            "flag_confidence":            result.get("flag_confidence"),
+            "flag_rule_applied":          result.get("flag_rule_applied"),
+            "products_services_json":               result.get("products_services_json"),
+            "revenue_by_location_json":             result.get("revenue_by_location_json"),
+            "people_and_org_json":                  result.get("people_and_org_json"),
+            "workforce_capacity_json":              result.get("workforce_capacity_json"),
+            "customer_operational_metrics_json":    result.get("customer_operational_metrics_json"),
+            "customer_profile_json":                result.get("customer_profile_json"),
+            "sales_motion_tag":           result.get("sales_motion_tag"),
+            "sales_motion_json":          result.get("sales_motion_json"),
+            "revenue_visibility_json":    result.get("revenue_visibility_json"),
+            "key_dependencies_json":      result.get("key_dependencies_json"),
+            "recent_model_changes_json":  result.get("recent_model_changes_json"),
+            "overlay_conflict":           result.get("overlay_conflict", False),
+            "overlay_conflict_note":      result.get("overlay_conflict_note"),
+            "overlay_conflict_evidence":  result.get("overlay_conflict_evidence"),
+            "data_room_gaps":             result.get("data_room_gaps") or [],
+            "citations":                  result.get("citations"),
+            "reasoning_trace":            json.dumps(result.get("reasoning_trace") or []),
+            "flags":                      json.dumps(result.get("flags") or []),
+            "report_path":                result.get("report_path"),
+            "created_at":                 datetime.now(timezone.utc),
+        }
 
-    # ── Export stakeholder report ──────────────────────────────────────
-    report_path = _write_stakeholder_report(result, catalog, spark)
-    result["report_path"] = report_path
-    print(f"✓ Stakeholder report → {report_path}")
+        df = spark.createDataFrame([Row(**row_data)], schema=schema)
+        df.write.format("delta").mode("append").saveAsTable(table)
 
-    return result
+        print(f"\n✓ Saved business model output → {table}")
+
+        # ── Export stakeholder report ──────────────────────────────────────
+        report_path = _write_stakeholder_report(result, catalog, spark)
+        result["report_path"] = report_path
+        print(f"✓ Stakeholder report → {report_path}")
+
+        return result
+    finally:
+        close_agent_run()
 
 
 if __name__ == "__main__":

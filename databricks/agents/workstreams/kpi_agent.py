@@ -836,6 +836,19 @@ CREATE TABLE IF NOT EXISTS {table} (
 # main()
 # ---------------------------------------------------------------------------
 
+
+def _load_affected_intents(repo_root: str, agent_prefix: str) -> list[str]:
+    import yaml
+
+    registry = Path(repo_root) / "eval" / "retrieval" / "intent_registry.yaml"
+    entries = yaml.safe_load(registry.read_text(encoding="utf-8"))
+    return sorted(
+        entry["intent_id"]
+        for entry in entries
+        if str(entry.get("agent_id", "")).startswith(agent_prefix)
+    )
+
+
 def main() -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
@@ -846,72 +859,82 @@ def main() -> dict:
     llm_endpoint = get_param("llm_endpoint", default="databricks-meta-llama-3-3-70b-instruct")
 
     from pyspark.sql import SparkSession
+    from agents.shared.run_context import close_agent_run, open_agent_run
     spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
 
     print(f"\n=== KPI Agent ({company_name}) ===")
 
-    agent  = KPIAgent()
-    result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint)
-
-    # Save to Delta
-    table = f"{catalog}.analysis.kpi"
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
-    spark.sql(_CREATE_TABLE_SQL.format(table=table))
-    spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
-
-    from pyspark.sql import Row
-    from pyspark.sql.types import (
-        StructType, StructField, StringType,
-        ArrayType, TimestampType,
+    open_agent_run(
+        "kpi",
+        company_name=company_name,
+        catalog=catalog,
+        affected_intents=_load_affected_intents(repo_root, "kpi"),
     )
+    try:
+        agent  = KPIAgent()
+        result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint)
 
-    schema = StructType([
-        StructField("company_name",             StringType(),            True),
-        StructField("executive_summary",        StringType(),            True),
-        StructField("overlay_confirmed",        StringType(),            True),
-        StructField("tech_services_kpis_json",  StringType(),            True),
-        StructField("healthcare_kpis_json",     StringType(),            True),
-        StructField("saas_kpis_json",           StringType(),            True),
-        StructField("industrial_kpis_json",     StringType(),            True),
-        StructField("consumer_kpis_json",       StringType(),            True),
-        StructField("missing_kpis_json",        StringType(),            True),
-        StructField("flags",                    StringType(),            True),
-        StructField("data_room_gaps",           ArrayType(StringType()), True),
-        StructField("citations",                StringType(),            True),
-        StructField("reasoning_trace",          StringType(),            True),
-        StructField("created_at",               TimestampType(),         True),
-    ])
+        # Save to Delta
+        table = f"{catalog}.analysis.kpi"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
+        spark.sql(_CREATE_TABLE_SQL.format(table=table))
+        spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
-    row_data = {
-        "company_name":            result["company_name"],
-        "executive_summary":       result.get("executive_summary"),
-        "overlay_confirmed":       result.get("overlay_confirmed"),
-        "tech_services_kpis_json": result.get("tech_services_kpis_json"),
-        "healthcare_kpis_json":    result.get("healthcare_kpis_json"),
-        "saas_kpis_json":          result.get("saas_kpis_json"),
-        "industrial_kpis_json":    result.get("industrial_kpis_json"),
-        "consumer_kpis_json":      result.get("consumer_kpis_json"),
-        "missing_kpis_json":       result.get("missing_kpis_json"),
-        "flags":                   json.dumps(result.get("flags") or []),
-        "data_room_gaps":          result.get("data_room_gaps") or [],
-        "citations":               result.get("citations"),
-        "reasoning_trace":         json.dumps(result.get("reasoning_trace") or []),
-        "created_at":              datetime.now(timezone.utc),
-    }
+        from pyspark.sql import Row
+        from pyspark.sql.types import (
+            StructType, StructField, StringType,
+            ArrayType, TimestampType,
+        )
 
-    df = spark.createDataFrame([Row(**row_data)], schema=schema)
-    df.write.format("delta").mode("append").saveAsTable(table)
+        schema = StructType([
+            StructField("company_name",             StringType(),            True),
+            StructField("executive_summary",        StringType(),            True),
+            StructField("overlay_confirmed",        StringType(),            True),
+            StructField("tech_services_kpis_json",  StringType(),            True),
+            StructField("healthcare_kpis_json",     StringType(),            True),
+            StructField("saas_kpis_json",           StringType(),            True),
+            StructField("industrial_kpis_json",     StringType(),            True),
+            StructField("consumer_kpis_json",       StringType(),            True),
+            StructField("missing_kpis_json",        StringType(),            True),
+            StructField("flags",                    StringType(),            True),
+            StructField("data_room_gaps",           ArrayType(StringType()), True),
+            StructField("citations",                StringType(),            True),
+            StructField("reasoning_trace",          StringType(),            True),
+            StructField("created_at",               TimestampType(),         True),
+        ])
 
-    print(f"\n✓ Saved KPI output → {table}")
+        row_data = {
+            "company_name":            result["company_name"],
+            "executive_summary":       result.get("executive_summary"),
+            "overlay_confirmed":       result.get("overlay_confirmed"),
+            "tech_services_kpis_json": result.get("tech_services_kpis_json"),
+            "healthcare_kpis_json":    result.get("healthcare_kpis_json"),
+            "saas_kpis_json":          result.get("saas_kpis_json"),
+            "industrial_kpis_json":    result.get("industrial_kpis_json"),
+            "consumer_kpis_json":      result.get("consumer_kpis_json"),
+            "missing_kpis_json":       result.get("missing_kpis_json"),
+            "flags":                   json.dumps(result.get("flags") or []),
+            "data_room_gaps":          result.get("data_room_gaps") or [],
+            "citations":               result.get("citations"),
+            "reasoning_trace":         json.dumps(result.get("reasoning_trace") or []),
+            "created_at":              datetime.now(timezone.utc),
+        }
 
-    # Export stakeholder report
-    report_path = _write_stakeholder_report(result, catalog, spark)
-    result["report_path"] = report_path
-    print(f"✓ Stakeholder report → {report_path}")
+        df = spark.createDataFrame([Row(**row_data)], schema=schema)
+        df.write.format("delta").mode("append").saveAsTable(table)
 
-    return result
+        print(f"\n✓ Saved KPI output → {table}")
+
+        # Export stakeholder report
+        report_path = _write_stakeholder_report(result, catalog, spark)
+        result["report_path"] = report_path
+        print(f"✓ Stakeholder report → {report_path}")
+
+        return result
+    finally:
+        close_agent_run()
 
 
 if __name__ == "__main__":

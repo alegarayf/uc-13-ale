@@ -153,6 +153,7 @@ class RevenueSubAgent:
             ],
             min_chunk_length=150, min_results=3,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.revenue.q1_financial_statements",
         ).chunks
 
         # 2. Revenue by segment
@@ -167,6 +168,7 @@ class RevenueSubAgent:
             file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM"],
             min_chunk_length=150, min_results=3,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.revenue.q2_revenue_by_segment",
         ).chunks
 
         # 3. Revenue by geography
@@ -186,6 +188,7 @@ class RevenueSubAgent:
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.revenue.q3_revenue_by_geography",
         ).chunks
 
         # 4. Customer concentration
@@ -202,6 +205,7 @@ class RevenueSubAgent:
             min_chunk_length=80, min_results=2,
             source_type_priority=True,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.revenue.q4_customer_concentration",
         ).chunks
         if len(cust) < 2:
             cust = semantic_search_with_fallback(
@@ -217,6 +221,7 @@ class RevenueSubAgent:
                 min_chunk_length=80, min_results=2,
                 source_type_priority=True,
                 retrieval_mode=retrieval_mode,
+                intent_id="fta.revenue.q4_customer_concentration_fallback",
             ).chunks
         cust = [c for c in cust if not any(kw in (getattr(c, "file_name", "") or "").lower() for kw in _BANK_STMT_KEYWORDS)]
         chunks += cust
@@ -238,6 +243,7 @@ class RevenueSubAgent:
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
             retrieval_mode=retrieval_mode,
+            intent_id="fta.revenue.q5_quickbooks_pl",
         ).chunks
 
         return chunks

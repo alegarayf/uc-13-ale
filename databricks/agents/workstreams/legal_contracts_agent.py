@@ -1991,6 +1991,19 @@ def _ensure_legal_storage(catalog: str, spark) -> None:
 # main()
 # ---------------------------------------------------------------------------
 
+
+def _load_affected_intents(repo_root: str, agent_prefix: str) -> list[str]:
+    import yaml
+
+    registry = Path(repo_root) / "eval" / "retrieval" / "intent_registry.yaml"
+    entries = yaml.safe_load(registry.read_text(encoding="utf-8"))
+    return sorted(
+        entry["intent_id"]
+        for entry in entries
+        if str(entry.get("agent_id", "")).startswith(agent_prefix)
+    )
+
+
 def main() -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
@@ -2008,6 +2021,7 @@ def main() -> dict:
         extraction_endpoint = _widget_ep
 
     from pyspark.sql import SparkSession
+    from agents.shared.run_context import close_agent_run, open_agent_run
     spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
@@ -2016,76 +2030,85 @@ def main() -> dict:
     print(f"  catalog={catalog}  extraction_endpoint={extraction_endpoint}  llm_endpoint={llm_endpoint}")
     print(f"  write target={catalog}.analysis.legal")
 
-    _ensure_legal_storage(catalog, spark)
-
-    agent = LegalContractsAgent()
-    result = agent.run(
+    open_agent_run(
+        "legal",
         company_name=company_name,
-        spark=spark,
-        extraction_endpoint=extraction_endpoint,
         catalog=catalog,
+        affected_intents=_load_affected_intents(repo_root, "legal"),
     )
-
-    table = f"{catalog}.analysis.legal"
-
-    # Schema migration guard: drop and recreate when expected columns are missing.
     try:
-        _live_cols = {f.name for f in spark.table(table).schema.fields}
-        if not _EXPECTED_COLS.issubset(_live_cols):
-            _missing = _EXPECTED_COLS - _live_cols
-            print(f"  [schema_migration] {table}: dropping stale table. Missing: {sorted(_missing)}")
-            spark.sql(f"DROP TABLE IF EXISTS {table}")
-    except Exception:
-        pass
+        _ensure_legal_storage(catalog, spark)
 
-    spark.sql(_CREATE_LEGAL_TABLE_SQL.format(catalog=catalog))
-    spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
+        agent = LegalContractsAgent()
+        result = agent.run(
+            company_name=company_name,
+            spark=spark,
+            extraction_endpoint=extraction_endpoint,
+            catalog=catalog,
+        )
 
-    from pyspark.sql import Row
-    from pyspark.sql.types import (
-        StructType, StructField, StringType,
-        ArrayType, TimestampType,
-    )
+        table = f"{catalog}.analysis.legal"
 
-    schema = StructType([
-        StructField("company_name",                          StringType(),            True),
-        StructField("executive_summary",                     StringType(),            True),
-        StructField("section_confidence",                    StringType(),            True),
-        StructField("contract_register_json",                StringType(),            True),
-        StructField("vendor_register_json",                  StringType(),            True),
-        StructField("platform_dependency_register_json",     StringType(),            True),
-        StructField("employment_register_json",              StringType(),            True),
-        StructField("litigation_register_json",              StringType(),            True),
-        StructField("privacy_security_register_json",        StringType(),            True),
-        StructField("ip_register_json",                      StringType(),            True),
-        StructField("insurance_register_json",               StringType(),            True),
-        StructField("coc_consent_list_json",                 StringType(),            True),
-        StructField("termination_exposure_json",             StringType(),            True),
-        StructField("restrictive_covenant_map_json",         StringType(),            True),
-        StructField("unable_to_assess_json",                 StringType(),            True),
-        StructField("recommended_diligence_json",            StringType(),            True),
-        StructField("flags",                                 StringType(),            True),
-        StructField("data_room_gaps",                        ArrayType(StringType()), True),
-        StructField("citations",                             StringType(),            True),
-        StructField("reasoning_trace",                       StringType(),            True),
-        StructField("created_at",                            TimestampType(),         True),
-    ])
+        # Schema migration guard: drop and recreate when expected columns are missing.
+        try:
+            _live_cols = {f.name for f in spark.table(table).schema.fields}
+            if not _EXPECTED_COLS.issubset(_live_cols):
+                _missing = _EXPECTED_COLS - _live_cols
+                print(f"  [schema_migration] {table}: dropping stale table. Missing: {sorted(_missing)}")
+                spark.sql(f"DROP TABLE IF EXISTS {table}")
+        except Exception:
+            pass
 
-    row_data = _map_legacy_result_to_legal_row(result)
+        spark.sql(_CREATE_LEGAL_TABLE_SQL.format(catalog=catalog))
+        spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
-    df = spark.createDataFrame([Row(**row_data)], schema=schema)
-    df.write.format("delta").mode("append").saveAsTable(table)
+        from pyspark.sql import Row
+        from pyspark.sql.types import (
+            StructType, StructField, StringType,
+            ArrayType, TimestampType,
+        )
 
-    print(f"\n✓ Saved legal output → {table}")
+        schema = StructType([
+            StructField("company_name",                          StringType(),            True),
+            StructField("executive_summary",                     StringType(),            True),
+            StructField("section_confidence",                    StringType(),            True),
+            StructField("contract_register_json",                StringType(),            True),
+            StructField("vendor_register_json",                  StringType(),            True),
+            StructField("platform_dependency_register_json",     StringType(),            True),
+            StructField("employment_register_json",              StringType(),            True),
+            StructField("litigation_register_json",              StringType(),            True),
+            StructField("privacy_security_register_json",        StringType(),            True),
+            StructField("ip_register_json",                      StringType(),            True),
+            StructField("insurance_register_json",               StringType(),            True),
+            StructField("coc_consent_list_json",                 StringType(),            True),
+            StructField("termination_exposure_json",             StringType(),            True),
+            StructField("restrictive_covenant_map_json",         StringType(),            True),
+            StructField("unable_to_assess_json",                 StringType(),            True),
+            StructField("recommended_diligence_json",            StringType(),            True),
+            StructField("flags",                                 StringType(),            True),
+            StructField("data_room_gaps",                        ArrayType(StringType()), True),
+            StructField("citations",                             StringType(),            True),
+            StructField("reasoning_trace",                       StringType(),            True),
+            StructField("created_at",                            TimestampType(),         True),
+        ])
 
-    normative_report_path = _write_normative_legal_report(result, catalog, spark)
-    legacy_report_path = _write_stakeholder_report(result, catalog, spark)
-    result["report_path"] = normative_report_path
-    result["legacy_report_path"] = legacy_report_path
-    print(f"✓ Normative stakeholder report → {normative_report_path}")
-    print(f"✓ Legacy stakeholder report → {legacy_report_path}")
+        row_data = _map_legacy_result_to_legal_row(result)
 
-    return result
+        df = spark.createDataFrame([Row(**row_data)], schema=schema)
+        df.write.format("delta").mode("append").saveAsTable(table)
+
+        print(f"\n✓ Saved legal output → {table}")
+
+        normative_report_path = _write_normative_legal_report(result, catalog, spark)
+        legacy_report_path = _write_stakeholder_report(result, catalog, spark)
+        result["report_path"] = normative_report_path
+        result["legacy_report_path"] = legacy_report_path
+        print(f"✓ Normative stakeholder report → {normative_report_path}")
+        print(f"✓ Legacy stakeholder report → {legacy_report_path}")
+
+        return result
+    finally:
+        close_agent_run()
 
 
 if __name__ == "__main__":
