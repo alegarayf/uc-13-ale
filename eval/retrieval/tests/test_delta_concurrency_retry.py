@@ -5,14 +5,26 @@ same `retrieval_provenance` Delta table once the T4 contextvars fix let them see
 the open agent run. Concurrent MERGE/UPDATE transactions on the same table can
 raise ConcurrentAppendException / DELTA_CONCURRENT_APPEND_ROW_LEVEL_CHANGES even
 when the row sets are logically disjoint. `retry_on_delta_conflict` retries those
-conflicts with backoff and re-raises everything else immediately.
+conflicts with backoff and re-raises everything else immediately; a per-store
+lock additionally serializes our own concurrent writes so they never race at all.
 """
 
 from __future__ import annotations
 
+import sys
+import threading
+import time
 from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+for _path in (_REPO_ROOT / "databricks", _REPO_ROOT):
+    _entry = str(_path)
+    if _entry not in sys.path:
+        sys.path.insert(0, _entry)
 
 from eval.retrieval.models import HarnessRun
 from eval.retrieval.store import (
@@ -199,3 +211,72 @@ def test_append_provenance_uses_unique_temp_view_per_call(monkeypatch):
         view_names_used.append(statement[start:end].strip())
 
     assert len(set(view_names_used)) == 2, "each append_provenance call must use a distinct temp view name"
+
+
+def test_patch_context_allocations_issues_single_batched_merge(monkeypatch):
+    """Falsifier for the dominant contention source: OPEX allocating N chunks must
+    issue ONE MERGE per patch_context_allocations call, not N individual UPDATEs.
+    """
+    from eval.retrieval.provenance import ProvenanceEmitter
+    import agents.shared.run_context as run_context
+
+    spark = _FakeSpark()
+    store = DeltaEvalStore(spark, catalog="uc13_ale")
+
+    token_run = run_context._AGENT_RUN_ID.set("run_opex_1")
+    token_store = run_context._ACTIVE_STORE.set(store)
+    token_agent = run_context._CURRENT_AGENT_ID.set("fta")
+    try:
+        allocations = [
+            SimpleNamespace(
+                chunk=SimpleNamespace(chunk_id=f"chunk-{i}"),
+                chars_allocated=100 + i,
+                context_section="=== Historical / reported P&L sources ===",
+            )
+            for i in range(5)
+        ]
+        ProvenanceEmitter.patch_context_allocations(
+            "fta.opex.q1_financial_statements",
+            allocations,
+        )
+    finally:
+        run_context._AGENT_RUN_ID.reset(token_run)
+        run_context._ACTIVE_STORE.reset(token_store)
+        run_context._CURRENT_AGENT_ID.reset(token_agent)
+
+    merge_statements = [s for s in spark.sql_log if "MERGE INTO" in s]
+    update_statements = [s for s in spark.sql_log if s.strip().upper().startswith("UPDATE ")]
+    assert len(merge_statements) == 1, "expected exactly one batched MERGE for 5 allocations"
+    assert not update_statements, "must not fall back to per-chunk UPDATE statements"
+    assert "fta.opex.q1_financial_statements" in merge_statements[0]
+    assert "run_opex_1" in merge_statements[0]
+
+
+def test_provenance_write_lock_serializes_concurrent_callers():
+    """Falsifier: two threads racing for the write lock must never run their
+    critical section concurrently, regardless of Delta-level conflict handling.
+    """
+    spark = _FakeSpark()
+    store = DeltaEvalStore(spark, catalog="uc13_ale")
+
+    overlap_detected = {"value": False}
+    active = {"count": 0}
+    guard = threading.Lock()
+
+    def _critical_section():
+        with store._provenance_write_lock:
+            with guard:
+                active["count"] += 1
+                if active["count"] > 1:
+                    overlap_detected["value"] = True
+            time.sleep(0.05)
+            with guard:
+                active["count"] -= 1
+
+    threads = [threading.Thread(target=_critical_section) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not overlap_detected["value"], "provenance write lock failed to serialize callers"

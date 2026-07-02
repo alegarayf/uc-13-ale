@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -263,24 +264,49 @@ class ProvenanceEmitter:
             return
 
         if isinstance(store, DeltaEvalStore):
-            for chars_allocated, context_section, chunk_id in patch_rows:
-                def _run_update(
-                    chars_allocated: int = chars_allocated,
-                    context_section: str = context_section,
-                    chunk_id: str = chunk_id,
-                ) -> None:
-                    store.spark.sql(
-                        f"""
-                        UPDATE {store._table('retrieval_provenance')}
-                        SET chars_allocated = {int(chars_allocated)},
-                            context_section = '{context_section.replace("'", "''")}'
-                        WHERE run_id = '{agent_run_id}'
-                          AND intent_id = '{intent_id}'
-                          AND chunk_id = '{chunk_id.replace("'", "''")}'
-                        """
-                    )
+            # Batched into ONE MERGE per call (was: one UPDATE per chunk in a loop).
+            # OPEX can allocate 10-20+ chunks per intent; per-chunk UPDATEs were the
+            # dominant source of concurrent Delta transactions racing against
+            # Revenue/EBITDA's MERGE calls on the same table (M-RE2 T4 follow-on).
+            from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-                retry_on_delta_conflict(_run_update)
+            patch_schema = StructType(
+                [
+                    StructField("chunk_id", StringType(), False),
+                    StructField("chars_allocated", IntegerType(), True),
+                    StructField("context_section", StringType(), True),
+                ]
+            )
+            patch_frame = store.spark.createDataFrame(
+                [
+                    {
+                        "chunk_id": chunk_id,
+                        "chars_allocated": int(chars_allocated),
+                        "context_section": context_section,
+                    }
+                    for chars_allocated, context_section, chunk_id in patch_rows
+                ],
+                schema=patch_schema,
+            )
+            temp_view = f"provenance_patch_{uuid.uuid4().hex}"
+            patch_frame.createOrReplaceTempView(temp_view)
+
+            def _run_merge() -> None:
+                store.spark.sql(
+                    f"""
+                    MERGE INTO {store._table('retrieval_provenance')} AS target
+                    USING {temp_view} AS source
+                    ON target.run_id = '{agent_run_id}'
+                      AND target.intent_id = '{intent_id}'
+                      AND target.chunk_id = source.chunk_id
+                    WHEN MATCHED THEN UPDATE SET
+                        chars_allocated = source.chars_allocated,
+                        context_section = source.context_section
+                    """
+                )
+
+            with store._provenance_write_lock:
+                retry_on_delta_conflict(_run_merge)
             return
 
         if _provenance_required():
