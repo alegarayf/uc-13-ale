@@ -172,6 +172,73 @@ python -m eval.retrieval.scripts.sync_eval_store \
 
 Optional: `--sqlite-path <path>`. Idempotent on `run_id` when Delta already has a complete run. Does **not** sync Delta → SQLite.
 
+## M-RE2 cluster validation runbook (FTA pipeline)
+
+Operator steps for M-RE2 exit gates **item 18** (fallback rate) and **item 23** (Elder Care FTA 18-field checklist re-score). Requires `test_pipeline.ipynb` Cell 1 (`set_pipeline_thread`, `REPO_ROOT` on `sys.path`) before any agent `main()` — run Cell 12 **after** Cell 1 and snapshot with Cell 12a before switching `retrieval_mode`.
+
+**Control baseline reference:** 16/18 on the RT7 golden checklist (pre-T4 Control arm); M-RE1 harness baseline `baseline_f0f4f68ac7af`. **Item-23 target:** ≥ **16/18** on Elder Care after M-RE2 OPEX context + provenance fixes.
+
+### Item 18 — keyword fallback rate
+
+After FTA `main()` with an open agent run (`open_agent_run` / `close_agent_run`), read `fallback_rate` on the pipeline manifest:
+
+```sql
+SELECT run_id, harness_status, run_type, fallback_rate, empty_rate, completed_at
+FROM uc13_ale.ops.retrieval_harness_runs
+WHERE run_type = 'pipeline'
+ORDER BY completed_at DESC
+LIMIT 5;
+```
+
+Notebook equivalent (post-`close_agent_run`):
+
+```python
+from agents.shared.run_context import get_agent_run_id
+# agent_run_id is cleared after close — capture from close_agent_run() return value instead:
+# finalized = close_agent_run()
+# print(finalized.run_id, finalized.fallback_rate)
+```
+
+### Provenance verify
+
+Confirm provenance rows landed for the FTA `agent_run_id`:
+
+```sql
+SELECT COUNT(*) AS provenance_rows
+FROM uc13_ale.ops.retrieval_provenance
+WHERE run_id = '<fta_agent_run_id>';
+```
+
+Expect `provenance_rows > 0` after a full FTA pipeline run with M-RE2 wiring.
+
+### Item 23 — Elder Care E2E checklist re-score
+
+1. Run Cell 12 (Financial Trends Agent) on Elder Care with `catalog=uc13_ale`.
+2. Score the 18-field FTA golden checklist (RT7 scorecard); target ≥ **16/18** (Control baseline **16/18**).
+3. Run Cell 12a to snapshot the eval arm before changing `retrieval_mode`.
+4. Link the checklist score to the pipeline manifest:
+
+```bash
+python -m eval.retrieval.scripts.record_e2e_linkage \
+  --run-id <fta_agent_run_id> \
+  --e2e-agent-id fta \
+  --e2e-checklist-score <n> \
+  --e2e-checklist-total 18 \
+  --e2e-snapshot-table uc13_ale.analysis.financial_trends_eval_snapshot \
+  --store-backend delta \
+  --catalog uc13_ale
+```
+
+Verify linkage:
+
+```sql
+SELECT run_id, e2e_agent_id, e2e_checklist_score, e2e_checklist_total, e2e_snapshot_table
+FROM uc13_ale.ops.retrieval_harness_runs
+WHERE run_id = '<fta_agent_run_id>';
+```
+
+Item 23 is **runtime-armed only** — not CI-gated.
+
 ## Related CLIs
 
 | Command | Purpose |
@@ -180,3 +247,4 @@ Optional: `--sqlite-path <path>`. Idempotent on `run_id` when Delta already has 
 | `python -m eval.retrieval.harness_cli run ...` | Harness execution |
 | `python -m eval.retrieval.harness_cli validate-baseline ...` | Preflight baseline_ref checks |
 | `python -m eval.retrieval.scripts.sync_eval_store --run-id <id> --direction sqlite_to_delta` | SQLite → Delta promotion |
+| `python -m eval.retrieval.scripts.record_e2e_linkage --run-id <id> --e2e-agent-id fta --e2e-checklist-score <n> ...` | Link FTA E2E checklist to pipeline manifest |
