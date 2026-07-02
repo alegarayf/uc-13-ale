@@ -2421,18 +2421,6 @@ CREATE TABLE IF NOT EXISTS {table} (
 
 
 
-def _load_affected_intents(repo_root: str, agent_prefix: str) -> list[str]:
-    import yaml
-
-    registry = Path(repo_root) / "eval" / "retrieval" / "intent_registry.yaml"
-    entries = yaml.safe_load(registry.read_text(encoding="utf-8"))
-    return sorted(
-        entry["intent_id"]
-        for entry in entries
-        if str(entry.get("agent_id", "")).startswith(agent_prefix)
-    )
-
-
 def main() -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
@@ -2444,7 +2432,11 @@ def main() -> dict:
     extraction_endpoint  = get_param("extraction_endpoint",  default="databricks-claude-haiku-4-5") or None
 
     from pyspark.sql import SparkSession
-    from agents.shared.run_context import close_agent_run, open_agent_run
+    from agents.shared.run_context import (
+        close_agent_run,
+        load_affected_intents,
+        open_agent_run,
+    )
     spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
@@ -2456,7 +2448,7 @@ def main() -> dict:
         "bma",
         company_name=company_name,
         catalog=catalog,
-        affected_intents=_load_affected_intents(repo_root, "bma"),
+        affected_intents=load_affected_intents("bma"),
     )
     try:
         agent = BusinessModelAgent()

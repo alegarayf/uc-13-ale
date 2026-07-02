@@ -96,7 +96,7 @@ def test_workstream_main_opens_and_closes_agent_run(rel_path: str, agent_id: str
     first_arg = open_call.args[0]
     assert isinstance(first_arg, ast.Constant) and first_arg.value == agent_id
 
-    assert "_load_affected_intents" in source
+    assert "load_affected_intents" in source
     assert _has_close_in_finally(main_fn), f"{rel_path}: main() must close_agent_run() in finally"
 
 

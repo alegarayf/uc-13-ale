@@ -55,6 +55,21 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def load_affected_intents(agent_prefix: str) -> list[str]:
+    """Registry intent ids for a pipeline agent partition (e.g. ``fta``, ``bma``)."""
+    import yaml
+
+    registry = _repo_root() / "eval" / "retrieval" / "intent_registry.yaml"
+    if not registry.is_file():
+        raise FileNotFoundError(f"intent registry not found: {registry}")
+    entries = yaml.safe_load(registry.read_text(encoding="utf-8"))
+    return sorted(
+        entry["intent_id"]
+        for entry in entries
+        if str(entry.get("agent_id", "")).startswith(agent_prefix)
+    )
+
+
 def _default_sqlite_path() -> Path:
     return _repo_root() / "eval" / "retrieval" / ".local" / "re2_store.sqlite"
 

@@ -17,6 +17,7 @@ from agents.shared.run_context import (
     get_agent_run_id,
     get_current_agent_id,
     get_pipeline_thread,
+    load_affected_intents,
     open_agent_run,
     set_pipeline_thread,
 )
@@ -214,3 +215,11 @@ def test_compute_provenance_rates_normalizes_keyword_fallback_alias(
     fallback_rate, _ = store.compute_provenance_rates(run_id)
     assert fallback_rate == pytest.approx(1.0)
     close_agent_run()
+
+
+def test_load_affected_intents_resolves_registry_from_repo_root_not_databricks():
+    """Falsifier: find_repo_root('agents') → databricks/ must not break registry load."""
+    intents = load_affected_intents("fta")
+    assert intents
+    assert all(intent_id.startswith("fta.") for intent_id in intents)
+    assert "fta.opex.q1_financial_statements" in intents
