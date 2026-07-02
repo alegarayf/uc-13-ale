@@ -182,15 +182,18 @@ Operator steps for M-RE2 exit gates **item 18** (fallback rate) and **item 23** 
 
 **Store backend (read this first):** On a Databricks cluster with an active Spark session, `open_agent_run()` writes pipeline manifests and provenance to **`{catalog}.ops.*` Delta tables** (default catalog from Cell 1 → `uc13_ale`). SQLite at `eval/retrieval/.local/re2_store.sqlite` is the **laptop / no-Spark** fallback only.
 
-**One-time cluster preflight (Delta only):** If you have never created `uc13_ale.ops` on this workspace, run once before Cell 12:
+**Cluster preflight — run every time the DDL file changes, not just once:** `apply_ops_ddl` is safe to re-run. It applies `CREATE TABLE IF NOT EXISTS` (no-op if the table already exists) **and then** additively reconciles any columns your live table is missing vs. the current schema (e.g. `pipeline_thread_id` added in M-RE2 T1) via `ALTER TABLE ADD COLUMNS` — it never drops or rewrites existing rows.
 
 ```python
 from eval.retrieval.scripts.apply_ops_ddl import apply_ops_ddl
 n = apply_ops_ddl("uc13_ale")
 print(f"Applied {n} DDL statements")
+# Watch stdout for: "[apply_ops_ddl] additive migration on retrieval_harness_runs: added [...]"
 ```
 
-No migration is needed for SQLite — `SqliteEvalStore` creates tables on first write.
+If `open_agent_run()` / `fta.main()` fails with `DELTA_METADATA_MISMATCH`, it means your `uc13_ale.ops.retrieval_harness_runs` (or `retrieval_provenance`) table predates a schema change and is missing a column that current code writes. Re-running `apply_ops_ddl` after pulling latest closes this — `CREATE TABLE IF NOT EXISTS` alone does **not**, since it is a no-op on an existing table.
+
+No migration is needed for SQLite — `SqliteEvalStore` creates tables on first write and additively `ALTER TABLE`s new columns on open.
 
 After FTA `main()` completes (`open_agent_run` / `close_agent_run` inside `fta.main()`), read `fallback_rate` from Delta:
 
