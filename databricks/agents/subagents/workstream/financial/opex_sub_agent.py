@@ -14,7 +14,17 @@ max_tokens = 3,000 — OPEX has at most ~10 category records; light schema.
 
 import json
 from .shared_prompts import OPEX_BASIS_PREFERENCE_INSTRUCTION, SYSTEM_PROMPT_BASE
-from .context_utils import assemble_labeled_context, semantic_search_with_fallback
+from .context_utils import (
+    OPEX_SECTION_LABELS,
+    assemble_labeled_context,
+    semantic_search_with_fallback,
+)
+
+_OPEX_INTENT_IDS = (
+    "fta.opex.q1_financial_statements",
+    "fta.opex.q2_working_capital",
+    "fta.opex.q3_projected_financials",
+)
 
 _MAX_TOKENS = 3_000
 
@@ -83,8 +93,26 @@ class OpexSubAgent:
         _wa = self._make_base()
 
         q1_chunks, q2_chunks, q3_chunks = self._retrieve(company_name, spark, retrieval_mode)
-        context_text, stats = assemble_labeled_context([q1_chunks, q2_chunks, q3_chunks])
+        context_text, stats, allocations = assemble_labeled_context(
+            [q1_chunks, q2_chunks, q3_chunks],
+        )
         print(f"  [Opex]    {stats}")
+
+        from eval.retrieval.provenance import ProvenanceEmitter
+
+        for intent_id, section_label in zip(
+            _OPEX_INTENT_IDS,
+            OPEX_SECTION_LABELS,
+            strict=True,
+        ):
+            section_allocations = [
+                alloc for alloc in allocations if alloc.context_section == section_label
+            ]
+            if section_allocations:
+                ProvenanceEmitter.patch_context_allocations(
+                    intent_id,
+                    section_allocations,
+                )
 
         company_profile_json = json.dumps(company_profile or {}, default=str)
         user_prompt = _USER_PROMPT.format(
