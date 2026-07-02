@@ -92,7 +92,9 @@ def _git_sha() -> str | None:
 def _resolve_store(store: EvalStore | None) -> EvalStore:
     if store is not None:
         return store
-    return SqliteEvalStore(_default_sqlite_path())
+    from eval.retrieval.provenance import resolve_store
+
+    return resolve_store()
 
 
 def _store_backend_label(store: EvalStore) -> str:
