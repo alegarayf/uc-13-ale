@@ -22,6 +22,7 @@ Dependencies:
 """
 
 import concurrent.futures
+import contextvars
 import json
 import os
 import re
@@ -861,10 +862,16 @@ class FinancialTrendsAgent:
 
         print(f"  Launching 3 autonomous sub-agents in parallel (retrieval_mode={retrieval_mode}) ...")
         _t0 = time.time()
+        # ThreadPoolExecutor worker threads do NOT inherit the submitting thread's
+        # contextvars.Context by default (unlike asyncio tasks). open_agent_run() /
+        # set_pipeline_thread() set run_context's agent_run_id / active_store /
+        # pipeline_thread_id ContextVars on THIS thread — without an explicit copied
+        # Context per submit, sub-agent semantic_search calls see those vars at their
+        # default (None) and silently no-op provenance emission (M-RE2 T4 gap).
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as _pool:
-            _f_rev  = _pool.submit(RevenueSubAgent().run, *_sub_args)
-            _f_ebi  = _pool.submit(EbitdaSubAgent().run,  *_sub_args)
-            _f_opex = _pool.submit(OpexSubAgent().run,    *_sub_args)
+            _f_rev  = _pool.submit(contextvars.copy_context().run, RevenueSubAgent().run, *_sub_args)
+            _f_ebi  = _pool.submit(contextvars.copy_context().run, EbitdaSubAgent().run,  *_sub_args)
+            _f_opex = _pool.submit(contextvars.copy_context().run, OpexSubAgent().run,    *_sub_args)
             _r_rev  = _f_rev.result()
             _r_ebi  = _f_ebi.result()
             _r_opex = _f_opex.result()

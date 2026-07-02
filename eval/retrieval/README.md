@@ -224,6 +224,8 @@ WHERE run_id = '<fta_agent_run_id>';
 
 Expect `provenance_rows > 0` after a full FTA pipeline run with M-RE2 wiring.
 
+**If `harness_status: complete` but `provenance_rows = 0` and `fallback_rate`/`empty_rate` are both `NULL`:** you are hitting a fixed bug, not a config gap — confirm you have pulled the commit containing the `contextvars.copy_context()` fix in `FinancialTrendsAgent.run()`. `ThreadPoolExecutor.submit()` does not inherit the main thread's `agent_run_id` ContextVar by default, so the three FTA sub-agents (Revenue/EBITDA/OPEX) silently skipped provenance emission before this fix. See `.dev/decision-logs/T4-m-re2-threadpool-context-propagation.md`.
+
 ### Item 23 — Elder Care E2E checklist re-score
 
 1. Run Cell 12 (Financial Trends Agent) on Elder Care with `catalog=uc13_ale`.

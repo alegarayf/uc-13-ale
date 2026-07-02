@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextvars
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -223,3 +225,45 @@ def test_load_affected_intents_resolves_registry_from_repo_root_not_databricks()
     assert intents
     assert all(intent_id.startswith("fta.") for intent_id in intents)
     assert "fta.opex.q1_financial_statements" in intents
+
+
+def test_threadpool_worker_without_copied_context_loses_agent_run_id(store):
+    """Characterizes the bug: raw ThreadPoolExecutor.submit does not inherit ContextVars.
+
+    financial_trends_agent.FinancialTrendsAgent.run() fans out to three sub-agents via
+    ThreadPoolExecutor(max_workers=3). Without an explicit copied Context per submit,
+    get_agent_run_id() (and therefore provenance emission) sees the default None inside
+    worker threads even though open_agent_run() succeeded on the submitting thread —
+    the exact cause of zero retrieval_provenance rows on an otherwise 'complete' pipeline run.
+    """
+    open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=store,
+    )
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        seen_in_worker = pool.submit(get_agent_run_id).result()
+
+    assert get_agent_run_id() is not None  # still open on the main thread
+    assert seen_in_worker is None  # lost without an explicit context copy
+    close_agent_run()
+
+
+def test_threadpool_worker_with_copied_context_preserves_agent_run_id(store):
+    """Falsifier for the fix: contextvars.copy_context().run(...) must propagate agent_run_id."""
+    run_id = open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=store,
+    )
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        seen_in_worker = pool.submit(contextvars.copy_context().run, get_agent_run_id).result()
+
+    assert seen_in_worker == run_id
+    close_agent_run()
