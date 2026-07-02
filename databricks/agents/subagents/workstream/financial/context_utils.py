@@ -12,6 +12,8 @@ retrieval without duplicating the fallback and budget logic.
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
+from typing import overload
 
 from agents.shared._types import RouteResult
 
@@ -26,6 +28,15 @@ OPEX_SECTION_LABELS = (
     "=== Working capital sources ===",
     "=== Projection / model sources ===",
 )
+
+
+@dataclass(frozen=True)
+class ContextAllocation:
+    """Per-chunk context budget metadata for provenance patch (D10)."""
+
+    chunk: object
+    chars_allocated: int
+    context_section: str
 
 
 def _default_catalog() -> str:
@@ -52,13 +63,37 @@ def _chunk_char_limit(c) -> int:
     return 1_000 if is_structured else 500
 
 
-def build_focused_context(chunks: list, max_chars: int = 25_000) -> tuple[str, str]:
+@overload
+def build_focused_context(
+    chunks: list,
+    max_chars: int = 25_000,
+    *,
+    track_allocations: bool = False,
+) -> tuple[str, str]: ...
+
+
+@overload
+def build_focused_context(
+    chunks: list,
+    max_chars: int,
+    *,
+    track_allocations: bool,
+) -> tuple[str, str, list[ContextAllocation]]: ...
+
+
+def build_focused_context(
+    chunks: list,
+    max_chars: int = 25_000,
+    *,
+    track_allocations: bool = False,
+) -> tuple[str, str] | tuple[str, str, list[ContextAllocation]]:
     """Build a CIM-first, source-type-aware context string from a list of chunks.
 
     Deduplicates by chunk_text, sorts CIM → PT1 → other with table/vision
     before text within each tier, then fills up to max_chars.
 
-    Returns (context_text, stats_str).
+    Returns (context_text, stats_str) or, when ``track_allocations=True``,
+    (context_text, stats_str, allocations).
     """
     seen_texts: set[str] = set()
     deduped = []
@@ -77,6 +112,7 @@ def build_focused_context(chunks: list, max_chars: int = 25_000) -> tuple[str, s
     )
 
     parts: list[str] = []
+    allocations: list[ContextAllocation] = []
     total_chars = 0
     tier_counts = {0: 0, 1: 0, 2: 0}
     stype_counts: dict[str, int] = {}
@@ -99,6 +135,14 @@ def build_focused_context(chunks: list, max_chars: int = 25_000) -> tuple[str, s
         stype_counts[stype] = stype_counts.get(stype, 0) + 1
         if was_truncated:
             truncated += 1
+        if track_allocations:
+            allocations.append(
+                ContextAllocation(
+                    chunk=c,
+                    chars_allocated=len(part),
+                    context_section="",
+                )
+            )
 
     stats = (
         f"{len(parts)}/{len(deduped)} chunks | "
@@ -109,19 +153,21 @@ def build_focused_context(chunks: list, max_chars: int = 25_000) -> tuple[str, s
         + (f" | {excluded} excluded" if excluded else "")
     )
 
-    return "\n\n---\n\n".join(parts), stats
+    context_text = "\n\n---\n\n".join(parts)
+    if track_allocations:
+        return context_text, stats, allocations
+    return context_text, stats
 
 
 def assemble_labeled_context(
     chunk_groups: list[list],
     budgets: tuple[int, ...] | None = None,
     section_labels: tuple[str, ...] | None = None,
-) -> tuple[str, str]:
+) -> tuple[str, str, list[ContextAllocation]]:
     """Build labeled multi-section context from per-query chunk groups.
 
     Each group is ranked and truncated independently via ``build_focused_context``
-    with its own budget (spec §5.12.4 Options A + C). T6 widens the return type to
-    include ``ContextAllocation`` metadata without rewriting this loop.
+    with its own budget (spec §5.12.4 Options A + C).
     """
     budgets = budgets or OPEX_QUERY_BUDGETS
     section_labels = section_labels or OPEX_SECTION_LABELS
@@ -133,17 +179,30 @@ def assemble_labeled_context(
 
     sections: list[str] = []
     stats_parts: list[str] = []
+    all_allocations: list[ContextAllocation] = []
     for idx, (group, budget, label) in enumerate(
         zip(chunk_groups, budgets, section_labels, strict=True),
     ):
-        body, group_stats = build_focused_context(group, max_chars=budget)
+        body, group_stats, group_allocations = build_focused_context(
+            group,
+            max_chars=budget,
+            track_allocations=True,
+        )
+        all_allocations.extend(
+            ContextAllocation(
+                chunk=alloc.chunk,
+                chars_allocated=alloc.chars_allocated,
+                context_section=label,
+            )
+            for alloc in group_allocations
+        )
         if body:
             sections.append(f"{label}\n{body}")
         else:
             sections.append(f"{label}\n(no chunks retrieved)")
         stats_parts.append(f"Q{idx + 1}({budget:,}): {group_stats}")
 
-    return "\n\n".join(sections), " | ".join(stats_parts)
+    return "\n\n".join(sections), " | ".join(stats_parts), all_allocations
 
 
 def semantic_search_with_fallback(

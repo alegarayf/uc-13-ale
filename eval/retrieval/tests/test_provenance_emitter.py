@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -209,9 +210,45 @@ def test_emit_intent_id_fallback_unknown_agent(store: SqliteEvalStore):
     close_agent_run()
 
 
-def test_patch_context_allocations_stub():
-    with pytest.raises(NotImplementedError, match="T6"):
-        ProvenanceEmitter.patch_context_allocations()
+def test_patch_context_allocations_updates_existing_rows(store: SqliteEvalStore):
+    set_pipeline_thread("thread-patch")
+    run_id = open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=store,
+    )
+    chunk = _FakeChunk("chunk-patch-001")
+    route = _FakeRouteResult(chunks=[chunk], mode="semantic", scores=[0.75])
+    ProvenanceEmitter.emit(
+        route_result=route,
+        company_name="Elder Care",
+        query="operating expenses",
+        intent_id="fta.opex.q1_financial_statements",
+    )
+
+    allocation = SimpleNamespace(
+        chunk=chunk,
+        chars_allocated=512,
+        context_section="=== Historical / reported P&L sources ===",
+    )
+    ProvenanceEmitter.patch_context_allocations(
+        "fta.opex.q1_financial_statements",
+        [allocation],
+    )
+
+    row = store._conn.execute(
+        """
+        SELECT chars_allocated, context_section
+        FROM retrieval_provenance
+        WHERE run_id = ? AND intent_id = ? AND chunk_id = ?
+        """,
+        (run_id, "fta.opex.q1_financial_statements", "chunk-patch-001"),
+    ).fetchone()
+    assert row["chars_allocated"] == 512
+    assert row["context_section"] == "=== Historical / reported P&L sources ==="
+    close_agent_run()
 
 
 def test_resolve_store_delta_without_spark_raises_when_required(

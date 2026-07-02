@@ -191,7 +191,87 @@ class ProvenanceEmitter:
             cls._logged_runs.add(agent_run_id)
 
     @classmethod
-    def patch_context_allocations(cls, *args: Any, **kwargs: Any) -> None:
-        raise NotImplementedError(
-            "patch_context_allocations is implemented in M-RE2 T6"
+    def patch_context_allocations(
+        cls,
+        intent_id: str,
+        allocations: list[Any],
+    ) -> None:
+        """Upsert ``chars_allocated`` / ``context_section`` on existing provenance rows."""
+        from agents.shared.run_context import (
+            _ACTIVE_STORE,
+            get_agent_run_id,
         )
+        from eval.retrieval.store import DeltaEvalStore, SqliteEvalStore
+
+        agent_run_id = get_agent_run_id()
+        if agent_run_id is None:
+            if _provenance_required():
+                raise ProvenanceEmitError(
+                    "provenance patch requires an open agent run "
+                    "(RE2_PROVENANCE_REQUIRED=1)"
+                )
+            return
+
+        store = _ACTIVE_STORE.get()
+        if store is None:
+            if _provenance_required():
+                raise ProvenanceEmitError(
+                    "provenance store unavailable for open agent run "
+                    "(RE2_PROVENANCE_REQUIRED=1)"
+                )
+            return
+
+        if not allocations:
+            return
+
+        patch_rows: list[tuple[int, str, str]] = []
+        for alloc in allocations:
+            chunk_id = _chunk_id_from_row(alloc.chunk)
+            patch_rows.append(
+                (alloc.chars_allocated, alloc.context_section, chunk_id)
+            )
+            logger.debug(
+                "provenance patch run_id=%s intent_id=%s chunk_id=%s chars=%s",
+                agent_run_id,
+                intent_id,
+                chunk_id,
+                alloc.chars_allocated,
+            )
+
+        if isinstance(store, SqliteEvalStore):
+            for chars_allocated, context_section, chunk_id in patch_rows:
+                store._conn.execute(
+                    """
+                    UPDATE retrieval_provenance
+                    SET chars_allocated = ?, context_section = ?
+                    WHERE run_id = ? AND intent_id = ? AND chunk_id = ?
+                    """,
+                    (
+                        chars_allocated,
+                        context_section,
+                        agent_run_id,
+                        intent_id,
+                        chunk_id,
+                    ),
+                )
+            store._conn.commit()
+            return
+
+        if isinstance(store, DeltaEvalStore):
+            for chars_allocated, context_section, chunk_id in patch_rows:
+                store.spark.sql(
+                    f"""
+                    UPDATE {store._table('retrieval_provenance')}
+                    SET chars_allocated = {int(chars_allocated)},
+                        context_section = '{context_section.replace("'", "''")}'
+                    WHERE run_id = '{agent_run_id}'
+                      AND intent_id = '{intent_id}'
+                      AND chunk_id = '{chunk_id.replace("'", "''")}'
+                    """
+                )
+            return
+
+        if _provenance_required():
+            raise ProvenanceEmitError(
+                f"unsupported store type for provenance patch: {type(store).__name__}"
+            )
