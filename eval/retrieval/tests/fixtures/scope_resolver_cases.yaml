@@ -34,7 +34,7 @@ cases:
     expect:
       affected_all: true
       gated_subset: gate_eligible_only
-      bootstrap_failed_in_affected_not_gated: bma.detect_cim_presence
+      bootstrap_failed_in_affected_not_gated: cqa.retrieve_customer_concentration
 
   - id: registry_only_raises
     git_diff_paths:
