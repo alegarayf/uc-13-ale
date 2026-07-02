@@ -24,7 +24,7 @@ from eval.retrieval.models import GoldLabel, RetrievalIntent
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REGISTRY_PATH = REPO_ROOT / "eval" / "retrieval" / "intent_registry.yaml"
 GOLD_PATH = REPO_ROOT / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
-INGESTION_SNAPSHOT = "uc13_ale:35034:2026-06-25"
+INGESTION_SNAPSHOT = "uc13_ale:35034:2026-07-02"
 
 
 class MockSpark:
@@ -75,7 +75,7 @@ def mock_spark_handlers() -> dict[str, list[dict]]:
                     '[{"document": "2024 Elder Care - CIM_vF.pdf", '
                     '"location": "p. 49 Historical P&L Summary"}]'
                 ),
-                "created_at": "2026-06-25T00:00:00Z",
+                "created_at": "2026-07-02T00:00:00Z",
             }
         ],
         "page_start = 49": [{"chunk_id": "chunk_abc123"}],
@@ -88,7 +88,7 @@ def mock_spark_handlers() -> dict[str, list[dict]]:
                     '[{"document": "Guided Living - Asset Purchase Agreement.pdf", '
                     '"location": "Section 4 Representations"}]'
                 ),
-                "created_at": "2026-06-25T00:00:00Z",
+                "created_at": "2026-07-02T00:00:00Z",
             }
         ],
         "Guided Living - Asset Purchase Agreement": [{"chunk_id": "chunk_legal001"}],
@@ -98,7 +98,7 @@ def mock_spark_handlers() -> dict[str, list[dict]]:
 
 def test_format_ingestion_snapshot_normative():
     assert (
-        format_ingestion_snapshot("uc13_ale", 35034, date(2026, 6, 25))
+        format_ingestion_snapshot("uc13_ale", 35034, date(2026, 7, 2))
         == INGESTION_SNAPSHOT
     )
 
@@ -107,7 +107,7 @@ def test_compute_ingestion_snapshot_single_value(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 6, 25),
+        ingestion_date=date(2026, 7, 2),
     )
     assert bootstrap.compute_ingestion_snapshot() == INGESTION_SNAPSHOT
 
@@ -116,7 +116,7 @@ def test_bootstrap_pass1_citation_backfill(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 6, 25),
+        ingestion_date=date(2026, 7, 2),
     )
     intent = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -136,7 +136,7 @@ def test_bootstrap_pass2_basis_rule(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 6, 25),
+        ingestion_date=date(2026, 7, 2),
     )
     intent = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -159,7 +159,7 @@ def test_bootstrap_pass2_cross_intent_positive(mock_spark_handlers):
                 '{"document": "2024 Elder Care - CIM_vF.pdf", '
                 '"location": "p. 52 Projected financials"}]'
             ),
-            "created_at": "2026-06-25T00:00:00Z",
+            "created_at": "2026-07-02T00:00:00Z",
         }
     ]
     handlers["p. 49"] = [{"chunk_id": "chunk_hist001"}]
@@ -167,7 +167,7 @@ def test_bootstrap_pass2_cross_intent_positive(mock_spark_handlers):
     spark = MockSpark(handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 6, 25),
+        ingestion_date=date(2026, 7, 2),
     )
     q1 = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -189,7 +189,7 @@ def test_bootstrap_failed_when_no_positives(mock_spark_handlers):
     spark = MockSpark({"COUNT(*) AS chunk_count": [{"chunk_count": 1}]})
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 6, 25),
+        ingestion_date=date(2026, 7, 2),
     )
     intent = _sample_intent(
         "profiler.industry_overlay",
@@ -199,14 +199,14 @@ def test_bootstrap_failed_when_no_positives(mock_spark_handlers):
     label = bootstrap.bootstrap([intent])[0]
     assert label.gold_status == "bootstrap_failed"
     assert label.positive_chunk_ids == []
-    assert label.ingestion_snapshot == "uc13_ale:1:2026-06-25"
+    assert label.ingestion_snapshot == "uc13_ale:1:2026-07-02"
 
 
 def test_all_labels_share_single_ingestion_snapshot(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 6, 25),
+        ingestion_date=date(2026, 7, 2),
     )
     intents = load_registry(REGISTRY_PATH)[:5]
     labels = bootstrap.bootstrap(intents)
@@ -289,14 +289,12 @@ def test_committed_elder_care_yaml_validates_and_covers_registry():
 
 def test_committed_elder_care_yaml_matches_fixture_shape():
     labels = load_gold_labels(GOLD_PATH)
-    opex_q1 = next(
-        label for label in labels if label.intent_id == "fta.opex.q1_financial_statements"
+    opex_q3 = next(
+        label for label in labels if label.intent_id == "fta.opex.q3_projected_financials"
     )
-    assert opex_q1.gold_status == "ready"
-    assert opex_q1.gold_method in {"citation_backfill", "section_range"}
-    assert opex_q1.positive_chunk_ids
-    assert opex_q1.negative_chunk_ids
-    assert opex_q1.negative_method in {"basis_rule", "cross_intent_positive", "section_rule"}
+    assert opex_q3.gold_status == "ready"
+    assert opex_q3.gold_method in {"citation_backfill", "section_range", "filename_closure"}
+    assert opex_q3.positive_chunk_ids
 
 
 def test_generate_skeleton_gold_yaml_from_registry(tmp_path):

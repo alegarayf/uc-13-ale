@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 import yaml
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+for _path in (_REPO_ROOT / "databricks", _REPO_ROOT):
+    _entry = str(_path)
+    if _entry not in sys.path:
+        sys.path.insert(0, _entry)
 
 from eval.retrieval.harness import (
     compare_results,
@@ -17,7 +24,7 @@ from eval.retrieval.harness import (
     metric_gate_pass,
 )
 from eval.retrieval.gold.bootstrap import load_gold_labels, load_registry
-from eval.retrieval.models import HarnessResult, RetrievalIntent
+from eval.retrieval.models import GoldLabel, HarnessResult, RetrievalIntent
 from eval.retrieval.store import SqliteEvalStore
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -115,34 +122,55 @@ def test_mrr_not_in_intent_gate_and():
 
 def test_compute_metrics_recall_and_basis_conflict():
     intent = RetrievalIntent(
-        intent_id="fta.opex.q1_financial_statements",
+        intent_id="fta.opex.q3_projected_financials",
         agent_id="fta.opex",
         source_file="databricks/agents/subagents/workstream/financial/opex_sub_agent.py",
         catalog="uc13_ale",
-        query="opex",
+        query="opex projected financials",
         top_k=10,
         invocation_path="with_fallback",
     )
-    gold = load_gold_labels(GOLD_PATH)[
-        next(
-            i
-            for i, row in enumerate(load_gold_labels(GOLD_PATH))
-            if row.intent_id == "fta.opex.q1_financial_statements"
-        )
-    ]
+    gold_rows = load_gold_labels(GOLD_PATH)
+    gold = next(
+        row for row in gold_rows if row.intent_id == "fta.opex.q3_projected_financials"
+    )
+    recall_gold = gold.model_copy(
+        update={"positive_chunk_ids": gold.positive_chunk_ids[:3]}
+    )
+    positive_ids = recall_gold.positive_chunk_ids
     route = _FakeRouteResult(
+        chunks=[_FakeChunk(chunk_id) for chunk_id in positive_ids],
+        mode="semantic",
+        scores=[0.9, 0.85, 0.8],
+    )
+    result = compute_metrics(intent, recall_gold, route)
+    assert result.recall_at_10 == 1.0
+    assert result.eval_status == "evaluated"
+
+    basis_gold = GoldLabel(
+        intent_id="fta.opex.q3_projected_financials",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        gold_status="ready",
+        positive_chunk_ids=["bfbcfe31-e9b1-4017-acd7-97601be54c04"],
+        negative_chunk_ids=["c088efb9-8cf9-46a5-8aba-aed9eab703dc"],
+        negative_method="basis_rule",
+        gold_method="citation_backfill",
+        ingestion_snapshot="uc13_ale:35034:2026-07-02",
+        confidence="high",
+    )
+    basis_route = _FakeRouteResult(
         chunks=[
-            _FakeChunk("chunk_abc123"),
-            _FakeChunk("chunk_abc124"),
-            _FakeChunk("chunk_xyz789"),
+            _FakeChunk("bfbcfe31-e9b1-4017-acd7-97601be54c04"),
+            _FakeChunk("c088efb9-8cf9-46a5-8aba-aed9eab703dc"),
+            _FakeChunk("7cf789fd-dabd-47fa-8ee7-47a001d5fb68"),
         ],
         mode="semantic",
         scores=[0.9, 0.85, 0.8],
     )
-    result = compute_metrics(intent, gold, route)
-    assert result.recall_at_10 == 1.0
-    assert result.basis_conflict_at_10 == pytest.approx(1 / 3)
-    assert result.precision_at_10 == pytest.approx(2 / 3)
+    basis_result = compute_metrics(intent, basis_gold, basis_route)
+    assert basis_result.basis_conflict_at_10 == pytest.approx(1 / 3)
+    assert basis_result.precision_at_10 == pytest.approx(2 / 3)
 
 
 def test_semantic_search_importable_for_harness_dispatch():
@@ -167,7 +195,6 @@ def test_validate_baseline_ref_and_compare_round_trip(tmp_path):
     gold_labels = load_gold_labels(GOLD_PATH)
     gold_snapshot = compute_gold_snapshot(gold_labels)
     gated = [
-        "fta.opex.q1_financial_statements",
         "fta.opex.q3_projected_financials",
         "legal.contracts_vendors_platform",
     ]
@@ -177,7 +204,7 @@ def test_validate_baseline_ref_and_compare_round_trip(tmp_path):
         run_type="baseline",
         company_name="Elder Care",
         catalog="uc13_ale",
-        ingestion_snapshot="uc13_ale:35034:2026-06-25",
+        ingestion_snapshot="uc13_ale:35034:2026-07-02",
         registry_hash=registry_hash,
         gold_snapshot=gold_snapshot,
         affected_intents=gated,
@@ -191,16 +218,6 @@ def test_validate_baseline_ref_and_compare_round_trip(tmp_path):
     store.append_results(
         "baseline_gate_001",
         [
-            HarnessResult(
-                intent_id="fta.opex.q1_financial_statements",
-                eval_status="evaluated",
-                recall_at_10=0.8,
-                precision_at_10=0.9,
-                basis_conflict_at_10=0.2,
-                mrr=1.0,
-                result_count=5,
-                mode="semantic",
-            ),
             HarnessResult(
                 intent_id="fta.opex.q3_projected_financials",
                 eval_status="evaluated",
@@ -228,7 +245,7 @@ def test_validate_baseline_ref_and_compare_round_trip(tmp_path):
         run_type="enhancement",
         company_name="Elder Care",
         catalog="uc13_ale",
-        ingestion_snapshot="uc13_ale:35034:2026-06-25",
+        ingestion_snapshot="uc13_ale:35034:2026-07-02",
         registry_hash=registry_hash,
         gold_snapshot=gold_snapshot,
         affected_intents=gated,
@@ -244,19 +261,9 @@ def test_validate_baseline_ref_and_compare_round_trip(tmp_path):
         "enhancement_gate_001",
         [
             HarnessResult(
-                intent_id="fta.opex.q1_financial_statements",
-                eval_status="evaluated",
-                recall_at_10=0.9,
-                precision_at_10=0.9,
-                basis_conflict_at_10=0.3,
-                mrr=1.0,
-                result_count=5,
-                mode="semantic",
-            ),
-            HarnessResult(
                 intent_id="fta.opex.q3_projected_financials",
                 eval_status="evaluated",
-                recall_at_10=1.0,
+                recall_at_10=0.5,
                 precision_at_10=0.9,
                 basis_conflict_at_10=0.1,
                 mrr=1.0,
@@ -284,14 +291,14 @@ def test_validate_baseline_ref_and_compare_round_trip(tmp_path):
     )
     deltas, gates = harness.compare(store, "baseline_gate_001", "enhancement_gate_001")
     opex_gate = next(
-        gate for gate in gates if gate.intent_id == "fta.opex.q1_financial_statements"
+        gate for gate in gates if gate.intent_id == "fta.opex.q3_projected_financials"
     )
     assert opex_gate.intent_gate_pass is False
-    basis_delta = next(
+    recall_delta = next(
         row
         for row in deltas
-        if row.intent_id == "fta.opex.q1_financial_statements"
-        and row.metric == "basis_conflict_at_10"
+        if row.intent_id == "fta.opex.q3_projected_financials"
+        and row.metric == "recall_at_10"
     )
-    assert basis_delta.gate_pass is False
+    assert recall_delta.gate_pass is False
     store.close()
