@@ -30,6 +30,167 @@ logger = logging.getLogger(__name__)
 
 _LIST_RUNS_MAX_LIMIT = 500
 
+# Explicit Spark schemas for Delta writes — single-row manifests with many null
+# optional fields fail type inference (CANNOT_DETERMINE_TYPE) without these.
+_DELTA_RUNS_SCHEMA = None
+_DELTA_RESULTS_SCHEMA = None
+_DELTA_DELTAS_SCHEMA = None
+_DELTA_PROVENANCE_SCHEMA = None
+
+
+def _delta_types():
+    from pyspark.sql.types import (
+        ArrayType,
+        BooleanType,
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+        TimestampType,
+    )
+
+    global _DELTA_RUNS_SCHEMA, _DELTA_RESULTS_SCHEMA, _DELTA_DELTAS_SCHEMA, _DELTA_PROVENANCE_SCHEMA
+    if _DELTA_RUNS_SCHEMA is not None:
+        return
+
+    _DELTA_RUNS_SCHEMA = StructType(
+        [
+            StructField("run_id", StringType(), False),
+            StructField("run_type", StringType(), False),
+            StructField("company_name", StringType(), False),
+            StructField("catalog", StringType(), False),
+            StructField("ingestion_snapshot", StringType(), False),
+            StructField("registry_hash", StringType(), False),
+            StructField("gold_snapshot", StringType(), False),
+            StructField("git_sha", StringType(), True),
+            StructField("git_branch", StringType(), True),
+            StructField("pr_url", StringType(), True),
+            StructField("hypothesis", StringType(), True),
+            StructField("affected_intents", ArrayType(StringType()), False),
+            StructField("gated_intents", ArrayType(StringType()), False),
+            StructField("ablation_config", StringType(), True),
+            StructField("ablation_arm", StringType(), True),
+            StructField("baseline_ref_run_id", StringType(), True),
+            StructField("store_backend", StringType(), False),
+            StructField("harness_status", StringType(), False),
+            StructField("intent_count", IntegerType(), False),
+            StructField("gate_pass", BooleanType(), True),
+            StructField("fallback_rate", DoubleType(), True),
+            StructField("empty_rate", DoubleType(), True),
+            StructField("e2e_agent_id", StringType(), True),
+            StructField("e2e_snapshot_table", StringType(), True),
+            StructField("e2e_checklist_score", IntegerType(), True),
+            StructField("e2e_checklist_total", IntegerType(), True),
+            StructField("created_at", TimestampType(), False),
+            StructField("completed_at", TimestampType(), True),
+        ]
+    )
+    _DELTA_RESULTS_SCHEMA = StructType(
+        [
+            StructField("run_id", StringType(), False),
+            StructField("intent_id", StringType(), False),
+            StructField("agent_id", StringType(), True),
+            StructField("eval_status", StringType(), False),
+            StructField("eval_k", IntegerType(), True),
+            StructField("effective_k", IntegerType(), True),
+            StructField("recall_at_10", DoubleType(), True),
+            StructField("precision_at_10", DoubleType(), True),
+            StructField("basis_conflict_at_10", DoubleType(), True),
+            StructField("mrr", DoubleType(), True),
+            StructField("result_count", IntegerType(), False),
+            StructField("mode", StringType(), True),
+            StructField("negatives_in_top_3", IntegerType(), True),
+            StructField("ablation_arm", StringType(), True),
+        ]
+    )
+    _DELTA_DELTAS_SCHEMA = StructType(
+        [
+            StructField("run_id", StringType(), False),
+            StructField("baseline_ref_run_id", StringType(), False),
+            StructField("intent_id", StringType(), False),
+            StructField("metric", StringType(), False),
+            StructField("before", DoubleType(), False),
+            StructField("after", DoubleType(), False),
+            StructField("delta", DoubleType(), False),
+            StructField("gate_pass", BooleanType(), False),
+            StructField("in_gated_scope", BooleanType(), False),
+        ]
+    )
+    _DELTA_PROVENANCE_SCHEMA = StructType(
+        [
+            StructField("run_id", StringType(), False),
+            StructField("intent_id", StringType(), False),
+            StructField("company_name", StringType(), False),
+            StructField("catalog", StringType(), False),
+            StructField("query", StringType(), False),
+            StructField("mode", StringType(), False),
+            StructField("chunk_id", StringType(), False),
+            StructField("rank", IntegerType(), False),
+            StructField("sim_score", DoubleType(), False),
+            StructField("merge_score", DoubleType(), False),
+            StructField("tier", IntegerType(), False),
+            StructField("section_header", StringType(), False),
+            StructField("file_name", StringType(), False),
+            StructField("source_type", StringType(), False),
+            StructField("chars_allocated", IntegerType(), True),
+            StructField("context_section", StringType(), True),
+            StructField("created_at", TimestampType(), False),
+        ]
+    )
+
+
+def _manifest_to_delta_row(manifest: HarnessRun) -> dict[str, Any]:
+    return {
+        "run_id": manifest.run_id,
+        "run_type": manifest.run_type,
+        "company_name": manifest.company_name,
+        "catalog": manifest.catalog,
+        "ingestion_snapshot": manifest.ingestion_snapshot,
+        "registry_hash": manifest.registry_hash,
+        "gold_snapshot": manifest.gold_snapshot,
+        "git_sha": manifest.git_sha,
+        "git_branch": manifest.git_branch,
+        "pr_url": manifest.pr_url,
+        "hypothesis": manifest.hypothesis,
+        "affected_intents": manifest.affected_intents,
+        "gated_intents": manifest.gated_intents,
+        "ablation_config": _json_dumps(manifest.ablation_config),
+        "ablation_arm": manifest.ablation_arm,
+        "baseline_ref_run_id": manifest.baseline_ref_run_id,
+        "store_backend": manifest.store_backend,
+        "harness_status": manifest.harness_status,
+        "intent_count": manifest.intent_count,
+        "gate_pass": manifest.gate_pass,
+        "fallback_rate": manifest.fallback_rate,
+        "empty_rate": manifest.empty_rate,
+        "e2e_agent_id": manifest.e2e_agent_id,
+        "e2e_snapshot_table": manifest.e2e_snapshot_table,
+        "e2e_checklist_score": manifest.e2e_checklist_score,
+        "e2e_checklist_total": manifest.e2e_checklist_total,
+        "created_at": manifest.created_at,
+        "completed_at": manifest.completed_at,
+    }
+
+
+def _result_to_delta_row(run_id: str, result: HarnessResult) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "intent_id": result.intent_id,
+        "agent_id": derive_agent_id(result.intent_id),
+        "eval_status": result.eval_status,
+        "eval_k": result.eval_k,
+        "effective_k": result.effective_k,
+        "recall_at_10": result.recall_at_10,
+        "precision_at_10": result.precision_at_10,
+        "basis_conflict_at_10": result.basis_conflict_at_10,
+        "mrr": result.mrr,
+        "result_count": result.result_count,
+        "mode": result.mode,
+        "negatives_in_top_3": result.negatives_in_top_3,
+        "ablation_arm": result.ablation_arm,
+    }
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -787,11 +948,9 @@ class DeltaEvalStore(_StoreBase):
                 )
             raise StoreError(f"run_id already exists: {manifest.run_id}")
 
-        payload = manifest.model_dump(mode="json")
-        payload["ablation_config"] = _json_dumps(manifest.ablation_config)
-        payload["affected_intents"] = manifest.affected_intents
-        payload["gated_intents"] = manifest.gated_intents
-        frame = self.spark.createDataFrame([payload])
+        _delta_types()
+        row = _manifest_to_delta_row(manifest)
+        frame = self.spark.createDataFrame([row], schema=_DELTA_RUNS_SCHEMA)
         frame.write.format("delta").mode("append").saveAsTable(
             self._table("retrieval_harness_runs")
         )
@@ -802,18 +961,16 @@ class DeltaEvalStore(_StoreBase):
         self._ensure_not_complete(run_id)
         if not results:
             return 0
+        _delta_types()
         rows = []
         for result in results:
-            row = result.model_dump(mode="json")
-            row["run_id"] = run_id
-            row["agent_id"] = derive_agent_id(result.intent_id)
-            rows.append(row)
+            rows.append(_result_to_delta_row(run_id, result))
             logger.debug(
                 "append_results upsert (%s, %s)",
                 run_id,
                 result.intent_id,
             )
-        frame = self.spark.createDataFrame(rows)
+        frame = self.spark.createDataFrame(rows, schema=_DELTA_RESULTS_SCHEMA)
         frame.createOrReplaceTempView("incoming_results")
         self.spark.sql(
             f"""
@@ -862,7 +1019,8 @@ class DeltaEvalStore(_StoreBase):
                 )
         if not rows:
             return 0
-        frame = self.spark.createDataFrame(rows)
+        _delta_types()
+        frame = self.spark.createDataFrame(rows, schema=_DELTA_PROVENANCE_SCHEMA)
         frame.createOrReplaceTempView("incoming_provenance")
         self.spark.sql(
             f"""
@@ -903,7 +1061,8 @@ class DeltaEvalStore(_StoreBase):
                 delta.intent_id,
                 delta.metric,
             )
-        frame = self.spark.createDataFrame(rows)
+        _delta_types()
+        frame = self.spark.createDataFrame(rows, schema=_DELTA_DELTAS_SCHEMA)
         frame.createOrReplaceTempView("incoming_deltas")
         self.spark.sql(
             f"""
