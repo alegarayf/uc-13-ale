@@ -143,3 +143,37 @@ def test_wrapper_propagates_keyword_mode_from_inner(mock_semantic_search):
 
     assert result.mode == "keyword"
     assert result.scores == [0.0, 0.0]
+
+
+@patch("agents.shared.retrieval.semantic_search", create=True)
+def test_wrapper_propagates_intent_id_to_semantic_search(mock_semantic_search):
+    """M-RE2 T3/D3: intent_id must flow through the wrapper to semantic_search."""
+    rows = [_row(), _row(file_name="P&L.pdf"), _row(file_name="Model.xlsx")]
+    mock_semantic_search.return_value = _route_result(rows)
+
+    semantic_search_with_fallback(
+        **_call_kwargs(),
+        retrieval_mode="semantic",
+        intent_id="fta.opex.q1_financial_statements",
+    )
+
+    assert mock_semantic_search.call_count == 1
+    assert mock_semantic_search.call_args.kwargs["intent_id"] == (
+        "fta.opex.q1_financial_statements"
+    )
+
+
+@patch("agents.shared.retrieval.semantic_search", create=True)
+def test_wrapper_defaults_intent_id_none_and_propagates_on_retry(mock_semantic_search):
+    """intent_id defaults to None and is preserved across the filename-filter retry."""
+    retry_rows = [_row(), _row(file_name="other.pdf"), _row(file_name="misc.pdf")]
+    mock_semantic_search.side_effect = [
+        _route_result([_row()]),
+        _route_result(retry_rows, scores=[0.4, 0.3, 0.2]),
+    ]
+
+    semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="semantic")
+
+    assert mock_semantic_search.call_count == 2
+    for call in mock_semantic_search.call_args_list:
+        assert call.kwargs["intent_id"] is None

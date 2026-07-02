@@ -14,6 +14,13 @@ _DATABRICKS_ROOT = Path(__file__).resolve().parents[1] / "databricks"
 if str(_DATABRICKS_ROOT) not in sys.path:
     sys.path.insert(0, str(_DATABRICKS_ROOT))
 
+# M-RE2 T3: semantic_search lazy-imports eval.retrieval.provenance on every
+# return path (no-op when no agent run is open), so the repo root must be
+# importable for the existing suite as well as the provenance tests below.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 # Stub Databricks SDK / MLflow before importing retrieval.py.
 if "databricks" not in sys.modules:
     databricks_mod = types.ModuleType("databricks")
@@ -45,6 +52,14 @@ from agents.shared.retrieval import (  # noqa: E402
     semantic_search,
 )
 from agents.shared._types import RouteResult  # noqa: E402
+from agents.shared.run_context import (  # noqa: E402
+    RunContextError,
+    close_agent_run,
+    open_agent_run,
+    set_pipeline_thread,
+)
+from eval.retrieval.provenance import ProvenanceEmitter  # noqa: E402
+from eval.retrieval.store import SqliteEvalStore  # noqa: E402
 
 
 def _row(*, chunk_id: str, priority_tier: int = 2, source_type: str = "text"):
@@ -270,3 +285,240 @@ def test_semantic_search_keyword_fallback_empty_after_filters_is_empty_mode(
     assert result.mode == "empty"
     assert result.chunks == []
     assert result.scores == []
+
+
+# ---------------------------------------------------------------------------
+# M-RE2 T3 — provenance emit hook on semantic_search
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def re2_store(tmp_path) -> SqliteEvalStore:
+    db = SqliteEvalStore(tmp_path / "re2_store.sqlite")
+    yield db
+    db.close()
+
+
+@pytest.fixture(autouse=True)
+def _reset_run_context():
+    ProvenanceEmitter._intents_by_run.clear()
+    ProvenanceEmitter._logged_runs.clear()
+    yield
+    try:
+        close_agent_run()
+    except RunContextError:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _clear_provenance_env(monkeypatch):
+    monkeypatch.delenv("RE2_PROVENANCE_REQUIRED", raising=False)
+
+
+def _provenance_rows(store: SqliteEvalStore, run_id: str) -> list:
+    return store._conn.execute(
+        "SELECT intent_id, chunk_id, rank, mode "
+        "FROM retrieval_provenance WHERE run_id = ? ORDER BY rank",
+        (run_id,),
+    ).fetchall()
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_emits_provenance_when_run_open(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+    re2_store,
+):
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    vs_result = MagicMock()
+    vs_result.result.data_array = [["c1", "d1", "CIM.pdf", 0.95]]
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.return_value = vs_result
+    mock_workspace_client.return_value = mock_w
+
+    hydrated = _row(chunk_id="c1", priority_tier=1)
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [hydrated]
+
+    set_pipeline_thread("thread-t3-001")
+    run_id = open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=re2_store,
+    )
+
+    result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        intent_id="fta.opex.q1_financial_statements",
+    )
+
+    assert result.mode == "semantic"
+    rows = _provenance_rows(re2_store, run_id)
+    assert len(rows) == 1
+    assert rows[0]["intent_id"] == "fta.opex.q1_financial_statements"
+    assert rows[0]["chunk_id"] == "c1"
+    assert rows[0]["mode"] == "semantic"
+    close_agent_run()
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_provenance_noop_without_open_run(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+    re2_store,
+):
+    """Kill criterion: emit must no-op silently when no agent run is open."""
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    vs_result = MagicMock()
+    vs_result.result.data_array = [["c1", "d1", "CIM.pdf", 0.95]]
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.return_value = vs_result
+    mock_workspace_client.return_value = mock_w
+
+    hydrated = _row(chunk_id="c1", priority_tier=1)
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [hydrated]
+
+    # No open_agent_run — emit must not raise and must not write any rows.
+    result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        intent_id="fta.opex.q1_financial_statements",
+    )
+
+    assert result.mode == "semantic"
+    # re2_store has no manifest; querying it for provenance yields no rows.
+    rows = re2_store._conn.execute(
+        "SELECT intent_id FROM retrieval_provenance"
+    ).fetchall()
+    assert rows == []
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_provenance_emits_after_merge_rank_and_cap(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+    re2_store,
+):
+    """Adversarial micro-pass: emit must run AFTER merge-rank + top_k cap.
+
+    Falsifies two failure modes at once: (a) emit before the top_k cap would
+    surface both chunks instead of one; (b) emit before merge-rank would
+    surface c1 (data_array order) instead of the higher merge-score c2.
+    """
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    # c1: tier 1, sim 0.30 -> merge 0.30.  c2: tier 3, sim 0.95 -> merge 0.38.
+    vs_result = MagicMock()
+    vs_result.result.data_array = [
+        ["c1", "d1", "CIM.pdf", 0.30],
+        ["c2", "d2", "P&L.pdf", 0.95],
+    ]
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.return_value = vs_result
+    mock_workspace_client.return_value = mock_w
+
+    hydrated_c1 = _row(chunk_id="c1", priority_tier=1)
+    hydrated_c2 = _row(chunk_id="c2", priority_tier=3)
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [hydrated_c1, hydrated_c2]
+
+    set_pipeline_thread("thread-t3-cap")
+    run_id = open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        store=re2_store,
+    )
+
+    result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=1,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        intent_id="fta.opex.q1_financial_statements",
+    )
+
+    assert len(result.chunks) == 1
+    assert result.chunks[0].chunk_id == "c2"
+    rows = _provenance_rows(re2_store, run_id)
+    assert len(rows) == 1, "emit must reflect the top_k cap, not pre-cap chunks"
+    assert rows[0]["chunk_id"] == "c2", "emit must reflect merge-rank order"
+    assert rows[0]["rank"] == 1
+    close_agent_run()
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_provenance_intent_id_fallback(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+    re2_store,
+):
+    """intent_id None on a non-FTA run falls back to unknown.{agent_id}."""
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    vs_result = MagicMock()
+    vs_result.result.data_array = [["c1", "d1", "CIM.pdf", 0.95]]
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.return_value = vs_result
+    mock_workspace_client.return_value = mock_w
+
+    hydrated = _row(chunk_id="c1", priority_tier=1)
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [hydrated]
+
+    set_pipeline_thread("thread-t3-fallback")
+    run_id = open_agent_run(
+        "bma",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["bma.business_model"],
+        store=re2_store,
+    )
+
+    semantic_search(
+        "business model",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        intent_id=None,
+    )
+
+    rows = _provenance_rows(re2_store, run_id)
+    assert len(rows) == 1
+    assert rows[0]["intent_id"] == "unknown.bma"
+    close_agent_run()

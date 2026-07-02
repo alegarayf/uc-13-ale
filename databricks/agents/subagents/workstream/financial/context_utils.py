@@ -113,12 +113,15 @@ def semantic_search_with_fallback(
     source_type_priority: bool = False,
     source_type_filter: list | None = None,
     retrieval_mode: str = "semantic",
+    intent_id: str | None = None,
 ) -> RouteResult:
     """Semantic search with automatic filename-filter fallback.
 
     Calls ``semantic_search`` (merge-rank enhancements live in ``retrieval.py``).
     ``retrieval_mode`` is accepted for FTA/sub-agent call-site compatibility but
     does not alter dispatch after Route A removal.
+    ``intent_id`` is propagated to ``semantic_search`` for M-RE2 D3 provenance
+    attribution; FTA sub-agents must pass the registry intent id.
 
     If result count < min_results with the filename filter, retries without it so
     documents with non-standard names are not silently excluded.
@@ -139,6 +142,7 @@ def semantic_search_with_fallback(
         source_type_filter=source_type_filter,
         catalog=catalog,
         index_name=index_name,
+        intent_id=intent_id,
     )
 
     result = semantic_search(**search_kwargs)
