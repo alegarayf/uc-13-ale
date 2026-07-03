@@ -28,7 +28,7 @@ from eval.retrieval.harness import (
     resolve_ablation_arm,
 )
 from eval.retrieval.harness_cli import build_parser
-from eval.retrieval.models import ABLATION_ARMS, HarnessRun, RetrievalIntent
+from eval.retrieval.models import ABLATION_ARMS, HarnessReport, HarnessRun, RetrievalIntent
 from eval.retrieval.store import SqliteEvalStore
 
 GOLD_PATH = Path(__file__).resolve().parents[1] / "gold_labels" / "elder_care.yaml"
@@ -276,3 +276,133 @@ def test_eval_harness_ablation_config_unknown_arm_fails_fast(tmp_path):
             skip_retrieval=True,
         )
     store.close()
+
+
+_MATRIX_INTENT_ID = "fta.opex.q3_projected_financials"
+_MATRIX_POS_IDS = (
+    "bfbcfe31-e9b1-4017-acd7-97601be54c04",
+    "c088efb9-8cf9-46a5-8aba-aed9eab703dc",
+    "7cf789fd-dabd-47fa-8ee7-47a001d5fb68",
+)
+_MATRIX_FILLER_ID = "00000000-0000-4000-8000-000000000099"
+_MATRIX_FILLER_ID_2 = "00000000-0000-4000-8000-00000000009a"
+
+
+@dataclass
+class _MatrixRoute:
+    chunks: list
+    mode: str
+    scores: list[float]
+
+
+def _arm_ordering(ablation_arm: str | None) -> list[str]:
+    """Deterministic per-arm chunk order for fixture matrix proof."""
+    p1, p2, p3 = _MATRIX_POS_IDS
+    filler = _MATRIX_FILLER_ID
+    if ablation_arm in (None, "merge_rank_on"):
+        return [p1, p2, p3]
+    if ablation_arm == "merge_rank_off":
+        return [filler, p1, p2, p3]
+    if ablation_arm == "sim_only":
+        return [filler, p1]
+    if ablation_arm == "tier_only":
+        return [filler, _MATRIX_FILLER_ID_2, p1]
+    raise AssertionError(f"unexpected ablation_arm: {ablation_arm!r}")
+
+
+def _matrix_fake_dispatch(intent, *, company_name, spark, ablation_arm=None):
+    order = _arm_ordering(ablation_arm)
+    return _MatrixRoute(
+        chunks=[SimpleNamespace(chunk_id=cid) for cid in order],
+        mode="semantic",
+        scores=[0.99 - (0.01 * idx) for idx in range(len(order))],
+    )
+
+
+def test_ablation_matrix_four_arms_produce_distinct_runs_and_deltas(tmp_path):
+    """T5 fixture proof: 4 merge-rank arms → 4 run_ids, ablation_arm tags, HarnessDelta rows."""
+    store = SqliteEvalStore(tmp_path / "ablation_matrix.sqlite")
+    harness = EvalHarness(
+        gold_path=GOLD_PATH,
+        registry_path=default_registry_path(),
+        retrieval_dispatch=_matrix_fake_dispatch,
+    )
+    intent_scope = [_MATRIX_INTENT_ID]
+    spark = MagicMock()
+
+    baseline_report = harness.run(
+        run_type="baseline",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        store=store,
+        store_backend="sqlite",
+        affected_intents=intent_scope,
+        spark=spark,
+    )
+    baseline_run_id = baseline_report.manifest.run_id
+
+    ablation_reports: dict[str, HarnessReport] = {}
+    for arm in ABLATION_ARMS:
+        report = harness.run(
+            run_type="ablation",
+            company_name="Elder Care",
+            catalog="uc13_ale",
+            store=store,
+            store_backend="sqlite",
+            baseline_ref_run_id=baseline_run_id,
+            affected_intents=intent_scope,
+            ablation_config={"arm": arm},
+            spark=spark,
+        )
+        ablation_reports[arm] = report
+
+    run_ids = {arm: report.manifest.run_id for arm, report in ablation_reports.items()}
+    assert len(run_ids) == len(ABLATION_ARMS)
+    assert len(set(run_ids.values())) == len(ABLATION_ARMS)
+
+    non_zero_metric_deltas = 0
+    for arm, report in ablation_reports.items():
+        assert report.manifest.ablation_arm == arm
+        assert report.manifest.ablation_config == {"arm": arm}
+        assert report.manifest.baseline_ref_run_id == baseline_run_id
+        assert all(row.ablation_arm == arm for row in report.results)
+        assert report.deltas is not None
+        assert len(report.deltas) > 0
+
+        for delta in report.deltas:
+            assert delta.run_id == report.manifest.run_id
+            assert delta.baseline_ref_run_id == baseline_run_id
+            assert delta.intent_id == _MATRIX_INTENT_ID
+            assert delta.metric in {
+                "recall_at_10",
+                "precision_at_10",
+                "basis_conflict_at_10",
+                "mrr",
+            }
+            if delta.delta != 0.0:
+                non_zero_metric_deltas += 1
+
+        reloaded = store.get_run(report.manifest.run_id)
+        assert reloaded.deltas is not None
+        assert len(reloaded.deltas) == len(report.deltas)
+
+    assert non_zero_metric_deltas > 0
+    sim_only_recall = next(
+        row
+        for row in ablation_reports["sim_only"].deltas
+        if row.metric == "recall_at_10"
+    )
+    assert sim_only_recall.delta < 0.0
+    assert sim_only_recall.gate_pass is False
+
+    tier_only_mrr = next(
+        row for row in ablation_reports["tier_only"].deltas if row.metric == "mrr"
+    )
+    assert tier_only_mrr.delta < 0.0
+
+    store.close()
+
+
+def test_ablation_arm_none_matches_merge_rank_on_fixture_ordering():
+    """Defense-in-depth: default dispatch path matches merge_rank_on ordering."""
+    assert _arm_ordering(None) == _arm_ordering("merge_rank_on")
