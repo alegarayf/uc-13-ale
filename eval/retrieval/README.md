@@ -139,21 +139,52 @@ print(
 
 After the run, copy stdout into the job log or PR notes and update the matrix cells below from probe log lines (`status=pass` / `status=fail`). **Do not mark `PASS` without cluster stdout evidence.**
 
+### Operator attestation (cluster run)
+
+**Date:** 2026-07-03 · **Workspace:** `uc13_ale` · **Company:** Elder Care · **Operator:** Ale
+
+**Probe summary:** `{'company_name': 'pass', 'workstream': 'pass', 'priority_tier': 'pass'}` — all 11 candidates `sdk_accepted` (direct `query_index`, no `retrieval.py` fallback).
+
+**G2 re-verify:** `semantic_search(..., company_name="Elder Care", catalog="uc13_ale")` → `mode=semantic`, `result_count=5`, no `VS filter pushdown unavailable` line.
+
+<details>
+<summary>Probe stdout (archived)</summary>
+
+```
+[vs_filter_pushdown_probe] index='uc13_ale.ingestion.embeddings_index' company_name='Elder Care' catalog='uc13_ale'
+[vs_filter_pushdown_probe] dimension=company_name status=pass label=equality {"company_name": 'Elder Care'} :: sdk_accepted result_count=5 filters_json={"company_name": "Elder Care"}
+[vs_filter_pushdown_probe] dimension=workstream status=pass label=equality scalar {"workstream": "FINANCIAL"} :: sdk_accepted result_count=5 filters_json={"workstream": "FINANCIAL"}
+[vs_filter_pushdown_probe] dimension=workstream status=pass label=list any-of {"workstream": ["FINANCIAL"]} :: sdk_accepted result_count=5 filters_json={"workstream": ["FINANCIAL"]}
+[vs_filter_pushdown_probe] dimension=workstream status=pass label=list any-of {"workstream": ["FINANCIAL", "BUSINESS_MODEL"]} :: sdk_accepted result_count=5 filters_json={"workstream": ["FINANCIAL", "BUSINESS_MODEL"]}
+[vs_filter_pushdown_probe] dimension=workstream status=pass label=LIKE {"workstream LIKE": "FINANCIAL"} :: sdk_accepted result_count=5 filters_json={"workstream LIKE": "FINANCIAL"}
+[vs_filter_pushdown_probe] dimension=priority_tier status=pass label=equality {"priority_tier": 2} :: sdk_accepted result_count=5 filters_json={"priority_tier": 2}
+[vs_filter_pushdown_probe] dimension=priority_tier status=pass label=lte {"priority_tier <=": 2} :: sdk_accepted result_count=5 filters_json={"priority_tier <=": 2}
+[vs_filter_pushdown_probe] dimension=priority_tier status=pass label=gte {"priority_tier >=": 1} :: sdk_accepted result_count=5 filters_json={"priority_tier >=": 1}
+[vs_filter_pushdown_probe] dimension=priority_tier status=pass label=lt {"priority_tier <": 3} :: sdk_accepted result_count=5 filters_json={"priority_tier <": 3}
+[vs_filter_pushdown_probe] dimension=workstream status=pass label=company + workstream {"company_name": 'Elder Care', "workstream": "FINANCIAL"} :: sdk_accepted result_count=5 filters_json={"company_name": "Elder Care", "workstream": "FINANCIAL"}
+[vs_filter_pushdown_probe] dimension=priority_tier status=pass label=company + tier lte {"company_name": 'Elder Care', "priority_tier <=": 2} :: sdk_accepted result_count=5 filters_json={"company_name": "Elder Care", "priority_tier <=": 2}
+[vs_filter_pushdown_probe] summary={'company_name': 'pass', 'workstream': 'pass', 'priority_tier': 'pass'}
+```
+
+</details>
+
+**T2 gate:** OPEN — all three dimensions `pass`; T2 may implement `workstream` and `priority_tier` VS metadata filter pushdown.
+
 ### Pass/fail matrix
 
 | Candidate `filters_json` (standard-endpoint dict) | Dimension | Result | Notes |
 |---------------------------------------------------|-----------|--------|-------|
-| `{"company_name": "Elder Care"}` | `company_name` | PENDING — operator cluster run required | G2 re-verify; same predicate as `retrieval._query_vector_index` |
-| `{"workstream": "FINANCIAL"}` | `workstream` | PENDING — operator cluster run required | Scalar equality on `ARRAY<STRING>` — may be whole-array match only |
-| `{"workstream": ["FINANCIAL"]}` | `workstream` | PENDING — operator cluster run required | Multi-value any-of per VS filter guide |
-| `{"workstream": ["FINANCIAL", "BUSINESS_MODEL"]}` | `workstream` | PENDING — operator cluster run required | Overlap proxy (any-of); not documented as `ARRAY_CONTAINS` |
-| `{"workstream LIKE": "FINANCIAL"}` | `workstream` | PENDING — operator cluster run required | Docs workaround when native array overlap unsupported |
-| `{"priority_tier": 2}` | `priority_tier` | PENDING — operator cluster run required | Equality |
-| `{"priority_tier <=": 2}` | `priority_tier` | PENDING — operator cluster run required | Operator-suffixed `<=` key |
-| `{"priority_tier >=": 1}` | `priority_tier` | PENDING — operator cluster run required | Operator-suffixed `>=` key |
-| `{"priority_tier <": 3}` | `priority_tier` | PENDING — operator cluster run required | Operator-suffixed `<` key |
-| `{"company_name": "Elder Care", "workstream": "FINANCIAL"}` | `workstream` | PENDING — operator cluster run required | Multi-key AND + tenant filter |
-| `{"company_name": "Elder Care", "priority_tier <=": 2}` | `priority_tier` | PENDING — operator cluster run required | Multi-key AND + tier cap |
+| `{"company_name": "Elder Care"}` | `company_name` | PASS | G2 re-verify; same predicate as `retrieval._query_vector_index` |
+| `{"workstream": "FINANCIAL"}` | `workstream` | PASS | Scalar equality on `ARRAY<STRING>` — sdk_accepted 2026-07-03 |
+| `{"workstream": ["FINANCIAL"]}` | `workstream` | PASS | Multi-value any-of per VS filter guide |
+| `{"workstream": ["FINANCIAL", "BUSINESS_MODEL"]}` | `workstream` | PASS | Overlap proxy (any-of); not documented as `ARRAY_CONTAINS` |
+| `{"workstream LIKE": "FINANCIAL"}` | `workstream` | PASS | Docs workaround when native array overlap unsupported |
+| `{"priority_tier": 2}` | `priority_tier` | PASS | Equality |
+| `{"priority_tier <=": 2}` | `priority_tier` | PASS | Operator-suffixed `<=` key |
+| `{"priority_tier >=": 1}` | `priority_tier` | PASS | Operator-suffixed `>=` key |
+| `{"priority_tier <": 3}` | `priority_tier` | PASS | Operator-suffixed `<` key |
+| `{"company_name": "Elder Care", "workstream": "FINANCIAL"}` | `workstream` | PASS | Multi-key AND + tenant filter |
+| `{"company_name": "Elder Care", "priority_tier <=": 2}` | `priority_tier` | PASS | Multi-key AND + tier cap |
 
 **Dimension rollup (for T2 gate):** `workstream` / `priority_tier` summary is `pass` when **any** row for that dimension is `PASS` on a live cluster run; dimensions are independent (partial pass is valid — T2 implements only passing dimensions). `company_name` summary is `pass` / `fail` only (G2 re-verify).
 
