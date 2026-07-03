@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 from databricks.sdk import WorkspaceClient
 import mlflow.deployments
@@ -72,6 +73,29 @@ def _sort_by_merge_rank(chunks: list, score_map: dict[str, float]) -> list:
     return sorted(chunks, key=lambda c: -_merge_score(c, score_map))
 
 
+def _build_vs_filters_dict(
+    *,
+    company_name: str | None,
+    vs_metadata_filters: bool,
+    workstream_filter: list[str] | None,
+    tier_filter: int | None,
+) -> dict[str, Any]:
+    """Build a single VS ``filters_json`` dict (AND semantics across keys).
+
+    ``workstream`` uses list any-of syntax (T1 matrix PASS). ``priority_tier``
+    uses operator-suffixed ``<=`` to mirror post-retrieval ``tier_filter``.
+    """
+    filters: dict[str, Any] = {}
+    if company_name:
+        filters["company_name"] = company_name
+    if vs_metadata_filters:
+        if workstream_filter:
+            filters["workstream"] = workstream_filter
+        if tier_filter is not None:
+            filters["priority_tier <="] = tier_filter
+    return filters
+
+
 def _query_vector_index(
     w: WorkspaceClient,
     *,
@@ -79,18 +103,27 @@ def _query_vector_index(
     query_embedding: list[float],
     fetch_k: int,
     company_name: str | None,
+    vs_metadata_filters: bool = False,
+    workstream_filter: list[str] | None = None,
+    tier_filter: int | None = None,
 ):
-    """B-W2: query_index with optional company_name filter pushdown and fallback."""
+    """B-W2: query_index with optional filter pushdown and unfiltered fallback."""
     query_kwargs = {
         "index_name": index_name,
         "columns": ["chunk_id", "doc_id", "file_name"],
         "query_vector": query_embedding,
         "num_results": fetch_k,
     }
-    if not company_name:
+    filters = _build_vs_filters_dict(
+        company_name=company_name,
+        vs_metadata_filters=vs_metadata_filters,
+        workstream_filter=workstream_filter,
+        tier_filter=tier_filter,
+    )
+    if not filters:
         return w.vector_search_indexes.query_index(**query_kwargs)
 
-    filters_json = json.dumps({"company_name": company_name})
+    filters_json = json.dumps(filters)
     try:
         return w.vector_search_indexes.query_index(**query_kwargs, filters_json=filters_json)
     except Exception as filter_err:
@@ -207,6 +240,7 @@ def semantic_search(
     source_type_priority: bool = False,
     source_type_filter: list[str] | None = None,
     intent_id: str | None = None,
+    vs_metadata_filters: bool = False,
 ) -> RouteResult:
     """Search for relevant chunks using semantic similarity.
 
@@ -245,6 +279,10 @@ def semantic_search(
             when None the emitter falls back to ``unknown.{agent_id}``. FTA
             sub-agents must pass the registry id. No-op when no agent run is
             open unless ``RE2_PROVENANCE_REQUIRED=1``.
+        vs_metadata_filters: When ``True``, push ``workstream_filter`` and
+            ``tier_filter`` into VS ``filters_json`` (syntax attested by T1
+            cluster probe). Default ``False`` — production behavior unchanged.
+            Post-retrieval filters still apply regardless.
 
     Returns:
         RouteResult with chunks (Spark Row objects), mode
@@ -276,6 +314,9 @@ def semantic_search(
             query_embedding=query_embedding,
             fetch_k=fetch_k,
             company_name=company_name,
+            vs_metadata_filters=vs_metadata_filters,
+            workstream_filter=workstream_filter,
+            tier_filter=tier_filter,
         )
 
         if not results.result or not results.result.data_array:
