@@ -8,6 +8,17 @@ from typing import Any, Literal
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
+ABLATION_ARMS: tuple[str, ...] = (
+    "merge_rank_on",
+    "merge_rank_off",
+    "sim_only",
+    "tier_only",
+)
+
+# Valid arm names for resolve_ablation_arm (includes conditional T2 arm).
+VALID_ABLATION_ARMS: tuple[str, ...] = (*ABLATION_ARMS, "vs_filter_pushdown")
+
+
 class RetrievalIntent(BaseModel):
     """Registry record — one semantic_search call site."""
 

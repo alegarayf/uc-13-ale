@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from typing import Any, Literal
 
 from databricks.sdk import WorkspaceClient
 import mlflow.deployments
@@ -66,11 +66,21 @@ def _merge_score(chunk, score_map: dict[str, float]) -> float:
 def _sort_by_merge_rank(chunks: list, score_map: dict[str, float]) -> list:
     """B-W3/B-W4: rank by sim_score × tier_weight; tier-only fallback when no scores."""
     if not score_map:
-        return sorted(
-            chunks,
-            key=lambda c: c.priority_tier if c.priority_tier is not None else 99,
-        )
+        return _sort_by_tier_only(chunks)
     return sorted(chunks, key=lambda c: -_merge_score(c, score_map))
+
+
+def _sort_by_tier_only(chunks: list) -> list:
+    return sorted(
+        chunks,
+        key=lambda c: c.priority_tier if c.priority_tier is not None else 99,
+    )
+
+
+def _sort_by_sim_only(chunks: list, score_map: dict[str, float]) -> list:
+    if not score_map:
+        return _sort_by_tier_only(chunks)
+    return sorted(chunks, key=lambda c: -score_map.get(c.chunk_id, 0.0))
 
 
 def _build_vs_filters_dict(
@@ -241,6 +251,7 @@ def semantic_search(
     source_type_filter: list[str] | None = None,
     intent_id: str | None = None,
     vs_metadata_filters: bool = False,
+    merge_rank_mode: Literal["sim_tier", "sim_only", "tier_only", "off"] | None = None,
 ) -> RouteResult:
     """Search for relevant chunks using semantic similarity.
 
@@ -283,6 +294,11 @@ def semantic_search(
             ``tier_filter`` into VS ``filters_json`` (syntax attested by T1
             cluster probe). Default ``False`` — production behavior unchanged.
             Post-retrieval filters still apply regardless.
+        merge_rank_mode: Post-hydration chunk ordering. ``None`` and
+            ``"sim_tier"`` apply sim×tier merge rank (default). ``"sim_only"``
+            sorts by raw VS similarity; ``"tier_only"`` by ``priority_tier``
+            ascending; ``"off"`` preserves hydrate-SQL order (no merge rank or
+            ``source_type_priority`` reorder).
 
     Returns:
         RouteResult with chunks (Spark Row objects), mode
@@ -367,7 +383,14 @@ def semantic_search(
             if getattr(c, "source_type", "text") in source_type_filter
         ]
 
-    if source_type_priority:
+    effective_merge_rank = merge_rank_mode if merge_rank_mode is not None else "sim_tier"
+    if effective_merge_rank == "off":
+        pass
+    elif effective_merge_rank == "sim_only":
+        chunks = _sort_by_sim_only(chunks, score_map)
+    elif effective_merge_rank == "tier_only":
+        chunks = _sort_by_tier_only(chunks)
+    elif source_type_priority:
         # Within merge-rank groups, surface table and vision chunks first.
         # TODO: consolidate with context_utils._TYPE_ORDER
         _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
@@ -406,10 +429,14 @@ def semantic_search(
             scores=[0.0] * len(chunks),
         )
     else:
+        if effective_merge_rank == "sim_tier":
+            score_values = [_merge_score(c, score_map) for c in chunks]
+        else:
+            score_values = [score_map.get(c.chunk_id, 0.0) for c in chunks]
         result = RouteResult(
             chunks=chunks,
             mode="semantic",
-            scores=[_merge_score(c, score_map) for c in chunks],
+            scores=score_values,
         )
 
     # M-RE2 T3/D2: emit provenance after merge-rank + top_k cap, before return.
