@@ -35,6 +35,7 @@ from eval.retrieval.models import (
     IntentGateSummary,
     ProvenanceRecord,
     RetrievalIntent,
+    VALID_ABLATION_ARMS,
 )
 from eval.retrieval.provenance import build_provenance_record, normalize_mode
 from eval.retrieval.scope_resolver import gate_eligible_intent_ids
@@ -47,6 +48,41 @@ AUDIT_METRICS = ("mrr",)
 
 HIGHER_IS_BETTER = frozenset({"recall_at_10", "precision_at_10", "mrr"})
 LOWER_IS_BETTER = frozenset({"basis_conflict_at_10"})
+
+_ABLATION_ARM_TO_MERGE_RANK: dict[str, str] = {
+    "merge_rank_on": "sim_tier",
+    "merge_rank_off": "off",
+    "sim_only": "sim_only",
+    "tier_only": "tier_only",
+}
+
+
+def resolve_ablation_arm(ablation_config: dict[str, Any] | None) -> str | None:
+    """Parse ablation_config arm key; raises PreconditionError when malformed."""
+    if ablation_config is None:
+        return None
+    if not isinstance(ablation_config, dict):
+        raise PreconditionError("ablation_config must be a dict")
+    arm = ablation_config.get("arm")
+    if not isinstance(arm, str):
+        raise PreconditionError("ablation_config requires string 'arm' key")
+    if arm not in VALID_ABLATION_ARMS:
+        raise PreconditionError(f"unknown ablation arm: {arm}")
+    return arm
+
+
+def ablation_arm_to_merge_rank_mode(ablation_arm: str | None) -> str | None:
+    """Map harness ablation arm to semantic_search merge_rank_mode kwarg."""
+    if ablation_arm is None:
+        return None
+    if ablation_arm == "vs_filter_pushdown":
+        raise PreconditionError(
+            "vs_filter_pushdown ablation arm is not dispatchable in M-RE3 scope"
+        )
+    mode = _ABLATION_ARM_TO_MERGE_RANK.get(ablation_arm)
+    if mode is None:
+        raise PreconditionError(f"unknown ablation arm: {ablation_arm}")
+    return mode
 
 
 def _repo_root() -> Path:
@@ -139,11 +175,15 @@ def dispatch_retrieval(
     *,
     company_name: str,
     spark: Any,
+    ablation_arm: str | None = None,
 ) -> Any:
     """Production-faithful retrieval dispatch — imports migrated semantic_search."""
     from agents.shared.retrieval import semantic_search
 
     kwargs = build_search_kwargs(intent, company_name=company_name, spark=spark)
+    merge_rank_mode = ablation_arm_to_merge_rank_mode(ablation_arm)
+    if merge_rank_mode is not None:
+        kwargs["merge_rank_mode"] = merge_rank_mode
     result = semantic_search(**kwargs)
     if uses_fallback_wrapper(intent):
         min_results = intent.min_results if intent.min_results is not None else 3
@@ -603,6 +643,9 @@ class EvalHarness:
         gold_snapshot = compute_gold_snapshot(gold_labels)
         gold_map = {label.intent_id: label for label in gold_labels}
 
+        resolved_ablation_arm = resolve_ablation_arm(ablation_config)
+        merge_rank_mode_for_run = ablation_arm_to_merge_rank_mode(resolved_ablation_arm)
+
         resolved_affected, resolved_gated = self._resolve_scope(
             run_type=run_type,
             registry_map=registry_map,
@@ -637,6 +680,7 @@ class EvalHarness:
             affected_intents=resolved_affected,
             gated_intents=resolved_gated,
             ablation_config=ablation_config,
+            ablation_arm=resolved_ablation_arm if run_type == "ablation" else None,
             baseline_ref_run_id=baseline_ref_run_id,
             store_backend=store_backend,  # type: ignore[arg-type]
             harness_status="incomplete",
@@ -672,6 +716,7 @@ class EvalHarness:
         for intent_id in resolved_affected:
             intent = registry_map[intent_id]
             gold = gold_map[intent_id]
+            result_ablation_arm = resolved_ablation_arm if run_type == "ablation" else None
             if gold.gold_status == "bootstrap_failed" or not gold.positive_chunk_ids:
                 result_count = 0
                 if not skip_retrieval:
@@ -679,6 +724,7 @@ class EvalHarness:
                         intent,
                         company_name=company_name,
                         spark=active_spark,
+                        ablation_arm=resolved_ablation_arm,
                     )
                     result_count = len(route_result.chunks)
                     provenance_records.append(
@@ -693,12 +739,16 @@ class EvalHarness:
                     intent_id=intent_id,
                     eval_status="skipped_bootstrap_failed",
                     result_count=result_count,
+                    ablation_arm=result_ablation_arm,
                 )
                 results.append(result)
                 logger.info(
-                    "intent_id=%s mode=skipped result_count=%s eval_status=skipped_bootstrap_failed",
+                    "intent_id=%s mode=skipped result_count=%s eval_status=skipped_bootstrap_failed "
+                    "ablation_arm=%s merge_rank_mode=%s",
                     intent_id,
                     result_count,
+                    result_ablation_arm,
+                    merge_rank_mode_for_run,
                 )
                 continue
 
@@ -709,8 +759,10 @@ class EvalHarness:
                 intent,
                 company_name=company_name,
                 spark=active_spark,
+                ablation_arm=resolved_ablation_arm,
             )
             result = compute_metrics(intent, gold, route_result)
+            result = result.model_copy(update={"ablation_arm": result_ablation_arm})
             results.append(result)
             provenance_records.append(
                 build_provenance_record(
@@ -721,11 +773,14 @@ class EvalHarness:
                 )
             )
             logger.info(
-                "intent_id=%s mode=%s result_count=%s eval_status=%s",
+                "intent_id=%s mode=%s result_count=%s eval_status=%s "
+                "ablation_arm=%s merge_rank_mode=%s",
                 intent_id,
                 result.mode,
                 result.result_count,
                 result.eval_status,
+                result_ablation_arm,
+                merge_rank_mode_for_run,
             )
 
         store.append_results(manifest.run_id, results)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -53,6 +54,11 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="+",
         help="Explicit intent scope (required for enhancement)",
     )
+    run_parser.add_argument(
+        "--ablation-config",
+        type=json.loads,
+        help='Ablation arm JSON, e.g. \'{"arm": "sim_only"}\'',
+    )
 
     validate_parser = subparsers.add_parser(
         "validate-baseline",
@@ -94,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
                 store_backend=args.store_backend,
                 baseline_ref_run_id=args.baseline_ref_run_id,
                 affected_intents=args.affected_intents,
+                ablation_config=getattr(args, "ablation_config", None),
             )
         finally:
             close = getattr(store, "close", None)

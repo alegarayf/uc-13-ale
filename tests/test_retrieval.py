@@ -50,6 +50,8 @@ from agents.shared.retrieval import (  # noqa: E402
     _merge_score,
     _query_vector_index,
     _sort_by_merge_rank,
+    _sort_by_sim_only,
+    _sort_by_tier_only,
     _tier_weight,
     semantic_search,
 )
@@ -655,3 +657,181 @@ def test_semantic_search_provenance_intent_id_fallback(
     assert len(rows) == 1
     assert rows[0]["intent_id"] == "unknown.bma"
     close_agent_run()
+
+
+def _setup_vs_hydrate_mocks(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+    *,
+    data_array: list,
+    hydrated_rows: list,
+) -> MagicMock:
+    """Configure shared VS+hydrate mocks for merge_rank_mode ordering tests."""
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    vs_result = MagicMock()
+    vs_result.result.data_array = data_array
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.return_value = vs_result
+    mock_workspace_client.return_value = mock_w
+
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = hydrated_rows
+    return spark
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_merge_rank_mode_none_matches_sim_tier_ordering(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    """Kill criterion: omitted merge_rank_mode reproduces pre-T4 default path."""
+    hydrated_c1 = _row(chunk_id="c1", priority_tier=1)
+    hydrated_c2 = _row(chunk_id="c2", priority_tier=3)
+    spark = _setup_vs_hydrate_mocks(
+        mock_get_deploy_client,
+        mock_workspace_client,
+        monkeypatch,
+        data_array=[
+            ["c1", "d1", "CIM.pdf", 0.30],
+            ["c2", "d2", "P&L.pdf", 0.95],
+        ],
+        hydrated_rows=[hydrated_c1, hydrated_c2],
+    )
+
+    default_result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        min_chunk_length=50,
+    )
+    explicit_result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        merge_rank_mode="sim_tier",
+    )
+
+    assert [c.chunk_id for c in default_result.chunks] == [
+        c.chunk_id for c in explicit_result.chunks
+    ]
+    assert default_result.scores == explicit_result.scores
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_merge_rank_mode_sim_only_ignores_tier_weight(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    hydrated_c1 = _row(chunk_id="c1", priority_tier=1)
+    hydrated_c2 = _row(chunk_id="c2", priority_tier=3)
+    spark = _setup_vs_hydrate_mocks(
+        mock_get_deploy_client,
+        mock_workspace_client,
+        monkeypatch,
+        data_array=[
+            ["c1", "d1", "CIM.pdf", 0.30],
+            ["c2", "d2", "P&L.pdf", 0.95],
+        ],
+        hydrated_rows=[hydrated_c1, hydrated_c2],
+    )
+
+    result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        merge_rank_mode="sim_only",
+    )
+
+    assert [c.chunk_id for c in result.chunks] == ["c2", "c1"]
+    assert result.scores == [pytest.approx(0.95), pytest.approx(0.30)]
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_merge_rank_mode_tier_only_ignores_similarity(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    hydrated_c1 = _row(chunk_id="c1", priority_tier=2)
+    hydrated_c2 = _row(chunk_id="c2", priority_tier=1)
+    spark = _setup_vs_hydrate_mocks(
+        mock_get_deploy_client,
+        mock_workspace_client,
+        monkeypatch,
+        data_array=[
+            ["c1", "d1", "CIM.pdf", 0.99],
+            ["c2", "d2", "P&L.pdf", 0.10],
+        ],
+        hydrated_rows=[hydrated_c1, hydrated_c2],
+    )
+
+    result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        merge_rank_mode="tier_only",
+    )
+
+    assert [c.chunk_id for c in result.chunks] == ["c2", "c1"]
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_merge_rank_mode_off_preserves_hydrate_sql_order(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    hydrated_c1 = _row(chunk_id="c1", priority_tier=2)
+    hydrated_c2 = _row(chunk_id="c2", priority_tier=1)
+    spark = _setup_vs_hydrate_mocks(
+        mock_get_deploy_client,
+        mock_workspace_client,
+        monkeypatch,
+        data_array=[
+            ["c1", "d1", "CIM.pdf", 0.30],
+            ["c2", "d2", "P&L.pdf", 0.95],
+        ],
+        hydrated_rows=[hydrated_c1, hydrated_c2],
+    )
+
+    result = semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        merge_rank_mode="off",
+    )
+
+    assert [c.chunk_id for c in result.chunks] == ["c1", "c2"]
+
+
+def test_sort_by_sim_only_prefers_higher_raw_score():
+    chunks = [_row(chunk_id="low", priority_tier=1), _row(chunk_id="high", priority_tier=3)]
+    score_map = {"low": 0.95, "high": 0.20}
+    ranked = _sort_by_sim_only(chunks, score_map)
+    assert [c.chunk_id for c in ranked] == ["low", "high"]
+
+
+def test_sort_by_tier_only_orders_ascending_tier():
+    chunks = [_row(chunk_id="b", priority_tier=2), _row(chunk_id="a", priority_tier=1)]
+    ranked = _sort_by_tier_only(chunks)
+    assert [c.chunk_id for c in ranked] == ["a", "b"]
