@@ -272,6 +272,125 @@ python -m eval.retrieval.scripts.sync_eval_store \
 
 Optional: `--sqlite-path <path>`. Idempotent on `run_id` when Delta already has a complete run. Does **not** sync Delta → SQLite.
 
+## M-RE3 ablation matrix runbook (merge-rank arms)
+
+Operator steps for M-RE3 exit gate **item 28** (merge-rank ablation matrix with `HarnessDelta` vs baseline). Requires T4 ablation dispatch wiring (`--ablation-config`) and a **complete** baseline in Delta for the tenant.
+
+**Coverage disclosure (M-RE2 Finding F1 precedent):** Live-cluster execution of this matrix against real Elder Care retrieval has **not** occurred as part of the M-RE3 coding session. CI proves the mechanism via `eval/retrieval/tests/test_ablation.py::test_ablation_matrix_four_arms_produce_distinct_runs_and_deltas` (SQLite + injected `retrieval_dispatch`). Operator cluster runs below are required before treating item 28 as attested on real corpus data.
+
+**Baseline reference:** Pin `baseline_ref_run_id=baseline_f0f4f68ac7af` (M-RE1 Elder Care baseline) unless a post-hardening baseline has been promoted — if T6's re-baseline runbook has been executed, use that run instead (T6 takes precedence).
+
+**Intent scope:** Omit `--affected-intents` entirely for ablation runs. Per spec §5.12.1, `run_type: ablation` defaults to **all registered intents** when the flag is omitted (`EvalHarness._resolve_scope`). Do not pass a narrowed intent list — that would silently under-scope gate computation relative to retrieval code changes in T2/T3/T4.
+
+**Store backend:** Cluster runs **must** use `--store-backend delta` (never `sqlite` on cluster ablation runs).
+
+**Arms in scope (4):** `merge_rank_on`, `merge_rank_off`, `sim_only`, `tier_only`. Each maps to `semantic_search(..., merge_rank_mode=...)` per plan D7.
+
+**Not in scope for cluster matrix:** `vs_filter_pushdown` — T2 landed `semantic_search(..., vs_metadata_filters=False)` but the harness arm is not dispatchable in M-RE3 (`ablation_arm_to_merge_rank_mode` raises `PreconditionError`). Do not include a 5th cluster invocation until a follow-on wires dispatch.
+
+### Preflight
+
+1. DDL applied for `uc13_ale.ops` (same as baseline runbook §2).
+2. Complete baseline exists and is valid for `baseline_ref_run_id` (G2 probe passed for that baseline).
+3. `validate-baseline` passes for the pinned baseline:
+
+```bash
+python -m eval.retrieval.harness_cli validate-baseline \
+  --store-backend delta \
+  --catalog uc13_ale \
+  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --company-name "Elder Care"
+```
+
+### Cluster ablation invocations (one per arm)
+
+Run each command separately. Each produces its own `run_id` and `HarnessDelta` rows vs the pinned baseline. `baseline_ref_run_id` resolves automatically via `retrieval_harness_latest_baseline` when omitted; pin explicitly when comparing against M-RE1:
+
+**Notebook cell** (after Cell 1 — `REPO_ROOT` on `sys.path`):
+
+```python
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from eval.retrieval.harness import EvalHarness
+from eval.retrieval.store import DeltaEvalStore
+
+CATALOG = "uc13_ale"
+BASELINE_REF = "baseline_f0f4f68ac7af"  # M-RE1; omit or replace after T6 re-baseline
+harness = EvalHarness()
+store = DeltaEvalStore(spark, catalog=CATALOG)
+
+for arm in ("merge_rank_on", "merge_rank_off", "sim_only", "tier_only"):
+    report = harness.run(
+        run_type="ablation",
+        company_name="Elder Care",
+        catalog=CATALOG,
+        store=store,
+        store_backend="delta",
+        baseline_ref_run_id=BASELINE_REF,
+        ablation_config={"arm": arm},
+        spark=spark,
+    )
+    print(f"arm={arm} run_id={report.manifest.run_id} gate_pass={report.manifest.gate_pass}")
+```
+
+**Shell equivalents** (repo root on cluster; run each arm separately):
+
+```bash
+python -m eval.retrieval.harness_cli run --store-backend delta --run-type ablation \
+  --company-name "Elder Care" --catalog uc13_ale \
+  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --ablation-config '{"arm": "merge_rank_on"}'
+```
+
+```bash
+python -m eval.retrieval.harness_cli run --store-backend delta --run-type ablation \
+  --company-name "Elder Care" --catalog uc13_ale \
+  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --ablation-config '{"arm": "merge_rank_off"}'
+```
+
+```bash
+python -m eval.retrieval.harness_cli run --store-backend delta --run-type ablation \
+  --company-name "Elder Care" --catalog uc13_ale \
+  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --ablation-config '{"arm": "sim_only"}'
+```
+
+```bash
+python -m eval.retrieval.harness_cli run --store-backend delta --run-type ablation \
+  --company-name "Elder Care" --catalog uc13_ale \
+  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --ablation-config '{"arm": "tier_only"}'
+```
+
+### Post-run verification
+
+**Manifest check** — expect `run_type=ablation`, non-null `ablation_arm` matching the config, and `baseline_ref_run_id` pinned:
+
+```sql
+SELECT run_id, run_type, ablation_arm, baseline_ref_run_id, gate_pass, harness_status
+FROM uc13_ale.ops.retrieval_harness_runs
+WHERE run_type = 'ablation'
+  AND company_name = 'Elder Care'
+  AND catalog = 'uc13_ale'
+ORDER BY completed_at DESC
+LIMIT 10;
+```
+
+**HarnessDelta shape** — per intent, per gate metric (`recall_at_10`, `precision_at_10`, `basis_conflict_at_10`, `mrr`):
+
+```sql
+SELECT run_id, intent_id, metric, before_value, after_value, delta_value, gate_pass, in_gated_scope
+FROM uc13_ale.ops.retrieval_harness_deltas
+WHERE run_id IN ('<merge_rank_on_run_id>', '<merge_rank_off_run_id>', '<sim_only_run_id>', '<tier_only_run_id>')
+ORDER BY run_id, intent_id, metric;
+```
+
+Expect four distinct `run_id`s, each with `ablation_arm` populated on manifest and result rows. At least one arm should show non-zero `delta_value` on a gated metric vs `baseline_f0f4f68ac7af` (merge-rank mode changes chunk ordering on cluster retrieval).
+
+**Provenance:** Query ablation provenance by harness `run_id`, not pipeline `run_id` — harness and pipeline runs share `append_provenance` but use different manifest `run_id`s.
+
 ## M-RE2 cluster validation runbook (FTA pipeline)
 
 Operator steps for M-RE2 exit gates **item 18** (fallback rate) and **item 23** (Elder Care FTA 18-field checklist re-score). Requires `test_pipeline.ipynb` Cell 1 (`set_pipeline_thread`, `REPO_ROOT` on `sys.path`) before any agent `main()` — run Cell 12 **after** Cell 1 and snapshot with Cell 12a before switching `retrieval_mode`.
