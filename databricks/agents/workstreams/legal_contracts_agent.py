@@ -952,21 +952,23 @@ class LegalContractsAgent(WorkstreamAgent):
 
         Do not use the financial context_utils fallback helper — it defaults catalog to uc13.
         """
-        from agents.shared.retrieval import semantic_search
+        from functools import partial
 
-        search_kwargs = dict(
-            query=query,
-            spark=spark,
+        from agents.shared.fallback import semantic_search_with_fallback as _shared_fallback_search
+
+        _search = partial(_shared_fallback_search, catalog=self._catalog)
+        result, used_fallback = _search(
             company_name=self._company_name,
-            top_k=top_k,
+            spark=spark,
+            query=query,
             workstream_filter=workstream_filter,
+            top_k=top_k,
             file_name_filter=file_name_filter,
             min_chunk_length=min_chunk_length,
+            min_results=min_results,
             catalog=self._catalog,
         )
-        result = semantic_search(**search_kwargs)
-
-        if len(result.chunks) < min_results and file_name_filter is not None:
+        if used_fallback:
             step = len(self._trace) + 1
             self._trace.append({
                 "step":       step,
@@ -983,7 +985,6 @@ class LegalContractsAgent(WorkstreamAgent):
                 f"  Step {step} [retrieval_fallback]: filter returned {len(result.chunks)} chunks, "
                 f"retrying without filename filter"
             )
-            result = semantic_search(**{**search_kwargs, "file_name_filter": None})
 
         return result
 
