@@ -391,6 +391,141 @@ Expect four distinct `run_id`s, each with `ablation_arm` populated on manifest a
 
 **Provenance:** Query ablation provenance by harness `run_id`, not pipeline `run_id` — harness and pipeline runs share `append_provenance` but use different manifest `run_id`s.
 
+## M-RE3 post-hardening re-baseline + E2E runbook
+
+Operator steps for M-RE3 exit gates **item 29** (post-hardening harness baseline), **FTA 18-field** re-score, and **Legal 11-item** re-score after T2–T5 hardening lands. Requires `test_pipeline.ipynb` Cell 1 (`set_pipeline_thread`, `REPO_ROOT` on `sys.path`) before any agent `main()` — run Cell 12 / Cell 16 **after** Cell 1.
+
+**Coverage disclosure (M-RE2 F1 precedent):** Live-cluster execution of the post-hardening baseline, ablation matrix (see § M-RE3 ablation matrix runbook above), and E2E re-scores has **not** occurred as part of the M-RE3 coding session. CI proves harness mechanism; operator cluster runs below are required before treating item 29 as attested.
+
+**Control baseline reference:** M-RE1 harness baseline `baseline_f0f4f68ac7af` (Elder Care / `uc13_ale`). FTA checklist Control **16/18** (M-RE2 item 23, 2026-07-03 wet-run). Legal golden checklist baseline **7/11 pass** (`eval/LCA/golden_checklist_elder_care.md`, M3 E2E).
+
+**Baseline authority (Flag 7):** Until you complete the post-hardening re-baseline below, **`baseline_f0f4f68ac7af` remains authoritative** for `baseline_ref_run_id` and ablation compare. Local report JSON under `eval/retrieval/reports/` may include newer `run_type: baseline` rows with `harness_status: incomplete` (e.g. CI/fixture runs `baseline_fb7118e87dad`, `baseline_25157788f1cb`, `baseline_b8470ede4b4c`) — **do not promote these** without operator designation. After a successful cluster re-baseline, replace the control reference in this section and in the ablation runbook with the new `run_id`.
+
+**Intent scope:** Omit `--affected-intents` for the post-hardening baseline. Per spec §5.12.1, `run_type: baseline` defaults to **all registered intents** when the flag is omitted — required because M-RE3 changed `retrieval.py`, `databricks/agents/shared/fallback.py`, and harness ablation dispatch (full-suite scope).
+
+**Triplet pin awareness:** `validate_baseline_ref` still checks `registry_hash`, `gold_snapshot`, and `ingestion_snapshot` on the pinned baseline. A Cell 7 ingestion rebuild without gold rebootstrap will fail preflight — same as M-RE1 baseline runbook.
+
+### Post-hardening baseline re-run
+
+**Preflight** (same as cluster baseline runbook §§2–3):
+
+1. `apply_ops_ddl("uc13_ale")` additive migration if DDL changed since last pull.
+2. G2 `company_name` pushdown probe — log stdout; HALT if `VS filter pushdown unavailable`.
+3. M-RE3 VS spike matrix attested PASS (see § M-RE3 VS filter pushdown spike) — T2 capability landed gated off (`vs_metadata_filters=False` default).
+
+**Cluster invocation** — omit `--affected-intents`:
+
+```bash
+python -m eval.retrieval.harness_cli run \
+  --store-backend delta \
+  --run-type baseline \
+  --company-name "Elder Care" \
+  --catalog uc13_ale
+```
+
+**Notebook cell** (after Cell 1):
+
+```python
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from eval.retrieval.harness import EvalHarness
+from eval.retrieval.store import DeltaEvalStore
+
+CATALOG = "uc13_ale"
+harness = EvalHarness()
+store = DeltaEvalStore(spark, catalog=CATALOG)
+
+report = harness.run(
+    run_type="baseline",
+    company_name="Elder Care",
+    catalog=CATALOG,
+    store=store,
+    store_backend="delta",
+    spark=spark,
+)
+print("post_hardening_baseline_run_id:", report.manifest.run_id)
+print("harness_status:", report.manifest.harness_status)
+print("gate_pass:", report.manifest.gate_pass)
+```
+
+### Promotion check — `retrieval_harness_latest_baseline`
+
+After `harness_status: complete`, confirm the view points at your new run (not an older incomplete row):
+
+```sql
+SELECT run_id, harness_status, gate_pass, registry_hash, gold_snapshot, ingestion_snapshot, completed_at
+FROM uc13_ale.ops.retrieval_harness_latest_baseline
+WHERE company_name = 'Elder Care' AND catalog = 'uc13_ale';
+```
+
+**Operator action:** Record the promoted `run_id` in PR notes and update ablation runbook `BASELINE_REF` / `--baseline-ref-run-id` pins. Re-run `validate-baseline` against the new id before ablation arms:
+
+```bash
+python -m eval.retrieval.harness_cli validate-baseline \
+  --store-backend delta \
+  --catalog uc13_ale \
+  --baseline-ref-run-id <post_hardening_baseline_run_id> \
+  --company-name "Elder Care"
+```
+
+If G2 probe failed on this run, mark `harness_status: invalid` and do **not** promote.
+
+### Item 23 (FTA) — Elder Care 18-field checklist re-score
+
+Reuse M-RE2 item 23 steps (below in § M-RE2 cluster validation runbook). **Target:** ≥ **16/18** (maintain M-RE2 Control baseline).
+
+1. Run Cell 12 (Financial Trends Agent) on Elder Care with `catalog=uc13_ale`.
+2. Score the 18-field FTA golden checklist; target ≥ **16/18**.
+3. Run Cell 12a to snapshot the eval arm before changing `retrieval_mode`.
+4. Link checklist score to the **pipeline** manifest (`run_id` from `close_agent_run` inside `fta.main()` — **not** the harness baseline `run_id`):
+
+```bash
+python -m eval.retrieval.scripts.record_e2e_linkage \
+  --run-id <fta_pipeline_agent_run_id> \
+  --e2e-agent-id fta \
+  --e2e-checklist-score <n> \
+  --e2e-checklist-total 18 \
+  --e2e-snapshot-table uc13_ale.analysis.financial_trends_eval_snapshot \
+  --store-backend delta \
+  --catalog uc13_ale
+```
+
+Verify linkage:
+
+```sql
+SELECT run_id, run_type, e2e_agent_id, e2e_checklist_score, e2e_checklist_total, e2e_snapshot_table
+FROM uc13_ale.ops.retrieval_harness_runs
+WHERE run_id = '<fta_pipeline_agent_run_id>';
+```
+
+### Legal 11-item checklist re-score
+
+Canonical checklist: `eval/LCA/golden_checklist_elder_care.md` (single copy on disk; structural contract in `tests/test_golden_checklist_elder_care.py`). **Baseline:** 7 `pass` / 4 `gap-correct` / 0 `partial` (M3 normative YAML). **Target:** maintain or improve assessed pass count; no regression on `pass` rows.
+
+1. Run Cell 16 (`legal_contracts_agent.main()`) on Elder Care with `catalog=uc13_ale` after Cell 1.
+2. Load normative report: `/Volumes/uc13_ale/analysis/reports/Elder_Care/legal_report.yaml`.
+3. Score each of the 11 `item_id` rows in `golden_checklist_elder_care.md` (`pass` | `partial` | `gap-correct` | `n/a`) using the same verdict rules documented in that file.
+4. Record score summary (`<n>/11 pass`) and git SHA in PR notes. No `record_e2e_linkage` CLI for Legal in v1 — manual attestation only.
+
+Optional structural sanity check (laptop):
+
+```bash
+pytest tests/test_golden_checklist_elder_care.py -q
+```
+
+### M-RE3 operator checklist (item 29)
+
+| Step | Command / action | Pass criterion |
+|------|------------------|----------------|
+| 1 | Post-hardening `harness_cli run --run-type baseline` (no `--affected-intents`) | `harness_status: complete`; new `run_id` in Delta |
+| 2 | `retrieval_harness_latest_baseline` query | View `run_id` matches step 1 |
+| 3 | `validate-baseline` on promoted `run_id` | Exit 0 |
+| 4 | M-RE3 ablation matrix (4 arms) vs promoted baseline | Four `run_id`s + `HarnessDelta` rows (§ ablation runbook) |
+| 5 | FTA Cell 12 + 18-field re-score + `record_e2e_linkage` | ≥ 16/18; `e2e_*` fields set on pipeline manifest |
+| 6 | Legal Cell 16 + 11-item re-score | No regression on golden `pass` rows |
+| 7 | Update `BASELINE_REF` pins in this README after promotion | Ablation + future compares use post-hardening baseline |
+
 ## M-RE2 cluster validation runbook (FTA pipeline)
 
 Operator steps for M-RE2 exit gates **item 18** (fallback rate) and **item 23** (Elder Care FTA 18-field checklist re-score). Requires `test_pipeline.ipynb` Cell 1 (`set_pipeline_thread`, `REPO_ROOT` on `sys.path`) before any agent `main()` — run Cell 12 **after** Cell 1 and snapshot with Cell 12a before switching `retrieval_mode`.
