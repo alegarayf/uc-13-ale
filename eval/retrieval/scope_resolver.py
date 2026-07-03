@@ -10,6 +10,7 @@ from eval.retrieval.models import GoldLabel, RetrievalIntent
 GLOBAL_RETRIEVAL_PATHS = frozenset(
     {
         "databricks/agents/shared/retrieval.py",
+        "databricks/agents/shared/fallback.py",
         "databricks/agents/subagents/workstream/financial/context_utils.py",
     }
 )

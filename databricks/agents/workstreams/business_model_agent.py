@@ -774,20 +774,19 @@ class BusinessModelAgent:
         This makes retrieval portable across data rooms without needing to know each
         banker's or management team's document naming conventions in advance.
         """
-        from agents.shared.retrieval import semantic_search
+        from agents.shared.fallback import semantic_search_with_fallback as _shared_fallback_search
 
-        search_kwargs = dict(
-            query=query,
-            spark=spark,
+        result, used_fallback = _shared_fallback_search(
             company_name=self._company_name,
-            top_k=top_k,
+            spark=spark,
+            query=query,
             workstream_filter=workstream_filter,
+            top_k=top_k,
             file_name_filter=file_name_filter,
             min_chunk_length=min_chunk_length,
+            min_results=min_results,
         )
-        result = semantic_search(**search_kwargs)
-
-        if len(result.chunks) < min_results and file_name_filter is not None:
+        if used_fallback:
             step = len(self._base._trace) + 1
             self._base._trace.append({
                 "step":       step,
@@ -798,7 +797,6 @@ class BusinessModelAgent:
                 "sources":    [],
             })
             print(f"  Step {step} [retrieval_fallback]: filter returned {len(result.chunks)} chunks, retrying without filename filter")
-            result = semantic_search(**{**search_kwargs, "file_name_filter": None})
 
         return result
 

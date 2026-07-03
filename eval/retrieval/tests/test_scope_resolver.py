@@ -88,3 +88,19 @@ def test_validate_pr_scope_mismatch(resolver: IntentScopeResolver):
     computed = {"affected_intents": ["a"], "gated_intents": ["a"]}
     with pytest.raises(ScopeMismatchError):
         resolver.validate_pr_scope(["b"], ["b"], computed)
+
+
+def test_fallback_module_change_affects_all_registered_intents(
+    resolver: IntentScopeResolver,
+    registry,
+    gold_labels,
+):
+    """T3: shared fallback.py is a global retrieval path — full harness scope."""
+    scope = resolver.resolve(
+        ["databricks/agents/shared/fallback.py"],
+        registry,
+        gold_labels=gold_labels,
+        company_name="Elder Care",
+        catalog="uc13_ale",
+    )
+    assert len(scope["affected_intents"]) == len(registry)

@@ -3,6 +3,7 @@
 ## m-re3-core-hardening — 2026-07-03
 
 - T1 (VS pushdown verification + entry-gate spike): Added `databricks/jobs/scripts/vs_filter_pushdown_probe.py` with `main(spark, catalog, company_name)` probing `company_name`, `workstream`, and `priority_tier` `filters_json` candidates via direct `query_index()` (no `retrieval.py` silent fallback); documented M-RE3 pass/fail matrix and G2 re-verify snippet in `eval/retrieval/README.md`. Matrix cells left `PENDING — operator cluster run required` — no live cluster in coding session per kill criteria. Adversarial gap deferred: no pytest for operator-attested probe (contract: verification is README matrix + cluster stdout, not CI).
+- T3 (R-03 fallback consolidation): Extracted duplicated filename-filter retry logic from BMA and Legal `_semantic_search_with_fallback` into `databricks/agents/shared/fallback.py::semantic_search_with_fallback` (returns `RouteResult, used_fallback`); both agents are thin delegators with D4 aliased imports (`_shared_fallback_search`); registered `fallback.py` in `GLOBAL_RETRIEVAL_PATHS`. + added `tests/test_shared_fallback.py`, `tests/test_business_model_agent.py`, and scope-resolver global-path falsifier in `eval/retrieval/tests/test_scope_resolver.py`. Adversarial gap deferred: `intent_id`/`source_type_priority` kwargs unused by current BMA/Legal call sites. See `.dev/decision-logs/T3-m-re3-fallback-consolidation.md`.
 
 ## m-re2-observability-fta-context — 2026-07-02
 
