@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import types
 from pathlib import Path
@@ -39,6 +40,7 @@ if "mlflow" not in sys.modules:
     sys.modules["mlflow.deployments"] = deployments_mod
 
 from agents.shared.retrieval import (  # noqa: E402
+    _build_vs_filters_dict,
     _default_catalog,
     _escape_sql_literal,
     _extract_score_map,
@@ -151,6 +153,137 @@ def test_query_vector_index_retries_without_filters_on_sdk_error():
     assert w.vector_search_indexes.query_index.call_count == 2
     first_call = w.vector_search_indexes.query_index.call_args_list[0]
     assert "filters_json" in first_call.kwargs
+
+
+def test_build_vs_filters_dict_merges_company_workstream_and_tier():
+    filters = _build_vs_filters_dict(
+        company_name="Elder Care",
+        vs_metadata_filters=True,
+        workstream_filter=["FINANCIAL", "BUSINESS_MODEL"],
+        tier_filter=2,
+    )
+    assert filters == {
+        "company_name": "Elder Care",
+        "workstream": ["FINANCIAL", "BUSINESS_MODEL"],
+        "priority_tier <=": 2,
+    }
+
+
+def test_build_vs_filters_dict_omits_metadata_when_flag_false():
+    filters = _build_vs_filters_dict(
+        company_name="Elder Care",
+        vs_metadata_filters=False,
+        workstream_filter=["FINANCIAL"],
+        tier_filter=2,
+    )
+    assert filters == {"company_name": "Elder Care"}
+
+
+def test_query_vector_index_includes_metadata_filters_when_flag_true():
+    w = MagicMock()
+    w.vector_search_indexes.query_index.return_value = MagicMock(
+        result=MagicMock(data_array=[["c1", "d1", "f.pdf", 0.8]])
+    )
+    _query_vector_index(
+        w,
+        index_name="uc13.ingestion.embeddings_index",
+        query_embedding=[0.1, 0.2],
+        fetch_k=9,
+        company_name="Elder Care",
+        vs_metadata_filters=True,
+        workstream_filter=["FINANCIAL"],
+        tier_filter=2,
+    )
+    filters_json = w.vector_search_indexes.query_index.call_args.kwargs["filters_json"]
+    parsed = json.loads(filters_json)
+    assert parsed == {
+        "company_name": "Elder Care",
+        "workstream": ["FINANCIAL"],
+        "priority_tier <=": 2,
+    }
+
+
+def test_query_vector_index_omits_metadata_predicates_when_flag_false():
+    w = MagicMock()
+    w.vector_search_indexes.query_index.return_value = MagicMock(
+        result=MagicMock(data_array=[["c1", "d1", "f.pdf", 0.8]])
+    )
+    _query_vector_index(
+        w,
+        index_name="uc13.ingestion.embeddings_index",
+        query_embedding=[0.1, 0.2],
+        fetch_k=9,
+        company_name="Elder Care",
+        vs_metadata_filters=False,
+        workstream_filter=["FINANCIAL"],
+        tier_filter=2,
+    )
+    filters_json = w.vector_search_indexes.query_index.call_args.kwargs["filters_json"]
+    assert json.loads(filters_json) == {"company_name": "Elder Care"}
+
+
+def test_query_vector_index_metadata_only_without_company_name():
+    """Adversarial: workstream/tier pushdown without tenant filter (T1 passed)."""
+    w = MagicMock()
+    w.vector_search_indexes.query_index.return_value = MagicMock(
+        result=MagicMock(data_array=[["c1", "d1", "f.pdf", 0.8]])
+    )
+    _query_vector_index(
+        w,
+        index_name="uc13.ingestion.embeddings_index",
+        query_embedding=[0.1, 0.2],
+        fetch_k=9,
+        company_name=None,
+        vs_metadata_filters=True,
+        workstream_filter=["LEGAL"],
+        tier_filter=1,
+    )
+    filters_json = w.vector_search_indexes.query_index.call_args.kwargs["filters_json"]
+    assert json.loads(filters_json) == {
+        "workstream": ["LEGAL"],
+        "priority_tier <=": 1,
+    }
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_vs_metadata_filters_wires_filters_json(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    monkeypatch.setenv("catalog", "uc13_ale")
+    mock_client = MagicMock()
+    mock_get_deploy_client.return_value = mock_client
+    mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
+
+    vs_result = MagicMock()
+    vs_result.result.data_array = [["c1", "d1", "CIM.pdf", 0.95]]
+    mock_w = MagicMock()
+    mock_w.vector_search_indexes.query_index.return_value = vs_result
+    mock_workspace_client.return_value = mock_w
+
+    hydrated = _row(chunk_id="c1", priority_tier=1)
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [hydrated]
+
+    semantic_search(
+        "revenue trends",
+        spark,
+        top_k=5,
+        company_name="Elder Care",
+        workstream_filter=["FINANCIAL"],
+        tier_filter=2,
+        vs_metadata_filters=True,
+        min_chunk_length=50,
+    )
+
+    filters_json = mock_w.vector_search_indexes.query_index.call_args.kwargs["filters_json"]
+    assert json.loads(filters_json) == {
+        "company_name": "Elder Care",
+        "workstream": ["FINANCIAL"],
+        "priority_tier <=": 2,
+    }
 
 
 @patch("agents.shared.retrieval.WorkspaceClient")
