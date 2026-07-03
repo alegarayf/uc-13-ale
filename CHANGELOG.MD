@@ -1,5 +1,9 @@
 # Changelog
 
+## m-re3-core-hardening — 2026-07-03
+
+- T1 (VS pushdown verification + entry-gate spike): Added `databricks/jobs/scripts/vs_filter_pushdown_probe.py` with `main(spark, catalog, company_name)` probing `company_name`, `workstream`, and `priority_tier` `filters_json` candidates via direct `query_index()` (no `retrieval.py` silent fallback); documented M-RE3 pass/fail matrix and G2 re-verify snippet in `eval/retrieval/README.md`. Matrix cells left `PENDING — operator cluster run required` — no live cluster in coding session per kill criteria. Adversarial gap deferred: no pytest for operator-attested probe (contract: verification is README matrix + cluster stdout, not CI).
+
 ## m-re2-observability-fta-context — 2026-07-02
 
 - A3 (Close M-RE2 documentation drift after A1/A2): Updated `.dev/architecture/rallyday/known-coupling-surfaces.md` (DELTA_METADATA_MISMATCH / additive Delta migration surface from A1; batch+lock Delta concurrency entry from A2); appended A1+A2 to `.dev/architecture/rallyday/changelog.md`; flipped `.dev/archive/mre2_t9_db_contention_rigamarole.md` and `.dev/archive/README.md` to **Resolved** citing 7/02 wet-run evidence.

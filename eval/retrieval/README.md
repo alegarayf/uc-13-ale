@@ -90,6 +90,75 @@ print(
 
 Save probe output in the job log or PR notes. The harness does not auto-mark invalid on probe failure in v1 — operator responsibility per §5.15.
 
+## M-RE3 VS filter pushdown spike (items 24–25)
+
+Entry gate **before** implementing `workstream` / `priority_tier` metadata filter pushdown in `retrieval.py` (T2). The probe calls `WorkspaceClient().vector_search_indexes.query_index()` **directly** — it does **not** use `semantic_search` / `_query_vector_index`, which silently retries without `filters_json` on SDK errors.
+
+**Index columns (already synced):** `workstream` (`ARRAY<STRING>`), `priority_tier` (`INT`), `company_name` — see `databricks/jobs/scripts/setup_vector_search.py`.
+
+### Operator run
+
+**Notebook cell** (after Cell 1 — `REPO_ROOT` on `sys.path`, `catalog` / `sp_company_name` widgets):
+
+```python
+from pathlib import Path
+
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+scripts_dir = str(Path(REPO_ROOT) / "jobs" / "scripts")
+if scripts_dir not in sys.path:
+    sys.path.insert(0, scripts_dir)
+
+import importlib
+import vs_filter_pushdown_probe as probe
+importlib.reload(probe)
+
+summary = probe.main(spark, catalog="uc13_ale", company_name="Elder Care")
+print(summary)
+```
+
+**G2 re-verify snippet** (same session — confirms `company_name` pushdown still accepted):
+
+```python
+from agents.shared.retrieval import semantic_search
+
+result = semantic_search(
+    query="revenue growth historical financial statements",
+    spark=spark,
+    company_name="Elder Care",
+    catalog="uc13_ale",
+    top_k=5,
+)
+print(
+    f"[G2 re-verify] company_name='Elder Care' catalog='uc13_ale' "
+    f"mode={result.mode} result_count={len(result.chunks)}"
+)
+# PASS when stdout has no "VS filter pushdown unavailable" line.
+```
+
+After the run, copy stdout into the job log or PR notes and update the matrix cells below from probe log lines (`status=pass` / `status=fail`). **Do not mark `PASS` without cluster stdout evidence.**
+
+### Pass/fail matrix
+
+| Candidate `filters_json` (standard-endpoint dict) | Dimension | Result | Notes |
+|---------------------------------------------------|-----------|--------|-------|
+| `{"company_name": "Elder Care"}` | `company_name` | PENDING — operator cluster run required | G2 re-verify; same predicate as `retrieval._query_vector_index` |
+| `{"workstream": "FINANCIAL"}` | `workstream` | PENDING — operator cluster run required | Scalar equality on `ARRAY<STRING>` — may be whole-array match only |
+| `{"workstream": ["FINANCIAL"]}` | `workstream` | PENDING — operator cluster run required | Multi-value any-of per VS filter guide |
+| `{"workstream": ["FINANCIAL", "BUSINESS_MODEL"]}` | `workstream` | PENDING — operator cluster run required | Overlap proxy (any-of); not documented as `ARRAY_CONTAINS` |
+| `{"workstream LIKE": "FINANCIAL"}` | `workstream` | PENDING — operator cluster run required | Docs workaround when native array overlap unsupported |
+| `{"priority_tier": 2}` | `priority_tier` | PENDING — operator cluster run required | Equality |
+| `{"priority_tier <=": 2}` | `priority_tier` | PENDING — operator cluster run required | Operator-suffixed `<=` key |
+| `{"priority_tier >=": 1}` | `priority_tier` | PENDING — operator cluster run required | Operator-suffixed `>=` key |
+| `{"priority_tier <": 3}` | `priority_tier` | PENDING — operator cluster run required | Operator-suffixed `<` key |
+| `{"company_name": "Elder Care", "workstream": "FINANCIAL"}` | `workstream` | PENDING — operator cluster run required | Multi-key AND + tenant filter |
+| `{"company_name": "Elder Care", "priority_tier <=": 2}` | `priority_tier` | PENDING — operator cluster run required | Multi-key AND + tier cap |
+
+**Dimension rollup (for T2 gate):** `workstream` / `priority_tier` summary is `pass` when **any** row for that dimension is `PASS` on a live cluster run; dimensions are independent (partial pass is valid — T2 implements only passing dimensions). `company_name` summary is `pass` / `fail` only (G2 re-verify).
+
+**T2 partial-pass note:** If e.g. `workstream` rows pass but all `priority_tier` rows fail, T2 wires pushdown for `workstream` only — not all-or-nothing.
+
 ### 4. Cluster baseline harness
 
 **Notebook cell** (recommended):
