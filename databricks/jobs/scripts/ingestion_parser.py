@@ -1296,6 +1296,10 @@ def _print_chunk_diagnostics(all_chunks: list) -> None:
 # Vector search sync helper
 # ---------------------------------------------------------------------------
 
+class IndexSyncError(Exception):
+    """Raised when vector index sync fails, times out, or cannot be triggered."""
+
+
 def _wait_for_index_sync(
     spark,
     catalog: str,
@@ -1303,6 +1307,7 @@ def _wait_for_index_sync(
     index_suffix: str,
     table_embeddings: str,
     poll_interval: int = 30,
+    max_wait_seconds: int = 1800,
 ) -> None:
     """Trigger a Delta Sync on the vector index and block until it is confirmed
     current with the embeddings table.
@@ -1381,6 +1386,15 @@ def _wait_for_index_sync(
                 return
 
             if finished and not in_sync:
+                if state_str in ("FAILED", "CANCELED"):
+                    print(
+                        f"  ✗ Sync failed — halting: {index_name} "
+                        f"pipeline state={state_str}, indexed={indexed_rows}/{total_emb}"
+                    )
+                    raise IndexSyncError(
+                        f"index sync halted — {index_name}: pipeline state={state_str}, "
+                        f"indexed={indexed_rows}/{total_emb}"
+                    )
                 # Pipeline completed but row count hasn't caught up yet — give it
                 # one more cycle (replication can lag a few seconds).
                 if elapsed > 0 and elapsed % (poll_interval * 3) == 0:
@@ -1388,19 +1402,26 @@ def _wait_for_index_sync(
                         f"  ⚠ Pipeline {state_str} but only {indexed_rows:,}/{total_emb:,} "
                         "rows indexed. Waiting for replication..."
                     )
-                if state_str in ("FAILED", "CANCELED"):
-                    print(f"  ✗ Sync pipeline ended with state: {state_str} — search may be stale.")
-                    return
+
+            if elapsed >= max_wait_seconds:
+                print(
+                    f"  ✗ Sync failed — halting: sync exceeded max_wait_seconds="
+                    f"{max_wait_seconds}s — pipeline state={state_str}, "
+                    f"indexed={indexed_rows}/{total_emb}"
+                )
+                raise IndexSyncError(
+                    f"sync exceeded max_wait_seconds={max_wait_seconds}s — "
+                    f"pipeline state={state_str}, indexed={indexed_rows}/{total_emb}"
+                )
 
             time.sleep(poll_interval)
             elapsed += poll_interval
 
+    except IndexSyncError:
+        raise
     except Exception as e:
-        print(
-            f"⚠ Could not sync vector index ({e}).\n"
-            "  Run manually: w.vector_search_indexes.sync_index(index_name=...)\n"
-            "  Do not proceed to semantic_search until the index is current."
-        )
+        print(f"  ✗ Sync failed — halting: could not sync vector index {index_name} ({e})")
+        raise IndexSyncError(f"index sync failed for {index_name}: {e}") from e
 
 
 # ---------------------------------------------------------------------------
