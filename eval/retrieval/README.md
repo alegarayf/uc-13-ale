@@ -278,7 +278,7 @@ Operator steps for M-RE3 exit gate **item 28** (merge-rank ablation matrix with 
 
 **Coverage disclosure (M-RE2 Finding F1 precedent):** Live-cluster execution of this matrix against real Elder Care retrieval has **not** occurred as part of the M-RE3 coding session. CI proves the mechanism via `eval/retrieval/tests/test_ablation.py::test_ablation_matrix_four_arms_produce_distinct_runs_and_deltas` (SQLite + injected `retrieval_dispatch`). Operator cluster runs below are required before treating item 28 as attested on real corpus data.
 
-**Baseline reference:** Pin `baseline_ref_run_id=baseline_f0f4f68ac7af` (M-RE1 Elder Care baseline) unless a post-hardening baseline has been promoted — if T6's re-baseline runbook has been executed, use that run instead (T6 takes precedence).
+**Baseline reference:** Pin `baseline_ref_run_id=baseline_299063e87806` (M-RE3 post-hardening Elder Care baseline, promoted 2026-07-03). Historical M-RE1 reference: `baseline_f0f4f68ac7af`.
 
 **Intent scope:** Omit `--affected-intents` entirely for ablation runs. Per spec §5.12.1, `run_type: ablation` defaults to **all registered intents** when the flag is omitted (`EvalHarness._resolve_scope`). Do not pass a narrowed intent list — that would silently under-scope gate computation relative to retrieval code changes in T2/T3/T4.
 
@@ -298,7 +298,7 @@ Operator steps for M-RE3 exit gate **item 28** (merge-rank ablation matrix with 
 python -m eval.retrieval.harness_cli validate-baseline \
   --store-backend delta \
   --catalog uc13_ale \
-  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --baseline-ref-run-id baseline_299063e87806 \
   --company-name "Elder Care"
 ```
 
@@ -316,7 +316,7 @@ from eval.retrieval.harness import EvalHarness
 from eval.retrieval.store import DeltaEvalStore
 
 CATALOG = "uc13_ale"
-BASELINE_REF = "baseline_f0f4f68ac7af"  # M-RE1; omit or replace after T6 re-baseline
+BASELINE_REF = "baseline_299063e87806"  # M-RE3 post-hardening (promoted 2026-07-03)
 harness = EvalHarness()
 store = DeltaEvalStore(spark, catalog=CATALOG)
 
@@ -339,28 +339,28 @@ for arm in ("merge_rank_on", "merge_rank_off", "sim_only", "tier_only"):
 ```bash
 python -m eval.retrieval.harness_cli run --store-backend delta --run-type ablation \
   --company-name "Elder Care" --catalog uc13_ale \
-  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --baseline-ref-run-id baseline_299063e87806 \
   --ablation-config '{"arm": "merge_rank_on"}'
 ```
 
 ```bash
 python -m eval.retrieval.harness_cli run --store-backend delta --run-type ablation \
   --company-name "Elder Care" --catalog uc13_ale \
-  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --baseline-ref-run-id baseline_299063e87806 \
   --ablation-config '{"arm": "merge_rank_off"}'
 ```
 
 ```bash
 python -m eval.retrieval.harness_cli run --store-backend delta --run-type ablation \
   --company-name "Elder Care" --catalog uc13_ale \
-  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --baseline-ref-run-id baseline_299063e87806 \
   --ablation-config '{"arm": "sim_only"}'
 ```
 
 ```bash
 python -m eval.retrieval.harness_cli run --store-backend delta --run-type ablation \
   --company-name "Elder Care" --catalog uc13_ale \
-  --baseline-ref-run-id baseline_f0f4f68ac7af \
+  --baseline-ref-run-id baseline_299063e87806 \
   --ablation-config '{"arm": "tier_only"}'
 ```
 
@@ -387,7 +387,7 @@ WHERE run_id IN ('<merge_rank_on_run_id>', '<merge_rank_off_run_id>', '<sim_only
 ORDER BY run_id, intent_id, metric;
 ```
 
-Expect four distinct `run_id`s, each with `ablation_arm` populated on manifest and result rows. At least one arm should show non-zero `delta_value` on a gated metric vs `baseline_f0f4f68ac7af` (merge-rank mode changes chunk ordering on cluster retrieval).
+Expect four distinct `run_id`s, each with `ablation_arm` populated on manifest and result rows. At least one arm should show non-zero `delta_value` on a gated metric vs `baseline_299063e87806` (merge-rank mode changes chunk ordering on cluster retrieval). Cluster attestation (2026-07-03): `merge_rank_on` gate_pass=true; alt arms false — production default confirmed.
 
 **Provenance:** Query ablation provenance by harness `run_id`, not pipeline `run_id` — harness and pipeline runs share `append_provenance` but use different manifest `run_id`s.
 
@@ -397,9 +397,9 @@ Operator steps for M-RE3 exit gates **item 29** (post-hardening harness baseline
 
 **Coverage disclosure (M-RE2 F1 precedent):** Live-cluster execution of the post-hardening baseline, ablation matrix (see § M-RE3 ablation matrix runbook above), and E2E re-scores has **not** occurred as part of the M-RE3 coding session. CI proves harness mechanism; operator cluster runs below are required before treating item 29 as attested.
 
-**Control baseline reference:** M-RE1 harness baseline `baseline_f0f4f68ac7af` (Elder Care / `uc13_ale`). FTA checklist Control **16/18** (M-RE2 item 23, 2026-07-03 wet-run). Legal golden checklist baseline **7/11 pass** (`eval/LCA/golden_checklist_elder_care.md`, M3 E2E).
+**Control baseline reference:** M-RE3 post-hardening harness baseline `baseline_299063e87806` (promoted; supersedes M-RE1 `baseline_f0f4f68ac7af`). FTA checklist Control **16/18** (M-RE2 item 23). Legal golden checklist baseline **7/11 pass** (`eval/LCA/golden_checklist_elder_care.md`, M3 E2E).
 
-**Baseline authority (Flag 7):** Until you complete the post-hardening re-baseline below, **`baseline_f0f4f68ac7af` remains authoritative** for `baseline_ref_run_id` and ablation compare. Local report JSON under `eval/retrieval/reports/` may include newer `run_type: baseline` rows with `harness_status: incomplete` (e.g. CI/fixture runs `baseline_fb7118e87dad`, `baseline_25157788f1cb`, `baseline_b8470ede4b4c`) — **do not promote these** without operator designation. After a successful cluster re-baseline, replace the control reference in this section and in the ablation runbook with the new `run_id`.
+**Baseline authority (Flag 7):** **Authoritative baseline:** `baseline_299063e87806` per `retrieval_harness_latest_baseline` (operator-promoted 2026-07-03). Do not promote incomplete local report JSON (e.g. `baseline_fb7118e87dad`) without operator designation.
 
 **Intent scope:** Omit `--affected-intents` for the post-hardening baseline. Per spec §5.12.1, `run_type: baseline` defaults to **all registered intents** when the flag is omitted — required because M-RE3 changed `retrieval.py`, `databricks/agents/shared/fallback.py`, and harness ablation dispatch (full-suite scope).
 
