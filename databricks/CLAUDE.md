@@ -145,6 +145,73 @@ Always run cells in this order after code changes:
 
 When changing a Phase 3 agent's schema, just re-run the agent cell — the `_EXPECTED_COLS` guard drops and recreates the table automatically. No separate migration step.
 
+### M-PHV1 exit-gate verification (item 8)
+
+Operator-run checkpoint for the index-sync fail-closed fix (O-07/P-06). This runbook documents how to confirm the behavior on a live Databricks cluster. **It is not executed automatically** — run these steps manually after the prerequisite below passes.
+
+#### Prerequisite — unit tests green
+
+Before attempting any cluster run, confirm the static contract is satisfied locally:
+
+```bash
+pytest tests/test_ingestion_parser_sync.py -v
+```
+
+All 9 tests must pass. They prove `IndexSyncError` propagates through `ingestion_parser.main()` (Cell 7 path) and `ensure_coverage.ingest_missing()` (Cell 8d path) on terminal `FAILED`/`CANCELED` states, on timeout (`max_wait_seconds` exceeded), and that the success path emits the required stdout substring. The timeout path is impractical to reproduce on-cluster (default `max_wait_seconds=1800`); treat the unit test `test_wait_for_index_sync_raises_on_timeout` as authoritative for that path.
+
+#### Observable stdout contract
+
+These substrings are binding — verify them against Cell 7 or Cell 8d output, not paraphrased:
+
+| Path | Required stdout substring | Exception |
+|---|---|---|
+| Success | `✓ Index ready` (e.g. `✓ Index ready and current — uc13.ingestion.embeddings_index`) | None — cell completes normally |
+| Terminal `FAILED`/`CANCELED` | `✗ Sync failed — halting` | Uncaught `IndexSyncError` |
+| Timeout (`elapsed >= max_wait_seconds`) | `✗ Sync failed — halting` | Uncaught `IndexSyncError` |
+| Outer sync error (permissions, API failure, etc.) | `✗ Sync failed — halting` | Uncaught `IndexSyncError` |
+
+On fatal paths, **do not proceed** to Cell 8 verification, Cells 8c–8d, or any Phase 3 agent cells. The notebook markdown at Cell 7 and Phase 3 Pre-flight documents the same halt-on-failure rule.
+
+> **Open question (confirm on first real run):** Databricks Jobs / notebook execution is assumed to treat an uncaught `IndexSyncError` as a non-zero cell exit without an explicit `sys.exit()`. If your runner reports success despite the exception appearing in stdout, the exit-gate check is insufficient — escalate via the charter amendment path (see below), do not reinterpret the gate as passed.
+
+#### (b) Success path — normal Elder Care parse
+
+1. Attach cluster, run **Cell 0** (`%pip install`) then **Cell 1** (config). Confirm `sp_company_name` is `Elder Care` and `llm_endpoint` is `databricks-claude-sonnet-4-6` (defaults — no change expected).
+2. Run prerequisite cells through Phase 2a if data is not already loaded (Cells 2–6 as needed for your workspace state).
+3. Run **Cell 7** (`s3.main()` — full ingestion rebuild).
+4. **Pass criteria:**
+   - Cell completes without `IndexSyncError`.
+   - Stdout contains `✓ Index ready` near the end of the sync polling block.
+   - **Cell 8** runs and shows expected chunk/embedding counts for Elder Care.
+   - Phase 3 cells (e.g. **Cell 11** Business Model Agent) can proceed without retrieval returning 0 chunks due to a stale index.
+
+#### (a) Simulated-failure path — confirm halt on fatal sync
+
+Goal: prove Cell 7 stops the notebook on a fatal sync path with the exact stdout substring and an uncaught `IndexSyncError`.
+
+**Terminal state (`FAILED` or `CANCELED`) — recommended cluster procedure:**
+
+1. Complete steps 1–2 from the success path above.
+2. Start **Cell 7** and let parsing finish so index sync begins (you should see `Vector search sync triggered → uc13.ingestion.embeddings_index` and polling lines).
+3. While polling is active, open **Workflows → Delta Live Tables** (or Pipelines) in the Databricks UI. Locate the DLT pipeline ID printed in Cell 7 output (`DLT pipeline : <id>`).
+4. **Cancel** that pipeline update (or let a known-broken test pipeline reach `FAILED` if you maintain a dedicated test index).
+5. **Pass criteria:**
+   - Cell 7 stdout includes `✗ Sync failed — halting` (with pipeline state `FAILED` or `CANCELED` in the message).
+   - Cell 7 terminates with an uncaught `IndexSyncError` (red error in notebook UI; cell status failed).
+   - Downstream cells were **not** run — operator confirms Phase 3 was not attempted on an unconfirmed index.
+
+**Cell 8d (optional, if coverage gap exists):** Repeat the same cancel-during-sync procedure while running **Cell 8d** (`ec.ingest_missing()`). Expect the same `✗ Sync failed — halting` + uncaught `IndexSyncError` — this replaces the prior warn-and-continue behavior.
+
+**Timeout path:** Do not wait 30 minutes on-cluster. Rely on `test_wait_for_index_sync_raises_on_timeout` from the prerequisite step.
+
+**Outer-exception path:** Hard to trigger reliably on-cluster without infrastructure changes. The unit tests cover the `IndexSyncError` re-raise contract; if you observe this path live, confirm `✗ Sync failed — halting` appears before the exception.
+
+#### Mismatch handling
+
+If observed cluster behavior diverges from this runbook (missing stdout substrings, exception swallowed, job reports success despite `IndexSyncError`, or DLT states other than `FAILED`/`CANCELED` that should halt), **do not silently reinterpret the exit gate as passed**. Re-open the underlying fix via the charter's amendment path (`.dev/specs/pipeline/uc13_pipeline_hardening_milestone_charter.md` §7 escalation ladder). This runbook was derived from static code reading and unit tests, not from an automated cluster execution in CI.
+
+**Out of scope for this checkpoint:** deploying or exercising `uc13_ingestion_pipeline.yml` (M-PHV3). Notebook-only operator discipline is the current enforcement mechanism.
+
 ---
 
 ## Databricks-specific constraints
