@@ -118,7 +118,7 @@ All scripts use a dual-source helper: tries `dbutils.widgets.get()` first, falls
 | Role | Endpoint name | Widget |
 |---|---|---|
 | Embeddings | `databricks-bge-large-en` | `embedding_endpoint` |
-| Extraction LLM (structured JSON, large schema) | `databricks-claude-sonnet-4-6` | `extraction_endpoint` |
+| Extraction LLM (structured JSON — Haiku for speed; Sonnet via `llm_endpoint` for narrative) | `databricks-claude-haiku-4-5` | `extraction_endpoint` |
 | Narrative LLM (assessment reports) | `databricks-claude-sonnet-4-6` | `llm_endpoint` |
 | Vision LLM (optional, figure pages) | `databricks-claude-haiku-4-5` | `vision_endpoint` |
 
