@@ -671,6 +671,48 @@ Before charter item 12 is closed, the operator must decide whether M-RE3 7/03 sc
 
 **Regression floors (unchanged):** FTA ≥ **16/18**; Legal ≥ **7/11** pass rows on `eval/LCA/golden_checklist_elder_care.md`. Reference baselines: `.dev/scorecards/scorecard_7_03_post_m3_vs_7_02.md` (FTA), `.dev/scorecards/scorecard_lca_7_03_post_m3_vs_g3_elder_care.md` (Legal).
 
+### Second company selection & run
+
+Charter items **13–14** / spec §5.12.2 second-company column. Resolves context-map **Flag 4** — this runbook documents **selection criteria and procedure only**; the operator owns the company choice (placeholder fields below, not a pre-selected name).
+
+#### Selection criteria (frozen — do not paraphrase)
+
+- **Spec §5.12.2:** Operator chooses from available SharePoint companies with non-trivial data room; document in scorecard header.
+- **Charter reference corpus v2:** must differ from Elder Care.
+
+| Field | Value |
+|-------|-------|
+| **Selected company** | **_(operator: SharePoint folder name — must differ from `Elder Care`)_** |
+| **Selection rationale** | **_(operator: why this company meets "non-trivial data room")_** |
+
+Discover candidates via `test_pipeline.ipynb` Cell 2 (SharePoint company dropdown) or `connector.list_companies()` — do **not** treat this runbook as naming a specific second company.
+
+#### M-PHV1 Clearsulting attestation — pattern, not exit gate
+
+The M-PHV1 operator attestation (`.dev/attestations/m-phv1-clearsulting-2026-07-07.md`) demonstrates a **viable pattern** for second-corpus validation:
+
+- Parser + agent outputs on a non–Elder Care SharePoint company
+- `company_name` isolation on the shared `uc13_ale` eval catalog (tenant isolation via row filters, not a separate UC catalog)
+- Index sync success path (`✓ Index ready`) before Phase 3 agents
+
+It is **not** a substitute for M-PHV2's exit gate — different milestone, **incomplete agent matrix** (M-PHV1 attested parser + FTA/Legal smoke only; M-PHV2 requires all seven Phase 3 agents on Elder Care plus second-company FTA minimum per Decision 3). Re-running Clearsulting or choosing a different company under M-PHV2's fuller matrix is an **open operator decision** — not resolved here.
+
+#### Run procedure (items 13–14)
+
+**Minimum (Decision 3):** parser + FTA — Cells 1 → 7 (index sync) → ingestion/parser path for the selected company → Cell 12 (Financial Trends Agent) on the selected `company_name` with `catalog=uc13_ale`.
+
+**Optional full pipeline:** extend through remaining Phase 3 agents per the [Per-agent validation matrix](#per-agent-validation-matrix-spec-5122) second-company column (parser + agent run minimum for BMA/CQA/KPI/QoE/Profiler).
+
+**Scorecard header (required):** Before closing item 14, copy `.dev/scorecards/templates/second_company_header_template.md` to the top of the filled scorecard(s). Record **company name** and **catalog** used — these fields are mandatory on every second-company scorecard and must match the `Company` / `Catalog` columns when adding a row to `.dev/scorecards/INDEX.md`.
+
+| Field | Value |
+|-------|-------|
+| **Run scope** | `parser + FTA minimum` / `full pipeline` — **_(operator: circle one)_** |
+| **FTA scorecard file** | **_(operator: path under `.dev/scorecards/` — no numeric floor in v0.1.0; document baseline)_** |
+| **Harness / pipeline run ids** | **_(operator: cite `run_id` from `uc13_ale.ops.retrieval_harness_runs` or agent manifests)_** |
+
+No full gold-label bootstrap on the second company (Decision 3) — FTA scorecard + harness/pipeline evidence is sufficient unless FTA fails badly (then escalate per spec §5.18).
+
 ## R-02 manual A/B
 
 M-PHV2 hub (charter §4, item 16). Records the manual `vs_metadata_filters` kwarg-flip experiment on Elder Care — decision input for M-PHV4 item 29 via this same hub (`eval/retrieval/README.md § R-02 manual A/B`, M-PHV2 → M-PHV4 order). M-PHV4 extends this section with the activation decision **only if** the numeric bar and second-reviewer sign-off below both pass.
