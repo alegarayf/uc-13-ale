@@ -610,6 +610,67 @@ WHERE run_id = '<fta_agent_run_id>';
 
 Item 23 is **runtime-armed only** — not CI-gated.
 
+## PHV validation
+
+Operator runbook for **M-PHV2** (Validation expansion): per-agent Elder Care re-score matrix (spec §5.12.2 / charter item 10), regression floors (item 12), and second-company validation prerequisites. Requires `test_pipeline.ipynb` Cell 1 (`set_pipeline_thread`, `REPO_ROOT` on `sys.path`) before any agent `main()` — same precondition as § M-RE3 post-hardening re-baseline + E2E runbook.
+
+**Coverage disclosure:** Cluster execution of agent re-scores and second-company runs is **operator-owned** — this section defines the rubric and pass criteria only. Scorecards and attestations live under `.dev/scorecards/` and `.dev/attestations/` (Option C content-SHA pin protocol).
+
+### Per-agent validation matrix (spec §5.12.2)
+
+| Agent | Elder Care gate | Scoring source | Notebook cell (agent-qualified) | Second company |
+|-------|-----------------|----------------|-------------------------------|----------------|
+| FTA | ≥ **16/18** (maintain M-RE3) | 18-field golden checklist (`.dev/scorecards/prereqs.md` rubric); M-RE3 baseline: `.dev/scorecards/scorecard_7_03_post_m3_vs_7_02.md` | Cell 12 (Financial Trends Agent) | Run + scorecard; no numeric floor in v0.1.0 — document baseline |
+| Legal | ≥ **7/11** pass (maintain G3) | Golden checklist — see [Canonical Legal checklist](#canonical-legal-golden-checklist) below; M-RE3 baseline: `.dev/scorecards/scorecard_lca_7_03_post_m3_vs_g3_elder_care.md` | Cell 16 (Legal Contracts Agent) | Same |
+| BMA | Harness partition + smoke E2E (see below) | Harness partition report for `bma` intents; no committed golden checklist at v0.1.0 | Cell 11 (Business Model Agent) | Parser + agent run |
+| CQA | Harness partition + smoke E2E | Harness partition report for `cqa` intents | Cell 14 (Customer Quality Agent) | Parser + agent run minimum |
+| KPI | Harness partition + smoke E2E | Harness partition report for `kpi` intents | Cell 15 (KPI Agent) | Parser + agent run minimum |
+| QoE | Harness partition + smoke E2E | Harness partition report for `qoe` intents | Cell 17 (Quality of Earnings Agent) | Parser + agent run minimum |
+| Profiler | Harness partition + smoke E2E | Harness partition report for `profiler` intents | Cells 9–10 (Company Profiler) | Parser + agent run minimum |
+
+**BMA note:** Spec §5.12.2 allows "Golden or harness partition report" for BMA. No committed BMA golden checklist exists in this repo at M-PHV2 planning time — the v0.1.0 floor is harness partition + smoke E2E (same falsifiable bar as CQA/KPI/QoE/Profiler). A future golden checklist would supersede this row via charter amendment, not silent operator drift.
+
+### Canonical Legal golden checklist
+
+**Authoritative path (Flag 1 resolution):** `eval/LCA/golden_checklist_elder_care.md`
+
+This is the **only git-tracked** copy (`git ls-files '*golden_checklist_elder_care.md'` → one row). Use it for all M-PHV2 Legal scoring.
+
+| Path | Status | Role |
+|------|--------|------|
+| `eval/LCA/golden_checklist_elder_care.md` | **Tracked — canonical** | Operator scoring source; cited by § M-RE3 post-hardening re-baseline + E2E runbook |
+| `.dev/legal_agent/eval/golden_checklist_elder_care.md` | Gitignored evidence fixture | `tests/test_golden_checklist_elder_care.py` skipif target when present on operator machine — **not** a second scoring source |
+| `databricks/agents/workstreams/LCA/eval/golden_checklist_elder_care.md` | Present on disk, not tracked | Development convenience copy — **not** authoritative; do not score against it |
+
+Structural contract when the gitignored fixture exists: `pytest tests/test_golden_checklist_elder_care.py -q`. Verdict rules (`pass` | `partial` | `gap-correct` | `n/a`) are defined in the canonical file header.
+
+### Smoke E2E definition (BMA, CQA, KPI, QoE, Profiler)
+
+Spec §5.12.2's "Harness partition + smoke E2E" cell is **falsifiable** at v0.1.0 as follows (Flag 5 resolution). All three conditions must hold for **pass**:
+
+1. **Agent `main()` completes without raising** — run the agent-qualified notebook cell on Elder Care with `catalog=uc13_ale` after Cell 1 and index-sync preflight (Cells 7, 8c–8d as needed).
+2. **Harness partition report is generated** — a harness run covering that agent's intent partition exists with `harness_status: complete`. Agent partition ids per `eval/retrieval/registry_extractor.py::AGENT_ID_BY_STEM` (`bma`, `cqa`, `kpi`, `qoe`, `profiler`). Record the harness `run_id` on the scorecard.
+3. **Output table row count > 0** — the agent's analysis output table for the run company has at least one row (e.g. `SELECT COUNT(*) FROM <catalog>.analysis.<agent_output_table> WHERE company_name = 'Elder Care'` > 0). Proves the pipeline wrote structured output, not merely that retrieval returned chunks.
+
+**v0.1.0 floor caveat:** Row count > 0 can pass on low-quality output. This is intentional per Decision 3 ("generalization signal without duplicating gold-bootstrap cost"). **Revisit trigger:** systematic agent failure on second-company or Elder Care runs → escalate to deep rewrite A-03 per spec §5.18 (charter M-PHV2 non-goal unless scorecard shows systematic failure).
+
+BMA/CQA/KPI/QoE/Profiler are linked in the eval store via ordinary harness-run recording (`python -m eval.retrieval.harness_cli run --run-type ...`) — **not** `record_e2e_linkage` (FTA/Legal only; see T6 subsection when landed).
+
+### Item 12 — FTA/Legal regression confirmation (Flag 6)
+
+Before charter item 12 is closed, the operator must decide whether M-RE3 7/03 scores remain valid after M-PHV1 index-sync hardening or whether fresh cluster re-runs are required.
+
+| Field | Value |
+|-------|-------|
+| **Fresh cluster re-run required** | `yes` / `no` — **_(operator: fill before item 12 closed)_** |
+| **Rationale** | **_(operator: document evidence — e.g. M-PHV1 `IndexSyncError` gate changed Cell 7/8d behavior; whether Elder Care ingestion state is unchanged since M-RE3 7/03 attestation)_** |
+| **FTA score used for item 12** | **_(operator: M-RE3 7/03 score and/or fresh re-score `n`/18)_** |
+| **Legal score used for item 12** | **_(operator: M-RE3 7/03 score and/or fresh re-score `n`/11)_** |
+
+**Executor stance:** This field is genuinely open at plan time — M-PHV1 changed index-sync fail-closed behavior (Design Principle 1) while M-RE3 7/03 scores predate that landing. This runbook does **not** pre-decide; the operator owns the yes/no call.
+
+**Regression floors (unchanged):** FTA ≥ **16/18**; Legal ≥ **7/11** pass rows on `eval/LCA/golden_checklist_elder_care.md`. Reference baselines: `.dev/scorecards/scorecard_7_03_post_m3_vs_7_02.md` (FTA), `.dev/scorecards/scorecard_lca_7_03_post_m3_vs_g3_elder_care.md` (Legal).
+
 ## Related CLIs
 
 | Command | Purpose |
