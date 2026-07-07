@@ -671,6 +671,116 @@ Before charter item 12 is closed, the operator must decide whether M-RE3 7/03 sc
 
 **Regression floors (unchanged):** FTA ≥ **16/18**; Legal ≥ **7/11** pass rows on `eval/LCA/golden_checklist_elder_care.md`. Reference baselines: `.dev/scorecards/scorecard_7_03_post_m3_vs_7_02.md` (FTA), `.dev/scorecards/scorecard_lca_7_03_post_m3_vs_g3_elder_care.md` (Legal).
 
+## R-02 manual A/B
+
+M-PHV2 hub (charter §4, item 16). Records the manual `vs_metadata_filters` kwarg-flip experiment on Elder Care — decision input for M-PHV4 item 29 via this same hub (`eval/retrieval/README.md § R-02 manual A/B`, M-PHV2 → M-PHV4 order). M-PHV4 extends this section with the activation decision **only if** the numeric bar and second-reviewer sign-off below both pass.
+
+**Coverage disclosure:** Cluster execution of the two runs is **operator-owned** — this section defines procedure, the Decision 14 numeric bar, and the sign-off schema only.
+
+### Why not `--ablation-config` (Decision 9)
+
+`--ablation-config` / `ablation_arm` **cannot** represent `vs_metadata_filters`. `harness.py::ablation_arm_to_merge_rank_mode` raises `PreconditionError` for `vs_filter_pushdown` — the harness dispatcher is 1-D over `merge_rank_mode`; `vs_metadata_filters` is an orthogonal boolean with **no** `harness_cli.py` flag. **Do not invent a CLI flag** — there is no harness CLI switch for this kwarg; set it only in code/notebook via `retrieval_dispatch`.
+
+The frozen CLI surface for harness runs (unchanged this milestone):
+
+```bash
+python -m eval.retrieval.harness_cli run --store-backend <sqlite|delta> --run-type <...> --company-name <...> --catalog <...> --baseline-ref-run-id baseline_299063e87806 [--ablation-config <...>]
+```
+
+For this A/B, invoke **without** `--ablation-config`. Set `vs_metadata_filters=False` (run A) and `vs_metadata_filters=True` (run B) directly in a harness-invoking script or notebook cell by passing a custom `retrieval_dispatch` to `EvalHarness` that threads the kwarg into `semantic_search(...)`.
+
+### Two-run procedure
+
+**Baseline reference:** `baseline_299063e87806` — pin for both comparison runs and for manual diff vs the M-RE3 post-hardening Elder Care baseline.
+
+**Preflight:** Same as § M-RE3 post-hardening re-baseline + E2E runbook (DDL, G2 `company_name` pushdown probe, registry/gold/ingestion_snapshot pins). Omit `--affected-intents` so gate-eligible scope matches the full registered intent suite.
+
+| Run | `vs_metadata_filters` | Role |
+|-----|----------------------|------|
+| **A (flag off)** | `False` | Control — matches production default |
+| **B (flag on)** | `True` | Candidate activation path for M-PHV4 item 29 |
+
+**Notebook pattern** (after Cell 1; repeat with `VS_METADATA_FILTERS = False` then `True`):
+
+```python
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from agents.shared.retrieval import semantic_search
+from eval.retrieval.harness import (
+    EvalHarness,
+    ablation_arm_to_merge_rank_mode,
+    build_search_kwargs,
+    uses_fallback_wrapper,
+)
+from eval.retrieval.store import DeltaEvalStore
+
+CATALOG = "uc13_ale"
+BASELINE_REF = "baseline_299063e87806"
+VS_METADATA_FILTERS = False  # Run A: False; Run B: True
+
+
+def dispatch_with_vs_metadata_filters(intent, *, company_name, spark, ablation_arm=None):
+    kwargs = build_search_kwargs(intent, company_name=company_name, spark=spark)
+    merge_rank_mode = ablation_arm_to_merge_rank_mode(ablation_arm)
+    if merge_rank_mode is not None:
+        kwargs["merge_rank_mode"] = merge_rank_mode
+    kwargs["vs_metadata_filters"] = VS_METADATA_FILTERS
+    result = semantic_search(**kwargs)
+    if uses_fallback_wrapper(intent):
+        min_results = intent.min_results if intent.min_results is not None else 3
+        if len(result.chunks) < min_results and intent.file_name_filter:
+            result = semantic_search(**{**kwargs, "file_name_filter": None})
+    return result
+
+
+harness = EvalHarness(retrieval_dispatch=dispatch_with_vs_metadata_filters)
+store = DeltaEvalStore(spark, catalog=CATALOG)
+
+report = harness.run(
+    run_type="enhancement",
+    company_name="Elder Care",
+    catalog=CATALOG,
+    store=store,
+    store_backend="delta",
+    baseline_ref_run_id=BASELINE_REF,
+    spark=spark,
+)
+print("r02_ab_run_id:", report.manifest.run_id)
+print("vs_metadata_filters:", VS_METADATA_FILTERS)
+print("harness_status:", report.manifest.harness_status)
+```
+
+Record both `run_id` values and per-intent `recall_at_10` from each report for the bar check below. `harness_cli run` alone cannot flip `vs_metadata_filters` — use the notebook/script pattern above or an equivalent custom `retrieval_dispatch`.
+
+### Numeric bar (Decision 14 / Program Gate PG5)
+
+Activation (M-PHV4 item 29) requires **all three** PG5 parts — numeric bar **and** second-reviewer sign-off (§5.19 rejects bar-alone or sign-off-alone). The numeric bar has **two** conjunctive conditions, measured vs run A (flag off):
+
+1. **Per-intent:** No gate-eligible intent's recall@10 drops **more than 5 percentage points** vs run A.
+2. **Aggregate:** Aggregate recall@10 across gate-eligible intents does **not decrease** vs run A.
+
+| Field | Run A (`run_id`) | Run B (`run_id`) | Aggregate recall@10 (gate-eligible) | Per-intent max drop (pp) | Numeric bar pass? |
+|-------|------------------|------------------|---------------------------------------|--------------------------|-------------------|
+| **Operator: fill after cluster runs** | | | | | `yes` / `no` |
+
+Gate-eligible intents: those in the harness run's `gated_intents` manifest field (same vocabulary as `eval/retrieval/scope_resolver.py::gate_eligible_intent_ids`).
+
+### Second-reviewer sign-off (Decision 14)
+
+Required **in addition to** the numeric bar. The reviewer must not be the operator who ran the A/B.
+
+| Field | Value |
+|-------|-------|
+| **Reviewer name** | **_(named reviewer — must differ from A/B operator)_** |
+| **Date** | **_(YYYY-MM-DD)_** |
+| **Diff reviewed** | **_(run A / run B ids, per-intent recall@10 table, aggregate delta)_** |
+| **Verdict** | `pass` / `fail` |
+
+### If the bar fails (PG5 failure-non-blocking)
+
+If the numeric bar fails **or** sign-off is `fail`, record the diff and verdict in the tables above anyway. **`vs_metadata_filters=True` activation does not proceed to M-PHV4** — production default stays `False` per §5.13. Failure does **not** block M-PHV4 exit; it only blocks item 29 default flip.
+
 ## Related CLIs
 
 | Command | Purpose |
