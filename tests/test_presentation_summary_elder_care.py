@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +14,17 @@ _NORMATIVE = (
     _REPO_ROOT / ".dev" / "legal_agent" / "baselines" / "_latest_Elder_Care_legal_report.yaml"
 )
 _POC_DELTA = _REPO_ROOT / ".dev" / "legal_agent" / "eval" / "poc_delta_elder_care.md"
+
+# .dev/ is gitignored repo-wide (Option C pin protocol) — these operator-produced
+# evidence artifacts are local, not tracked in git, and may legitimately be absent
+# on a fresh checkout or a different machine. Skip rather than fail when any is
+# missing so this module's contract still holds wherever the evidence exists.
+_MISSING = [p for p in (_SUMMARY, _NORMATIVE, _POC_DELTA) if not p.exists()]
+pytestmark = pytest.mark.skipif(
+    bool(_MISSING),
+    reason="gitignored evidence fixture(s) not present in this checkout: "
+    + ", ".join(str(p) for p in _MISSING),
+)
 
 
 def _summary_text() -> str:
