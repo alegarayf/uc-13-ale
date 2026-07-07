@@ -654,7 +654,7 @@ Spec §5.12.2's "Harness partition + smoke E2E" cell is **falsifiable** at v0.1.
 
 **v0.1.0 floor caveat:** Row count > 0 can pass on low-quality output. This is intentional per Decision 3 ("generalization signal without duplicating gold-bootstrap cost"). **Revisit trigger:** systematic agent failure on second-company or Elder Care runs → escalate to deep rewrite A-03 per spec §5.18 (charter M-PHV2 non-goal unless scorecard shows systematic failure).
 
-BMA/CQA/KPI/QoE/Profiler are linked in the eval store via ordinary harness-run recording (`python -m eval.retrieval.harness_cli run --run-type ...`) — **not** `record_e2e_linkage` (FTA/Legal only; see T6 subsection when landed).
+BMA/CQA/KPI/QoE/Profiler are linked in the eval store via ordinary harness-run recording (`python -m eval.retrieval.harness_cli run --run-type ...`) — **not** `record_e2e_linkage` (FTA/Legal only; see [record_e2e_linkage invocations](#record_e2e_linkage-invocations) below).
 
 ### Item 12 — FTA/Legal regression confirmation (Flag 6)
 
@@ -712,6 +712,66 @@ It is **not** a substitute for M-PHV2's exit gate — different milestone, **inc
 | **Harness / pipeline run ids** | **_(operator: cite `run_id` from `uc13_ale.ops.retrieval_harness_runs` or agent manifests)_** |
 
 No full gold-label bootstrap on the second company (Decision 3) — FTA scorecard + harness/pipeline evidence is sufficient unless FTA fails badly (then escalate per spec §5.18).
+
+### record_e2e_linkage invocations
+
+Charter item **17**. Links FTA/Legal golden-checklist scores to pipeline `HarnessRun` manifests. **Scope:** FTA and Legal only — BMA/CQA/KPI/QoE/Profiler use harness-run recording (see [Scoping note](#scoping-bma-cqa-kpi-qoe-profiler) below).
+
+Frozen CLI surface (unchanged this milestone — verified against `record_e2e_linkage.py::build_parser`):
+
+```text
+python -m eval.retrieval.scripts.record_e2e_linkage --run-id <...> --e2e-agent-id <...> --e2e-checklist-score <int> --e2e-checklist-total <int, default 18> --e2e-snapshot-table <FQN> --store-backend <sqlite|delta> --catalog <...> [--sqlite-path <path>]
+```
+
+Use the **pipeline** `run_id` from `close_agent_run` inside the agent's `main()` — **not** a harness baseline `run_id`.
+
+#### FTA (18-field checklist)
+
+After Cell 12 (Financial Trends Agent) Elder Care re-score (target ≥ **16/18**):
+
+```bash
+python -m eval.retrieval.scripts.record_e2e_linkage \
+  --run-id <fta_pipeline_agent_run_id> \
+  --e2e-agent-id fta \
+  --e2e-checklist-score <from Cell 12 re-score> \
+  --e2e-checklist-total 18 \
+  --e2e-snapshot-table uc13_ale.analysis.financial_trends_eval_snapshot \
+  --store-backend delta \
+  --catalog uc13_ale
+```
+
+#### Legal (11-item checklist)
+
+After Cell 16 (Legal Contracts Agent) Elder Care re-score against `eval/LCA/golden_checklist_elder_care.md` (target ≥ **7/11** pass rows):
+
+```bash
+python -m eval.retrieval.scripts.record_e2e_linkage \
+  --run-id <legal_pipeline_agent_run_id> \
+  --e2e-agent-id legal \
+  --e2e-checklist-score <from Cell 16 re-score> \
+  --e2e-checklist-total 11 \
+  --e2e-snapshot-table uc13_ale.analysis.legal \
+  --store-backend delta \
+  --catalog uc13_ale
+```
+
+Verify linkage (either agent):
+
+```sql
+SELECT run_id, e2e_agent_id, e2e_checklist_score, e2e_checklist_total, e2e_snapshot_table
+FROM uc13_ale.ops.retrieval_harness_runs
+WHERE run_id = '<pipeline_agent_run_id>';
+```
+
+#### Scoping: BMA, CQA, KPI, QoE, Profiler
+
+`record_e2e_linkage` is **not** applicable to BMA, CQA, KPI, QoE, or Profiler — no golden-checklist-shaped E2E flags exist for those agents at v0.1.0 (`--e2e-checklist-total` defaults to 18, FTA/Legal-shaped). Link them via ordinary harness-run recording instead:
+
+```bash
+python -m eval.retrieval.harness_cli run --store-backend <sqlite|delta> --run-type <...> --company-name <...> --catalog <...> --baseline-ref-run-id baseline_299063e87806 [--ablation-config <...>]
+```
+
+Record each harness `run_id` on the agent's scorecard per the [Smoke E2E definition](#smoke-e2e-definition-bma-cqa-kpi-qoe-profiler).
 
 ## R-02 manual A/B
 
