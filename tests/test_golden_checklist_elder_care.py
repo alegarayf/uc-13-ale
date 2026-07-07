@@ -5,10 +5,21 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from agents.workstreams.legal_contracts_agent import STAKEHOLDER_COVERAGE_REQUIREMENTS
 
 _ROOT = Path(__file__).resolve().parents[1]
 _CHECKLIST_PATH = _ROOT / ".dev" / "legal_agent" / "eval" / "golden_checklist_elder_care.md"
+
+# .dev/ is gitignored repo-wide (Option C pin protocol) — this operator-produced
+# scoring artifact is local evidence, not tracked in git, and may legitimately be
+# absent on a fresh checkout or a different machine. Skip rather than fail when
+# it's missing so this module's contract still holds wherever the evidence exists.
+pytestmark = pytest.mark.skipif(
+    not _CHECKLIST_PATH.exists(),
+    reason=f"gitignored evidence fixture not present in this checkout: {_CHECKLIST_PATH}",
+)
 
 VERDICT_ENUM = frozenset({"pass", "partial", "gap-correct", "n/a"})
 _EXPECTED_ITEM_IDS = tuple(req["item_id"] for req in STAKEHOLDER_COVERAGE_REQUIREMENTS)

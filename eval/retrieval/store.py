@@ -966,7 +966,7 @@ class SqliteEvalStore(_StoreBase):
             WHERE company_name = ? AND catalog = ?
               AND run_type = 'baseline'
               AND harness_status = 'complete'
-            ORDER BY completed_at DESC
+            ORDER BY completed_at DESC, rowid DESC
             LIMIT 1
             """,
             (company_name, catalog),
