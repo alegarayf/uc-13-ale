@@ -233,6 +233,31 @@ def test_wait_for_index_sync_raises_on_timeout(mock_ws_cls, _mock_sleep, capsys)
 
 @patch("time.sleep")
 @patch("databricks.sdk.WorkspaceClient")
+def test_wait_for_index_sync_wraps_generic_exception(
+    mock_ws_cls, _mock_sleep, capsys
+):
+    ws = MagicMock()
+    mock_ws_cls.return_value = ws
+    ws.vector_search_indexes.sync_index.side_effect = RuntimeError("boom")
+    spark = _make_spark_mock(total_emb=100)
+
+    with pytest.raises(ip.IndexSyncError) as exc_info:
+        ip._wait_for_index_sync(
+            spark=spark,
+            catalog="uc13",
+            schema="ingestion",
+            index_suffix="embeddings_index",
+            table_embeddings="uc13.ingestion.embeddings",
+        )
+
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+    assert "boom" in str(exc_info.value.__cause__)
+    captured = capsys.readouterr().out
+    assert "✗ Sync failed — halting" in captured
+
+
+@patch("time.sleep")
+@patch("databricks.sdk.WorkspaceClient")
 def test_wait_for_index_sync_success_path(mock_ws_cls, _mock_sleep, capsys):
     _configure_workspace_client(
         mock_ws_cls, pipeline_state="COMPLETED", indexed_rows=100
