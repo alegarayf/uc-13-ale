@@ -1322,13 +1322,13 @@ def _wait_for_index_sync(
        total row count in the embeddings table to confirm the index is current.
     5. Print a clear ✓ / ⚠ summary so the notebook output is unambiguous.
     """
-    import time
-    from databricks.sdk import WorkspaceClient
-
     index_name = f"{catalog}.{schema}.{index_suffix}"
     _TERMINAL_STATES = {"COMPLETED", "FAILED", "CANCELED"}
 
     try:
+        import time
+        from databricks.sdk import WorkspaceClient
+
         w = WorkspaceClient()
 
         # Count total embeddings now in the source table.
