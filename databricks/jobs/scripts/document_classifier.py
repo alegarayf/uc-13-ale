@@ -526,7 +526,7 @@ def main():
         delta_tbl.alias("t")
         .merge(
             df.alias("s"),
-            "t.company_name = s.company_name AND t.filename = s.filename",
+            "t.company_name = s.company_name AND t.filename = s.filename AND coalesce(t.folder_path, '') = coalesce(s.folder_path, '')",
         )
         .whenMatchedUpdateAll()
         .whenNotMatchedInsertAll()
