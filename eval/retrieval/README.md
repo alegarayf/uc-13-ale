@@ -662,10 +662,10 @@ Before charter item 12 is closed, the operator must decide whether M-RE3 7/03 sc
 
 | Field | Value |
 |-------|-------|
-| **Fresh cluster re-run required** | `yes` / `no` — **_(operator: fill before item 12 closed)_** |
-| **Rationale** | **_(operator: document evidence — e.g. M-PHV1 `IndexSyncError` gate changed Cell 7/8d behavior; whether Elder Care ingestion state is unchanged since M-RE3 7/03 attestation)_** |
-| **FTA score used for item 12** | **_(operator: M-RE3 7/03 score and/or fresh re-score `n`/18)_** |
-| **Legal score used for item 12** | **_(operator: M-RE3 7/03 score and/or fresh re-score `n`/11)_** |
+| **Fresh cluster re-run required** | **`yes`** — post-M-PHV1 full notebook E2E performed 2026-07-08 (Elder Care, thread `773c2c96-558e-480b-a142-b63b2a1effbe`) |
+| **Rationale** | M-PHV1 `IndexSyncError` fail-closed changed Cell 7/8d behavior; operator executed post-hardening E2E. Checklist scores **16/18** FTA and **7/11** Legal unchanged vs M-RE3 (not re-checklisted on July 8 output). `record_e2e_linkage` on M-RE3 `run_id`s retained for regression trail; July 8 pipeline `run_id`s: FTA `6c4db191…`, Legal `9dc9070c…`. |
+| **FTA score used for item 12** | **16/18** |
+| **Legal score used for item 12** | **7/11 pass** |
 
 **Executor stance:** This field is genuinely open at plan time — M-PHV1 changed index-sync fail-closed behavior (Design Principle 1) while M-RE3 7/03 scores predate that landing. This runbook does **not** pre-decide; the operator owns the yes/no call.
 
