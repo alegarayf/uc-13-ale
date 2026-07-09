@@ -2,6 +2,7 @@
 
 ## uc13-m-phv3-integration — 2026-07-08
 
+- T2 (Item 20 initial fast-forward — push #1 of 2): Fast-forwarded `origin/dev` to `dev2` HEAD (`bfd04ac` → `f34b1d0`) via `git push origin dev2:dev` after explicit user go-ahead; Flag 4 resolved to `origin/dev` only (no local `dev`, no `upstream` remote). Catalog-convention commits land in T3–T5; T7 performs the second sync. `.dev/decision-logs/m-phv3-t2-git-fast-forward-target.md`.
 - T1 (Item 19 + PG2 pre-merge verification): Re-ran frozen git checks — `git diff origin/dev..dev2 -- backend-ai/app/services/genie_rules.py` empty; `git rev-list origin/dev ^dev2` returned 0 lines; confirmed no local `dev` branch and no `upstream` remote (Flag 4 unchanged); restated fast-forward target `origin/dev` via `git push origin dev2:dev`. **Verdict: PASS** — T2 unblocked. Evidence: `.dev/plans/uc13-m-phv3-integration/item19-20-pre-merge-verification.md` (content SHA `82403a767d9038dc3a34be304070266746b9ba09`). Adversarial gap deferred: no pytest surface for read-only gate verification per T1 contract (§2 Tests N/A).
 
 ## repo-test-baseline-hygiene — 2026-07-07
