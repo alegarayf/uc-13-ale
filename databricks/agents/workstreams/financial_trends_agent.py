@@ -32,8 +32,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-_CATALOG = os.environ.get("catalog", "uc13")
-
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from ingestion_parser.py
 # ---------------------------------------------------------------------------
@@ -356,7 +354,7 @@ class FinancialTrendsAgent:
 
     def _tool_load_company_profile(self, company_name: str, spark):
         rows = spark.sql(f"""
-            SELECT * FROM {_CATALOG}.classification.company_profile
+            SELECT * FROM {self._catalog}.classification.company_profile
             WHERE company_name = '{company_name}'
             ORDER BY created_at DESC LIMIT 1
         """).collect()
@@ -379,7 +377,7 @@ class FinancialTrendsAgent:
             data=profile_dict,
             output_summary=f"Profile loaded: industry_overlay={overlay}",
             confidence="high",
-            source_docs=[f"{_CATALOG}.classification.company_profile"],
+            source_docs=[f"{self._catalog}.classification.company_profile"],
         )
 
     # ------------------------------------------------------------------
@@ -840,9 +838,10 @@ class FinancialTrendsAgent:
 
     def run(self, company_name: str, spark, llm_endpoint: str,
             extraction_endpoint: str = None,
-            retrieval_mode: str = "semantic") -> dict:
+            retrieval_mode: str = "semantic", *, catalog: str) -> dict:
         self._reset_state()
         self._company_name = company_name
+        self._catalog = catalog
         _extract_ep = extraction_endpoint or llm_endpoint
 
         # ── Company profile (shared metadata for all sub-agents) ─────
@@ -1773,6 +1772,7 @@ def main() -> dict:
             llm_endpoint=llm_endpoint,
             extraction_endpoint=extraction_endpoint,
             retrieval_mode=retrieval_mode,
+            catalog=catalog,
         )
 
         # ── Save to Delta ─────────────────────────────────────────────────

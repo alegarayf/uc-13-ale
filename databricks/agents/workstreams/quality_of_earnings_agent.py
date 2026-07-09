@@ -28,8 +28,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-_CATALOG = os.environ.get("catalog", "uc13")
-
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from financial_trends_agent.py
 # ---------------------------------------------------------------------------
@@ -289,7 +287,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         """
         try:
             rows = spark.sql(f"""
-                SELECT addback_schedule_json FROM {_CATALOG}.analysis.financial_trends
+                SELECT addback_schedule_json FROM {self._catalog}.analysis.financial_trends
                 WHERE company_name = '{company_name}'
                 ORDER BY created_at DESC LIMIT 1
             """).collect()
@@ -298,7 +296,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         except Exception:
             pass
         self._add_gap(
-            f"addback_schedule_json not found in {_CATALOG}.analysis.financial_trends — "
+            f"addback_schedule_json not found in {self._catalog}.analysis.financial_trends — "
             "Financial Trends Agent has not run or found no addbacks. "
             "QofE scope will rely on direct VDR retrieval only."
         )
@@ -417,7 +415,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
     def _tool_load_company_profile(self, company_name: str, spark):
         try:
             rows = spark.sql(
-                f"SELECT * FROM {_CATALOG}.classification.company_profile "
+                f"SELECT * FROM {self._catalog}.classification.company_profile "
                 f"WHERE company_name = '{company_name}' "
                 f"ORDER BY created_at DESC LIMIT 1"
             ).collect()
@@ -438,7 +436,7 @@ class QualityOfEarningsAgent(WorkstreamAgent):
                 data=profile_dict,
                 output_summary="Company profile loaded",
                 confidence="high",
-                source_docs=[f"{_CATALOG}.classification.company_profile"],
+                source_docs=[f"{self._catalog}.classification.company_profile"],
             )
         except Exception as exc:
             self._add_gap(f"company_profile query failed: {exc} — run company_profiler.py first")
@@ -580,9 +578,10 @@ class QualityOfEarningsAgent(WorkstreamAgent):
     # run()
     # -----------------------------------------------------------------------
 
-    def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
+    def run(self, company_name: str, spark, llm_endpoint: str, catalog: str) -> dict:
         self._reset_state()
         self._company_name = company_name
+        self._catalog = catalog
         print(f"  Loading addback passthrough from Financial Trends Agent ...")
         addback_passthrough = self._load_addback_passthrough(company_name, spark)
 
@@ -814,7 +813,7 @@ def main() -> dict:
     )
     try:
         agent  = QualityOfEarningsAgent()
-        result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint)
+        result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint, catalog=catalog)
 
         # ── Save to Delta ──────────────────────────────────────────────────
         table = f"{catalog}.analysis.quality_of_earnings"

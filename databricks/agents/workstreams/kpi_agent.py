@@ -28,8 +28,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-_CATALOG = os.environ.get("catalog", "uc13")
-
 
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from financial_trends_agent.py
@@ -415,7 +413,7 @@ class KPIAgent(WorkstreamAgent):
         )
 
     def _tool_load_company_profile(self, company_name: str, spark):
-        sql = f"SELECT * FROM {_CATALOG}.classification.company_profile WHERE company_name = '{company_name}' ORDER BY created_at DESC LIMIT 1"
+        sql = f"SELECT * FROM {self._catalog}.classification.company_profile WHERE company_name = '{company_name}' ORDER BY created_at DESC LIMIT 1"
         rows = spark.sql(sql).collect()
         if not rows:
             self._add_gap("company_profile not found — run company_profiler.py first")
@@ -641,9 +639,10 @@ class KPIAgent(WorkstreamAgent):
     # run()
     # -----------------------------------------------------------------------
 
-    def run(self, company_name: str, spark, llm_endpoint: str) -> dict:
+    def run(self, company_name: str, spark, llm_endpoint: str, catalog: str) -> dict:
         self._reset_state()
         self._company_name = company_name
+        self._catalog = catalog
         print(f"  Running 6 tools ...")
 
         tr1 = self._tool_retrieve_kpi_dashboard(spark)
@@ -866,7 +865,7 @@ def main() -> dict:
     )
     try:
         agent  = KPIAgent()
-        result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint)
+        result = agent.run(company_name=company_name, spark=spark, llm_endpoint=llm_endpoint, catalog=catalog)
 
         # Save to Delta
         table = f"{catalog}.analysis.kpi"

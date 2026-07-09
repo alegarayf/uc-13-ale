@@ -33,8 +33,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-_CATALOG = os.environ.get("catalog", "uc13")
-
 # ---------------------------------------------------------------------------
 # Secrets / params helpers — copied verbatim from ingestion_parser.py
 # ---------------------------------------------------------------------------
@@ -1152,7 +1150,7 @@ class BusinessModelAgent:
 
     def _tool_load_company_profile(self, company_name: str, spark):
         rows = spark.sql(f"""
-            SELECT * FROM {_CATALOG}.classification.company_profile
+            SELECT * FROM {self._catalog}.classification.company_profile
             WHERE company_name = '{company_name}'
             ORDER BY created_at DESC LIMIT 1
         """).collect()
@@ -1174,7 +1172,7 @@ class BusinessModelAgent:
             data=profile_dict,
             output_summary=f"Profile loaded: industry_overlay={profile_dict.get('industry_overlay')}",
             confidence="high",
-            source_docs=[f"{_CATALOG}.classification.company_profile"],
+            source_docs=[f"{self._catalog}.classification.company_profile"],
         )
 
     # ------------------------------------------------------------------
@@ -1327,9 +1325,10 @@ class BusinessModelAgent:
     # ------------------------------------------------------------------
 
     def run(self, company_name: str, spark, llm_endpoint: str,
-            extraction_endpoint: str = None) -> dict:
+            extraction_endpoint: str = None, *, catalog: str) -> dict:
         self._reset_state()
         self._company_name = company_name
+        self._catalog = catalog
         _extract_ep = extraction_endpoint or llm_endpoint
 
         print(f"  Running 7 tools ...")
@@ -1681,7 +1680,7 @@ class BusinessModelAgent:
             ),
             "output":     f"conflict={overlay_conflict}" + (f" — {overlay_conflict_note[:120]}" if overlay_conflict_note else ""),
             "confidence": "high" if profile_dict else "low",
-            "sources":    [f"{_CATALOG}.classification.company_profile"],
+            "sources":    [f"{self._catalog}.classification.company_profile"],
         })
         print(f"  Step {overlay_step} [industry_overlay_conflict_check]: conflict={overlay_conflict}")
 
@@ -2455,6 +2454,7 @@ def main() -> dict:
             spark=spark,
             llm_endpoint=llm_endpoint,
             extraction_endpoint=extraction_endpoint,
+            catalog=catalog,
         )
 
         # ── Save to Delta ─────────────────────────────────────────────────
