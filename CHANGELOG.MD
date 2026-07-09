@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-m-phv3-integration — 2026-07-08
+
+- T1 (Item 19 + PG2 pre-merge verification): Re-ran frozen git checks — `git diff origin/dev..dev2 -- backend-ai/app/services/genie_rules.py` empty; `git rev-list origin/dev ^dev2` returned 0 lines; confirmed no local `dev` branch and no `upstream` remote (Flag 4 unchanged); restated fast-forward target `origin/dev` via `git push origin dev2:dev`. **Verdict: PASS** — T2 unblocked. Evidence: `.dev/plans/uc13-m-phv3-integration/item19-20-pre-merge-verification.md` (content SHA `82403a767d9038dc3a34be304070266746b9ba09`). Adversarial gap deferred: no pytest surface for read-only gate verification per T1 contract (§2 Tests N/A).
+
 ## repo-test-baseline-hygiene — 2026-07-07
 
 Standing, cross-milestone repo test-infrastructure fixes closing the pre-existing baseline failures charter-escalated during the M-PHV1 audit (`.dev/audits/2026-07-07-uc13-m-phv1-pipeline-gates.md` F1; see `.dev/plans/uc13-m-phv1-pipeline-gates/charter-escalation-f1-baseline-debt.md` for the routing rationale and resolution). Not an M-PHV1 subtask — zero overlap with `ingestion_parser.py`, `ensure_coverage.py`, `test_pipeline.ipynb`, or `databricks/CLAUDE.md`. Full suite: 12 failed/1 collection error → **0 failed, 454 passed, 10 skipped** (re-run 4× to confirm no residual flakiness).
