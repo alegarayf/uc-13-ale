@@ -111,6 +111,19 @@ All `df.write` calls in `ingestion_parser.py` and `ensure_coverage.py` use `.opt
 
 All scripts use a dual-source helper: tries `dbutils.widgets.get()` first, falls back to `os.environ`. **Always mirror widget values into `os.environ` in Cell 1 of the notebook** so scripts imported as modules (where `dbutils` is not a direct global) can still read them. Never use `dbutils.widgets.get()` directly inside a script module.
 
+## Catalog convention
+
+Two Unity Catalog names appear across the pipeline; they are **not** interchangeable:
+
+| Catalog | Role |
+|---|---|
+| **`uc13`** | Production catalog — all `main()` entry points in `databricks/jobs/scripts/` and `databricks/agents/workstreams/` must default to this via `get_param("catalog", default="uc13")`. |
+| **`uc13_ale`** | Eval / harness / PHV-validation catalog — used by `test_pipeline.ipynb` Cell 1 (`dbutils.widgets.text("catalog", "uc13_ale")`), workflow YAML parameter defaults, and eval/QA instrumentation. |
+
+**Resolution path:** every production script reads the active catalog through `get_param("catalog", default="uc13")`, which tries the Databricks widget first and falls back to `os.environ["catalog"]`. The notebook's Cell 1 must mirror the widget value into `os.environ` (see `get_param()` / `get_secret()` pattern above) so module imports resolve the same catalog the operator set in the UI.
+
+**Enforcement:** `tests/test_catalog_convention.py` (item 22, §5.12.3) statically scans the production-safe layer for correct `get_param` defaults, notebook widget pins, and bypass literals or shadow constants. That test is the authoritative compliance gate — this section documents the convention only; it does not assert per-file compliance status.
+
 ---
 
 ## Endpoint names (Databricks model serving)
