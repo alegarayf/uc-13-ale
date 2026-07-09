@@ -107,8 +107,8 @@ def test_map_legacy_result_populates_legacy_keys_and_maps_pass_registers():
     assert "triggered_reviews_loaded" not in source_segment
 
 
-def test_main_default_catalog_is_uc13_ale():
-    assert 'get_param("catalog",             default="uc13_ale")' in _AGENT_SOURCE
+def test_main_default_catalog_is_uc13():
+    assert 'get_param("catalog",             default="uc13")' in _AGENT_SOURCE
 
 
 def test_drop_table_before_view_in_ensure_legal_storage():

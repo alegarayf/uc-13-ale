@@ -1999,7 +1999,7 @@ def main() -> dict:
         sys.path.insert(0, repo_root)
 
     company_name        = get_param("sp_company_name")
-    catalog             = get_param("catalog",             default="uc13_ale")
+    catalog             = get_param("catalog",             default="uc13")
     _widget_ep          = get_param("extraction_endpoint", default="databricks-claude-sonnet-4-6") or "databricks-claude-sonnet-4-6"
     llm_endpoint        = get_param("llm_endpoint",        default=_widget_ep)
 
