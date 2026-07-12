@@ -6,3 +6,5 @@
 - run the full pipeline 
 - audit (big model) -> close loop 
 - continue w rest of m's + start getting some understanding of the lay before sync 
+ - this all seems done 
+ 
