@@ -16,8 +16,7 @@ from dataclasses import dataclass
 from typing import overload
 
 from agents.shared._types import RouteResult
-
-_TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
+from agents.shared.retrieval import _TYPE_ORDER
 
 # OPEX per-query budgets — spec §5.12.4 Option C (Q1 financial statements, Q2 WC, Q3 projections).
 OPEX_QUERY_BUDGETS = (8_000, 3_000, 4_000)
