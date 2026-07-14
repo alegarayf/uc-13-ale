@@ -8,15 +8,15 @@ parses them into semantic chunks, generates embeddings, and builds a structured
 company profile.
 
 ```
-00_setup_vector_search   (run once per environment)
+setup_vector_search   (run once per environment)
         ↓
-01_download_upload        Phase 1 — SharePoint → UC Volume
+download_upload        Phase 1 — SharePoint → UC Volume
         ↓
-02_document_classifier    Phase 2a — LLM workstream tagging + priority detection
+document_classifier    Phase 2a — LLM workstream tagging + priority detection
         ↓
-03_ingestion_parser       Phase 2b — chunking + embeddings  ┐ (run sequentially;
+ingestion_parser       Phase 2b — chunking + embeddings  ┐ (run sequentially;
         ↓                                                     │  parser must finish
-04_company_profiler       Phase 2b — semantic search + LLM  ┘  before profiler)
+company_profiler       Phase 2b — semantic search + LLM  ┘  before profiler)
 ```
 
 ---
@@ -93,7 +93,7 @@ databricks bundle run uc13_ingestion_pipeline --target dev \
 
 ## 4. One-Time Setup (new environment)
 
-Run `00_setup_vector_search` **once** before the first pipeline run:
+Run `setup_vector_search` **once** before the first pipeline run:
 
 ```bash
 databricks bundle run uc13_ingestion_pipeline \
@@ -146,13 +146,13 @@ so different companies coexist in the same tables without collision.
 
 ### Phase 1 must complete before Phase 2
 
-`01_download_upload` writes files to the Volume **and** writes `uc13.ingestion.upload_log`
-with Priority Tier signals. The classifier (`02_document_classifier`) reads that table
+`download_upload` writes files to the Volume **and** writes `uc13.ingestion.upload_log`
+with Priority Tier signals. The classifier (`document_classifier`) reads that table
 to seed its LLM prompt, so running them concurrently would give the classifier no signal.
 
 ### Classifier must complete before Parser and Profiler
 
-`02_document_classifier` writes `uc13.classification.doc_relevance` — the gate table
+`document_classifier` writes `uc13.classification.doc_relevance` — the gate table
 that controls which files get parsed (`should_parse=true`) and which workstream tags
 are indexed alongside each embedding.
 
@@ -161,7 +161,7 @@ filter to restrict retrieval to high-signal document types.
 
 ### Parser must complete before Profiler
 
-`03_ingestion_parser` generates the embeddings that `04_company_profiler` queries via
+`ingestion_parser` generates the embeddings that `company_profiler` queries via
 Vector Search. Running the profiler before embeddings exist returns empty results for
 every profiling dimension.
 
@@ -176,9 +176,9 @@ the parser in a time-constrained window.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `01_download_upload` fails with 401 | SharePoint client secret expired or wrong | Rotate secret in Azure AD; update `uc13/sp_client_secret` |
-| `02_document_classifier` returns all BACKGROUND | LLM endpoint rate-limited or unreachable | Check endpoint status in Serving; retry |
-| `04_company_profiler` returns all nulls | No embeddings in the index (parser didn't finish, or index not yet synced) | Wait for index sync; check `embeddings_index` status in Vector Search UI |
+| `download_upload` fails with 401 | SharePoint client secret expired or wrong | Rotate secret in Azure AD; update `uc13/sp_client_secret` |
+| `document_classifier` returns all BACKGROUND | LLM endpoint rate-limited or unreachable | Check endpoint status in Serving; retry |
+| `company_profiler` returns all nulls | No embeddings in the index (parser didn't finish, or index not yet synced) | Wait for index sync; check `embeddings_index` status in Vector Search UI |
 | Profile `company_name` is blank | `sp_company_name` parameter not set | Set the parameter before running |
 | `data_room_gaps` lists "No CIM found" | CIM not present in data room or not uploaded | Add the CIM to SharePoint and re-run Phase 1 |
 
@@ -193,5 +193,5 @@ this is expected; those steps only execute on a Databricks cluster.
 ```bash
 cd databricks
 uv sync                           # install deps from pyproject.toml
-uv run python jobs/scripts/01_download_upload.py    # requires .env
+uv run python jobs/scripts/download_upload.py    # requires .env
 ```
