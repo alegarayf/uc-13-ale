@@ -228,6 +228,9 @@ rules-config/rule-*.json
 # RE² eval local SQLite store (spec §5.9)
 eval/retrieval/.local/
 
+# RE² harness report snapshots (operator artifacts; authoritative state is Delta ops)
+eval/retrieval/reports/*.json
+
 # Rallyday — local dev, agent workflow, and generated artifacts
 .dev/
 databricks/.env
