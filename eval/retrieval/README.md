@@ -23,7 +23,7 @@ Run once per Cell 7 ingestion rebuild or retrieval code change. Charter exit gat
 
 ### 1. Upstream preconditions (§5.15)
 
-- Cell 8c coverage PASS; Vector Search index sync current; join integrity spot-check (R-08).
+- Cell 8c coverage PASS; Vector Search index sync current; join integrity (R-08) — run [join integrity (R-08)](#join-integrity-r-08) preflight before baseline.
 - Registry intents for this baseline use `catalog: uc13_ale` (not legacy `uc13` default).
 
 ### 2. DDL preflight — required before delta baseline
@@ -89,6 +89,51 @@ print(
 | `VS filter pushdown unavailable (...)` printed; unfiltered fallback used | Mark baseline `harness_status: invalid` — acceptable per M-RE1 exit gate; document remediation (index schema / admin recreate) before using as `baseline_ref_run_id` |
 
 Save probe output in the job log or PR notes. The harness does not auto-mark invalid on probe failure in v1 — operator responsibility per §5.15.
+
+## join integrity (R-08)
+
+Hydrate and gold-bootstrap SQL both inner-join `ingestion.chunks` to `classification.doc_relevance` on:
+
+- `chunks.file_name = doc_relevance.filename`
+- `chunks.company_name = doc_relevance.company_name`
+
+Orphan chunks (no matching `doc_relevance` row for that file + company pair) are **dropped** by that join — they never surface in retrieval hydrate or filename-closure gold labels. Item 27 adds an executable guard so join drift is caught in CI, not only in this runbook bullet.
+
+### CI regression guard (required before merge / baseline)
+
+```bash
+pytest tests/test_join_integrity.py -v
+```
+
+The test module uses a synthetic fixture with known orphan and non-orphan rows. It asserts:
+
+1. `_hydrate_chunks_sql` and `eval/retrieval/gold/bootstrap.py` still use the join predicate above (shape drift → test failure).
+2. Orphan chunks are **counted and listed**, not silently ignored when simulating the inner join.
+
+This pytest check validates join **logic** and source-shape stability. It is **not** a substitute for a live-cluster orphan count after ingestion — schedule that separately if production data quality gates require it.
+
+### Operator cluster spot-check (recommended before baseline)
+
+After Cell 7 / Cell 8c, run on the target catalog (Elder Care baseline: `uc13_ale`):
+
+```sql
+SELECT COUNT(*) AS orphan_chunk_count
+FROM uc13_ale.ingestion.chunks c
+LEFT JOIN uc13_ale.classification.doc_relevance r
+  ON c.file_name = r.filename
+ AND c.company_name = r.company_name
+WHERE c.company_name = 'Elder Care'
+  AND r.filename IS NULL;
+```
+
+**Interpretation:**
+
+| `orphan_chunk_count` | Action |
+|----------------------|--------|
+| `0` | Proceed — join integrity OK for this company |
+| `> 0` | HALT baseline — investigate classifier coverage or filename normalization drift before harness run |
+
+Record the count in the job log or PR notes alongside the G2 probe output.
 
 ## M-RE3 VS filter pushdown spike (items 24–25)
 

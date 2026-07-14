@@ -3,6 +3,7 @@
 ## uc13-m-phv4-retrieval-consolidation — 2026-07-14
 
 - T1 (R-09 `_TYPE_ORDER` dedup — item 25): Promoted `retrieval.py`'s `_TYPE_ORDER` to a module-level canonical constant; `context_utils.py` now imports the same object instead of an inline duplicate; added `test_type_order_is_canonical_across_retrieval_and_context_utils` closing context-map Flag 4. Constant-promotion chosen over a new shared module per `.dev/decision-logs/m-phv4-t1-r09-type-order-dedup.md`. Adversarial gap deferred: no AST guard against reintroducing a local `_TYPE_ORDER` shadow inside `semantic_search()`.
+- T4 (R-08 join-integrity preflight — item 27): Added `tests/test_join_integrity.py` with synthetic orphan/non-orphan fixture asserting inner-join orphans are counted (not silently dropped) and that `_hydrate_chunks_sql` / `gold/bootstrap.py` retain `c.file_name = r.filename` + `c.company_name = r.company_name` predicates. Added `eval/retrieval/README.md` § `## join integrity (R-08)` with CI `pytest` procedure and operator cluster `LEFT JOIN` orphan-count SQL; upstream precondition bullet now links to that section. Adversarial gap deferred: no automated parse of operator-recorded cluster orphan counts — structural pytest + README contract only.
 
 ## uc13-m-phv3-integration — 2026-07-14
 
