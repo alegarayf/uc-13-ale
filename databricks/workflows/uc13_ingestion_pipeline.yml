@@ -10,7 +10,7 @@
 # Required before first run:
 #   - Unity Catalog catalog "uc13_ale" created by workspace admin (job default)
 #   - Secrets scope "uc13" with keys listed in workflows/README.md
-#   - Run 00_setup_vector_search once to create the VS endpoint and index
+#   - Run setup_vector_search once to create the VS endpoint and index
 
 resources:
   jobs:
@@ -61,7 +61,7 @@ resources:
             Create UC schemas, embeddings table, VS endpoint and VS index.
             Idempotent — safe to re-run; existing resources are left untouched.
           python_script_task:
-            python_file: "databricks/jobs/scripts/00_setup_vector_search.py"
+            python_file: "databricks/jobs/scripts/setup_vector_search.py"
             parameters:
               - "{{job.parameters.catalog}}"
               - "{{job.parameters.vs_endpoint_name}}"
@@ -89,7 +89,7 @@ resources:
           depends_on:
             - task_key: setup_vector_search
           python_script_task:
-            python_file: "databricks/jobs/scripts/01_download_upload.py"
+            python_file: "databricks/jobs/scripts/download_upload.py"
             parameters:
               - "{{job.parameters.sp_company_name}}"
               - "{{job.parameters.catalog}}"
@@ -121,7 +121,7 @@ resources:
           depends_on:
             - task_key: download_upload
           python_script_task:
-            python_file: "databricks/jobs/scripts/02_document_classifier.py"
+            python_file: "databricks/jobs/scripts/document_classifier.py"
             parameters:
               - "{{job.parameters.sp_company_name}}"
               - "{{job.parameters.catalog}}"
@@ -153,7 +153,7 @@ resources:
           depends_on:
             - task_key: document_classifier
           python_script_task:
-            python_file: "databricks/jobs/scripts/03_ingestion_parser.py"
+            python_file: "databricks/jobs/scripts/ingestion_parser.py"
             parameters:
               - "{{job.parameters.sp_company_name}}"
               - "{{job.parameters.catalog}}"
@@ -184,7 +184,7 @@ resources:
           depends_on:
             - task_key: ingestion_parser
           python_script_task:
-            python_file: "databricks/jobs/scripts/04_company_profiler.py"
+            python_file: "databricks/jobs/scripts/company_profiler.py"
             parameters:
               - "{{job.parameters.sp_company_name}}"
               - "{{job.parameters.catalog}}"
