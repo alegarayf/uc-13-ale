@@ -837,8 +837,7 @@ class FinancialTrendsAgent:
     # ------------------------------------------------------------------
 
     def run(self, company_name: str, spark, llm_endpoint: str,
-            extraction_endpoint: str = None,
-            retrieval_mode: str = "semantic", *, catalog: str) -> dict:
+            extraction_endpoint: str = None, *, catalog: str) -> dict:
         self._reset_state()
         self._company_name = company_name
         self._catalog = catalog
@@ -857,9 +856,9 @@ class FinancialTrendsAgent:
             RevenueSubAgent, EbitdaSubAgent, OpexSubAgent,
         )
 
-        _sub_args = (company_name, spark, _extract_ep, profile_dict, retrieval_mode)
+        _sub_args = (company_name, spark, _extract_ep, profile_dict)
 
-        print(f"  Launching 3 autonomous sub-agents in parallel (retrieval_mode={retrieval_mode}) ...")
+        print("  Launching 3 autonomous sub-agents in parallel ...")
         _t0 = time.time()
         # ThreadPoolExecutor worker threads do NOT inherit the submitting thread's
         # contextvars.Context by default (unlike asyncio tasks). open_agent_run() /
@@ -1741,7 +1740,6 @@ def main() -> dict:
         print(f"  [override] extraction_endpoint '{_widget_ep}' → Sonnet (Haiku cap=8192 tokens; FTA schema needs 10K+)")
     else:
         extraction_endpoint = _widget_ep
-    retrieval_mode       = get_param("retrieval_mode", default="semantic")
 
     from pyspark.sql import SparkSession
     from agents.shared.run_context import (
@@ -1756,7 +1754,6 @@ def main() -> dict:
 
     print(f"\n=== Financial Trends Agent ({company_name}) ===")
     print(f"  extraction: {extraction_endpoint or llm_endpoint}  narrative: {llm_endpoint}")
-    print(f"  retrieval_mode: {retrieval_mode}")
 
     open_agent_run(
         "fta",
@@ -1771,7 +1768,6 @@ def main() -> dict:
             spark=spark,
             llm_endpoint=llm_endpoint,
             extraction_endpoint=extraction_endpoint,
-            retrieval_mode=retrieval_mode,
             catalog=catalog,
         )
 

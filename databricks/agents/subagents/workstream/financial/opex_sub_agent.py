@@ -84,7 +84,6 @@ class OpexSubAgent:
         spark,
         llm_endpoint: str,
         company_profile: dict | None,
-        retrieval_mode: str = "semantic",
     ) -> dict:
         """Run retrieval → context build → extraction.
 
@@ -92,7 +91,7 @@ class OpexSubAgent:
         """
         _wa = self._make_base()
 
-        q1_chunks, q2_chunks, q3_chunks = self._retrieve(company_name, spark, retrieval_mode)
+        q1_chunks, q2_chunks, q3_chunks = self._retrieve(company_name, spark)
         context_text, stats, allocations = assemble_labeled_context(
             [q1_chunks, q2_chunks, q3_chunks],
         )
@@ -131,11 +130,11 @@ class OpexSubAgent:
         }
 
     def _retrieve(
-        self, company_name: str, spark, retrieval_mode: str = "semantic",
+        self, company_name: str, spark,
     ) -> tuple[list, list, list]:
         """Run OPEX-domain retrieval queries; return three independent chunk groups."""
         # 1. Financial statements — P&L opex rows (salaries, G&A, overhead, etc.)
-        q1_chunks = semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "operating expenses OPEX cost of revenue salaries compensation benefits "
@@ -149,12 +148,12 @@ class OpexSubAgent:
                 "Financials", "Audited", "Management", "CIM", "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.opex.q1_financial_statements",
-        ).chunks
+        )
+        q1_chunks = result.chunks
 
         # 2. Working capital
-        q2_chunks = semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "accounts payable DPO days payable outstanding operating expenses "
@@ -164,12 +163,12 @@ class OpexSubAgent:
             top_k=4,
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "Working Capital", "CIM"],
             min_chunk_length=150, min_results=3,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.opex.q2_working_capital",
-        ).chunks
+        )
+        q2_chunks = result.chunks
 
         # 3. Projected financials
-        q3_chunks = semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "projected revenue forecast 2025 2026 2027 2028 2029 "
@@ -183,9 +182,9 @@ class OpexSubAgent:
             file_name_filter=["Model", "Projection", "Forecast", "Budget", "CIM", "Financial", "P&L"],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.opex.q3_projected_financials",
-        ).chunks
+        )
+        q3_chunks = result.chunks
 
         return q1_chunks, q2_chunks, q3_chunks
 

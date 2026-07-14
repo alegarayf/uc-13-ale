@@ -215,42 +215,27 @@ def semantic_search_with_fallback(
     min_results: int = 3,
     source_type_priority: bool = False,
     source_type_filter: list | None = None,
-    retrieval_mode: str = "semantic",
     intent_id: str | None = None,
-) -> RouteResult:
-    """Semantic search with automatic filename-filter fallback.
+) -> tuple[RouteResult, bool]:
+    """Thin delegator to ``agents.shared.fallback.semantic_search_with_fallback``.
 
-    Calls ``semantic_search`` (merge-rank enhancements live in ``retrieval.py``).
-    ``retrieval_mode`` is accepted for FTA/sub-agent call-site compatibility but
-    does not alter dispatch after Route A removal.
-    ``intent_id`` is propagated to ``semantic_search`` for M-RE2 D3 provenance
-    attribution; FTA sub-agents must pass the registry intent id.
-
-    If result count < min_results with the filename filter, retries without it so
-    documents with non-standard names are not silently excluded.
+    ``intent_id`` is propagated for M-RE2 D3 provenance attribution; FTA sub-agents
+    must pass the registry intent id. ``catalog`` is resolved via ``_default_catalog()``
+    (``os.environ["catalog"]``) and threaded explicitly to the shared fallback.
     """
-    from agents.shared.retrieval import semantic_search
+    from agents.shared.fallback import semantic_search_with_fallback as _shared_fallback
 
-    catalog = _default_catalog()
-    index_name = f"{catalog}.ingestion.embeddings_index"
-    search_kwargs = dict(
-        query=query,
-        spark=spark,
+    return _shared_fallback(
         company_name=company_name,
-        top_k=top_k,
+        spark=spark,
+        query=query,
         workstream_filter=workstream_filter,
+        top_k=top_k,
         file_name_filter=file_name_filter,
         min_chunk_length=min_chunk_length,
+        min_results=min_results,
+        catalog=_default_catalog(),
         source_type_priority=source_type_priority,
         source_type_filter=source_type_filter,
-        catalog=catalog,
-        index_name=index_name,
         intent_id=intent_id,
     )
-
-    result = semantic_search(**search_kwargs)
-    if len(result.chunks) < min_results and file_name_filter is not None:
-        result = semantic_search(**{**search_kwargs, "file_name_filter": None})
-
-    print(f"  retrieval_mode={retrieval_mode} returned {len(result.chunks)} chunks")
-    return result
