@@ -108,7 +108,6 @@ class EbitdaSubAgent:
         spark,
         llm_endpoint: str,
         company_profile: dict | None,
-        retrieval_mode: str = "semantic",
     ) -> dict:
         """Run retrieval → context build → extraction.
 
@@ -116,7 +115,7 @@ class EbitdaSubAgent:
         """
         _wa = self._make_base()
 
-        chunks, gaps = self._retrieve(company_name, spark, retrieval_mode)
+        chunks, gaps = self._retrieve(company_name, spark)
         context_text, stats = build_focused_context(chunks, max_chars=_MAX_CONTEXT_CHARS)
         print(f"  [EBITDA] {stats}")
 
@@ -134,7 +133,7 @@ class EbitdaSubAgent:
             "source_files": source_files,
         }
 
-    def _retrieve(self, company_name: str, spark, retrieval_mode: str = "semantic") -> tuple[list, list[str]]:
+    def _retrieve(self, company_name: str, spark) -> tuple[list, list[str]]:
         """Run all EBITDA-domain retrieval queries.
 
         Returns (chunks, retrieval_gaps) where retrieval_gaps are gap strings
@@ -144,7 +143,7 @@ class EbitdaSubAgent:
         retrieval_gaps: list[str] = []
 
         # 1. Financial statements — P&L EBITDA rows + margin rows
-        chunks += semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "EBITDA profit loss income statement operating income earnings before interest "
@@ -160,12 +159,12 @@ class EbitdaSubAgent:
                 "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.ebitda.q1_financial_statements",
-        ).chunks
+        )
+        chunks += result.chunks
 
         # 2. EBITDA and margins
-        chunks += semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "EBITDA margin gross margin adjusted EBITDA addback bridge earnings profitability "
@@ -176,12 +175,12 @@ class EbitdaSubAgent:
             top_k=8,
             file_name_filter=["EBITDA", "Margin", "Addback", "Bridge", "Adjusted", "QofE", "Quality", "P&L", "CIM", "Financial"],
             min_chunk_length=150, min_results=3,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.ebitda.q2_ebitda_and_margins",
-        ).chunks
+        )
+        chunks += result.chunks
 
         # 3. Working capital
-        chunks += semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "DSO DPO days sales outstanding accounts receivable aging working capital "
@@ -191,12 +190,12 @@ class EbitdaSubAgent:
             top_k=4,
             file_name_filter=["Balance Sheet", "Financial", "Accounts", "AR", "Aging", "Working Capital", "CIM"],
             min_chunk_length=150, min_results=3,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.ebitda.q3_working_capital",
-        ).chunks
+        )
+        chunks += result.chunks
 
         # 4. Addback schedule
-        addback_chunks = semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "EBITDA adjustment detail addback schedule non-recurring one-time "
@@ -212,9 +211,9 @@ class EbitdaSubAgent:
             min_chunk_length=50,
             min_results=3,
             source_type_priority=True,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.ebitda.q4_addback_schedule",
-        ).chunks
+        )
+        addback_chunks = result.chunks
         if not addback_chunks:
             retrieval_gaps.append(
                 "addback_schedule retrieval returned 0 chunks. If an addback or EBITDA adjustment "

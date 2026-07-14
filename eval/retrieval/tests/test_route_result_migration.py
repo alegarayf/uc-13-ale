@@ -23,7 +23,18 @@ ENUMERATED_CALLER_MODULES = [
     "databricks/agents/workstreams/business_model_agent.py",
     "databricks/agents/workstreams/legal_contracts_agent.py",
     "databricks/jobs/scripts/company_profiler.py",
+    "databricks/agents/subagents/workstream/financial/revenue_sub_agent.py",
+    "databricks/agents/subagents/workstream/financial/ebitda_sub_agent.py",
+    "databricks/agents/subagents/workstream/financial/opex_sub_agent.py",
 ]
+
+FTA_SUB_AGENT_MODULES = [
+    "databricks/agents/subagents/workstream/financial/revenue_sub_agent.py",
+    "databricks/agents/subagents/workstream/financial/ebitda_sub_agent.py",
+    "databricks/agents/subagents/workstream/financial/opex_sub_agent.py",
+]
+
+FTA_METHODS_WITHOUT_RETRIEVAL_MODE = frozenset({"run", "_retrieve"})
 
 WRAPPER_FUNCTION_NAMES = frozenset(
     {"_semantic_search_with_fallback", "semantic_search_with_fallback"}
@@ -150,3 +161,36 @@ def test_agents_tree_has_no_bare_semantic_search_outside_wrappers() -> None:
     assert not all_violations, "agents/ tree migration guard failed:\n" + "\n".join(
         all_violations
     )
+
+
+def _method_has_retrieval_mode_param(path: Path, method_name: str) -> bool:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef) or node.name != method_name:
+            continue
+        return any(arg.arg == "retrieval_mode" for arg in node.args.args)
+    return False
+
+
+@pytest.mark.parametrize("rel_path", FTA_SUB_AGENT_MODULES)
+def test_fta_sub_agents_drop_retrieval_mode_from_run_and_retrieve(rel_path: str) -> None:
+    path = REPO_ROOT / rel_path
+    assert path.is_file(), f"FTA sub-agent module missing: {rel_path}"
+    for method_name in FTA_METHODS_WITHOUT_RETRIEVAL_MODE:
+        assert not _method_has_retrieval_mode_param(path, method_name), (
+            f"{rel_path}::{method_name} must not accept retrieval_mode after M-PHV4 T2"
+        )
+
+
+def test_financial_trends_agent_run_has_no_retrieval_mode_param() -> None:
+    import inspect
+    import sys
+
+    databricks_root = REPO_ROOT / "databricks"
+    if str(databricks_root) not in sys.path:
+        sys.path.insert(0, str(databricks_root))
+
+    from agents.workstreams.financial_trends_agent import FinancialTrendsAgent  # noqa: E402
+
+    params = inspect.signature(FinancialTrendsAgent.run).parameters
+    assert "retrieval_mode" not in params

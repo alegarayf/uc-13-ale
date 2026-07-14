@@ -107,7 +107,6 @@ class RevenueSubAgent:
         spark,
         llm_endpoint: str,
         company_profile: dict | None,
-        retrieval_mode: str = "semantic",
     ) -> dict:
         """Run retrieval → context build → extraction.
 
@@ -115,7 +114,7 @@ class RevenueSubAgent:
         """
         _wa = self._make_base()
 
-        chunks = self._retrieve(company_name, spark, retrieval_mode)
+        chunks = self._retrieve(company_name, spark)
         context_text, stats = build_focused_context(chunks, max_chars=_MAX_CONTEXT_CHARS)
         print(f"  [Revenue] {stats}")
 
@@ -133,12 +132,12 @@ class RevenueSubAgent:
             "source_files": source_files,
         }
 
-    def _retrieve(self, company_name: str, spark, retrieval_mode: str = "semantic") -> list:
+    def _retrieve(self, company_name: str, spark) -> list:
         """Run all revenue-domain retrieval queries."""
         chunks: list = []
 
         # 1. Financial statements — P&L revenue/gross-profit rows
-        chunks += semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "annual revenue gross profit income statement financial results reported net revenue "
@@ -152,12 +151,12 @@ class RevenueSubAgent:
                 "Financials", "Audited", "Management", "CIM", "Model", "Summary",
             ],
             min_chunk_length=150, min_results=3,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.revenue.q1_financial_statements",
-        ).chunks
+        )
+        chunks += result.chunks
 
         # 2. Revenue by segment
-        chunks += semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "revenue by segment product line geography service line revenue split breakdown "
@@ -167,13 +166,13 @@ class RevenueSubAgent:
             top_k=5,
             file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM"],
             min_chunk_length=150, min_results=3,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.revenue.q2_revenue_by_segment",
-        ).chunks
+        )
+        chunks += result.chunks
 
         # 3. Revenue by geography
         #    whose rows are labelled 'Revenue - New York', 'Revenue - Westchester', etc.)
-        chunks += semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "revenue by location geography region state city office clinic "
@@ -187,12 +186,12 @@ class RevenueSubAgent:
             file_name_filter=["P&L", "Financial", "Revenue", "Segment", "CIM", "Model", "Projection"],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.revenue.q3_revenue_by_geography",
-        ).chunks
+        )
+        chunks += result.chunks
 
         # 4. Customer concentration
-        cust = semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "customer concentration top customers revenue by customer largest customers "
@@ -204,11 +203,11 @@ class RevenueSubAgent:
             file_name_filter=["CIM"],
             min_chunk_length=80, min_results=2,
             source_type_priority=True,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.revenue.q4_customer_concentration",
-        ).chunks
+        )
+        cust = result.chunks
         if len(cust) < 2:
-            cust = semantic_search_with_fallback(
+            result, _ = semantic_search_with_fallback(
                 company_name=company_name, spark=spark,
                 query=(
                     "top customers revenue by customer customer concentration sales by customer "
@@ -220,14 +219,14 @@ class RevenueSubAgent:
                 file_name_filter=["Customer", "QuickBooks", "QBO", "Sales", "Concentration", "Client", "Payor", "Revenue"],
                 min_chunk_length=80, min_results=2,
                 source_type_priority=True,
-                retrieval_mode=retrieval_mode,
                 intent_id="fta.revenue.q4_customer_concentration_fallback",
-            ).chunks
+            )
+            cust = result.chunks
         cust = [c for c in cust if not any(kw in (getattr(c, "file_name", "") or "").lower() for kw in _BANK_STMT_KEYWORDS)]
         chunks += cust
 
         # 5. QuickBooks P&L exports and individual year workbooks
-        chunks += semantic_search_with_fallback(
+        result, _ = semantic_search_with_fallback(
             company_name=company_name, spark=spark,
             query=(
                 "total income total revenue net revenue gross revenue QuickBooks P&L "
@@ -242,9 +241,9 @@ class RevenueSubAgent:
             ],
             min_chunk_length=100, min_results=3,
             source_type_priority=True,
-            retrieval_mode=retrieval_mode,
             intent_id="fta.revenue.q5_quickbooks_pl",
-        ).chunks
+        )
+        chunks += result.chunks
 
         return chunks
 

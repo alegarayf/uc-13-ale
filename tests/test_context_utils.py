@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,14 +19,14 @@ from agents.subagents.workstream.financial.context_utils import (  # noqa: E402
 )
 
 
-def _row(*, file_name: str = "CIM.pdf", chunk_text: str = "A" * 200):
+def _row(*, file_name: str = "CIM.pdf", chunk_text: str = "A" * 200, source_type: str = "text"):
     return SimpleNamespace(
         chunk_id="c1",
         file_name=file_name,
         chunk_text=chunk_text,
         section_header="Revenue",
         page_start=1,
-        source_type="text",
+        source_type=source_type,
         workstream=["FINANCIAL"],
         priority_tier=1,
     )
@@ -55,94 +56,82 @@ def _call_kwargs():
     )
 
 
-@patch("agents.shared.retrieval.semantic_search", create=True)
-def test_semantic_mode_returns_route_result(mock_semantic_search):
-    rows = [_row(), _row(file_name="P&L.pdf"), _row(file_name="Model.xlsx")]
-    mock_semantic_search.return_value = _route_result(rows, mode="semantic", scores=[0.9, 0.8, 0.7])
+def test_semantic_search_with_fallback_signature_has_no_retrieval_mode():
+    """FTA contract: dead retrieval_mode param removed from context_utils wrapper."""
+    params = inspect.signature(semantic_search_with_fallback).parameters
+    assert "retrieval_mode" not in params
 
-    result = semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="semantic")
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+def test_delegator_returns_tuple_route_result_and_used_fallback(mock_shared_fallback):
+    rows = [_row(), _row(file_name="P&L.pdf"), _row(file_name="Model.xlsx")]
+    mock_shared_fallback.return_value = (
+        _route_result(rows, mode="semantic", scores=[0.9, 0.8, 0.7]),
+        False,
+    )
+
+    result, used_fallback = semantic_search_with_fallback(**_call_kwargs())
 
     assert isinstance(result, RouteResult)
     assert result.mode == "semantic"
     assert result.chunks == rows
     assert result.scores == [0.9, 0.8, 0.7]
-    assert len(result.scores) == len(result.chunks)
-    assert all(s is not None for s in result.scores)
-    mock_semantic_search.assert_called_once()
+    assert used_fallback is False
+    mock_shared_fallback.assert_called_once()
 
 
-@patch("agents.shared.retrieval.semantic_search", create=True)
-def test_enhanced_semantic_mode_uses_semantic_search(mock_semantic_search):
-    rows = [_row(), _row(file_name="P&L.pdf"), _row(file_name="Model.xlsx")]
-    mock_semantic_search.return_value = _route_result(rows)
-
-    result = semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="enhanced_semantic")
-
-    assert isinstance(result, RouteResult)
-    assert result.mode == "semantic"
-    assert result.chunks == rows
-    mock_semantic_search.assert_called_once()
-
-
-@patch("agents.shared.retrieval.semantic_search", create=True)
-def test_enhanced_semantic_and_semantic_pass_identical_semantic_search_kwargs(
-    mock_semantic_search,
-):
-    """D7a eval guard: enhanced_semantic must not diverge from semantic at the retrieval layer."""
-    rows = [_row(), _row(file_name="P&L.pdf"), _row(file_name="Model.xlsx")]
-    mock_semantic_search.return_value = _route_result(rows)
-    call_kwargs = _call_kwargs()
-
-    semantic_search_with_fallback(**call_kwargs, retrieval_mode="semantic")
-    semantic_calls = [call for call in mock_semantic_search.call_args_list]
-
-    mock_semantic_search.reset_mock()
-    mock_semantic_search.return_value = _route_result(rows)
-
-    semantic_search_with_fallback(**call_kwargs, retrieval_mode="enhanced_semantic")
-    enhanced_calls = [call for call in mock_semantic_search.call_args_list]
-
-    assert len(semantic_calls) == len(enhanced_calls)
-    for semantic_call, enhanced_call in zip(semantic_calls, enhanced_calls, strict=True):
-        assert semantic_call == enhanced_call
-
-
-@patch("agents.shared.retrieval.semantic_search", create=True)
-def test_unknown_retrieval_mode_falls_back_to_semantic(mock_semantic_search):
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+def test_delegator_threads_catalog_from_default_catalog(mock_shared_fallback, monkeypatch):
+    """Catalog must be threaded explicitly — fallback.py does not read os.environ."""
+    monkeypatch.setenv("catalog", "uc13_custom")
     rows = [_row(), _row(), _row()]
-    mock_semantic_search.return_value = _route_result(rows)
+    mock_shared_fallback.return_value = (_route_result(rows), False)
 
-    result = semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="invalid_mode")
+    semantic_search_with_fallback(**_call_kwargs())
 
-    assert isinstance(result, RouteResult)
-    assert result.mode == "semantic"
-    mock_semantic_search.assert_called_once()
+    assert mock_shared_fallback.call_args.kwargs["catalog"] == "uc13_custom"
 
 
-@patch("agents.shared.retrieval.semantic_search", create=True)
-def test_semantic_fallback_retries_without_file_name_filter(mock_semantic_search):
-    retry_rows = [_row(), _row(file_name="other.pdf"), _row(file_name="misc.pdf")]
-    mock_semantic_search.side_effect = [
-        _route_result([_row()]),
-        _route_result(retry_rows, scores=[0.4, 0.3, 0.2]),
-    ]
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+def test_delegator_forwards_source_type_kwargs(mock_shared_fallback):
+    rows = [_row(source_type="table")]
+    mock_shared_fallback.return_value = (_route_result(rows), False)
 
-    result = semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="semantic")
+    semantic_search_with_fallback(
+        **_call_kwargs(),
+        source_type_priority=True,
+        source_type_filter=["table", "vision"],
+    )
 
-    assert result.chunks == retry_rows
-    assert result.scores == [0.4, 0.3, 0.2]
-    assert mock_semantic_search.call_count == 2
-    second_call_kwargs = mock_semantic_search.call_args_list[1].kwargs
-    assert second_call_kwargs["file_name_filter"] is None
+    call_kwargs = mock_shared_fallback.call_args.kwargs
+    assert call_kwargs["source_type_priority"] is True
+    assert call_kwargs["source_type_filter"] == ["table", "vision"]
 
 
-@patch("agents.shared.retrieval.semantic_search", create=True)
-def test_wrapper_propagates_keyword_mode_from_inner(mock_semantic_search):
-    """D3-A kill criterion: wrapper must not overwrite inner keyword mode."""
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+def test_delegator_propagates_used_fallback_flag(mock_shared_fallback):
+    rows = [_row(), _row(file_name="other.pdf"), _row(file_name="misc.pdf")]
+    mock_shared_fallback.return_value = (
+        _route_result(rows, scores=[0.4, 0.3, 0.2]),
+        True,
+    )
+
+    result, used_fallback = semantic_search_with_fallback(**_call_kwargs())
+
+    assert result.chunks == rows
+    assert used_fallback is True
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+def test_delegator_preserves_inner_route_result_mode(mock_shared_fallback):
+    """Wrapper must not overwrite inner keyword mode from shared fallback."""
     rows = [_row(), _row(file_name="P&L.pdf")]
-    mock_semantic_search.return_value = _route_result(rows, mode="keyword", scores=[0.0, 0.0])
+    mock_shared_fallback.return_value = (
+        _route_result(rows, mode="keyword", scores=[0.0, 0.0]),
+        False,
+    )
 
-    result = semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="semantic")
+    result, _ = semantic_search_with_fallback(**_call_kwargs())
 
     assert result.mode == "keyword"
     assert result.scores == [0.0, 0.0]
@@ -168,35 +157,40 @@ def test_build_focused_context_excludes_chunks_beyond_max_chars():
     assert "1 excluded" in stats
 
 
-@patch("agents.shared.retrieval.semantic_search", create=True)
-def test_wrapper_propagates_intent_id_to_semantic_search(mock_semantic_search):
-    """M-RE2 T3/D3: intent_id must flow through the wrapper to semantic_search."""
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+def test_delegator_propagates_intent_id_to_shared_fallback(mock_shared_fallback):
+    """M-RE2 T3/D3: intent_id must flow through the wrapper to shared fallback."""
     rows = [_row(), _row(file_name="P&L.pdf"), _row(file_name="Model.xlsx")]
-    mock_semantic_search.return_value = _route_result(rows)
+    mock_shared_fallback.return_value = (_route_result(rows), False)
 
     semantic_search_with_fallback(
         **_call_kwargs(),
-        retrieval_mode="semantic",
         intent_id="fta.opex.q1_financial_statements",
     )
 
-    assert mock_semantic_search.call_count == 1
-    assert mock_semantic_search.call_args.kwargs["intent_id"] == (
+    assert mock_shared_fallback.call_args.kwargs["intent_id"] == (
         "fta.opex.q1_financial_statements"
     )
 
 
-@patch("agents.shared.retrieval.semantic_search", create=True)
-def test_wrapper_defaults_intent_id_none_and_propagates_on_retry(mock_semantic_search):
-    """intent_id defaults to None and is preserved across the filename-filter retry."""
-    retry_rows = [_row(), _row(file_name="other.pdf"), _row(file_name="misc.pdf")]
-    mock_semantic_search.side_effect = [
-        _route_result([_row()]),
-        _route_result(retry_rows, scores=[0.4, 0.3, 0.2]),
-    ]
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+def test_delegator_defaults_intent_id_none(mock_shared_fallback):
+    rows = [_row(), _row(), _row()]
+    mock_shared_fallback.return_value = (_route_result(rows), False)
 
-    semantic_search_with_fallback(**_call_kwargs(), retrieval_mode="semantic")
+    semantic_search_with_fallback(**_call_kwargs())
 
-    assert mock_semantic_search.call_count == 2
-    for call in mock_semantic_search.call_args_list:
-        assert call.kwargs["intent_id"] is None
+    assert mock_shared_fallback.call_args.kwargs["intent_id"] is None
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+def test_delegator_does_not_call_retrieval_directly(mock_shared_fallback):
+    """Falsifier: thin delegator must not bypass shared fallback module."""
+    rows = [_row(), _row(), _row()]
+    mock_shared_fallback.return_value = (_route_result(rows), False)
+
+    with patch("agents.shared.retrieval.semantic_search") as mock_semantic_search:
+        semantic_search_with_fallback(**_call_kwargs())
+        mock_semantic_search.assert_not_called()
+
+    mock_shared_fallback.assert_called_once()
