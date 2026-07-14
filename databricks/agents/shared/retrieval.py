@@ -21,6 +21,9 @@ from agents.shared._types import RouteResult
 _TIER_WEIGHT = {1: 1.0, 2: 0.7, 3: 0.4}
 _DEFAULT_TIER_WEIGHT = 0.3
 
+# R-09: canonical source-type sort order (shared with context_utils.py)
+_TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
+
 
 def _default_catalog() -> str:
     return os.environ.get("catalog", "uc13").strip() or "uc13"
@@ -392,8 +395,6 @@ def semantic_search(
         chunks = _sort_by_tier_only(chunks)
     elif source_type_priority:
         # Within merge-rank groups, surface table and vision chunks first.
-        # TODO: consolidate with context_utils._TYPE_ORDER
-        _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
         if score_map:
             chunks = sorted(
                 chunks,

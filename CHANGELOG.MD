@@ -1,5 +1,13 @@
 # Changelog
 
+## uc13-m-phv4-retrieval-consolidation — 2026-07-14
+
+- T1 (R-09 `_TYPE_ORDER` dedup — item 25): Promoted `retrieval.py`'s `_TYPE_ORDER` to a module-level canonical constant; `context_utils.py` now imports the same object instead of an inline duplicate; added `test_type_order_is_canonical_across_retrieval_and_context_utils` closing context-map Flag 4. Constant-promotion chosen over a new shared module per `.dev/decision-logs/m-phv4-t1-r09-type-order-dedup.md`. Adversarial gap deferred: no AST guard against reintroducing a local `_TYPE_ORDER` shadow inside `semantic_search()`.
+
+## uc13-m-phv3-integration — 2026-07-14
+
+- **Context map rev 2 (post-T7 audit refresh):** Bumped `.dev/plans/uc13-m-phv3-integration/context-map.md` revision 1→2 at HEAD `f57386bb` — updated provenance header, file map, interface inventory, coupling-surface resolution status, and ambiguity-flag closures against landed T1–T7 evidence (`exit-gate-checklist.md` item 24 **PASS**, smoke SHA `d3230fa`, PG3 `tests/test_catalog_convention.py` 44 passed). Map-only change for auditor cold-read; no production code touched.
+
 ## uc13-m-phv3-integration — 2026-07-08
 
 - T7 (M-PHV3 exit closure — item 24): Fixed workflow YAML `python_file` paths and matching `databricks/workflows/README.md` references (dropped `00_`–`04_` numbered prefixes); second PG2 fast-forward `git push origin dev2:dev` after `dev2` synced to smoke-tested `dev` HEAD; exit-gate checklist item 24 **PASS**. Re-verified PG3 (`pytest` full suite 539 passed, 10 skipped) and Genie parity (`git diff origin/dev..dev2 -- backend-ai/app/services/genie_rules.py` empty). Architecture refresh in `.dev/architecture/rallyday/`. Adversarial gap deferred: no pytest for workflow YAML `python_file` path strings (documented non-blocking gap per T7 contract).

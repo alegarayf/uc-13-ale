@@ -835,3 +835,12 @@ def test_sort_by_tier_only_orders_ascending_tier():
     chunks = [_row(chunk_id="b", priority_tier=2), _row(chunk_id="a", priority_tier=1)]
     ranked = _sort_by_tier_only(chunks)
     assert [c.chunk_id for c in ranked] == ["a", "b"]
+
+
+def test_type_order_is_canonical_across_retrieval_and_context_utils():
+    """R-09: context_utils must alias retrieval._TYPE_ORDER, not a duplicate dict."""
+    from agents.shared import retrieval
+    from agents.subagents.workstream.financial import context_utils
+
+    assert context_utils._TYPE_ORDER is retrieval._TYPE_ORDER
+    assert context_utils._TYPE_ORDER == {"table": 0, "vision": 1, "text": 2}
