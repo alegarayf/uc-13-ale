@@ -6,6 +6,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -179,6 +180,113 @@ def test_semantic_search_importable_for_harness_dispatch():
 
     assert callable(semantic_search)
     assert callable(dispatch_retrieval)
+
+
+def _with_fallback_intent() -> RetrievalIntent:
+    return RetrievalIntent(
+        intent_id="fta.opex.q3_projected_financials",
+        agent_id="fta.opex",
+        source_file="databricks/agents/subagents/workstream/financial/opex_sub_agent.py",
+        catalog="uc13_ale",
+        query="opex projected financials",
+        workstream_filter=["FINANCIAL"],
+        file_name_filter=["Model", "Projection"],
+        top_k=8,
+        min_chunk_length=100,
+        min_results=3,
+        source_type_priority=True,
+        invocation_path="with_fallback",
+    )
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_retrieval_with_fallback_delegates_to_shared_fallback(
+    mock_semantic_search,
+    mock_fallback,
+):
+    """Production path: ``with_fallback`` intents call ``fallback.py``, not inline retry."""
+    route = _FakeRouteResult(
+        chunks=[_FakeChunk("chunk-a"), _FakeChunk("chunk-b"), _FakeChunk("chunk-c")],
+        mode="keyword",
+        scores=[0.9, 0.8, 0.7],
+    )
+    mock_fallback.return_value = (route, True)
+
+    result = dispatch_retrieval(
+        _with_fallback_intent(),
+        company_name="Elder Care",
+        spark=MagicMock(),
+    )
+
+    mock_fallback.assert_called_once()
+    call_kwargs = mock_fallback.call_args.kwargs
+    assert call_kwargs["company_name"] == "Elder Care"
+    assert call_kwargs["catalog"] == "uc13_ale"
+    assert call_kwargs["intent_id"] == "fta.opex.q3_projected_financials"
+    assert call_kwargs["file_name_filter"] == ["Model", "Projection"]
+    assert call_kwargs["min_results"] == 3
+    assert call_kwargs["source_type_priority"] is True
+    mock_semantic_search.assert_not_called()
+    assert result is route
+    assert result.mode == "keyword"
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_retrieval_direct_path_skips_shared_fallback(
+    mock_semantic_search,
+    mock_fallback,
+):
+    direct_intent = _with_fallback_intent().model_copy(
+        update={
+            "invocation_path": "direct",
+            "file_name_filter": None,
+            "min_results": None,
+        }
+    )
+    route = _FakeRouteResult(
+        chunks=[_FakeChunk("chunk-only")],
+        mode="semantic",
+        scores=[0.95],
+    )
+    mock_semantic_search.return_value = route
+
+    result = dispatch_retrieval(
+        direct_intent,
+        company_name="Elder Care",
+        spark=MagicMock(),
+    )
+
+    mock_fallback.assert_not_called()
+    mock_semantic_search.assert_called_once()
+    assert result is route
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_retrieval_ablation_with_fallback_threads_merge_rank_inline(
+    mock_semantic_search,
+    mock_fallback,
+):
+    """Ablation-only branch: merge_rank_mode cannot pass through ``fallback.py``."""
+    route = _FakeRouteResult(
+        chunks=[_FakeChunk("chunk-a")],
+        mode="semantic",
+        scores=[0.9],
+    )
+    mock_semantic_search.return_value = route
+
+    dispatch_retrieval(
+        _with_fallback_intent(),
+        company_name="Elder Care",
+        spark=MagicMock(),
+        ablation_arm="tier_only",
+    )
+
+    mock_fallback.assert_not_called()
+    assert mock_semantic_search.call_count >= 1
+    assert mock_semantic_search.call_args.kwargs["merge_rank_mode"] == "tier_only"
 
 
 def test_validate_baseline_ref_and_compare_round_trip(tmp_path):
