@@ -170,6 +170,33 @@ def build_search_kwargs(
     return kwargs
 
 
+def _fallback_kwargs_from_intent(
+    intent: RetrievalIntent,
+    *,
+    company_name: str,
+    spark: Any,
+) -> dict[str, Any]:
+    """Kwargs for ``fallback.semantic_search_with_fallback`` — mirrors FTA production path."""
+    min_results = intent.min_results if intent.min_results is not None else 3
+    min_chunk_length = intent.min_chunk_length if intent.min_chunk_length is not None else 150
+    kwargs: dict[str, Any] = {
+        "company_name": company_name,
+        "spark": spark,
+        "query": intent.query,
+        "workstream_filter": intent.workstream_filter,
+        "top_k": intent.top_k,
+        "file_name_filter": intent.file_name_filter,
+        "min_chunk_length": min_chunk_length,
+        "min_results": min_results,
+        "catalog": intent.catalog,
+        "source_type_priority": bool(intent.source_type_priority),
+        "intent_id": intent.intent_id,
+    }
+    if intent.source_type_filter is not None:
+        kwargs["source_type_filter"] = intent.source_type_filter
+    return kwargs
+
+
 def dispatch_retrieval(
     intent: RetrievalIntent,
     *,
@@ -182,14 +209,32 @@ def dispatch_retrieval(
 
     kwargs = build_search_kwargs(intent, company_name=company_name, spark=spark)
     merge_rank_mode = ablation_arm_to_merge_rank_mode(ablation_arm)
-    if merge_rank_mode is not None:
-        kwargs["merge_rank_mode"] = merge_rank_mode
-    result = semantic_search(**kwargs)
+
     if uses_fallback_wrapper(intent):
         min_results = intent.min_results if intent.min_results is not None else 3
+        if merge_rank_mode is None:
+            from agents.shared.fallback import semantic_search_with_fallback
+
+            result, _used_fallback = semantic_search_with_fallback(
+                **_fallback_kwargs_from_intent(
+                    intent,
+                    company_name=company_name,
+                    spark=spark,
+                )
+            )
+            return result
+
+        # Ablation-only: ``fallback.py`` does not accept ``merge_rank_mode`` — retain
+        # inline retry so merge-rank arms keep threading through ``semantic_search``.
+        kwargs["merge_rank_mode"] = merge_rank_mode
+        result = semantic_search(**kwargs)
         if len(result.chunks) < min_results and intent.file_name_filter:
             result = semantic_search(**{**kwargs, "file_name_filter": None})
-    return result
+        return result
+
+    if merge_rank_mode is not None:
+        kwargs["merge_rank_mode"] = merge_rank_mode
+    return semantic_search(**kwargs)
 
 
 def compute_mrr(positive_ids: set[str], ranked_ids: Sequence[str]) -> float:
