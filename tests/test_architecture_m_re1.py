@@ -13,17 +13,45 @@ def _arch_text(name: str) -> str:
     return (_ARCH / name).read_text(encoding="utf-8")
 
 
+def _semantic_search_retrieval_inventory_rows(text: str) -> list[str]:
+    return [
+        line
+        for line in text.splitlines()
+        if line.strip().startswith("| `semantic_search` |")
+        and "databricks/agents/shared/retrieval.py" in line
+    ]
+
+
 def test_inventory_semantic_search_returns_route_result_not_list_row():
     """Kill criterion: no stale semantic_search → list[Row] in inventory."""
     text = _arch_text("public-interface-inventory.md")
-    semantic_rows = [
-        line
-        for line in text.splitlines()
-        if "`semantic_search`" in line and "databricks/agents/shared/retrieval.py" in line
-    ]
+    semantic_rows = _semantic_search_retrieval_inventory_rows(text)
     assert semantic_rows, "semantic_search row missing from public-interface-inventory.md"
     assert all("RouteResult" in line for line in semantic_rows)
     assert not any("list[Row]" in line for line in semantic_rows)
+
+
+def test_inventory_semantic_search_stale_list_row_fails_hardened_checks():
+    """Falsifier: row-start matcher still flags semantic_search → list[Row]."""
+    stale_line = (
+        "| `semantic_search` | `databricks/agents/shared/retrieval.py` | function | "
+        "VS query → `list[Row]` | agents | active |"
+    )
+    rows = _semantic_search_retrieval_inventory_rows(stale_line)
+    assert len(rows) == 1
+    assert not (
+        all("RouteResult" in line for line in rows)
+        and not any("list[Row]" in line for line in rows)
+    )
+
+
+def test_inventory_type_order_row_not_matched_by_semantic_search_matcher():
+    """Falsifier: consumed-by mention of semantic_search must not sweep _TYPE_ORDER row."""
+    type_order_line = (
+        "| `_TYPE_ORDER` | `databricks/agents/shared/retrieval.py` | constant | "
+        "sort order | `semantic_search` merge-rank tie-break | active |"
+    )
+    assert _semantic_search_retrieval_inventory_rows(type_order_line) == []
 
 
 def test_inventory_route_chunks_not_production_surface():
