@@ -591,6 +591,8 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "file_name_filter": [
             "Insurance", "Policy", "COI", "Indemnity", "Bond", "Renewal",
         ],
+        # Classifier tags insurance certs BACKGROUND (exclusive); LEGAL alone misses COI.
+        "workstream_filter": ["LEGAL", "BACKGROUND"],
     },
 }
 
@@ -997,20 +999,22 @@ class LegalContractsAgent(WorkstreamAgent):
         if len(file_name_filter) > 6:
             filter_preview += ", …"
 
+        workstream_filter = budget.get("workstream_filter", ["LEGAL"])
         chunks = self._semantic_search_with_fallback(
             spark=spark,
             query=query,
-            workstream_filter=["LEGAL"],
+            workstream_filter=workstream_filter,
             top_k=budget["top_k"],
             file_name_filter=file_name_filter,
             min_chunk_length=budget["min_chunk_length"],
         ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
+        ws_preview = ",".join(workstream_filter)
         return self._tool_call(
             tool_name=f"domain_retrieve_{pass_id}",
             input_summary=(
-                f"pass={pass_id} | workstream=LEGAL | top_k={budget['top_k']} | "
+                f"pass={pass_id} | workstream={ws_preview} | top_k={budget['top_k']} | "
                 f"file_name_filter=[{filter_preview}]"
             ),
             data=chunks,
