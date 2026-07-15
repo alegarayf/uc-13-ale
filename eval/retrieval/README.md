@@ -921,10 +921,10 @@ Required **in addition to** the numeric bar. The reviewer must not be the operat
 
 | Field | Value |
 |-------|-------|
-| **Reviewer name** | _(pending — activation blocked by numeric bar; optional audit attestation)_ |
-| **Date** | _(YYYY-MM-DD)_ |
+| **Reviewer name** | **Waived for M-PHV4 exit** — packet sent 2026-07-15 (`.dev/attestations/m-phv4-r02-second-reviewer-packet-2026-07-15.md`); formal return not required while numeric bar is `no` and item 29 stays declined |
+| **Date** | 2026-07-15 (operator waiver) |
 | **Diff reviewed** | Run A `enhancement_b079befc8b38` / Run B `enhancement_3c397f54d016`; per-intent table in attestation above |
-| **Verdict** | _(pending)_ |
+| **Verdict** | **waived** — activation already blocked by numeric bar; independent review may complete later without unblocking item 29 |
 
 ### M-PHV4 item 29 activation decision (2026-07-15)
 
@@ -933,6 +933,9 @@ Required **in addition to** the numeric bar. The reviewer must not be the operat
 | **Item 16 operator A/B** | Complete — numeric bar table filled |
 | **Item 29 default flip** (`vs_metadata_filters=True`) | **Not activated** — PG5 numeric bar `no` |
 | **Production default** | `False` (unchanged at `retrieval.py`) |
+| **Second-reviewer sign-off** | **Waived for M-PHV4 exit** — packet sent 2026-07-15; formal return not required while bar `no` |
+| **§8 auditor** | Scheduled **after** orchestrator review → adversarial audit (pre-audit README commit `a3ff631`) |
+| **`legal.litigation` debug** | Deferred — chunk_id diff A vs B when bandwidth allows; not program-blocking |
 
 ### If the bar fails (PG5 failure-non-blocking)
 
