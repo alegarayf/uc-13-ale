@@ -782,6 +782,7 @@
     bond renewal liability unusual indemnity
   workstream_filter:
   - LEGAL
+  - BACKGROUND
   file_name_filter:
   - Insurance
   - Policy

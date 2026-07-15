@@ -353,6 +353,8 @@ def _legal_intents(source_file: str) -> list[RetrievalIntent]:
             "file_name_filter": [
                 "Insurance", "Policy", "COI", "Indemnity", "Bond", "Renewal",
             ],
+            # Classifier tags insurance certs BACKGROUND (exclusive); LEGAL alone misses COI.
+            "workstream_filter": ["LEGAL", "BACKGROUND"],
         },
     }
     intents: list[RetrievalIntent] = []
@@ -365,7 +367,7 @@ def _legal_intents(source_file: str) -> list[RetrievalIntent]:
                 source_file=source_file,
                 catalog=DEFAULT_CATALOG,
                 query=queries[pass_id],
-                workstream_filter=["LEGAL"],
+                workstream_filter=budget.get("workstream_filter", ["LEGAL"]),
                 file_name_filter=budget["file_name_filter"],
                 top_k=budget["top_k"],
                 min_chunk_length=budget["min_chunk_length"],
