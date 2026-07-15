@@ -909,7 +909,9 @@ Activation (M-PHV4 item 29) requires **all three** PG5 parts — numeric bar **a
 
 | Field | Run A (`run_id`) | Run B (`run_id`) | Aggregate recall@10 (gate-eligible) | Per-intent max drop (pp) | Numeric bar pass? |
 |-------|------------------|------------------|---------------------------------------|--------------------------|-------------------|
-| **Operator: fill after cluster runs** | | | | | `yes` / `no` |
+| **Elder Care / `uc13_ale` (2026-07-15)** | `enhancement_b079befc8b38` | `enhancement_3c397f54d016` | A **4.23%** / B **4.16%** (43 gated intents) | **5.88** (`legal.litigation`) | **no** |
+
+Operator record: `.dev/attestations/m-phv4-r02-vs-metadata-filters-ab-elder-care-2026-07-15.md`. Delta-validated against `uc13_ale.ops.retrieval_harness_results` (2026-07-15).
 
 Gate-eligible intents: those in the harness run's `gated_intents` manifest field (same vocabulary as `eval/retrieval/scope_resolver.py::gate_eligible_intent_ids`).
 
@@ -919,10 +921,18 @@ Required **in addition to** the numeric bar. The reviewer must not be the operat
 
 | Field | Value |
 |-------|-------|
-| **Reviewer name** | **_(named reviewer — must differ from A/B operator)_** |
-| **Date** | **_(YYYY-MM-DD)_** |
-| **Diff reviewed** | **_(run A / run B ids, per-intent recall@10 table, aggregate delta)_** |
-| **Verdict** | `pass` / `fail` |
+| **Reviewer name** | _(pending — activation blocked by numeric bar; optional audit attestation)_ |
+| **Date** | _(YYYY-MM-DD)_ |
+| **Diff reviewed** | Run A `enhancement_b079befc8b38` / Run B `enhancement_3c397f54d016`; per-intent table in attestation above |
+| **Verdict** | _(pending)_ |
+
+### M-PHV4 item 29 activation decision (2026-07-15)
+
+| Field | Value |
+|-------|-------|
+| **Item 16 operator A/B** | Complete — numeric bar table filled |
+| **Item 29 default flip** (`vs_metadata_filters=True`) | **Not activated** — PG5 numeric bar `no` |
+| **Production default** | `False` (unchanged at `retrieval.py`) |
 
 ### If the bar fails (PG5 failure-non-blocking)
 
