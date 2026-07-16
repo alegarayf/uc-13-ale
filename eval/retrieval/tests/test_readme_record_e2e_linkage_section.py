@@ -18,7 +18,7 @@ _FROZEN_CLI_ONE_LINER = (
 _HARNESS_CLI_ONE_LINER = (
     "python -m eval.retrieval.harness_cli run --store-backend <sqlite|delta> "
     "--run-type <...> --company-name <...> --catalog <...> "
-    "--baseline-ref-run-id baseline_299063e87806 [--ablation-config <...>]"
+    "--baseline-ref-run-id baseline_1aeb0ace584a [--ablation-config <...>]"
 )
 
 

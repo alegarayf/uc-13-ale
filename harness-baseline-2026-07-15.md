@@ -66,10 +66,10 @@ Probe B after fix: COI returns. Provenance matches Jul 3 (6× `Elder Care NY COI
 
 ## What’s left (runbook)
 
-1. FTA Cell 12 → ≥ **16/18**
-2. Legal Cell 16 → ≥ **7/11**
-3. `record_e2e_linkage` for pipeline `run_id`s
-4. Update `BASELINE_REF` pins in README / `my_runbook.md` → `baseline_1aeb0ace584a`
+1. FTA Cell 12 → ≥ **16/18** — done 2026-07-16
+2. Legal Cell 16 → ≥ **7/11** — done 2026-07-16
+3. `record_e2e_linkage` for pipeline `run_id`s — done 2026-07-16
+4. Update `BASELINE_REF` pins in README / `my_runbook.md` → `baseline_1aeb0ace584a` — done 2026-07-16
 
 ---
 
