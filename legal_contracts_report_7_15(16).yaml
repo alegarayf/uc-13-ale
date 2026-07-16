@@ -1,0 +1,284 @@
+report:
+  agent: legal_contracts
+  company: Elder Care
+  generated_at: '2026-07-16T00:05:22.351139+00:00'
+executive_summary: 'Stakeholder coverage assessment: 7 of 11 checklist items had extractable supporting terms in the retrieved
+  corpus. 1 contract(s) require change-of-control consent. 1 open legal matter(s) appear in the litigation register.'
+contract_register:
+- contract_id: 2
+  counterparty_name: Landlord (name not stated)
+  contract_type: Lease
+  contract_date: April 2023 (inferred from filename; not explicitly stated in extracted text)
+  change_of_control:
+    clause_present: 'true'
+    consent_required: 'true'
+    consent_standard: Prior consent of Landlord in each instance, which consent shall not be unreasonably withheld, delayed
+      or conditioned
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  restrictive_covenants:
+    present: not_found
+    scope_note: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_indemnity:
+    capped: 'false'
+    cap_amount_note: Contractor shall defend, indemnify and hold harmless property owner, manager, agents, affiliates, partners,
+      members, parent companies, subsidiaries and related entities
+    unusual_indemnity: 'true'
+  source_doc: Long Island_Lease_0423.pdf | Manhattan_Lease_0424.pdf
+  source_location: Section 13.01 Assignment and Subletting
+  raw_quote: without the prior consent of Landlord in each instance, which consent shall not be unreasonably withheld, delated
+    or conditioned., Tenant shall not sell, assign, mortgage or otherwise transfer this Lease | Tenant, for itself, its heirs,
+    distributees, executors, administrators, legal representatives, successors and assigns, expressly covenants that it shall
+    not transfer or assign
+- contract_id: 3
+  counterparty_name: Licensor (name not stated)
+  contract_type: License
+  contract_date: January 2021 (inferred from filename; not explicitly stated in extracted text)
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  restrictive_covenants:
+    present: not_found
+    scope_note: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_indemnity:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  source_doc: Manhattan_Lease_0121.pdf
+  source_location: Section 32. Miscellaneous.
+  raw_quote: Licensor has not made and is not making any warranties, representations, promises or statements, except as expressly
+    set forth in this License Agreement
+- contract_id: 4
+  counterparty_name: Guided Living (Seller); Buyer not named in extracted text
+  contract_type: Other
+  contract_date: 02.07.24
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  restrictive_covenants:
+    present: not_found
+    scope_note: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_indemnity:
+    capped: 'true'
+    cap_amount_note: Basket Amount and Cap referenced as defined terms; specific amounts not stated in extracted text
+    unusual_indemnity: null
+  source_doc: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  source_location: 'Section: Term (defined terms list); Section 4 Representations, Warranties, and Covenants; Section Assets;
+    Purchase Price; Payment'
+  raw_quote: Seller shall sell, convey, transfer, assign and deliver to Buyer, and Buyer shall purchase and acquire from Seller,
+    all of the right, title and interest
+coc_consent_list:
+- contract_id: 2
+  counterparty_name: Landlord (name not stated)
+  revenue_pct: null
+  consent_standard_note: Prior consent of Landlord in each instance, which consent shall not be unreasonably withheld, delayed
+    or conditioned
+termination_exposure: []
+restrictive_covenant_map: []
+litigation_register:
+- matter_type: other
+  description: Engagement of outside counsel (Peter Ackerman Esq.) for collection of patient receivables on behalf of Eldercare
+    Homecare, Inc.
+  counterparty: null
+  status: open
+  estimated_exposure: null
+  source_doc: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf
+  source_location: COLLACKT@GMAIL.COM
+  raw_quote: we propose to represent Eldercare Homecare, Inc. (EHI) regarding collection of patient receivables
+triggered_reviews_loaded: 0
+flags:
+- metric: coc_consent_required
+  value: Landlord (name not stated) — CoC consent required
+  threshold: Any CoC consent required
+  severity: Red
+  note: 'CoC consent required for Landlord (name not stated). Deal-relevant — obtain consent pre-close. Source: Long Island_Lease_0423.pdf
+    | Manhattan_Lease_0424.pdf.'
+  source_doc: Long Island_Lease_0423.pdf | Manhattan_Lease_0424.pdf
+  confidence: high
+- metric: unusual_indemnity
+  value: Landlord (name not stated) — unusual_indemnity=true
+  threshold: Unusual indemnity scope
+  severity: Yellow
+  note: 'Unusual indemnity scope in Landlord (name not stated) contract. Refer to outside counsel for assessment. Source:
+    Long Island_Lease_0423.pdf | Manhattan_Lease_0424.pdf.'
+  source_doc: Long Island_Lease_0423.pdf | Manhattan_Lease_0424.pdf
+  confidence: medium
+- metric: unusual_indemnity
+  value: Koeppel Rosen LLC — unusual_indemnity=true
+  threshold: Unusual indemnity scope
+  severity: Yellow
+  note: 'Unusual indemnity scope in Koeppel Rosen LLC vendor agreement. Refer to outside counsel for assessment. Source: Manhattan_Lease_0424.pdf.'
+  source_doc: Manhattan_Lease_0424.pdf
+  confidence: medium
+- metric: open_legal_matter_other
+  value: 'other: Engagement of outside counsel (Peter Ackerman Esq.) for collection of patient re'
+  threshold: Any open legal matter
+  severity: Red
+  note: 'Open legal matter (other): Engagement of outside counsel (Peter Ackerman Esq.) for collection of patient receivables
+    on behalf of Eldercare Homecare, Inc.. Source: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts
+    by Peter Ackerman Esq.pdf.'
+  source_doc: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf
+  confidence: high
+data_room_gaps:
+- contract_trigger_list not found — Customer Quality Agent has not run or returned no material customers. Legal Agent proceeding
+  without triggered reviews.
+- 't4c: chunks retrieved but no extractable terms'
+- 'restrictive: chunks retrieved but no extractable terms'
+- 'platform: chunks retrieved but no extractable terms'
+- 'ip: chunks retrieved but no extractable terms'
+citations:
+- claim: change_of_control.clause_present (contract_id 1)
+  document: Manhattan_Lease_0424.pdf
+  location: Section 11. Assignment, Mortgage, Etc.
+  confidence: high
+  raw_text: Tenant expressly covenants that it shall not transfer or assign (whether by operation of law, merger, consolidation
+    or otherwise) its interest in this Lease
+- claim: change_of_control.consent_standard (contract_id 2)
+  document: Long Island_Lease_0423.pdf
+  location: Section 13.01 Assignment and Subletting
+  confidence: high
+  raw_text: prior consent of Landlord in each instance, which consent shall not be unreasonably withheld, delated or conditioned
+- claim: liability_indemnity.unusual_indemnity (contract_id 1)
+  document: Manhattan_Lease_0424.pdf
+  location: Section H. Contractor Indemnification Agreement
+  confidence: high
+  raw_text: Contractor shall defend, indemnify and hold harmless the property owner, property manager, and their agents, affiliates,
+    partners, members, parent companies, subsidiaries
+- claim: contract_date (contract_id 4)
+  document: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  location: Filename / document title
+  confidence: medium
+  raw_text: Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+- claim: liability_indemnity.capped (contract_id 4)
+  document: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  location: 'Section: Term (defined terms list)'
+  confidence: medium
+  raw_text: Basket Amount... Cap
+- claim: restrictive_covenants (contract_id 4)
+  document: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  location: Section 4 Representations, Warranties, and Covenants
+  confidence: medium
+  raw_text: Seller has not made any changes to its Business operations, staff, marketing, or operating policies prior to the
+    Closing, without Buyer's prior, informed written consent
+- claim: vendor_name Koeppel Rosen LLC
+  document: Manhattan_Lease_0424.pdf
+  location: Section G. General Conditions
+  confidence: high
+  raw_text: its agent Koeppel Rosen LLC, their officers, partners, employees and invitees. CONTRACTOR SHALL
+- claim: Kate Marks — no retention rights
+  document: Kate Marks Restricted Stock.pdf
+  location: 'Section: 8) Miscellaneous Provisions, a) No Retention Rights'
+  confidence: high
+  raw_text: Nothing in this Agreement or in the Plan shall confer upon the Grantee any right to continue in Service for any
+    period of specific duration
+- claim: Seller's Owner Consulting Agreement — wage/billing rate restriction
+  document: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  location: 'Section: SELLER''S OWNER CONSULTING AGREEMENT'
+  confidence: high
+  raw_text: Consultant shall not make any offers or promises of employment wages or client agreement billing rates outside
+    the wage and bill rate policy without written consent of Eric Mayer
+- claim: Employee NDA — non-disclosure obligation
+  document: 7 Employee Non-Disclosure.docx
+  location: 'Section: Document body'
+  confidence: high
+  raw_text: I will not at any time, whether during or after the termination of my employment, reveal confidential information
+- claim: Contractor indemnification — Manhattan Lease
+  document: Manhattan_Lease_0424.pdf
+  location: 'Section: H. Contractor Indemnification Agreement'
+  confidence: high
+  raw_text: Contractor shall defend, indemnify and hold harmless the property owner, property manager, and their agents from
+    any liability, loss or other claim
+- claim: matter_type / description
+  document: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf
+  location: COLLACKT@GMAIL.COM
+  confidence: high
+  raw_text: we propose to represent Eldercare Homecare, Inc. (EHI) regarding collection of patient receivables
+- claim: BAA - Jotform effective date
+  document: Jotform BAA agreement.pdf
+  location: JOTFORM HIPAA BUSINESS ASSOCIATE AGREEMENT
+  confidence: high
+  raw_text: This HIPAA BAA is effective as of July 25, 2022, which is the date Customer indicated its acceptance of this HIPAA
+    BAA electronically.
+- claim: BAA - Dropbox PHI return/destruction
+  document: dropbox_hipaa_agreement.pdf
+  location: 7. Return or Destruction of PHI
+  confidence: high
+  raw_text: Within a commercially reasonable period following termination, not to exceed ninety days, Dropbox will return
+    or destroy all PHI received from Customer.
+- claim: BAA - Clearcare SaaS services
+  document: Elder Care Homecare, Inc_CC-BAA Agreement_ October 2018.pdf
+  location: Recitals
+  confidence: high
+  raw_text: Covered Entity has retained Clearcare to provide certain products and services that may involve the use and/or
+    disclosure of individually identifiable health information.
+- claim: BAA - Jotform PHI use restriction
+  document: Jotform BAA agreement.pdf
+  location: 2. Business Associate Obligations
+  confidence: high
+  raw_text: Jotform shall not use or disclose Protected Health Information in any manner that would violate HIPAA.
+- claim: general_liability policy number and limits
+  document: Elder Care NY COI.pdf
+  location: 'Section: REVISION NUMBER: / Document body Page 1'
+  confidence: high
+  raw_text: ZBSH090619-03 11/18/2024 11/18/2025 EACH OCCURRENCE $1,000,000 GENERAL AGGREGATE $3,000,000 Employee Benefits
+    $1,000,000
+- claim: automobile liability policy
+  document: Elder Care NY COI.pdf
+  location: 'Section: REVISION NUMBER: / Document body Page 1'
+  confidence: high
+  raw_text: AUTOMOBILE LIABILITY ANY AUTO ZBSH090619 11/18/2024 11/18/2025 COMBINED SINGLE LIMIT (Ea accident) $Included
+- claim: insured entity names
+  document: Elder Care NY COI.pdf
+  location: 'Section: Document body Page 1'
+  confidence: high
+  raw_text: Elder Care Homecare Inc., Loren Gilberg, Elder Care Homecare LLC, 111 Brook St 2nd Floor Room 205, Scarsdale,
+    NY 10583
+- claim: insurer identities
+  document: Elder Care NY COI.pdf
+  location: 'Section: Document body Page 1'
+  confidence: high
+  raw_text: 'INSURER A: Citizens Ins Co of America INSURER B: Hanover Ins Group NAIC # 31534'
+- claim: cancellation notice provision
+  document: Elder Care NY COI.pdf
+  location: 'Section: CANCELLATION'
+  confidence: high
+  raw_text: SHOULD ANY OF THE ABOVE DESCRIBED POLICIES BE CANCELLED BEFORE THE EXPIRATION DATE THEREOF, NOTICE WILL BE DELIVERED
+    IN ACCORDANCE WITH THE POLICY PROVISIONS.
