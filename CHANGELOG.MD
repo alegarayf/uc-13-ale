@@ -3,6 +3,7 @@
 ## uc13-exec-summary-wed-sprint — 2026-07-17
 
 - T1 (Rename one-pager display H1): Replaced reader-facing `TL;DR One-Pager` with `Executive Summary` in `tldr_one_pager_compressed.md.j2` and `tldr_one_pager.md.j2`; added `test_one_pager_h1_display_text_executive_summary` in `tests/test_tldr_compression.py`. DOCX inherits the H1 from rendered MD via `md_to_word.py` `_parse_md` → `_r_h1` (no separate title string). Adversarial gap deferred: no automated DOCX round-trip test — MD render assertion + static `md_to_word.py` read only.
+- T2 (Baseline smoke all 4 companies): Operator serverless smoke on `dev-exec-summ` confirmed all four companies render `tldr_one_pager.md`/`.docx` with H1 **Executive Summary** on `catalog=uc13_ale`, `TLDR_RENDER_MODE=compressed` — Clearsulting (render_only, 847 words, PASS), Elder Care (render_only, 1325 words, PASS/warn), GKF (agents_render, 1070 words, PASS), SPG (agents_render salvage after ingestion landed 71,010 chunks; prior full run timed out on missing `uc13_ale.ingestion.embeddings_index`, 931 words, PASS). Run log: `.dev/t2_baseline_run_log.json`. Gates T3 branch cut. Adversarial gap deferred: no pytest for serverless operator runner — cluster `tldr_quality_check` + Volume H1 probe are the falsifiers.
 
 ## 2026-07-16
 
