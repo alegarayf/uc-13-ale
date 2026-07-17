@@ -46,13 +46,17 @@
 {%- endfor %}
 {% endif -%}
 {% endif -%}
-{% if tldr.business_snapshot -%}
+{% if tldr.business_snapshot_narrative or tldr.business_snapshot -%}
 
 ---
 
 ## Business Snapshot
 
+{% if tldr.business_snapshot_narrative -%}
+{{ tldr.business_snapshot_narrative }}
+{%- else -%}
 {{ tldr.business_snapshot }}
+{%- endif %}
 {% endif -%}
 {% if tldr.financial.show -%}
 
@@ -136,6 +140,14 @@
 | {{ risk.display_title }} | {{ risk.severity }} | {{ risk.evidence }} | {{ risk.mitigant }} |
 {%- endfor %}
 {% endif -%}
+{% if tldr.mitigants_digest -%}
+
+---
+
+## Mitigants Digest
+
+{{ tldr.mitigants_digest }}
+{% endif -%}
 {% if tldr.questions -%}
 
 ---
@@ -157,6 +169,14 @@
 
 - {{ item }}
 {%- endfor %}
+{% endif -%}
+{% if tldr.confidence_rationale -%}
+
+---
+
+## Confidence Rationale
+
+{{ tldr.confidence_rationale }}
 {% endif -%}
 {% if tldr.show_confidence_table -%}
 {% set conf = tldr.confidence_by_area %}
