@@ -770,6 +770,17 @@ def test_compressed_template_hides_kpi_when_show_false_despite_stale_rows():
     assert "## KPI Dashboard" not in md
 
 
+def test_one_pager_h1_display_text_executive_summary():
+    """§2.5 rename: compressed and legacy one-pager H1 must read Executive Summary."""
+    compressed_md = _render_compressed_template(_mock_bundle(), _mock_tldr_view())
+    legacy_md = ReportRenderer().render(_volume_test_bundle(), _TEMPLATES_DIR / _LEGACY_TEMPLATE)
+    for md in (compressed_md, legacy_md):
+        h1 = md.splitlines()[0]
+        assert h1.startswith("# ")
+        assert "Executive Summary" in h1
+        assert "TL;DR One-Pager" not in h1
+
+
 # --- T4 renderers mode switch tests ---
 
 
