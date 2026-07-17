@@ -262,6 +262,24 @@ def test_validate_bundle_rejects_invalid_overall_confidence_enum():
         validate_bundle(bad)
 
 
+def test_validate_bundle_accepts_optional_executive_narrative_fields(elder_care_bundle: dict):
+    """Branch schema: expanded executive narrative fields are optional and additive."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["executive"]["business_snapshot_narrative"] = "Richer business snapshot."
+    expanded["executive"]["mitigants_digest"] = "Overall mitigation posture."
+    expanded["executive"]["confidence_rationale"] = "Confidence is supported by filings."
+    validate_bundle(expanded)
+
+
+def test_elder_care_baseline_bundle_validates_without_expanded_narrative_fields(
+    elder_care_bundle: dict,
+):
+    """Kill criterion: baseline bundles without new fields must still validate."""
+    for key in ("business_snapshot_narrative", "mitigants_digest", "confidence_rationale"):
+        assert key not in elder_care_bundle["executive"]
+    validate_bundle(elder_care_bundle)
+
+
 def test_kpi_missing_dict_diligence_question_readable():
     """F-M2-KPI-DILIGENCE-REPR: dict missing_kpis must not render Python dict repr."""
     kpi_item = {
