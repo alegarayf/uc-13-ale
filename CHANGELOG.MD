@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-exec-summary-wed-sprint — 2026-07-17
+
+- T1 (Rename one-pager display H1): Replaced reader-facing `TL;DR One-Pager` with `Executive Summary` in `tldr_one_pager_compressed.md.j2` and `tldr_one_pager.md.j2`; added `test_one_pager_h1_display_text_executive_summary` in `tests/test_tldr_compression.py`. DOCX inherits the H1 from rendered MD via `md_to_word.py` `_parse_md` → `_r_h1` (no separate title string). Adversarial gap deferred: no automated DOCX round-trip test — MD render assertion + static `md_to_word.py` read only.
+
 ## 2026-07-16
 
 - Operator (FTA Elder Care re-score, post-PHV4): Cell 12 golden checklist **16/18** — ties 7/03 M-RE3 baseline; no field-level regression. Runtime 105s (≤120s pass). Scorecard: `.dev/scorecards/scorecard_7_16_post_phv4_vs_7_03.md`; INDEX row added. `record_e2e_linkage` → `5fef915601574dc3be629546910ba71e` 16/18.
