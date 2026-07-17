@@ -396,3 +396,53 @@ def test_merge_executive_llm_narrative_drops_unknown_executive_keys() -> None:
     assert bundle["executive"]["business_snapshot_narrative"] == "Keep me."
     assert "risks" not in bundle
     assert "headline_metrics" not in bundle
+
+
+def test_bundle_builder_synthesis_populates_expanded_executive_narrative_fields() -> None:
+    """§2.5: Stage 6 synthesis wires optional executive narrative keys end-to-end."""
+    builder = BundleBuilder()
+    mock_spark = MagicMock()
+    snapshots = _load_elder_care_snapshots()
+    llm_payload = {
+        "executive": {
+            "business_snapshot_narrative": "  Rich regional elder care platform. ",
+            "mitigants_digest": "Payer mix diversification limits concentration risk.",
+            "confidence_rationale": "Financial trends are well supported in the CIM.",
+            "in_one_line": "Regional elder care platform with stable census.",
+            "preliminary_view": {
+                "strengths": ["Diversified payer mix"],
+                "concerns": [],
+                "closing": "Further diligence required.",
+            },
+        },
+    }
+
+    with ExitStack() as stack:
+        _enter_build_patches(stack, snapshots)
+        stack.enter_context(
+            patch(
+                "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+                return_value='{"executive": {}}',
+            )
+        )
+        stack.enter_context(
+            patch(
+                "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+                return_value=llm_payload,
+            )
+        )
+        bundle = builder.build(
+            "Elder Care",
+            "uc13_ale",
+            spark=mock_spark,
+            llm_endpoint="databricks-claude-sonnet-4-6",
+        )
+
+    assert bundle["executive"]["business_snapshot_narrative"] == "Rich regional elder care platform."
+    assert bundle["executive"]["mitigants_digest"] == (
+        "Payer mix diversification limits concentration risk."
+    )
+    assert bundle["executive"]["confidence_rationale"] == (
+        "Financial trends are well supported in the CIM."
+    )
+    validate_bundle(bundle)
