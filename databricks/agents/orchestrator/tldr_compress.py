@@ -101,6 +101,13 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
         "strengths": strengths,
         "concerns": concerns,
         "business_snapshot": _compress_business_snapshot(company_framing, revenue_quality),
+        "business_snapshot_narrative": _optional_executive_string(
+            executive, "business_snapshot_narrative"
+        ),
+        "mitigants_digest": _optional_executive_string(executive, "mitigants_digest"),
+        "confidence_rationale": _optional_executive_string(
+            executive, "confidence_rationale"
+        ),
         "financial": _compress_financial(financials),
         "revenue_quality": _compress_revenue_quality(revenue_quality),
         "kpi": _compress_kpi(source.get("kpi_dashboard") or []),
@@ -122,6 +129,14 @@ def _is_blank(value: Any) -> bool:
         return True
     text = str(value).strip()
     return not text or text == "—"
+
+
+def _optional_executive_string(executive: dict[str, Any], key: str) -> str | None:
+    """Project optional Stage 6 narrative from ``executive``; absent → ``None``."""
+    value = executive.get(key)
+    if _is_blank(value):
+        return None
+    return str(value).strip()
 
 
 def _compress_headline(
