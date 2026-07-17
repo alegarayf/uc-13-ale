@@ -668,6 +668,9 @@ def _mock_tldr_view() -> dict:
         "strengths": ["Strength 1"],
         "concerns": ["Concern 1"],
         "business_snapshot": None,
+        "business_snapshot_narrative": None,
+        "mitigants_digest": None,
+        "confidence_rationale": None,
         "financial": {"rows": [], "observations": [], "show": False},
         "revenue_quality": {"lines": [], "show": False},
         "kpi": {"rows": [], "show": False},
@@ -779,6 +782,111 @@ def test_one_pager_h1_display_text_executive_summary():
         assert h1.startswith("# ")
         assert "Executive Summary" in h1
         assert "TL;DR One-Pager" not in h1
+
+
+def test_compress_optional_executive_narrative_keys_none_when_absent():
+    """§2.5: new tldr narrative keys are None when bundle executive fields are absent."""
+    tldr = compress_for_tldr(_minimal_bundle())
+    assert tldr["business_snapshot_narrative"] is None
+    assert tldr["mitigants_digest"] is None
+    assert tldr["confidence_rationale"] is None
+
+
+def test_compress_optional_executive_narrative_keys_present_when_set():
+    """§2.5: new tldr narrative keys mirror trimmed executive strings when present."""
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+            "business_snapshot_narrative": "  Regional home health platform. ",
+            "mitigants_digest": "Management diversified payer mix.",
+            "confidence_rationale": "CIM supports financial trends.",
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    assert tldr["business_snapshot_narrative"] == "Regional home health platform."
+    assert tldr["mitigants_digest"] == "Management diversified payer mix."
+    assert tldr["confidence_rationale"] == "CIM supports financial trends."
+
+
+def test_compress_whitespace_only_executive_narrative_keys_project_as_none():
+    """Falsifier: blank/whitespace executive narrative must not render as empty strings."""
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+            "business_snapshot_narrative": "   ",
+            "mitigants_digest": "—",
+            "confidence_rationale": "",
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    assert tldr["business_snapshot_narrative"] is None
+    assert tldr["mitigants_digest"] is None
+    assert tldr["confidence_rationale"] is None
+
+
+def test_compress_deterministic_business_snapshot_unchanged_when_narrative_present():
+    """§2.5: deterministic business_snapshot is independent of optional narrative fields."""
+    framing = {
+        "overview_bullets": ["Regional home health provider serving NJ and PA."],
+        "revenue_model": {"tag": "", "quality_flag": "", "note": ""},
+        "recent_changes": [],
+        "thesis": {"bullets": [], "value_creation_levers": []},
+    }
+    revenue_quality = {
+        "scale_narrative": "",
+        "concentration": "Top three payers represent 62% of revenue.",
+        "end_market_mix": "",
+        "retention_notes": "",
+    }
+    baseline = compress_for_tldr(
+        _minimal_bundle(company_framing=framing, revenue_quality=revenue_quality)
+    )
+    with_narrative = compress_for_tldr(
+        _minimal_bundle(
+            company_framing=framing,
+            revenue_quality=revenue_quality,
+            executive={
+                "in_one_line": "",
+                "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+                "business_snapshot_narrative": "LLM-rich business snapshot narrative.",
+                "mitigants_digest": "Overall mitigation posture.",
+                "confidence_rationale": "Confidence supported by filings.",
+            },
+        )
+    )
+    assert with_narrative["business_snapshot"] == baseline["business_snapshot"]
+    assert with_narrative["business_snapshot_narrative"] == "LLM-rich business snapshot narrative."
+
+
+def test_compressed_template_prefers_business_snapshot_narrative():
+    """§2.5: Business Snapshot body prefers narrative over deterministic snapshot."""
+    tldr = _mock_tldr_view()
+    tldr["business_snapshot"] = "Deterministic snapshot from company framing."
+    tldr["business_snapshot_narrative"] = "Synthesized narrative preferred in template."
+    md = _render_compressed_template(_mock_bundle(), tldr)
+    snapshot_section = md.split("## Business Snapshot", maxsplit=1)[1].split("## ", maxsplit=1)[0]
+    assert "Synthesized narrative preferred in template." in snapshot_section
+    assert "Deterministic snapshot from company framing." not in snapshot_section
+
+
+def test_compressed_template_gates_mitigants_and_confidence_sections():
+    """§2.5: Mitigants Digest and Confidence Rationale render only when truthy."""
+    tldr = _mock_tldr_view()
+    tldr["mitigants_digest"] = None
+    tldr["confidence_rationale"] = None
+    md_absent = _render_compressed_template(_mock_bundle(), tldr)
+    assert "## Mitigants Digest" not in md_absent
+    assert "## Confidence Rationale" not in md_absent
+
+    tldr["mitigants_digest"] = "Payer diversification and branch footprint offset concentration."
+    tldr["confidence_rationale"] = "Financial trends and legal flags are well supported."
+    md_present = _render_compressed_template(_mock_bundle(), tldr)
+    assert "## Mitigants Digest" in md_present
+    assert "Payer diversification and branch footprint offset concentration." in md_present
+    assert "## Confidence Rationale" in md_present
+    assert "Financial trends and legal flags are well supported." in md_present
 
 
 # --- T4 renderers mode switch tests ---
