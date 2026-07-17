@@ -28,11 +28,26 @@ if TYPE_CHECKING:
 
 _BUNDLE_BUILDER_VERSION = "0.2.0-m2"
 
+_EXECUTIVE_LLM_NARRATIVE_KEYS = frozenset(
+    {
+        "in_one_line",
+        "preliminary_view",
+        "business_snapshot_narrative",
+        "mitigants_digest",
+        "confidence_rationale",
+    }
+)
+
 _EXECUTIVE_LLM_SYSTEM_PROMPT = """You are the UC13 orchestrator stage-6 synthesis agent (M2 production).
 From workstream agent snapshots in the user message, populate ONLY the executive narrative fields.
 Return ONLY valid JSON (no markdown fences) with optional top-level key "executive" containing:
   in_one_line (string)
   preliminary_view: { strengths (string[]), concerns (string[]), closing (string) }
+  business_snapshot_narrative (string, optional) — richer narrative for the Business Snapshot section
+  mitigants_digest (string, optional) — synthesized 1–3 sentence overall risk-mitigation posture;
+    do not restate individual per-risk mitigant cells
+  confidence_rationale (string, optional) — narrative of why confidence sits where it does;
+    do not restate the confidence_by_area score grid
 Do not include risks, legal, kpi_dashboard, headline_metrics, company_framing, financials, or any other keys.
 Use stated figures and agent summaries only — do not invent financial metrics.
 preliminary_view.closing must avoid investment advice (no buy/sell/hold recommendations)."""
@@ -63,9 +78,14 @@ def _merge_executive_llm_narrative(bundle: dict[str, Any], llm_result: dict[str,
     if not isinstance(executive, dict):
         return
 
-    exc = _pick_dict(executive, frozenset({"in_one_line", "preliminary_view"}))
+    exc = _pick_dict(executive, _EXECUTIVE_LLM_NARRATIVE_KEYS)
     if isinstance(exc.get("in_one_line"), str) and exc["in_one_line"].strip():
         bundle["executive"]["in_one_line"] = exc["in_one_line"].strip()
+
+    for key in ("business_snapshot_narrative", "mitigants_digest", "confidence_rationale"):
+        value = exc.get(key)
+        if isinstance(value, str) and value.strip():
+            bundle["executive"][key] = value.strip()
 
     pv = exc.get("preliminary_view")
     if isinstance(pv, dict):

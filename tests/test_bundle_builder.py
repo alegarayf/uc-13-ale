@@ -13,6 +13,7 @@ import yaml
 from agents.orchestrator.bundle_builder import (
     BundleBuilder,
     GapAggregator,
+    _merge_executive_llm_narrative,
     merge_risks_from_flags,
     synthesize_executive_narrative,
 )
@@ -354,3 +355,44 @@ def test_synthesize_executive_narrative_uses_snapshots_not_rendered_md() -> None
     assert "full_report" not in captured_prompt[0]
     assert bundle["executive"]["in_one_line"] == "From snapshots"
     assert bundle["risks"] == [{"risk": "keep", "severity": "track"}]
+
+
+def _executive_shell() -> dict:
+    return {
+        "in_one_line": "",
+        "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+    }
+
+
+def test_merge_executive_llm_narrative_admits_expanded_narrative_fields() -> None:
+    bundle = {"executive": _executive_shell()}
+    llm_result = {
+        "executive": {
+            "business_snapshot_narrative": "  Regional platform with stable census. ",
+            "mitigants_digest": "Management has diversified payer mix.",
+            "confidence_rationale": "Financial trends are well supported.",
+            "in_one_line": "Synthesized headline.",
+            "preliminary_view": {"strengths": ["A"], "concerns": [], "closing": "Review."},
+        }
+    }
+    _merge_executive_llm_narrative(bundle, llm_result)
+    assert bundle["executive"]["business_snapshot_narrative"] == "Regional platform with stable census."
+    assert bundle["executive"]["mitigants_digest"] == "Management has diversified payer mix."
+    assert bundle["executive"]["confidence_rationale"] == "Financial trends are well supported."
+    assert bundle["executive"]["in_one_line"] == "Synthesized headline."
+
+
+def test_merge_executive_llm_narrative_drops_unknown_executive_keys() -> None:
+    bundle = {"executive": _executive_shell()}
+    llm_result = {
+        "executive": {
+            "business_snapshot_narrative": "Keep me.",
+            "risks": [{"risk": "drop me"}],
+            "headline_metrics": {"ltm_revenue": "drop me"},
+        },
+        "headline_metrics": {"ltm_revenue": "top-level drop"},
+    }
+    _merge_executive_llm_narrative(bundle, llm_result)
+    assert bundle["executive"]["business_snapshot_narrative"] == "Keep me."
+    assert "risks" not in bundle
+    assert "headline_metrics" not in bundle

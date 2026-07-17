@@ -253,6 +253,12 @@ definitions:
               type: string
           closing:
             type: string
+      business_snapshot_narrative:
+        type: string
+      mitigants_digest:
+        type: string
+      confidence_rationale:
+        type: string
 
   company_framing:
     type: object
