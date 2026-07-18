@@ -302,7 +302,8 @@ def test_risk_dedupe_tier4_collapses_to_one_row():
     assert len(tldr["risks"]) <= 5
 
 
-def test_risk_mitigant_mapped_from_mitigant_or_question():
+def test_compress_risks_omits_mitigant_from_projection():
+    """v1.1.0: mitigants live only in tldr.mitigants_digest — not per-row in Top Risks."""
     tldr = compress_for_tldr(
         _minimal_bundle(
             risks=[
@@ -318,8 +319,10 @@ def test_risk_mitigant_mapped_from_mitigant_or_question():
             ],
         )
     )
-    assert tldr["risks"][0]["mitigant"] == "Obtain consent schedule"
-    assert "mitigant_or_question" not in tldr["risks"][0]
+    row = tldr["risks"][0]
+    assert "mitigant" not in row
+    assert "mitigant_or_question" not in row
+    assert set(row.keys()) == {"risk", "display_title", "severity", "evidence"}
 
 
 def test_operator_gaps_excluded_from_open_items():
@@ -618,10 +621,57 @@ def test_rendered_risk_table_no_raw_metric_keys():
     assert "open_legal_matter_other" not in risks_section
     assert "Undocumented Tier 4 addbacks" in risks_section
     assert "Open legal matters" in risks_section
+    assert "Mitigant" not in risks_section
+    assert "| Risk | Severity | Evidence |" in risks_section
     tldr_risks = compress_for_tldr(_minimal_bundle(risks=risks))["risks"]
     tier4 = next(r for r in tldr_risks if r["risk"] == "tier4_addback")
     assert len(tier4["evidence"]) <= 120
     assert tier4["evidence"].endswith("...")
+
+
+def test_clean_risk_evidence_strips_dict_repr_before_render():
+    """§2.5: dict-shaped Evidence must render as prose, not Python literal."""
+    risks = [
+        {
+            "risk": "coc_consent",
+            "severity": "critical",
+            "evidence": "{'metric': 'coc_consent', 'value': 'required', 'note': 'CoC consent on MSAs.', 'source_doc': 'MSA'}",
+            "mitigant_or_question": "Review schedule",
+            "source_agent": "legal",
+            "confidence": "high",
+            "fill_state": "filled_cited",
+        }
+    ]
+    md = _render_compressed_tldr(_volume_test_bundle(risks=risks))
+    risks_section = md.split("## Top Risks", maxsplit=1)[1].split("## ", maxsplit=1)[0]
+    assert "{'metric':" not in risks_section
+    assert "CoC consent on MSAs." in risks_section
+
+
+def test_kpi_stated_value_renders_without_dict_repr():
+    """§2.5: KPI stated_value must not leak dict repr into the dashboard table."""
+    stated_dict = {
+        "type": "adverse_survey",
+        "value": "2.1%",
+        "period": "LTM",
+    }
+    bundle = _volume_test_bundle(
+        kpi_dashboard=[
+            {
+                "metric_id": "adverse_survey",
+                "display_name": "Adverse survey rate",
+                "stated_value": fmt.format_kpi_value(stated_dict),
+                "threshold": "< 5%",
+                "flag": "pass",
+                "confidence": "medium",
+                "fill_state": "filled_cited",
+            }
+        ],
+    )
+    md = _render_compressed_tldr(bundle)
+    kpi_section = md.split("## KPI Dashboard", maxsplit=1)[1].split("## ", maxsplit=1)[0]
+    assert "{'type':" not in kpi_section
+    assert "2.1%" in kpi_section
 
 
 def test_risk_evidence_trim_preserves_dedupe_suffix():
@@ -749,10 +799,12 @@ def test_compressed_template_bundle_refs_allowlisted_only():
         assert ref.startswith("bundle.meta.") or ref == "bundle.executive.preliminary_view.closing", ref
 
 
-def test_compressed_template_omits_hidden_sections_and_uses_mitigant():
+def test_compressed_template_omits_hidden_sections_and_three_col_risks():
     md = _render_compressed_template(_mock_bundle(), _mock_tldr_view())
-    assert "Request support" in md
-    assert "Mitigant" in md
+    risks_section = md.split("## Top Risks", maxsplit=1)[1].split("## ", maxsplit=1)[0]
+    assert "| Risk | Severity | Evidence |" in risks_section
+    assert "Mitigant" not in risks_section
+    assert "Request support" not in md
     assert "mitigant_or_question" not in md
     assert "_No " not in md
     assert "No KPI dashboard rows available" not in md
@@ -872,21 +924,25 @@ def test_compressed_template_prefers_business_snapshot_narrative():
 
 
 def test_compressed_template_gates_mitigants_and_confidence_sections():
-    """§2.5: Mitigants Digest and Confidence Rationale render only when truthy."""
+    """§2.5: Risk Mitigation and Confidence & Data Gaps render only when truthy."""
     tldr = _mock_tldr_view()
     tldr["mitigants_digest"] = None
     tldr["confidence_rationale"] = None
     md_absent = _render_compressed_template(_mock_bundle(), tldr)
+    assert "## Risk Mitigation" not in md_absent
+    assert "## Confidence & Data Gaps" not in md_absent
     assert "## Mitigants Digest" not in md_absent
     assert "## Confidence Rationale" not in md_absent
 
     tldr["mitigants_digest"] = "Payer diversification and branch footprint offset concentration."
     tldr["confidence_rationale"] = "Financial trends and legal flags are well supported."
     md_present = _render_compressed_template(_mock_bundle(), tldr)
-    assert "## Mitigants Digest" in md_present
+    assert "## Risk Mitigation" in md_present
     assert "Payer diversification and branch footprint offset concentration." in md_present
-    assert "## Confidence Rationale" in md_present
+    assert "## Confidence & Data Gaps" in md_present
     assert "Financial trends and legal flags are well supported." in md_present
+    assert "## Mitigants Digest" not in md_present
+    assert "## Confidence Rationale" not in md_present
 
 
 # --- T4 renderers mode switch tests ---
@@ -905,8 +961,9 @@ def test_report_renderer_compressed_context_includes_tldr():
         _TEMPLATES_DIR / _COMPRESSED_TEMPLATE,
         tldr=_mock_tldr_view(),
     )
-    assert "Request support" in md
     assert "Regional home health provider" in md
+    assert "| Risk | Severity | Evidence |" in md
+    assert "Mitigant" not in md.split("## Top Risks", maxsplit=1)[1].split("## ", maxsplit=1)[0]
 
 
 def test_render_to_volume_full_report_bytes_independent_of_mode(monkeypatch, tmp_path):
