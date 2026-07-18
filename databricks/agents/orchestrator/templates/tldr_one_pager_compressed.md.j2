@@ -134,17 +134,17 @@
 
 ## Top Risks
 
-| Risk | Severity | Evidence | Mitigant |
-|------|----------|----------|----------|
+| Risk | Severity | Evidence |
+|------|----------|----------|
 {%- for risk in tldr.risks %}
-| {{ risk.display_title }} | {{ risk.severity }} | {{ risk.evidence }} | {{ risk.mitigant }} |
+| {{ risk.display_title }} | {{ risk.severity }} | {{ risk.evidence }} |
 {%- endfor %}
 {% endif -%}
 {% if tldr.mitigants_digest -%}
 
 ---
 
-## Mitigants Digest
+## Risk Mitigation
 
 {{ tldr.mitigants_digest }}
 {% endif -%}
@@ -174,7 +174,7 @@
 
 ---
 
-## Confidence Rationale
+## Confidence & Data Gaps
 
 {{ tldr.confidence_rationale }}
 {% endif -%}

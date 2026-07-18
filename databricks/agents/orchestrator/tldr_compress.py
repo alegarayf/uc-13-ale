@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import copy
 import re
 from typing import Any
@@ -500,6 +501,28 @@ def _risk_display_title(key: str) -> str:
     return " ".join(word.capitalize() for word in key.split("_"))
 
 
+def _clean_risk_evidence(evidence: str, risk_key: str) -> str:
+    """Readable Evidence prose — no raw dict repr or bare metric keys."""
+    text = evidence.strip()
+    if not text:
+        return ""
+
+    if text.startswith("{"):
+        try:
+            parsed = ast.literal_eval(text)
+        except (ValueError, SyntaxError):
+            parsed = None
+        if isinstance(parsed, dict):
+            cleaned = format_agent_flag(parsed)
+            if cleaned:
+                return cleaned
+
+    if text == risk_key or text in RISK_DISPLAY_TITLES:
+        return _risk_display_title(text if text in RISK_DISPLAY_TITLES else risk_key)
+
+    return text
+
+
 def _compress_qoe(qoe: dict[str, Any]) -> dict[str, Any]:
     flags = [f for f in (qoe.get("flags") or []) if isinstance(f, dict)]
     summary = _truncate(str(qoe.get("tier_summary") or "").strip(), 200)
@@ -549,18 +572,16 @@ def _compress_risks(risks: list[Any]) -> list[dict[str, Any]]:
                 str(r.get("evidence") or ""),
             ),
         )
-        evidence = str(best.get("evidence") or "").strip()
+        evidence = _clean_risk_evidence(str(best.get("evidence") or ""), risk_key)
         if len(group) > 1:
             suffix = f" (+{len(group) - 1} related)"
             evidence = (evidence + suffix) if evidence else suffix.strip()
-        mitigant = str(best.get("mitigant_or_question") or "").strip()
         merged.append(
             {
                 "risk": risk_key,
                 "display_title": _risk_display_title(risk_key),
                 "severity": str(best.get("severity") or "track"),
                 "evidence": _truncate_table_cell(evidence),
-                "mitigant": _truncate_table_cell(mitigant),
             }
         )
 
