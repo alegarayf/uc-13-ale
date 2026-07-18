@@ -39,15 +39,20 @@ _EXECUTIVE_LLM_NARRATIVE_KEYS = frozenset(
 )
 
 _EXECUTIVE_LLM_SYSTEM_PROMPT = """You are the UC13 orchestrator stage-6 synthesis agent (M2 production).
-From workstream agent snapshots in the user message, populate ONLY the executive narrative fields.
+From workstream agent snapshots and gap_context in the user message, populate ONLY the executive narrative fields.
 Return ONLY valid JSON (no markdown fences) with optional top-level key "executive" containing:
   in_one_line (string)
   preliminary_view: { strengths (string[]), concerns (string[]), closing (string) }
   business_snapshot_narrative (string, optional) — richer narrative for the Business Snapshot section
-  mitigants_digest (string, optional) — synthesized 1–3 sentence overall risk-mitigation posture;
-    do not restate individual per-risk mitigant cells
-  confidence_rationale (string, optional) — narrative of why confidence sits where it does;
-    do not restate the confidence_by_area score grid
+  mitigants_digest (string, optional) — PE-style mitigation-strategy narrative across the full risk set;
+    this is the sole mitigant surface in the one-pager (rendered under header "Risk Mitigation");
+    synthesize management actions, structural offsets, and diligence follow-ups that address the
+    material risks — not a bullet list of per-risk cells
+  confidence_rationale (string, optional) — articulate confidence in the analysis/results and the
+    data gaps capping it (e.g. "without [X data] available to the [business-model agent], confidence
+    in [Y] is limited"); ground claims in gap_context (data_room_gaps, synthesis_gaps, confidence_by_area,
+    fill_state on risks/kpis); contextualize the adjacent "## Confidence by Area" score grid by naming
+    the gaps — rendered under header "Confidence & Data Gaps"
 Do not include risks, legal, kpi_dashboard, headline_metrics, company_framing, financials, or any other keys.
 Use stated figures and agent summaries only — do not invent financial metrics.
 preliminary_view.closing must avoid investment advice (no buy/sell/hold recommendations)."""
@@ -134,6 +139,37 @@ def _agent_context_payload(snapshots: dict[str, dict[str, Any]]) -> dict[str, An
     return payload
 
 
+def _executive_synthesis_gap_context(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Gap signals for stage-6 mitigants/confidence grounding (existing bundle fields only)."""
+
+    def _slim_rows(rows: Any, keys: tuple[str, ...]) -> list[dict[str, Any]]:
+        if not isinstance(rows, list):
+            return []
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            slim = {k: row[k] for k in keys if k in row}
+            if slim:
+                out.append(slim)
+        return out
+
+    risk_keys = ("risk", "severity", "mitigant_or_question", "fill_state", "evidence")
+    kpi_keys = ("metric_id", "display_name", "flag", "fill_state", "stated_value")
+
+    return {
+        "data_room_gaps": bundle.get("data_room_gaps") or [],
+        "confidence_by_area": dict(bundle.get("confidence_by_area") or {}),
+        "synthesis_gaps": collect_synthesis_gaps(bundle),
+        "risks": _slim_rows(bundle.get("risks"), risk_keys),
+        "kpi_gaps": [
+            row
+            for row in _slim_rows(bundle.get("kpi_dashboard"), kpi_keys)
+            if row.get("fill_state") in ("gap_correct", "not_attempted")
+        ],
+    }
+
+
 def synthesize_executive_narrative(
     bundle: dict[str, Any],
     snapshots: dict[str, dict[str, Any]],
@@ -148,6 +184,7 @@ def synthesize_executive_narrative(
             "company_name": company_name,
             "agent_snapshots": context,
             "current_executive_shell": bundle.get("executive"),
+            "gap_context": _executive_synthesis_gap_context(bundle),
         },
         default=str,
     )[:120_000]
