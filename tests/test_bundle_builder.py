@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from contextlib import ExitStack
 from pathlib import Path
@@ -13,6 +14,8 @@ import yaml
 from agents.orchestrator.bundle_builder import (
     BundleBuilder,
     GapAggregator,
+    _EXECUTIVE_LLM_SYSTEM_PROMPT,
+    _executive_synthesis_gap_context,
     _merge_executive_llm_narrative,
     merge_risks_from_flags,
     synthesize_executive_narrative,
@@ -355,6 +358,73 @@ def test_synthesize_executive_narrative_uses_snapshots_not_rendered_md() -> None
     assert "full_report" not in captured_prompt[0]
     assert bundle["executive"]["in_one_line"] == "From snapshots"
     assert bundle["risks"] == [{"risk": "keep", "severity": "track"}]
+
+
+def test_executive_llm_system_prompt_reframes_mitigants_and_confidence_v1_1() -> None:
+    """Falsifier: v1.1.0 PE mitigation + confidence-with-gaps guidance; v1.0.0 restate bans retired."""
+    assert "mitigation-strategy" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "Risk Mitigation" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "Confidence & Data Gaps" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "gap_context" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "do not restate" not in _EXECUTIVE_LLM_SYSTEM_PROMPT.lower()
+
+
+def test_executive_synthesis_gap_context_includes_bundle_gap_signals() -> None:
+    bundle = {
+        "data_room_gaps": [{"item": "Missing QoE", "priority": "high", "fill_state": "filled_cited"}],
+        "confidence_by_area": {"financial_trends": "medium", "legal": "low"},
+        "risks": [
+            {
+                "risk": "Concentration",
+                "severity": "material",
+                "fill_state": "filled_synthesized",
+                "mitigant_or_question": "Diversify",
+            }
+        ],
+        "kpi_dashboard": [
+            {"metric_id": "nrr", "fill_state": "gap_correct", "flag": "N/A"},
+            {"metric_id": "ltm_rev", "fill_state": "filled_cited", "flag": "Green"},
+        ],
+        "executive": {"in_one_line": ""},
+    }
+    ctx = _executive_synthesis_gap_context(bundle)
+    assert ctx["data_room_gaps"][0]["item"] == "Missing QoE"
+    assert ctx["confidence_by_area"]["legal"] == "low"
+    assert isinstance(ctx["synthesis_gaps"], list)
+    assert ctx["risks"][0]["risk"] == "Concentration"
+    assert ctx["kpi_gaps"][0]["metric_id"] == "nrr"
+
+
+def test_synthesize_executive_narrative_includes_gap_context_in_user_prompt() -> None:
+    """Falsifier: stage-6 user JSON must carry gap_context for confidence grounding."""
+    bundle = {
+        "meta": {"company_name": "Elder Care"},
+        "executive": _executive_shell(),
+        "data_room_gaps": [{"item": "No cap table", "priority": "medium", "fill_state": "filled_cited"}],
+        "confidence_by_area": {"business_model": "high"},
+        "risks": [],
+        "kpi_dashboard": [],
+    }
+    snapshots = {"business_model": {"delta_row": {}, "yaml_dict": {}}}
+    captured: list[str] = []
+
+    with (
+        patch(
+            "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+            side_effect=lambda _s, user, _e, **kw: captured.append(user) or "{}",
+        ),
+        patch(
+            "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+            return_value={"executive": {"in_one_line": "ok"}},
+        ),
+    ):
+        synthesize_executive_narrative(bundle, snapshots, "databricks-claude-sonnet-4-6")
+
+    assert captured
+    payload = json.loads(captured[0])
+    assert "gap_context" in payload
+    assert payload["gap_context"]["data_room_gaps"][0]["item"] == "No cap table"
+    assert payload["gap_context"]["confidence_by_area"]["business_model"] == "high"
 
 
 def _executive_shell() -> dict:
