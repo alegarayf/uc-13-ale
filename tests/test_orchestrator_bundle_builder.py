@@ -271,6 +271,18 @@ def test_validate_bundle_accepts_optional_executive_narrative_fields(elder_care_
     validate_bundle(expanded)
 
 
+def test_validate_bundle_accepts_mitigants_digest_and_confidence_rationale_only(
+    elder_care_bundle: dict,
+):
+    """§2.5 v1.1.0: mitigants_digest and confidence_rationale shape unchanged — validate in isolation."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["executive"]["mitigants_digest"] = "Payer mix diversification limits concentration risk."
+    expanded["executive"]["confidence_rationale"] = "CIM and scorecards support medium overall confidence."
+    validate_bundle(expanded)
+    assert expanded["executive"]["mitigants_digest"]
+    assert expanded["executive"]["confidence_rationale"]
+
+
 def test_elder_care_baseline_bundle_validates_without_expanded_narrative_fields(
     elder_care_bundle: dict,
 ):
