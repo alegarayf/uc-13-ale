@@ -71,6 +71,63 @@ def _diligence_text_from_entry(entry: dict[str, Any]) -> str:
     return ""
 
 
+_KPI_DESCRIPTION_KEYS: tuple[str, ...] = (
+    "description",
+    "note",
+    "text",
+    "stated",
+    "value",
+    "management_question",
+    "kpi_name",
+)
+
+
+def _kpi_text_from_dict(item: dict[str, Any]) -> str:
+    for key in _KPI_DESCRIPTION_KEYS:
+        if raw := item.get(key):
+            text = str(raw).strip()
+            if text and text.lower() not in ("null", "none"):
+                return text
+    type_val = str(item.get("type") or "").strip()
+    status = str(item.get("status") or "").strip()
+    if type_val and status:
+        return f"{type_val.replace('_', ' ')} ({status})"
+    if type_val:
+        return type_val.replace("_", " ")
+    parts: list[str] = []
+    for key, raw in item.items():
+        if raw in (None, "", [], {}):
+            continue
+        if isinstance(raw, (dict, list)):
+            formatted = format_kpi_value(raw)
+        else:
+            formatted = str(raw).strip()
+        if not formatted or formatted.lower() in ("null", "none"):
+            continue
+        label = str(key).replace("_", " ")
+        parts.append(f"{label}: {formatted}")
+    return "; ".join(parts)
+
+
+def format_kpi_value(stated: Any) -> str:
+    """KPI stated field → stakeholder text; never ``str(dict)`` or list repr."""
+    if stated is None:
+        return ""
+    if isinstance(stated, bool):
+        return "true" if stated else "false"
+    if isinstance(stated, (int, float)):
+        return str(stated)
+    if isinstance(stated, str):
+        return stated
+    if isinstance(stated, dict):
+        return _kpi_text_from_dict(stated)
+    if isinstance(stated, list):
+        parts = [format_kpi_value(item) for item in stated]
+        parts = [part for part in parts if part]
+        return "; ".join(parts)
+    return str(stated)
+
+
 def format_diligence_entry(entry: dict[str, Any] | str) -> str:
     """Legal recommended_diligence, kpi_agent missing_kpis dict, or legacy str(dict) → question text."""
     if isinstance(entry, dict):

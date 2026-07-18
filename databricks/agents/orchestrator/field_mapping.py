@@ -6,6 +6,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from agents.orchestrator.formatters import format_kpi_value
+
 # Appendix B TL;DR rows — data-driven mapping registry (§5.11).
 # Stage-3+ rows (risks, gaps, confidence) are listed for coverage; applied elsewhere.
 
@@ -320,7 +322,7 @@ def _kpi_rows_from_yaml(kpi_yaml: dict | None) -> list[dict[str, Any]]:
             {
                 "metric_id": metric_id,
                 "display_name": metric_id.replace("_", " ").title(),
-                "stated_value": str(stated),
+                "stated_value": format_kpi_value(stated),
                 "threshold": "",
                 "flag": "N/A",
                 "confidence": "low",
