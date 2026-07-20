@@ -1102,6 +1102,78 @@ def test_compress_whitespace_only_digest_keys_project_as_none():
         assert tldr[key] is None
 
 
+def test_compress_deterministic_sections_unchanged_when_digests_present():
+    """§2Δ.5: digest lead-ins must not alter deterministic compress output."""
+    bundle_base = _minimal_bundle(
+        legal={
+            "assessed_count": 7,
+            "checklist_total": 11,
+            "section_confidence": "high",
+            "top_flags": [{"metric": "coc_consent", "value": "required", "note": "CoC required."}],
+            "top_gaps": [],
+            "recommended_diligence": [],
+        },
+        qoe={
+            "addback_pct_of_ebitda": "12%",
+            "tier_summary": "Tier mix stable after normalizing addbacks.",
+            "flags": [],
+        },
+        kpi_dashboard=[
+            {
+                "metric_id": "census",
+                "display_name": "Census",
+                "stated_value": "1,200",
+                "threshold": "",
+                "flag": "pass",
+                "confidence": "medium",
+                "fill_state": "filled_cited",
+            }
+        ],
+        data_room_gaps=[
+            {
+                "item": "Cap table missing",
+                "priority": "high",
+                "source_agent": "legal",
+                "fill_state": "gap_correct",
+            }
+        ],
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {
+                "strengths": ["Strong payer mix."],
+                "concerns": ["Founder concentration."],
+                "closing": "",
+            },
+        },
+    )
+    baseline = compress_for_tldr(bundle_base)
+    bundle_with_digests = copy.deepcopy(bundle_base)
+    bundle_with_digests["executive"].update(
+        {
+            "legal_digest": "Seven of eleven contracts assessed.",
+            "qoe_digest": "EBITDA stable after adjustments.",
+            "kpi_digest": "Census metrics are healthy.",
+            "open_items_digest": "Cap table remains open.",
+            "preliminary_digest": "Compelling regional platform.",
+        }
+    )
+    with_digests = compress_for_tldr(bundle_with_digests)
+    for key in (
+        "legal",
+        "qoe",
+        "kpi",
+        "open_items",
+        "strengths",
+        "concerns",
+        "business_snapshot",
+        "headline",
+        "risks",
+    ):
+        assert with_digests[key] == baseline[key], key
+    for key in _DIGEST_KEYS:
+        assert with_digests[key] is not None
+
+
 def _section_body(md: str, header: str) -> str:
     return md.split(header, maxsplit=1)[1].split("\n## ", maxsplit=1)[0]
 
