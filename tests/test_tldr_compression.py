@@ -17,7 +17,9 @@ from agents.orchestrator.renderers import ReportRenderer, render_to_volume
 from agents.orchestrator.tldr_compress import (
     RISK_DISPLAY_TITLES,
     _first_sentence,
+    _resolve_section_tag_citations,
     _risk_display_title,
+    _source_docs_for_section_tag,
     _truncate_table_cell,
     compress_for_tldr,
 )
@@ -1627,3 +1629,140 @@ def test_full_report_unaffected(elder_care_bundle: dict):
     md = renderer.render(elder_care_bundle, _TEMPLATES_DIR / _FULL_REPORT_TEMPLATE)
     digest = hashlib.sha256(md.encode("utf-8")).hexdigest()
     assert digest == _FULL_REPORT_BASELINE_SHA256
+
+
+# --- T21 citation resolver + digest projection drop + Legal badge drop ---
+
+_DROPPED_DIGEST_KEYS = ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest")
+
+
+def test_compress_drops_v1_2_digest_projection_keys():
+    """T21 §2Δ.3: four retired digests are no longer projected into the tldr view."""
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+            "legal_digest": "Seven of eleven contracts assessed.",
+            "qoe_digest": "Adjusted EBITDA holds after addbacks.",
+            "kpi_digest": "Census metrics are healthy.",
+            "open_items_digest": "Cap table remains open.",
+            "preliminary_digest": "Compelling regional platform. [Legal Snapshot]",
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    for key in _DROPPED_DIGEST_KEYS:
+        assert key not in tldr
+
+
+def test_compress_legal_drops_coverage_and_section_confidence():
+    """T21 §2Δ.5: Legal compress no longer emits assessed_label or section_confidence."""
+    tldr = compress_for_tldr(
+        _minimal_bundle(
+            legal={
+                "assessed_count": 7,
+                "checklist_total": 11,
+                "section_confidence": "high",
+                "top_flags": [{"metric": "coc_consent", "value": "required", "note": "CoC required."}],
+                "top_gaps": [],
+                "recommended_diligence": [],
+            },
+        )
+    )
+    assert "assessed_label" not in tldr["legal"]
+    assert "section_confidence" not in tldr["legal"]
+    assert tldr["legal"]["bullets"] == ["CoC required."]
+
+
+def test_resolve_legal_snapshot_tag_to_section_source_docs():
+    """T21 §2Δ.4: tagged Legal Snapshot resolves to real top_flags source_doc refs."""
+    bundle = _minimal_bundle(
+        legal={
+            "assessed_count": 2,
+            "checklist_total": 11,
+            "section_confidence": "high",
+            "top_flags": [
+                {"metric": "coc_consent", "value": "required", "source_doc": "MSA Schedule B"},
+                {"metric": "open_legal_matter", "value": "pending", "source_doc": "Legal memo"},
+            ],
+            "top_gaps": [],
+            "recommended_diligence": [],
+        },
+    )
+    digest = "Change-of-control risk is material. [Legal Snapshot]"
+    resolved = _resolve_section_tag_citations(digest, bundle)
+    assert resolved == "Change-of-control risk is material. [Legal Snapshot: MSA Schedule B, Legal memo]"
+
+
+def test_resolve_tag_without_source_doc_keeps_bare_tag():
+    """T21 §2Δ.4: sections lacking source_doc keep the bare section tag."""
+    bundle = _minimal_bundle(
+        company_framing={
+            "overview_bullets": ["Regional home health provider."],
+            "revenue_model": {"tag": "", "quality_flag": "", "note": ""},
+            "recent_changes": [],
+            "thesis": {"bullets": [], "value_creation_levers": []},
+        },
+    )
+    digest = "Platform overview is attractive. [Business Snapshot]"
+    assert _resolve_section_tag_citations(digest, bundle) == digest
+
+
+def test_resolver_never_emits_source_doc_from_other_sections():
+    """T21 falsifier: resolver must not cross-section cite — only the tagged section's refs."""
+    bundle = _minimal_bundle(
+        legal={
+            "assessed_count": 1,
+            "checklist_total": 11,
+            "section_confidence": "high",
+            "top_flags": [{"metric": "coc_consent", "value": "required", "source_doc": "MSA Schedule B"}],
+            "top_gaps": [],
+            "recommended_diligence": [],
+        },
+        qoe={
+            "addback_pct_of_ebitda": "12%",
+            "tier_summary": "Tier mix stable.",
+            "flags": [{"metric": "tier4_addback", "value": "0", "source_doc": "CIM p.45"}],
+        },
+    )
+    digest = "Addbacks may not survive diligence. [Quality of Earnings]"
+    resolved = _resolve_section_tag_citations(digest, bundle)
+    assert "MSA Schedule B" not in resolved
+    assert resolved == "Addbacks may not survive diligence. [Quality of Earnings: CIM p.45]"
+
+
+def test_compress_preliminary_digest_applies_citation_resolver():
+    """T21: compress_for_tldr projects preliminary_digest with resolved inline citations."""
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+            "preliminary_digest": "Contracts need consent. [Legal Snapshot]",
+        },
+        legal={
+            "assessed_count": 1,
+            "checklist_total": 11,
+            "section_confidence": "high",
+            "top_flags": [{"metric": "coc_consent", "value": "required", "source_doc": "MSA Schedule B"}],
+            "top_gaps": [],
+            "recommended_diligence": [],
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    assert tldr["preliminary_digest"] == "Contracts need consent. [Legal Snapshot: MSA Schedule B]"
+
+
+def test_source_docs_for_section_tag_matches_t20_vocabulary():
+    """T21 kill criterion: section tag vocabulary matches T20 fixed set."""
+    bundle = _minimal_bundle()
+    for tag in (
+        "Business Snapshot",
+        "Financial Strip",
+        "Revenue Quality",
+        "KPI Dashboard",
+        "Legal Snapshot",
+        "Quality of Earnings",
+        "Top Risks",
+        "Confidence by Area",
+    ):
+        assert _source_docs_for_section_tag(tag, bundle) == []
+    assert _source_docs_for_section_tag("Not A Real Tag", bundle) == []
