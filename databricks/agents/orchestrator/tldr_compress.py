@@ -74,6 +74,85 @@ RISK_DISPLAY_TITLES: dict[str, str] = {
     "open_legal_matter_other": "Open legal matters",
 }
 
+_PRELIMINARY_DIGEST_SECTION_TAGS: tuple[str, ...] = (
+    "Business Snapshot",
+    "Financial Strip",
+    "Revenue Quality",
+    "KPI Dashboard",
+    "Legal Snapshot",
+    "Quality of Earnings",
+    "Top Risks",
+    "Confidence by Area",
+)
+
+_SECTION_TAG_RE = re.compile(
+    r"\[("
+    + "|".join(re.escape(tag) for tag in _PRELIMINARY_DIGEST_SECTION_TAGS)
+    + r")\]"
+)
+
+
+def _section_data_for_tag(tag: str, bundle: dict[str, Any]) -> Any:
+    if tag == "Business Snapshot":
+        return {
+            "company_framing": bundle.get("company_framing"),
+            "revenue_quality": bundle.get("revenue_quality"),
+        }
+    key_by_tag = {
+        "Financial Strip": "financials",
+        "Revenue Quality": "revenue_quality",
+        "KPI Dashboard": "kpi_dashboard",
+        "Legal Snapshot": "legal",
+        "Quality of Earnings": "qoe",
+        "Top Risks": "risks",
+        "Confidence by Area": "confidence_by_area",
+    }
+    key = key_by_tag.get(tag)
+    return bundle.get(key) if key else None
+
+
+def _collect_nested_source_docs(obj: Any) -> list[str]:
+    """Collect unique non-blank ``source_doc`` values from a section subtree."""
+    refs: list[str] = []
+    seen: set[str] = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            doc = str(node.get("source_doc") or "").strip()
+            if doc and doc not in seen:
+                seen.add(doc)
+                refs.append(doc)
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(obj)
+    return refs
+
+
+def _source_docs_for_section_tag(tag: str, bundle: dict[str, Any]) -> list[str]:
+    if tag not in _PRELIMINARY_DIGEST_SECTION_TAGS:
+        return []
+    section = _section_data_for_tag(tag, bundle)
+    if section is None:
+        return []
+    return _collect_nested_source_docs(section)
+
+
+def _resolve_section_tag_citations(preliminary_digest: str, bundle: dict[str, Any]) -> str:
+    """Map fixed-vocabulary section tags to real ``source_doc`` refs from that section only."""
+
+    def _replace_tag(match: re.Match[str]) -> str:
+        tag = match.group(1)
+        refs = _source_docs_for_section_tag(tag, bundle)
+        if refs:
+            return f"[{tag}: {', '.join(refs)}]"
+        return match.group(0)
+
+    return _SECTION_TAG_RE.sub(_replace_tag, preliminary_digest)
+
 
 def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
     """Build lossy ``tldr_view`` projection; never mutates ``bundle`` (K1)."""
@@ -110,11 +189,7 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
         "confidence_rationale": _optional_executive_string(
             executive, "confidence_rationale"
         ),
-        "legal_digest": _optional_executive_string(executive, "legal_digest"),
-        "qoe_digest": _optional_executive_string(executive, "qoe_digest"),
-        "kpi_digest": _optional_executive_string(executive, "kpi_digest"),
-        "open_items_digest": _optional_executive_string(executive, "open_items_digest"),
-        "preliminary_digest": _optional_executive_string(executive, "preliminary_digest"),
+        "preliminary_digest": _resolve_preliminary_digest_for_tldr(executive, source),
         "financial": _compress_financial(financials),
         "revenue_quality": _compress_revenue_quality(revenue_quality),
         "kpi": _compress_kpi(source.get("kpi_dashboard") or []),
@@ -144,6 +219,16 @@ def _optional_executive_string(executive: dict[str, Any], key: str) -> str | Non
     if _is_blank(value):
         return None
     return str(value).strip()
+
+
+def _resolve_preliminary_digest_for_tldr(
+    executive: dict[str, Any], bundle: dict[str, Any]
+) -> str | None:
+    """Project ``preliminary_digest`` with deterministic section-tag citation resolution."""
+    raw = _optional_executive_string(executive, "preliminary_digest")
+    if raw is None:
+        return None
+    return _resolve_section_tag_citations(raw, bundle)
 
 
 def _compress_headline(
@@ -474,24 +559,15 @@ def _format_legal_bullet(flag: dict[str, Any]) -> str:
 
 
 def _compress_legal(legal: dict[str, Any]) -> dict[str, Any]:
-    assessed = legal.get("assessed_count")
-    total = legal.get("checklist_total") or 11
-    if assessed is not None and total:
-        assessed_label = f"{round(assessed / total * 100)}%"
-    else:
-        assessed_label = "—"
     bullets = [
         _format_legal_bullet(flag)
         for flag in (legal.get("top_flags") or [])
         if isinstance(flag, dict)
     ]
     bullets = [b for b in bullets if b][:6]
-    show = bool(bullets) or assessed is not None
     return {
-        "assessed_label": assessed_label,
-        "section_confidence": str(legal.get("section_confidence") or ""),
         "bullets": bullets,
-        "show": show,
+        "show": bool(bullets),
     }
 
 
