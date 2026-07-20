@@ -96,10 +96,10 @@
 
 ## KPI Dashboard
 
-| Metric | Value | Threshold | Flag | Confidence |
-|--------|-------|-----------|------|------------|
+| Metric | Value |
+|--------|-------|
 {%- for kpi in tldr.kpi.rows %}
-| {{ kpi.display_name | default('', true) }} | {{ kpi.stated_value | default('', true) }} | {{ kpi.threshold | default('', true) }} | {{ kpi.flag | default('', true) }} | {{ kpi.confidence | default('', true) }} |
+| {{ kpi.display_name | default('', true) }} | {{ kpi.stated_value | default('', true) }} |
 {%- endfor %}
 {% endif -%}
 {% if tldr.legal.show -%}
@@ -108,7 +108,7 @@
 
 ## Legal Snapshot
 
-- **Assessed:** {{ tldr.legal.assessed_label }}
+- **Coverage:** {{ tldr.legal.assessed_label }}
 - **Section confidence:** {{ tldr.legal.section_confidence }}
 {%- for bullet in tldr.legal.bullets %}
 
@@ -170,14 +170,6 @@
 - {{ item }}
 {%- endfor %}
 {% endif -%}
-{% if tldr.confidence_rationale -%}
-
----
-
-## Confidence & Data Gaps
-
-{{ tldr.confidence_rationale }}
-{% endif -%}
 {% if tldr.show_confidence_table -%}
 {% set conf = tldr.confidence_by_area %}
 
@@ -194,6 +186,14 @@
 | Legal | {{ conf.legal | default('', true) }} |
 | Quality of Earnings | {{ conf.quality_of_earnings | default('', true) }} |
 | Forecast Support | {{ conf.forecast_support | default('', true) }} |
+{% endif -%}
+{% if tldr.confidence_rationale -%}
+
+---
+
+## Analysis Notes
+
+{{ tldr.confidence_rationale }}
 {% endif -%}
 {% if bundle.meta.demo_mode -%}
 

@@ -10,6 +10,7 @@ from typing import Any
 from agents.orchestrator.formatters import (
     format_agent_flag,
     format_diligence_entry,
+    format_kpi_value,
     is_operator_gap,
     normalize_gap,
 )
@@ -440,21 +441,42 @@ def _compress_revenue_quality(revenue_quality: dict[str, Any]) -> dict[str, Any]
 
 
 def _compress_kpi(kpi_dashboard: list[Any]) -> dict[str, Any]:
-    rows = [
-        r
-        for r in kpi_dashboard
-        if isinstance(r, dict)
-        and (not _is_blank(r.get("stated_value")) or not _is_blank(r.get("display_name")))
-    ][:5]
+    rows: list[dict[str, str]] = []
+    for raw in kpi_dashboard:
+        if not isinstance(raw, dict):
+            continue
+        display_name = str(raw.get("display_name") or "").strip()
+        stated_value = format_kpi_value(raw.get("stated_value")).strip()
+        if _is_blank(display_name) and _is_blank(stated_value):
+            continue
+        rows.append(
+            {
+                "display_name": display_name,
+                "stated_value": stated_value,
+            }
+        )
+        if len(rows) >= 5:
+            break
     return {"rows": rows, "show": bool(rows)}
+
+
+def _format_legal_bullet(flag: dict[str, Any]) -> str:
+    """Legal flag prose without mid-sentence truncation (T15 §2Δ.2)."""
+    note = str(flag.get("note") or "").strip()
+    if note:
+        return note
+    return format_agent_flag(flag)
 
 
 def _compress_legal(legal: dict[str, Any]) -> dict[str, Any]:
     assessed = legal.get("assessed_count")
     total = legal.get("checklist_total") or 11
-    assessed_label = f"{assessed} / {total}" if assessed is not None else f"— / {total}"
+    if assessed is not None and total:
+        assessed_label = f"{round(assessed / total * 100)}%"
+    else:
+        assessed_label = "—"
     bullets = [
-        format_agent_flag(flag)
+        _format_legal_bullet(flag)
         for flag in (legal.get("top_flags") or [])
         if isinstance(flag, dict)
     ]
@@ -525,7 +547,7 @@ def _clean_risk_evidence(evidence: str, risk_key: str) -> str:
 
 def _compress_qoe(qoe: dict[str, Any]) -> dict[str, Any]:
     flags = [f for f in (qoe.get("flags") or []) if isinstance(f, dict)]
-    summary = _truncate(str(qoe.get("tier_summary") or "").strip(), 200)
+    summary = str(qoe.get("tier_summary") or "").strip()
 
     by_metric: dict[str, list[dict[str, Any]]] = {}
     for flag in flags:
