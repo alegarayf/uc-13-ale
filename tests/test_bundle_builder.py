@@ -16,6 +16,9 @@ from agents.orchestrator.bundle_builder import (
     GapAggregator,
     _EXECUTIVE_LLM_NARRATIVE_KEYS,
     _EXECUTIVE_LLM_SYSTEM_PROMPT,
+    _EXECUTIVE_SYNTHESIS_BUNDLE_SECTION_KEYS,
+    _PRELIMINARY_DIGEST_SECTION_TAGS,
+    _executive_synthesis_bundle_context,
     _executive_synthesis_gap_context,
     _merge_executive_llm_narrative,
     merge_risks_from_flags,
@@ -314,7 +317,7 @@ def _risks_without_llm_endpoint(snapshots: dict) -> list:
 
 
 def test_synthesize_executive_narrative_uses_snapshots_not_rendered_md() -> None:
-    """Falsifier: stage 6 input must be agent snapshots, not full_report.md."""
+    """Falsifier: stage 6 input must not use full_report.md; feeds assembled bundle sections."""
     bundle = {
         "meta": {"company_name": "Elder Care"},
         "executive": {
@@ -355,35 +358,30 @@ def test_synthesize_executive_narrative_uses_snapshots_not_rendered_md() -> None
         )
 
     assert captured_prompt
-    assert "agent_snapshots" in captured_prompt[0]
+    payload = json.loads(captured_prompt[0])
+    assert "assembled_bundle_sections" in payload
+    assert "agent_snapshots" not in payload
     assert "full_report" not in captured_prompt[0]
     assert bundle["executive"]["in_one_line"] == "From snapshots"
     assert bundle["risks"] == [{"risk": "keep", "severity": "track"}]
 
 
 def test_executive_llm_system_prompt_reframes_mitigants_and_confidence_v1_1() -> None:
-    """Falsifier: v1.1.0 PE mitigation + confidence-with-gaps guidance; v1.0.0 restate bans retired."""
-    assert "mitigation-strategy" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    """Falsifier: mitigants headline+why and confidence-with-gaps guidance retained in v1.3.0."""
     assert "Risk Mitigation" in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "Confidence & Data Gaps" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "headline + why/relationship" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "Analysis Notes" in _EXECUTIVE_LLM_SYSTEM_PROMPT
     assert "gap_context" in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "do not restate" not in _EXECUTIVE_LLM_SYSTEM_PROMPT.lower()
+    assert "mitigation-strategy" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
 
 
 def test_executive_llm_system_prompt_v1_2_digest_expansion() -> None:
-    """Falsifier: v1.2.0 adds five optional section digests and refines mitigants/confidence guidance."""
-    for field in (
-        "legal_digest",
-        "qoe_digest",
-        "kpi_digest",
-        "open_items_digest",
-        "preliminary_digest",
-    ):
-        assert field in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "≤2–3 sentence" in _EXECUTIVE_LLM_SYSTEM_PROMPT or "2–3 sentences" in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "markdown bullets" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    """Falsifier: v1.3.0 keeps preliminary_digest only; four per-section digests retired from prompt."""
+    assert "preliminary_digest" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    for dropped in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
+        assert dropped not in _EXECUTIVE_LLM_SYSTEM_PROMPT
     assert "Analysis Notes" in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "risk dimension" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "risk dimension" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
 
 
 def test_executive_synthesis_gap_context_includes_bundle_gap_signals() -> None:
@@ -470,7 +468,7 @@ def test_merge_executive_llm_narrative_admits_expanded_narrative_fields() -> Non
 
 
 def test_merge_executive_llm_narrative_admits_v1_2_digest_fields() -> None:
-    """§2Δ.1: five new optional executive digests merge via the shared allowlist."""
+    """§2Δ.3: preliminary_digest merges; four per-section digests are no longer admitted."""
     bundle = {"executive": _executive_shell()}
     llm_result = {
         "executive": {
@@ -482,17 +480,16 @@ def test_merge_executive_llm_narrative_admits_v1_2_digest_fields() -> None:
         }
     }
     _merge_executive_llm_narrative(bundle, llm_result)
-    assert bundle["executive"]["legal_digest"] == "Seven of eleven contracts assessed with high confidence."
-    assert bundle["executive"]["qoe_digest"] == "Adjusted EBITDA holds after addbacks."
-    assert bundle["executive"]["kpi_digest"] == "Census and payer mix metrics are green."
-    assert bundle["executive"]["open_items_digest"] == "Cap table and insurance schedules remain open."
     assert bundle["executive"]["preliminary_digest"] == "Attractive regional platform with manageable risks."
+    for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
+        assert key not in bundle["executive"]
 
 
 def test_executive_llm_narrative_keys_allowlist_includes_v1_2_digests() -> None:
-    """Falsifier: prompt+allowlist co-move — new digest keys must be in the frozenset."""
-    for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest", "preliminary_digest"):
-        assert key in _EXECUTIVE_LLM_NARRATIVE_KEYS
+    """Falsifier: prompt+allowlist co-move — preliminary_digest in; four section digests out."""
+    assert "preliminary_digest" in _EXECUTIVE_LLM_NARRATIVE_KEYS
+    for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
+        assert key not in _EXECUTIVE_LLM_NARRATIVE_KEYS
 
 
 def test_merge_executive_llm_narrative_drops_unknown_executive_keys() -> None:
@@ -559,3 +556,117 @@ def test_bundle_builder_synthesis_populates_expanded_executive_narrative_fields(
         "Financial trends are well supported in the CIM."
     )
     validate_bundle(bundle)
+
+
+def test_executive_synthesis_bundle_context_includes_assembled_sections() -> None:
+    """§2Δ.1: stage-6 input carries bounded assembled bundle sections, not raw reports."""
+    bundle = {
+        "company_framing": {"business_model": "Regional elder care"},
+        "financials": {"ltm_revenue": "18M"},
+        "revenue_quality": {"concentration": "low"},
+        "kpi_dashboard": [{"metric_id": "nrr"}],
+        "legal": {"assessed": 7, "total": 11},
+        "qoe": {"adjusted_ebitda": "4.2M"},
+        "risks": [{"risk": "Concentration", "severity": "material"}],
+        "confidence_by_area": {"financial_trends": "high"},
+        "headline_metrics": {"ltm_revenue": "18M"},
+        "data_room_gaps": [{"item": "Cap table"}],
+    }
+    ctx = _executive_synthesis_bundle_context(bundle)
+    assert set(ctx) == set(_EXECUTIVE_SYNTHESIS_BUNDLE_SECTION_KEYS)
+    assert ctx["company_framing"]["business_model"] == "Regional elder care"
+    assert ctx["legal"]["assessed"] == 7
+    assert ctx["risks"][0]["risk"] == "Concentration"
+
+
+def test_synthesize_executive_narrative_uses_assembled_bundle_sections() -> None:
+    """Falsifier: stage-6 user JSON feeds assembled sections, not agent snapshots or full_report."""
+    bundle = {
+        "meta": {"company_name": "Elder Care"},
+        "executive": {
+            "in_one_line": "",
+            "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+        },
+        "company_framing": {"business_model": "Regional elder care"},
+        "financials": {"ltm_revenue": "18M"},
+        "revenue_quality": {},
+        "kpi_dashboard": [],
+        "legal": {},
+        "qoe": {},
+        "risks": [{"risk": "keep", "severity": "track"}],
+        "confidence_by_area": {},
+        "headline_metrics": {"ltm_revenue": "18M"},
+        "data_room_gaps": [],
+        "diligence_questions": [],
+    }
+    snapshots = {"business_model": {"delta_row": {}, "yaml_dict": {"executive_summary": "Co"}}}
+    captured_prompt: list[str] = []
+
+    def _capture_call(_system, user_prompt, _endpoint, **kwargs):
+        captured_prompt.append(user_prompt)
+        return "{}"
+
+    with (
+        patch(
+            "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+            side_effect=_capture_call,
+        ),
+        patch(
+            "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+            return_value={
+                "executive": {"in_one_line": "From bundle", "preliminary_view": {}},
+            },
+        ),
+    ):
+        synthesize_executive_narrative(
+            bundle,
+            snapshots,
+            "databricks-claude-sonnet-4-6",
+        )
+
+    assert captured_prompt
+    payload = json.loads(captured_prompt[0])
+    assert "assembled_bundle_sections" in payload
+    assert payload["assembled_bundle_sections"]["financials"]["ltm_revenue"] == "18M"
+    assert "agent_snapshots" not in payload
+    assert "full_report" not in captured_prompt[0]
+    assert bundle["executive"]["in_one_line"] == "From bundle"
+    assert bundle["risks"] == [{"risk": "keep", "severity": "track"}]
+
+
+def test_executive_llm_system_prompt_v1_3_consolidated_overview() -> None:
+    """Falsifier: v1.3.0 reframes preliminary_digest + mitigants; drops four section digests."""
+    for tag in _PRELIMINARY_DIGEST_SECTION_TAGS:
+        assert tag in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "assembled_bundle_sections" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "NOT a restatement" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "headline + why/relationship" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    for dropped in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
+        assert dropped not in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "preliminary_digest" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "risk dimension" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
+
+
+def test_merge_executive_llm_narrative_drops_v1_2_section_digests() -> None:
+    """§2Δ.3: four per-section digests are no longer admitted via the allowlist."""
+    bundle = {"executive": _executive_shell()}
+    llm_result = {
+        "executive": {
+            "legal_digest": "Should not merge.",
+            "qoe_digest": "Should not merge.",
+            "kpi_digest": "Should not merge.",
+            "open_items_digest": "Should not merge.",
+            "preliminary_digest": "Cross-bundle overview. [Financial Strip]",
+        }
+    }
+    _merge_executive_llm_narrative(bundle, llm_result)
+    assert bundle["executive"]["preliminary_digest"] == "Cross-bundle overview. [Financial Strip]"
+    for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
+        assert key not in bundle["executive"]
+
+
+def test_executive_llm_narrative_keys_allowlist_excludes_dropped_digests() -> None:
+    """Falsifier: prompt+allowlist co-move — dropped digest keys must not be in the frozenset."""
+    for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
+        assert key not in _EXECUTIVE_LLM_NARRATIVE_KEYS
+    assert "preliminary_digest" in _EXECUTIVE_LLM_NARRATIVE_KEYS

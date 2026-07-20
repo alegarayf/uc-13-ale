@@ -323,6 +323,15 @@ def test_validate_bundle_accepts_all_v1_2_executive_digest_fields(elder_care_bun
     validate_bundle(expanded)
 
 
+def test_validate_bundle_accepts_preliminary_digest_without_dropped_digests(elder_care_bundle: dict):
+    """§2Δ.7 v1.3.0: preliminary_digest alone validates; dropped digests stay absent from baseline."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["executive"]["preliminary_digest"] = "Cross-bundle overview. [Financial Strip]"
+    validate_bundle(expanded)
+    for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
+        assert key not in expanded["executive"]
+
+
 def test_kpi_missing_dict_diligence_question_readable():
     """F-M2-KPI-DILIGENCE-REPR: dict missing_kpis must not render Python dict repr."""
     kpi_item = {
