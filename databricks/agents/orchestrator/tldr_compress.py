@@ -110,6 +110,11 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
         "confidence_rationale": _optional_executive_string(
             executive, "confidence_rationale"
         ),
+        "legal_digest": _optional_executive_string(executive, "legal_digest"),
+        "qoe_digest": _optional_executive_string(executive, "qoe_digest"),
+        "kpi_digest": _optional_executive_string(executive, "kpi_digest"),
+        "open_items_digest": _optional_executive_string(executive, "open_items_digest"),
+        "preliminary_digest": _optional_executive_string(executive, "preliminary_digest"),
         "financial": _compress_financial(financials),
         "revenue_quality": _compress_revenue_quality(revenue_quality),
         "kpi": _compress_kpi(source.get("kpi_dashboard") or []),

@@ -29,6 +29,10 @@
 ---
 
 ## Preliminary View
+{% if tldr.preliminary_digest %}
+
+{{ tldr.preliminary_digest }}
+{% endif -%}
 {% if tldr.strengths %}
 
 ### Strengths
@@ -95,6 +99,10 @@
 ---
 
 ## KPI Dashboard
+{% if tldr.kpi_digest %}
+
+{{ tldr.kpi_digest }}
+{% endif -%}
 
 | Metric | Value |
 |--------|-------|
@@ -107,6 +115,10 @@
 ---
 
 ## Legal Snapshot
+{% if tldr.legal_digest %}
+
+{{ tldr.legal_digest }}
+{% endif -%}
 
 - **Coverage:** {{ tldr.legal.assessed_label }}
 - **Section confidence:** {{ tldr.legal.section_confidence }}
@@ -120,6 +132,10 @@
 ---
 
 ## Quality of Earnings
+{% if tldr.qoe_digest %}
+
+{{ tldr.qoe_digest }}
+{% endif -%}
 {% if tldr.qoe.summary %}
 - **Tier summary:** {{ tldr.qoe.summary }}
 {% endif -%}
@@ -165,6 +181,10 @@
 ---
 
 ## Open Items / Data Requests
+{% if tldr.open_items_digest %}
+
+{{ tldr.open_items_digest }}
+{% endif -%}
 {%- for item in tldr.open_items %}
 
 - {{ item }}

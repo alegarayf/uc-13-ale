@@ -721,6 +721,11 @@ def _mock_tldr_view() -> dict:
         "business_snapshot_narrative": None,
         "mitigants_digest": None,
         "confidence_rationale": None,
+        "legal_digest": None,
+        "qoe_digest": None,
+        "kpi_digest": None,
+        "open_items_digest": None,
+        "preliminary_digest": None,
         "financial": {"rows": [], "observations": [], "show": False},
         "revenue_quality": {"lines": [], "show": False},
         "kpi": {"rows": [], "show": False},
@@ -842,6 +847,14 @@ def test_compress_optional_executive_narrative_keys_none_when_absent():
     assert tldr["business_snapshot_narrative"] is None
     assert tldr["mitigants_digest"] is None
     assert tldr["confidence_rationale"] is None
+    for key in (
+        "legal_digest",
+        "qoe_digest",
+        "kpi_digest",
+        "open_items_digest",
+        "preliminary_digest",
+    ):
+        assert tldr[key] is None
 
 
 def test_compress_optional_executive_narrative_keys_present_when_set():
@@ -1037,6 +1050,133 @@ def test_kpi_compress_formats_value_and_template_drops_noisy_columns():
     assert "Threshold" not in kpi_section
     assert "Confidence" not in kpi_section
     assert "2.1%" in kpi_section
+
+
+# --- T17 digest lead-in projection + template tests ---
+
+_DIGEST_KEYS = (
+    "legal_digest",
+    "qoe_digest",
+    "kpi_digest",
+    "open_items_digest",
+    "preliminary_digest",
+)
+
+
+def test_compress_digest_keys_project_from_executive():
+    """T17 §2Δ.1: five executive digests project into matching tldr keys."""
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+            "legal_digest": "  Seven of eleven contracts assessed. ",
+            "qoe_digest": "Adjusted EBITDA holds after addbacks.",
+            "kpi_digest": "Census and payer mix metrics are green.",
+            "open_items_digest": "Cap table and insurance schedules remain open.",
+            "preliminary_digest": "Attractive regional platform with manageable risks.",
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    assert tldr["legal_digest"] == "Seven of eleven contracts assessed."
+    assert tldr["qoe_digest"] == "Adjusted EBITDA holds after addbacks."
+    assert tldr["kpi_digest"] == "Census and payer mix metrics are green."
+    assert tldr["open_items_digest"] == "Cap table and insurance schedules remain open."
+    assert tldr["preliminary_digest"] == "Attractive regional platform with manageable risks."
+
+
+def test_compress_whitespace_only_digest_keys_project_as_none():
+    """T17 falsifier: blank/whitespace executive digests must not render as empty strings."""
+    bundle = _minimal_bundle(
+        executive={
+            "in_one_line": "",
+            "preliminary_view": {"strengths": [], "concerns": [], "closing": ""},
+            "legal_digest": "   ",
+            "qoe_digest": "—",
+            "kpi_digest": "",
+            "open_items_digest": None,
+            "preliminary_digest": "\t",
+        },
+    )
+    tldr = compress_for_tldr(bundle)
+    for key in _DIGEST_KEYS:
+        assert tldr[key] is None
+
+
+def _section_body(md: str, header: str) -> str:
+    return md.split(header, maxsplit=1)[1].split("\n## ", maxsplit=1)[0]
+
+
+def test_compressed_template_digest_lead_ins_gate_and_preserve_detail():
+    """T17 §2Δ.3: gated digests render above section detail; detail is retained below."""
+    tldr = _mock_tldr_view()
+    tldr["kpi"] = {"rows": [{"display_name": "Census", "stated_value": "1,200"}], "show": True}
+    tldr["qoe"] = {
+        "summary": "Tier mix stable after adjustments.",
+        "bullets": ["Four Tier 4 addbacks lack support."],
+        "show": True,
+    }
+    tldr["legal_digest"] = "Seven of eleven contracts assessed with high confidence."
+    tldr["kpi_digest"] = "Census metrics are healthy across branches."
+    tldr["qoe_digest"] = "EBITDA is stable after normalized addbacks."
+    tldr["open_items_digest"] = "Insurance schedules and cap table remain outstanding."
+    tldr["preliminary_digest"] = "Compelling regional platform with manageable risks."
+
+    md = _render_compressed_template(_mock_bundle(), tldr)
+
+    legal_section = _section_body(md, "## Legal Snapshot")
+    assert legal_section.index("Seven of eleven contracts assessed") < legal_section.index(
+        "- **Coverage:** 64%"
+    )
+    assert "- Sample legal bullet." in legal_section
+
+    kpi_section = _section_body(md, "## KPI Dashboard")
+    assert kpi_section.index("Census metrics are healthy") < kpi_section.index("| Census |")
+    assert "| Census | 1,200 |" in kpi_section
+
+    qoe_section = _section_body(md, "## Quality of Earnings")
+    assert qoe_section.index("EBITDA is stable") < qoe_section.index("- **Tier summary:**")
+    assert "Four Tier 4 addbacks lack support." in qoe_section
+
+    prelim_section = _section_body(md, "## Preliminary View")
+    assert prelim_section.index("Compelling regional platform") < prelim_section.index("### Strengths")
+    assert "- Strength 1" in prelim_section
+
+    open_section = _section_body(md, "## Open Items / Data Requests")
+    assert open_section.index("Insurance schedules and cap table") < open_section.index(
+        "- Customer contracts"
+    )
+
+
+def test_compressed_template_digest_absent_sections_byte_identical():
+    """T17 falsifier: absent digests must not alter gated section bodies."""
+    tldr = _mock_tldr_view()
+    tldr["kpi"] = {"rows": [{"display_name": "Census", "stated_value": "1,200"}], "show": True}
+    tldr["qoe"] = {
+        "summary": "Tier mix stable after adjustments.",
+        "bullets": ["Four Tier 4 addbacks lack support."],
+        "show": True,
+    }
+    for key in _DIGEST_KEYS:
+        del tldr[key]
+    baseline_md = _render_compressed_template(_mock_bundle(), tldr)
+
+    tldr_with_none = copy.deepcopy(tldr)
+    for key in _DIGEST_KEYS:
+        tldr_with_none[key] = None
+    assert _render_compressed_template(_mock_bundle(), tldr) == _render_compressed_template(
+        _mock_bundle(), tldr_with_none
+    )
+
+    for header in (
+        "## Preliminary View",
+        "## KPI Dashboard",
+        "## Legal Snapshot",
+        "## Quality of Earnings",
+        "## Open Items / Data Requests",
+    ):
+        section = _section_body(baseline_md, header)
+        assert section.strip()
+        assert "digest" not in section.casefold()
 
 
 # --- T4 renderers mode switch tests ---
