@@ -35,6 +35,11 @@ _EXECUTIVE_LLM_NARRATIVE_KEYS = frozenset(
         "business_snapshot_narrative",
         "mitigants_digest",
         "confidence_rationale",
+        "legal_digest",
+        "qoe_digest",
+        "kpi_digest",
+        "open_items_digest",
+        "preliminary_digest",
     }
 )
 
@@ -44,17 +49,28 @@ Return ONLY valid JSON (no markdown fences) with optional top-level key "executi
   in_one_line (string)
   preliminary_view: { strengths (string[]), concerns (string[]), closing (string) }
   business_snapshot_narrative (string, optional) — richer narrative for the Business Snapshot section
+  preliminary_digest (string, optional) — ≤2–3 sentence lead-in for the Preliminary View section (above
+    Strengths/Concerns); synthesize the overall investment posture without duplicating every bullet
+  legal_digest (string, optional) — ≤2–3 sentence lead-in for the Legal Snapshot section; coverage posture
+    and material contract themes — detail bullets/table follow below
+  qoe_digest (string, optional) — ≤2–3 sentence lead-in for the Quality of Earnings section; EBITDA /
+    addback posture at a glance — tier detail follows below
+  kpi_digest (string, optional) — ≤2–3 sentence lead-in for the KPI Dashboard section; headline metric
+    health and flags — the KPI table follows below
+  open_items_digest (string, optional) — ≤2–3 sentence lead-in for Open Items / Data Requests; what is
+    still outstanding and why it matters — the item list follows below
   mitigants_digest (string, optional) — PE-style mitigation-strategy narrative across the full risk set;
     this is the sole mitigant surface in the one-pager (rendered under header "Risk Mitigation");
-    synthesize management actions, structural offsets, and diligence follow-ups that address the
-    material risks — not a bullet list of per-risk cells
-  confidence_rationale (string, optional) — articulate confidence in the analysis/results and the
-    data gaps capping it (e.g. "without [X data] available to the [business-model agent], confidence
-    in [Y] is limited"); ground claims in gap_context (data_room_gaps, synthesis_gaps, confidence_by_area,
-    fill_state on risks/kpis); contextualize the adjacent "## Confidence by Area" score grid by naming
-    the gaps — rendered under header "Confidence & Data Gaps"
+    emit markdown bullets grouped by risk dimension (e.g. concentration, regulatory, operational) with
+    management actions, structural offsets, and diligence follow-ups — not a per-risk table restatement
+  confidence_rationale (string, optional) — tighter bulleted narrative on confidence in the analysis/results
+    and the data gaps capping it; ground each bullet in gap_context (data_room_gaps, synthesis_gaps,
+    confidence_by_area, fill_state on risks/kpis); contextualize the "## Confidence by Area" score grid
+    by naming specific missing data — rendered under header "Analysis Notes" (display rename from
+    "Confidence & Data Gaps")
 Do not include risks, legal, kpi_dashboard, headline_metrics, company_framing, financials, or any other keys.
 Use stated figures and agent summaries only — do not invent financial metrics.
+Each *_digest field must be at most 2–3 sentences (short lead-in only — protects the word budget).
 preliminary_view.closing must avoid investment advice (no buy/sell/hold recommendations)."""
 
 
@@ -87,7 +103,16 @@ def _merge_executive_llm_narrative(bundle: dict[str, Any], llm_result: dict[str,
     if isinstance(exc.get("in_one_line"), str) and exc["in_one_line"].strip():
         bundle["executive"]["in_one_line"] = exc["in_one_line"].strip()
 
-    for key in ("business_snapshot_narrative", "mitigants_digest", "confidence_rationale"):
+    for key in (
+        "business_snapshot_narrative",
+        "mitigants_digest",
+        "confidence_rationale",
+        "legal_digest",
+        "qoe_digest",
+        "kpi_digest",
+        "open_items_digest",
+        "preliminary_digest",
+    ):
         value = exc.get(key)
         if isinstance(value, str) and value.strip():
             bundle["executive"][key] = value.strip()

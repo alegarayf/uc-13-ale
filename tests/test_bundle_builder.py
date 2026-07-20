@@ -14,6 +14,7 @@ import yaml
 from agents.orchestrator.bundle_builder import (
     BundleBuilder,
     GapAggregator,
+    _EXECUTIVE_LLM_NARRATIVE_KEYS,
     _EXECUTIVE_LLM_SYSTEM_PROMPT,
     _executive_synthesis_gap_context,
     _merge_executive_llm_narrative,
@@ -369,6 +370,22 @@ def test_executive_llm_system_prompt_reframes_mitigants_and_confidence_v1_1() ->
     assert "do not restate" not in _EXECUTIVE_LLM_SYSTEM_PROMPT.lower()
 
 
+def test_executive_llm_system_prompt_v1_2_digest_expansion() -> None:
+    """Falsifier: v1.2.0 adds five optional section digests and refines mitigants/confidence guidance."""
+    for field in (
+        "legal_digest",
+        "qoe_digest",
+        "kpi_digest",
+        "open_items_digest",
+        "preliminary_digest",
+    ):
+        assert field in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "≤2–3 sentence" in _EXECUTIVE_LLM_SYSTEM_PROMPT or "2–3 sentences" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "markdown bullets" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "Analysis Notes" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "risk dimension" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+
+
 def test_executive_synthesis_gap_context_includes_bundle_gap_signals() -> None:
     bundle = {
         "data_room_gaps": [{"item": "Missing QoE", "priority": "high", "fill_state": "filled_cited"}],
@@ -450,6 +467,32 @@ def test_merge_executive_llm_narrative_admits_expanded_narrative_fields() -> Non
     assert bundle["executive"]["mitigants_digest"] == "Management has diversified payer mix."
     assert bundle["executive"]["confidence_rationale"] == "Financial trends are well supported."
     assert bundle["executive"]["in_one_line"] == "Synthesized headline."
+
+
+def test_merge_executive_llm_narrative_admits_v1_2_digest_fields() -> None:
+    """§2Δ.1: five new optional executive digests merge via the shared allowlist."""
+    bundle = {"executive": _executive_shell()}
+    llm_result = {
+        "executive": {
+            "legal_digest": "  Seven of eleven contracts assessed with high confidence. ",
+            "qoe_digest": "Adjusted EBITDA holds after addbacks.",
+            "kpi_digest": "Census and payer mix metrics are green.",
+            "open_items_digest": "Cap table and insurance schedules remain open.",
+            "preliminary_digest": "Attractive regional platform with manageable risks.",
+        }
+    }
+    _merge_executive_llm_narrative(bundle, llm_result)
+    assert bundle["executive"]["legal_digest"] == "Seven of eleven contracts assessed with high confidence."
+    assert bundle["executive"]["qoe_digest"] == "Adjusted EBITDA holds after addbacks."
+    assert bundle["executive"]["kpi_digest"] == "Census and payer mix metrics are green."
+    assert bundle["executive"]["open_items_digest"] == "Cap table and insurance schedules remain open."
+    assert bundle["executive"]["preliminary_digest"] == "Attractive regional platform with manageable risks."
+
+
+def test_executive_llm_narrative_keys_allowlist_includes_v1_2_digests() -> None:
+    """Falsifier: prompt+allowlist co-move — new digest keys must be in the frozenset."""
+    for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest", "preliminary_digest"):
+        assert key in _EXECUTIVE_LLM_NARRATIVE_KEYS
 
 
 def test_merge_executive_llm_narrative_drops_unknown_executive_keys() -> None:
