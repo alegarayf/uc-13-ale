@@ -259,6 +259,16 @@ definitions:
         type: string
       confidence_rationale:
         type: string
+      legal_digest:
+        type: string
+      qoe_digest:
+        type: string
+      kpi_digest:
+        type: string
+      open_items_digest:
+        type: string
+      preliminary_digest:
+        type: string
 
   company_framing:
     type: object
