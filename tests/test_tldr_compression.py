@@ -725,7 +725,7 @@ def _mock_tldr_view() -> dict:
         "revenue_quality": {"lines": [], "show": False},
         "kpi": {"rows": [], "show": False},
         "legal": {
-            "assessed_label": "7 / 11",
+            "assessed_label": "64%",
             "section_confidence": "medium",
             "bullets": ["Sample legal bullet."],
             "show": True,
@@ -924,12 +924,13 @@ def test_compressed_template_prefers_business_snapshot_narrative():
 
 
 def test_compressed_template_gates_mitigants_and_confidence_sections():
-    """§2.5: Risk Mitigation and Confidence & Data Gaps render only when truthy."""
+    """§2.5 / T15: Risk Mitigation and Analysis Notes render only when truthy."""
     tldr = _mock_tldr_view()
     tldr["mitigants_digest"] = None
     tldr["confidence_rationale"] = None
     md_absent = _render_compressed_template(_mock_bundle(), tldr)
     assert "## Risk Mitigation" not in md_absent
+    assert "## Analysis Notes" not in md_absent
     assert "## Confidence & Data Gaps" not in md_absent
     assert "## Mitigants Digest" not in md_absent
     assert "## Confidence Rationale" not in md_absent
@@ -939,10 +940,103 @@ def test_compressed_template_gates_mitigants_and_confidence_sections():
     md_present = _render_compressed_template(_mock_bundle(), tldr)
     assert "## Risk Mitigation" in md_present
     assert "Payer diversification and branch footprint offset concentration." in md_present
-    assert "## Confidence & Data Gaps" in md_present
+    assert "## Analysis Notes" in md_present
     assert "Financial trends and legal flags are well supported." in md_present
+    assert "## Confidence & Data Gaps" not in md_present
     assert "## Mitigants Digest" not in md_present
     assert "## Confidence Rationale" not in md_present
+
+
+def test_analysis_notes_renders_below_confidence_by_area():
+    """T15 §2Δ.4: Analysis Notes follows Confidence by Area and precedes Closing."""
+    tldr = _mock_tldr_view()
+    tldr["confidence_rationale"] = "CIM supports financial trends; referral agreements missing."
+    md = _render_compressed_template(_mock_bundle(), tldr)
+    conf_idx = md.index("## Confidence by Area")
+    notes_idx = md.index("## Analysis Notes")
+    closing_idx = md.index("## Closing")
+    assert conf_idx < notes_idx < closing_idx
+
+
+def test_legal_assessed_label_renders_coverage_percent():
+    """T15 §2Δ.2: Legal assessed_label is coverage %, not count fraction."""
+    tldr = compress_for_tldr(
+        _minimal_bundle(
+            legal={
+                "assessed_count": 7,
+                "checklist_total": 11,
+                "section_confidence": "high",
+                "top_flags": [],
+                "top_gaps": [],
+                "recommended_diligence": [],
+            },
+        )
+    )
+    assert tldr["legal"]["assessed_label"] == "64%"
+    md = _render_compressed_template(_mock_bundle(), {**_mock_tldr_view(), "legal": tldr["legal"]})
+    assert "**Coverage:** 64%" in md
+    assert "7 / 11" not in md
+
+
+def test_qoe_tier_summary_not_truncated_mid_sentence():
+    """T15 §2Δ.2: QoE tier_summary must not end with mid-sentence ellipsis."""
+    long_summary = (
+        "Tier 4 addbacks total $450K across owner discretionary expenses, "
+        "related-party rent, and one-time legal settlements without third-party support."
+    )
+    tldr = compress_for_tldr(
+        _minimal_bundle(qoe={"addback_pct_of_ebitda": "12%", "tier_summary": long_summary, "flags": []})
+    )
+    assert tldr["qoe"]["summary"] == long_summary
+    assert not tldr["qoe"]["summary"].endswith("...")
+
+
+def test_legal_bullets_use_full_note_without_mid_sentence_ellipsis():
+    """T15 §2Δ.2: Legal bullets prefer full note text over format_agent_flag truncation."""
+    long_note = (
+        "Change-of-control consent is required on three master service agreements covering "
+        "the majority of recurring revenue and must be obtained prior to closing."
+    )
+    tldr = compress_for_tldr(
+        _minimal_bundle(
+            legal={
+                "assessed_count": 7,
+                "checklist_total": 11,
+                "section_confidence": "high",
+                "top_flags": [{"metric": "coc_consent", "value": "required", "note": long_note}],
+                "top_gaps": [],
+                "recommended_diligence": [],
+            },
+        )
+    )
+    assert tldr["legal"]["bullets"] == [long_note]
+    assert not tldr["legal"]["bullets"][0].endswith("...")
+
+
+def test_kpi_compress_formats_value_and_template_drops_noisy_columns():
+    """T15 §2Δ.2: KPI rows format stated_value; template is 2-col Metric | Value."""
+    stated_dict = {"type": "adverse_survey", "value": "2.1%", "period": "LTM"}
+    bundle = _volume_test_bundle(
+        kpi_dashboard=[
+            {
+                "metric_id": "adverse_survey",
+                "display_name": "Adverse survey rate",
+                "stated_value": stated_dict,
+                "threshold": "< 5%",
+                "flag": "pass",
+                "confidence": "medium",
+                "fill_state": "filled_cited",
+            }
+        ],
+    )
+    tldr = compress_for_tldr(bundle)
+    assert tldr["kpi"]["rows"][0]["stated_value"] == "2.1%"
+    md = _render_compressed_tldr(bundle)
+    kpi_section = md.split("## KPI Dashboard", maxsplit=1)[1].split("## ", maxsplit=1)[0]
+    assert "| Metric | Value |" in kpi_section
+    assert "Threshold" not in kpi_section
+    assert "Confidence" not in kpi_section
+    assert "2.1%" in kpi_section
 
 
 # --- T4 renderers mode switch tests ---
