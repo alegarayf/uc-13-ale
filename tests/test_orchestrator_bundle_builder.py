@@ -299,6 +299,19 @@ def test_elder_care_baseline_bundle_validates_without_v1_2_digest_fields(elder_c
     validate_bundle(elder_care_bundle)
 
 
+def test_v1_2_digest_fields_absent_from_tldr_required_fields():
+    """§2Δ.1 / Surface 10: optional digests must never enter TLDR_REQUIRED_FIELDS."""
+    for field in (
+        "legal_digest",
+        "qoe_digest",
+        "kpi_digest",
+        "open_items_digest",
+        "preliminary_digest",
+    ):
+        path = f"executive.{field}"
+        assert path not in TLDR_REQUIRED_FIELDS, path
+
+
 def test_validate_bundle_accepts_all_v1_2_executive_digest_fields(elder_care_bundle: dict):
     """§2Δ.1: all five new executive digests are optional strings nested under executive."""
     expanded = deepcopy(elder_care_bundle)
