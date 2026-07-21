@@ -461,5 +461,43 @@ def main():
         close_agent_run()
 
 
+# Golden checklist row vocabulary — spec §6.1 / eval harness M1-T1.
+# Decision A: Profiler constant lives here (no workstreams/ module); Decision B: two-key schema.
+GOLDEN_CHECKLIST_COVERAGE: list[dict] = [
+    {
+        "item_id": "industry_overlay",
+        "display_name": "Industry overlay extraction",
+    },
+    {
+        "item_id": "revenue_model",
+        "display_name": "Revenue model extraction",
+    },
+    {
+        "item_id": "business_description",
+        "display_name": "Business description extraction",
+    },
+    {
+        "item_id": "deal_type",
+        "display_name": "Deal type extraction",
+    },
+    {
+        "item_id": "banked",
+        "display_name": "Banked status extraction",
+    },
+    {
+        "item_id": "vertical_subsector",
+        "display_name": "Vertical subsector extraction",
+    },
+    {
+        "item_id": "data_room_gaps",
+        "display_name": "Data-room gaps field presence",
+    },
+]
+
+assert len(GOLDEN_CHECKLIST_COVERAGE) == 7
+assert all(set(req) == {"item_id", "display_name"} for req in GOLDEN_CHECKLIST_COVERAGE)
+assert len({req["item_id"] for req in GOLDEN_CHECKLIST_COVERAGE}) == 7
+
+
 if __name__ == "__main__":
     main()

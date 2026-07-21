@@ -928,5 +928,26 @@ def main() -> dict:
         close_agent_run()
 
 
+# Golden checklist row vocabulary — spec §6.1 / eval harness M1-T1 (Decision B: item_id + display_name only).
+GOLDEN_CHECKLIST_COVERAGE: list[dict] = [
+    {
+        "item_id": "overlay_confirmed",
+        "display_name": "Overlay confirmation extraction fidelity",
+    },
+    {
+        "item_id": "overlay_block_fields",
+        "display_name": "Selected overlay KPI block field presence",
+    },
+    {
+        "item_id": "missing_kpis_json",
+        "display_name": "Missing KPI list accuracy",
+    },
+]
+
+assert len(GOLDEN_CHECKLIST_COVERAGE) == 3
+assert all(set(req) == {"item_id", "display_name"} for req in GOLDEN_CHECKLIST_COVERAGE)
+assert len({req["item_id"] for req in GOLDEN_CHECKLIST_COVERAGE}) == 3
+
+
 if __name__ == "__main__":
     main()
