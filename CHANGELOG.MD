@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-eval-harness-all-agents — M1 — 2026-07-21
+
+- T1 (Coverage constants ×4 + item-id vocabulary): Added `GOLDEN_CHECKLIST_COVERAGE` with in-module length/key-shape asserts to `business_model_agent.py` (N=7), `customer_quality_agent.py` (N=6), `kpi_agent.py` (N=3), and `company_profiler.py` (N=7, Decision A placement). Rationale: anchors per-agent checklist row counts for T2–T6 harness and Elder Care golden checklists without duplicating M0 deterministic math (G2). Per `.dev/decision-logs/M1-T1-coverage-constants.md`. Adversarial gap deferred: no dedicated pytest import contract — in-module asserts + T6 harness import own proof at this tier.
+
 ## uc13-eval-harness-all-agents — M0 — 2026-07-21
 
 - T7 (Architecture housekeeping + changelogs): Seeded `.dev/architecture/uc13-eval-harness-all-agents/` with `module-map.md`, `public-interface-inventory.md`, `data-contract-registry.md`, `known-coupling-surfaces.md`, and `changelog.md` from landed T1–T6 diffs (linkage CLI, Profiler run context, four deterministic fixtures, manifest column semantics). Rationale: charter §7 handoff baseline for M1 entry. Adversarial gap deferred: no automated architecture-doc drift falsifier — content verified against working-tree reads at T7 close.

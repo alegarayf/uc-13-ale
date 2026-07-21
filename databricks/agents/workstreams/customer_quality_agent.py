@@ -883,5 +883,38 @@ def main() -> dict:
         close_agent_run()
 
 
+# Golden checklist row vocabulary — spec §6.1 / eval harness M1-T1 (Decision B: item_id + display_name only).
+GOLDEN_CHECKLIST_COVERAGE: list[dict] = [
+    {
+        "item_id": "concentration",
+        "display_name": "Customer concentration extraction",
+    },
+    {
+        "item_id": "retention",
+        "display_name": "Retention metrics extraction",
+    },
+    {
+        "item_id": "customer_tenure",
+        "display_name": "Customer tenure extraction",
+    },
+    {
+        "item_id": "payor_mix",
+        "display_name": "Payor mix extraction",
+    },
+    {
+        "item_id": "discrepancies_json",
+        "display_name": "Discrepancies correctly reported",
+    },
+    {
+        "item_id": "data_room_gaps",
+        "display_name": "Data-room gaps correctly reported",
+    },
+]
+
+assert len(GOLDEN_CHECKLIST_COVERAGE) == 6
+assert all(set(req) == {"item_id", "display_name"} for req in GOLDEN_CHECKLIST_COVERAGE)
+assert len({req["item_id"] for req in GOLDEN_CHECKLIST_COVERAGE}) == 6
+
+
 if __name__ == "__main__":
     main()
