@@ -669,13 +669,11 @@ Operator runbook for **M-PHV2** (Validation expansion): per-agent Elder Care re-
 |-------|-----------------|----------------|-------------------------------|----------------|
 | FTA | ≥ **16/18** (maintain M-RE3) | 18-field golden checklist (`.dev/scorecards/prereqs.md` rubric); M-RE3 baseline: `.dev/scorecards/scorecard_7_03_post_m3_vs_7_02.md` | Cell 12 (Financial Trends Agent) | Run + scorecard; no numeric floor in v0.1.0 — document baseline |
 | Legal | ≥ **7/11** pass (maintain G3) | Golden checklist — see [Canonical Legal checklist](#canonical-legal-golden-checklist) below; M-RE3 baseline: `.dev/scorecards/scorecard_lca_7_03_post_m3_vs_g3_elder_care.md` | Cell 16 (Legal Contracts Agent) | Same |
-| BMA | Harness partition + smoke E2E (see below) | Harness partition report for `bma` intents; no committed golden checklist at v0.1.0 | Cell 11 (Business Model Agent) | Parser + agent run |
-| CQA | Harness partition + smoke E2E | Harness partition report for `cqa` intents | Cell 14 (Customer Quality Agent) | Parser + agent run minimum |
-| KPI | Harness partition + smoke E2E | Harness partition report for `kpi` intents | Cell 15 (KPI Agent) | Parser + agent run minimum |
-| QoE | Harness partition + smoke E2E | Harness partition report for `qoe` intents | Cell 17 (Quality of Earnings Agent) | Parser + agent run minimum |
-| Profiler | Harness partition + smoke E2E | Harness partition report for `profiler` intents | Cells 9–10 (Company Profiler) | Parser + agent run minimum |
-
-**BMA note:** Spec §5.12.2 allows "Golden or harness partition report" for BMA. No committed BMA golden checklist exists in this repo at M-PHV2 planning time — the v0.1.0 floor is harness partition + smoke E2E (same falsifiable bar as CQA/KPI/QoE/Profiler). A future golden checklist would supersede this row via charter amendment, not silent operator drift.
+| BMA | Golden checklist + promotion gate | `eval/BMA/golden_checklist_elder_care.md`; `evaluate_promotion` — see [Promotion gate invocation (BMA, CQA, KPI, QoE, Profiler)](#promotion-gate-invocation-bma-cqa-kpi-qoe-profiler) | Cell 11 (Business Model Agent) | Parser + agent run |
+| CQA | Golden checklist + promotion gate | `eval/CQA/golden_checklist_elder_care.md`; `evaluate_promotion` (same subsection) | Cell 14 (Customer Quality Agent) | Parser + agent run minimum |
+| KPI | Golden checklist + promotion gate | `eval/KPI/golden_checklist_elder_care.md`; `evaluate_promotion` (same subsection) | Cell 15 (KPI Agent) | Parser + agent run minimum |
+| QoE | Golden checklist + promotion gate | `eval/QOE/golden_checklist_elder_care.md`; `evaluate_promotion` (same subsection; precondition-adjusted `candidate_total` — see QoE subsection) | Cell 17 (Quality of Earnings Agent) | Parser + agent run minimum |
+| Profiler | Golden checklist + promotion gate | `eval/PROFILER/golden_checklist_elder_care.md`; `evaluate_promotion` (same subsection) | Cells 9–10 (Company Profiler) | Parser + agent run minimum |
 
 ### Canonical Legal golden checklist
 
@@ -691,17 +689,17 @@ This is the **only git-tracked** copy (`git ls-files '*golden_checklist_elder_ca
 
 Structural contract when the gitignored fixture exists: `pytest tests/test_golden_checklist_elder_care.py -q`. Verdict rules (`pass` | `partial` | `gap-correct` | `n/a`) are defined in the canonical file header.
 
-### Smoke E2E definition (BMA, CQA, KPI, QoE, Profiler)
+### Smoke E2E definition (BMA, CQA, KPI, QoE, Profiler) — historical bar
 
-Spec §5.12.2's "Harness partition + smoke E2E" cell is **falsifiable** at v0.1.0 as follows (Flag 5 resolution). All three conditions must hold for **pass**:
+Spec §5.12.2's original "Harness partition + smoke E2E" cell was **falsifiable** at M-PHV2 v0.1.0 as follows (Flag 5 resolution). This bar applied **before** each agent's golden checklist and promotion gate landed (M1/M2/M3). INDEX.md rows that still read `smoke E2E 3/3` attest to that historical phase only.
+
+All three conditions had to hold for **pass** under the smoke bar:
 
 1. **Agent `main()` completes without raising** — run the agent-qualified notebook cell on Elder Care with `catalog=uc13_ale` after Cell 1 and index-sync preflight (Cells 7, 8c–8d as needed).
 2. **Harness partition report is generated** — a harness run covering that agent's intent partition exists with `harness_status: complete`. Agent partition ids per `eval/retrieval/registry_extractor.py::AGENT_ID_BY_STEM` (`bma`, `cqa`, `kpi`, `qoe`, `profiler`). Record the harness `run_id` on the scorecard.
 3. **Output table row count > 0** — the agent's analysis output table for the run company has at least one row (e.g. `SELECT COUNT(*) FROM <catalog>.analysis.<agent_output_table> WHERE company_name = 'Elder Care'` > 0). Proves the pipeline wrote structured output, not merely that retrieval returned chunks.
 
-**v0.1.0 floor caveat:** Row count > 0 can pass on low-quality output. This is intentional per Decision 3 ("generalization signal without duplicating gold-bootstrap cost"). **Revisit trigger:** systematic agent failure on second-company or Elder Care runs → escalate to deep rewrite A-03 per spec §5.18 (charter M-PHV2 non-goal unless scorecard shows systematic failure).
-
-BMA/CQA/KPI/QoE/Profiler are linked in the eval store via ordinary harness-run recording (`python -m eval.retrieval.harness_cli run --run-type ...`) — **not** `record_e2e_linkage` (FTA/Legal only; see [record_e2e_linkage invocations](#record_e2e_linkage-invocations) below).
+**Current Elder Care procedure (post–golden-checklist):** score against `eval/<AGENT>/golden_checklist_elder_care.md`, then invoke `evaluate_promotion` per [Promotion gate invocation (BMA, CQA, KPI, QoE, Profiler)](#promotion-gate-invocation-bma-cqa-kpi-qoe-profiler). The smoke bar remains documented here as provenance for older scorecard rows; it is **not** the active gate once a golden checklist exists for that agent.
 
 ### Item 12 — FTA/Legal regression confirmation (Flag 6)
 
@@ -762,12 +760,12 @@ No full gold-label bootstrap on the second company (Decision 3) — FTA scorecar
 
 ### record_e2e_linkage invocations
 
-Charter item **17**. Links FTA/Legal golden-checklist scores to pipeline `HarnessRun` manifests. **Scope:** FTA and Legal only — BMA/CQA/KPI/QoE/Profiler use harness-run recording (see [Scoping note](#scoping-bma-cqa-kpi-qoe-profiler) below).
+Charter item **17**. Links golden-checklist scores to pipeline `HarnessRun` manifests for all seven agents. **Scope:** FTA and Legal call `record_e2e_linkage` directly (bash examples below). BMA, CQA, KPI, QoE, and Profiler call it **indirectly** via `evaluate_promotion` (Python library — see [Promotion gate invocation (BMA, CQA, KPI, QoE, Profiler)](#promotion-gate-invocation-bma-cqa-kpi-qoe-profiler) and [Scoping note](#scoping-bma-cqa-kpi-qoe-profiler) below).
 
-Frozen CLI surface (unchanged this milestone — verified against `record_e2e_linkage.py::build_parser`):
+Frozen CLI surface for **direct** `record_e2e_linkage` invocation (FTA/Legal; verified against `record_e2e_linkage.py::build_parser`):
 
 ```text
-python -m eval.retrieval.scripts.record_e2e_linkage --run-id <...> --e2e-agent-id <...> --e2e-checklist-score <int> --e2e-checklist-total <int, default 18> --e2e-snapshot-table <FQN> --store-backend <sqlite|delta> --catalog <...> [--sqlite-path <path>]
+python -m eval.retrieval.scripts.record_e2e_linkage --run-id <...> --e2e-agent-id <...> --e2e-checklist-score <int> --e2e-checklist-total <int, required> --e2e-snapshot-table <FQN> --store-backend <sqlite|delta> --catalog <...> [--sqlite-path <path>]
 ```
 
 Use the **pipeline** `run_id` from `close_agent_run` inside the agent's `main()` — **not** a harness baseline `run_id`.
@@ -810,48 +808,169 @@ FROM uc13_ale.ops.retrieval_harness_runs
 WHERE run_id = '<pipeline_agent_run_id>';
 ```
 
-#### QoE FTA addback precondition gate
+#### Promotion gate invocation (BMA, CQA, KPI, QoE, Profiler)
+
+For BMA, CQA, KPI, QoE, and Profiler, link golden-checklist scores via **`evaluate_promotion`** — a **Python library call** with **no CLI wrapper** (M3 Decision M3-B; this milestone does not add one). On promoting outcomes (`baseline_bootstrap`, `promoted`, `promotion_waived`), the gate calls `record_e2e_linkage` internally; FTA/Legal continue to call `record_e2e_linkage` directly (bash examples above).
+
+**Frozen signature** (`eval/retrieval/promotion_gate.py`):
+
+```python
+def evaluate_promotion(
+    store: EvalStore,
+    run_id: str,
+    *,
+    e2e_agent_id: str,
+    company_name: str,
+    catalog: str,
+    candidate_score: int,
+    candidate_total: int,
+    e2e_snapshot_table: str,
+    waiver_id: str | None = None,
+) -> PromotionResult:
+```
+
+**Error envelope (M3, unchanged):** `InvalidWaiverIdError` (malformed `waiver_id`), `RunNotFoundError`, and `StoreError` propagate unchanged. First-bootstrap runs for these five agents do **not** supply `waiver_id`; expected first-run outcome is `status="baseline_bootstrap"` (unconditional accept per spec §5).
+
+**Score provenance (Decision M4-C, operator-owned):** **Default path** — reuse the existing golden-checklist Summary pass-count in `eval/<AGENT>/golden_checklist_elder_care.md` together with the existing pipeline `run_id` already cited on that agent's INDEX.md row, when both are dated within the program's active execution window and the operator judges them current. **Escape hatch** — if the operator judges existing checklist or pipeline-run evidence stale, re-run the relevant notebook cell and re-score before invoking the gate; **do not silently reuse stale evidence**. Record the choice on the scorecard (naming convention: `.dev/scorecards/uc13-eval-harness-all-agents_<agent>_elder-care_<run-date>.md`).
+
+**Notebook setup** (after Cell 1; cluster with Delta store):
+
+```python
+from eval.retrieval.promotion_gate import evaluate_promotion
+from eval.retrieval.store import DeltaEvalStore
+
+store = DeltaEvalStore(spark, catalog="uc13_ale")
+# Pipeline run_id from close_agent_run inside the agent's main() — not a harness baseline run_id.
+```
+
+Frozen manifest agent ids (same vocabulary as `--e2e-agent-id` on the direct CLI): `--e2e-agent-id bma`, `--e2e-agent-id cqa`, `--e2e-agent-id kpi`, `--e2e-agent-id qoe`, `--e2e-agent-id profiler`.
+
+##### BMA (`--e2e-agent-id bma`, `candidate_total=7`)
+
+After Cell 11 (Business Model Agent) Elder Care re-score against `eval/BMA/golden_checklist_elder_care.md`:
+
+```python
+result = evaluate_promotion(
+    store,
+    "<bma_pipeline_agent_run_id>",
+    e2e_agent_id="bma",
+    company_name="Elder Care",
+    catalog="uc13_ale",
+    candidate_score=<from golden checklist Summary>,  # default reuse: 4
+    candidate_total=7,
+    e2e_snapshot_table="uc13_ale.analysis.business_model",
+)
+print(result.status)  # first run: baseline_bootstrap
+```
+
+##### CQA (`--e2e-agent-id cqa`, `candidate_total=6`)
+
+After Cell 14 (Customer Quality Agent) Elder Care re-score against `eval/CQA/golden_checklist_elder_care.md`:
+
+```python
+result = evaluate_promotion(
+    store,
+    "<cqa_pipeline_agent_run_id>",
+    e2e_agent_id="cqa",
+    company_name="Elder Care",
+    catalog="uc13_ale",
+    candidate_score=<from golden checklist Summary>,  # default reuse: 3
+    candidate_total=6,
+    e2e_snapshot_table="uc13_ale.analysis.customer_quality",
+)
+print(result.status)  # first run: baseline_bootstrap
+```
+
+##### KPI (`--e2e-agent-id kpi`, `candidate_total=3`)
+
+After Cell 15 (KPI Agent) Elder Care re-score against `eval/KPI/golden_checklist_elder_care.md`:
+
+```python
+result = evaluate_promotion(
+    store,
+    "<kpi_pipeline_agent_run_id>",
+    e2e_agent_id="kpi",
+    company_name="Elder Care",
+    catalog="uc13_ale",
+    candidate_score=<from golden checklist Summary>,  # default reuse: 3
+    candidate_total=3,
+    e2e_snapshot_table="uc13_ale.analysis.kpi",
+)
+print(result.status)  # first run: baseline_bootstrap
+```
+
+##### QoE (`--e2e-agent-id qoe`, `candidate_total=6` or `5`)
 
 QoE golden-checklist scoring depends on FTA `addback_schedule_json` being present for the in-run company. This is **distinct** from the harness retrieval preconditions in [§1. Upstream preconditions (§5.15)](#1-upstream-preconditions-515) — it gates only the `tier_classification_fidelity` checklist row, not retrieval readiness.
 
 **Presence bar (H2).** At QoE agent run time, `QualityOfEarningsAgent._load_addback_passthrough` queries `{catalog}.analysis.financial_trends` for the company (latest `created_at`) and parses `addback_schedule_json`. The bar **passes** only when the parsed value is a **non-empty** `list[dict]`. It **fails** when any of the following yield an empty passthrough: no row, SQL `NULL`, JSON empty array (`"[]"`), query/parse failure, or malformed JSON. On most failure modes the agent records a `data_room_gaps` note that FTA has not run or found no addbacks; empty-array JSON returns `[]` without that gap note (see `tests/test_qoe_precondition_gate.py`).
 
-**Manual scoring equivalence (M4).** When an operator re-scores QoE outside the agent run, re-derive the same presence check from FTA's current `financial_trends.addback_schedule_json` for the same `company_name` (latest `created_at`) — this is documented equivalence to the in-run passthrough, not a second code path.
+**Manual scoring equivalence (operator re-score, no separate code path).** When an operator re-scores QoE outside the agent run, re-derive the same presence check from FTA's current `financial_trends.addback_schedule_json` for the same `company_name` (latest `created_at`) — this is documented equivalence to the in-run passthrough, not a second code path.
 
-**Checklist N vs precondition-adjusted M (Decision M2-C).** `eval/QOE/golden_checklist_elder_care.md` header and `GOLDEN_CHECKLIST_COVERAGE` in `quality_of_earnings_agent.py` are always the **full fixed count** **N = 6** (structural test passing: `pytest tests/test_golden_checklist_elder_care.py -v`, `qoe` case). The operator supplies a separate scoring-time denominator **M** to `record_e2e_linkage --e2e-checklist-total`:
+**Checklist N vs precondition-adjusted M (Decision M2-C).** `eval/QOE/golden_checklist_elder_care.md` header and `GOLDEN_CHECKLIST_COVERAGE` in `quality_of_earnings_agent.py` are always the **full fixed count** **N = 6** (structural test passing: `pytest tests/test_golden_checklist_elder_care.py -v`, `qoe` case). The operator supplies a separate scoring-time denominator **M** as `candidate_total`:
 
 | Precondition bar | Adjusted total M | Arithmetic |
 |---|---|---|
 | Pass (non-empty addback schedule) | 6 | `M = N` |
 | Fail | 5 | `M = N - 1` (exclude the one precondition-gated tier-classification item: `tier_classification_fidelity`) |
 
-This adjustment is **operator-computed and procedural** — no automated enforcement at MVP. Frozen CLI surface (M0): `--e2e-agent-id` with agent value `qoe`, plus `--e2e-checklist-total <M>`.
+This adjustment is **operator-computed and procedural** — no automated enforcement at MVP.
 
-After Cell 17 (Quality of Earnings Agent) Elder Care re-score against `eval/QOE/golden_checklist_elder_care.md`, supply the adjusted **M** from the table above:
+After Cell 17 (Quality of Earnings Agent) Elder Care re-score against `eval/QOE/golden_checklist_elder_care.md`, supply **M** from the table above:
 
-```bash
-python -m eval.retrieval.scripts.record_e2e_linkage \
-  --run-id <qoe_pipeline_agent_run_id> \
-  --e2e-agent-id \
-  qoe \
-  --e2e-checklist-score <from Cell 17 re-score> \
-  --e2e-checklist-total <M from table above: 6 or 5> \
-  --e2e-snapshot-table uc13_ale.analysis.quality_of_earnings \
-  --store-backend delta \
-  --catalog uc13_ale
+```python
+result = evaluate_promotion(
+    store,
+    "<qoe_pipeline_agent_run_id>",
+    e2e_agent_id="qoe",
+    company_name="Elder Care",
+    catalog="uc13_ale",
+    candidate_score=<from golden checklist Summary>,  # default reuse: 5
+    candidate_total=<M from table above: 6 or 5>,
+    e2e_snapshot_table="uc13_ale.analysis.quality_of_earnings",
+)
+print(result.status)  # first run: baseline_bootstrap
 ```
 
 **Executable proof of both branches:** `tests/test_qoe_precondition_gate.py` — stub-spark coverage of `_load_addback_passthrough` pass/fail paths and test-local `_adjust_checklist_total` denominator arithmetic (`6` vs `5`).
 
+##### Profiler (`--e2e-agent-id profiler`, `candidate_total=7`)
+
+After Cells 9–10 (Company Profiler) Elder Care re-score against `eval/PROFILER/golden_checklist_elder_care.md`:
+
+```python
+result = evaluate_promotion(
+    store,
+    "<profiler_pipeline_agent_run_id>",
+    e2e_agent_id="profiler",
+    company_name="Elder Care",
+    catalog="uc13_ale",
+    candidate_score=<from golden checklist Summary>,  # default reuse: 7
+    candidate_total=7,
+    e2e_snapshot_table="uc13_ale.classification.company_profile",
+)
+print(result.status)  # first run: baseline_bootstrap
+```
+
+Verify linkage (any agent):
+
+```sql
+SELECT run_id, e2e_agent_id, e2e_checklist_score, e2e_checklist_total, e2e_snapshot_table
+FROM uc13_ale.ops.retrieval_harness_runs
+WHERE run_id = '<pipeline_agent_run_id>';
+```
+
 #### Scoping: BMA, CQA, KPI, QoE, Profiler
 
-`record_e2e_linkage` is **not** applicable to BMA, CQA, KPI, QoE, or Profiler — no golden-checklist-shaped E2E flags exist for those agents at v0.1.0 (`--e2e-checklist-total` defaults to 18, FTA/Legal-shaped). Link them via ordinary harness-run recording instead:
+`record_e2e_linkage` **is** applicable to all seven agents. FTA and Legal invoke it **directly** (bash CLI above). BMA, CQA, KPI, QoE, and Profiler invoke it **indirectly** via `evaluate_promotion` (Python library — [Promotion gate invocation](#promotion-gate-invocation-bma-cqa-kpi-qoe-profiler) above). Do not call `record_e2e_linkage` standalone for those five unless you are debugging the M0 CLI in isolation; production linkage goes through the promotion gate.
+
+Ordinary harness-run recording remains available for retrieval-only partition reports:
 
 ```bash
 python -m eval.retrieval.harness_cli run --store-backend <sqlite|delta> --run-type <...> --company-name <...> --catalog <...> --baseline-ref-run-id baseline_1aeb0ace584a [--ablation-config <...>]
 ```
 
-Record each harness `run_id` on the agent's scorecard per the [Smoke E2E definition](#smoke-e2e-definition-bma-cqa-kpi-qoe-profiler).
+Record each harness `run_id` on the agent's scorecard when documenting historical smoke-E2E evidence; golden-checklist scores use `evaluate_promotion` per the promotion-gate subsection.
 
 ## R-02 manual A/B
 
