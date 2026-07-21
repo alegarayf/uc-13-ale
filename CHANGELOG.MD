@@ -2,6 +2,7 @@
 
 ## uc13-eval-harness-all-agents — M1 — 2026-07-21
 
+- T5 (Profiler golden checklist): Authored `eval/PROFILER/golden_checklist_elder_care.md` (7 rows) scored against live Elder Care `uc13.classification.company_profile` — field-presence only, all `pass`, summary shows `0 gap-correct`. Rationale: M1 Profiler golden baseline per §6.1 no-gap-correct constraint. Adversarial gap deferred: structural validation owned by T6 harness — no T5-local pytest (markdown-only scope).
 - T1 (Coverage constants ×4 + item-id vocabulary): Added `GOLDEN_CHECKLIST_COVERAGE` with in-module length/key-shape asserts to `business_model_agent.py` (N=7), `customer_quality_agent.py` (N=6), `kpi_agent.py` (N=3), and `company_profiler.py` (N=7, Decision A placement). Rationale: anchors per-agent checklist row counts for T2–T6 harness and Elder Care golden checklists without duplicating M0 deterministic math (G2). Per `.dev/decision-logs/M1-T1-coverage-constants.md`. Adversarial gap deferred: no dedicated pytest import contract — in-module asserts + T6 harness import own proof at this tier.
 
 ## uc13-eval-harness-all-agents — M0 — 2026-07-21
