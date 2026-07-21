@@ -59,3 +59,7 @@ class ScopeResolutionError(EvalError):
 
 class ScopeMismatchError(ScopeResolutionError):
     """PR scope does not match resolved gate scope."""
+
+
+class InvalidWaiverIdError(EvalError):
+    """Malformed waiver_id supplied to the promotion gate."""

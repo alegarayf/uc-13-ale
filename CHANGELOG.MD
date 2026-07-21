@@ -1,5 +1,10 @@
 # Changelog
 
+## uc13-eval-harness-all-agents — M3 — 2026-07-21
+
+- T2 (Gate module scaffolding — PromotionResult + waiver validator): Added `eval/retrieval/promotion_gate.py` with frozen `PromotionResult` dataclass (four §5 terminal `status` literals per Decision M3-C) and `_validate_waiver_id` (`^W\d+$`, no-op on `None`); added `InvalidWaiverIdError(EvalError)` to `errors.py`. Rationale: M3 contract anchors for T3 decision logic and T4 gate tests — no `evaluate_promotion` stub. Per `.dev/decision-logs/M3-T2-gate-outcome-and-waiver-format.md`. Adversarial gap deferred: waiver validator and dataclass field assertions owned by T4 `test_promotion_gate.py` per packet scope.
+- T1 (Checklist-regression baseline selection helper): Added `select_prior_e2e_baseline` to `EvalStore` Protocol, `SqliteEvalStore`, and `DeltaEvalStore` — raw SQL against `retrieval_harness_runs` filtering `run_type='pipeline'`, `harness_status='complete'`, non-null `e2e_checklist_score`, plus `e2e_agent_id`/`company_name`/`catalog` (Decision M3-A); returns full `HarnessRun` for T3 promotion gate. Per `.dev/decision-logs/M3-T1-baseline-selection-helper.md`. Adversarial coverage: `test_select_prior_e2e_baseline_ignores_incomplete_pipeline_with_score`.
+
 ## uc13-eval-harness-all-agents — M2 — 2026-07-21
 
 - T4 (README QoE FTA addback precondition-gate procedure): Added `#### QoE FTA addback precondition gate` subsection to `eval/retrieval/README.md` after the Legal `record_e2e_linkage` example — documents H2 presence bar, M4 manual-scoring equivalence, operator-computed `M` (`N=6` pass / `M=5` fail excluding `tier_classification_fidelity`), frozen `--e2e-agent-id qoe` CLI usage, and pointer to `tests/test_qoe_precondition_gate.py`. Rationale: Decision M2-D vocabulary boundary vs harness §1 upstream preconditions; M4 carve-out left untouched. Adversarial gap deferred: no README-link anchor test for the new subsection heading — placement guarded by unchanged `test_readme_record_e2e_linkage_section.py`.
