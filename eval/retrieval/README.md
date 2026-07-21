@@ -810,6 +810,39 @@ FROM uc13_ale.ops.retrieval_harness_runs
 WHERE run_id = '<pipeline_agent_run_id>';
 ```
 
+#### QoE FTA addback precondition gate
+
+QoE golden-checklist scoring depends on FTA `addback_schedule_json` being present for the in-run company. This is **distinct** from the harness retrieval preconditions in [§1. Upstream preconditions (§5.15)](#1-upstream-preconditions-515) — it gates only the `tier_classification_fidelity` checklist row, not retrieval readiness.
+
+**Presence bar (H2).** At QoE agent run time, `QualityOfEarningsAgent._load_addback_passthrough` queries `{catalog}.analysis.financial_trends` for the company (latest `created_at`) and parses `addback_schedule_json`. The bar **passes** only when the parsed value is a **non-empty** `list[dict]`. It **fails** when any of the following yield an empty passthrough: no row, SQL `NULL`, JSON empty array (`"[]"`), query/parse failure, or malformed JSON. On most failure modes the agent records a `data_room_gaps` note that FTA has not run or found no addbacks; empty-array JSON returns `[]` without that gap note (see `tests/test_qoe_precondition_gate.py`).
+
+**Manual scoring equivalence (M4).** When an operator re-scores QoE outside the agent run, re-derive the same presence check from FTA's current `financial_trends.addback_schedule_json` for the same `company_name` (latest `created_at`) — this is documented equivalence to the in-run passthrough, not a second code path.
+
+**Checklist N vs precondition-adjusted M (Decision M2-C).** `eval/QOE/golden_checklist_elder_care.md` header and `GOLDEN_CHECKLIST_COVERAGE` in `quality_of_earnings_agent.py` are always the **full fixed count** **N = 6** (structural test passing: `pytest tests/test_golden_checklist_elder_care.py -v`, `qoe` case). The operator supplies a separate scoring-time denominator **M** to `record_e2e_linkage --e2e-checklist-total`:
+
+| Precondition bar | Adjusted total M | Arithmetic |
+|---|---|---|
+| Pass (non-empty addback schedule) | 6 | `M = N` |
+| Fail | 5 | `M = N - 1` (exclude the one precondition-gated tier-classification item: `tier_classification_fidelity`) |
+
+This adjustment is **operator-computed and procedural** — no automated enforcement at MVP. Frozen CLI surface (M0): `--e2e-agent-id` with agent value `qoe`, plus `--e2e-checklist-total <M>`.
+
+After Cell 17 (Quality of Earnings Agent) Elder Care re-score against `eval/QOE/golden_checklist_elder_care.md`, supply the adjusted **M** from the table above:
+
+```bash
+python -m eval.retrieval.scripts.record_e2e_linkage \
+  --run-id <qoe_pipeline_agent_run_id> \
+  --e2e-agent-id \
+  qoe \
+  --e2e-checklist-score <from Cell 17 re-score> \
+  --e2e-checklist-total <M from table above: 6 or 5> \
+  --e2e-snapshot-table uc13_ale.analysis.quality_of_earnings \
+  --store-backend delta \
+  --catalog uc13_ale
+```
+
+**Executable proof of both branches:** `tests/test_qoe_precondition_gate.py` — stub-spark coverage of `_load_addback_passthrough` pass/fail paths and test-local `_adjust_checklist_total` denominator arithmetic (`6` vs `5`).
+
 #### Scoping: BMA, CQA, KPI, QoE, Profiler
 
 `record_e2e_linkage` is **not** applicable to BMA, CQA, KPI, QoE, or Profiler — no golden-checklist-shaped E2E flags exist for those agents at v0.1.0 (`--e2e-checklist-total` defaults to 18, FTA/Legal-shaped). Link them via ordinary harness-run recording instead:
