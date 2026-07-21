@@ -2,6 +2,7 @@
 
 ## uc13-eval-harness-all-agents — M4 — 2026-07-21
 
+- T2 (Guard-test inversion — Program Gate G4): Inverted `eval/retrieval/tests/test_readme_record_e2e_linkage_section.py` — `_FROZEN_CLI_ONE_LINER` now matches T1's `required` CLI string, scoping test asserts five harness agents are in scope (exclusion phrase absent), and five promotion-gate worked-example presence tests added. Rationale: CI contract-anchor pairing with T1 README; closes Surface 1 test-side drift. Per `.dev/decision-logs/M4-T2-guard-test-inversion.md`. Adversarial gap deferred: no dedicated `_HARNESS_CLI_ONE_LINER` drift falsifier (unchanged harness string; not in packet Outputs).
 - T1 (README unified 7-agent rewrite): Rewrote `eval/retrieval/README.md` — inverted BMA/CQA/KPI/QoE/Profiler scoping carve-out, corrected frozen CLI one-liner (`--e2e-checklist-total <int, required>`), added `#### Promotion gate invocation` with five `evaluate_promotion` Python worked examples, reframed smoke E2E as historical bar, reconciled QoE precondition content (Decision M4-D heading rename). Rationale: closes Ambiguity Flag 2 and pairs with T2 guard-test inversion. Per `.dev/decision-logs/M4-T1-readme-unified-7-agent-rewrite.md`. Adversarial gap deferred: guard-test assertions owned by T2 until `_FROZEN_CLI_ONE_LINER` and scoping test invert land.
 
 ## uc13-eval-harness-all-agents — M3 — 2026-07-21

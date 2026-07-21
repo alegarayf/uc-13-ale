@@ -10,9 +10,11 @@ _HEADING = "### record_e2e_linkage invocations"
 _SECOND_COMPANY_HEADING = "### Second company selection & run"
 _PHV_HEADING = "## PHV validation"
 _R02_HEADING = "## R-02 manual A/B"
+_PROMOTION_GATE_HEADING = "#### Promotion gate invocation (BMA, CQA, KPI, QoE, Profiler)"
+_SCOPING_HEADING = "#### Scoping: BMA, CQA, KPI, QoE, Profiler"
 _FROZEN_CLI_ONE_LINER = (
     "python -m eval.retrieval.scripts.record_e2e_linkage --run-id <...> "
-    "--e2e-agent-id <...> --e2e-checklist-score <int> --e2e-checklist-total <int, default 18> "
+    "--e2e-agent-id <...> --e2e-checklist-score <int> --e2e-checklist-total <int, required> "
     "--e2e-snapshot-table <FQN> --store-backend <sqlite|delta> --catalog <...> [--sqlite-path <path>]"
 )
 _HARNESS_CLI_ONE_LINER = (
@@ -27,6 +29,13 @@ def _phv_section() -> str:
     phv_start = text.index(_PHV_HEADING)
     r02_start = text.index(_R02_HEADING)
     return text[phv_start:r02_start]
+
+
+def _promotion_gate_section() -> str:
+    section = _phv_section()
+    start = section.index(_PROMOTION_GATE_HEADING)
+    end = section.index(_SCOPING_HEADING)
+    return section[start:end]
 
 
 def test_readme_contains_record_e2e_linkage_subsection_heading_verbatim() -> None:
@@ -73,20 +82,55 @@ def test_record_e2e_legal_worked_example_uses_total_11() -> None:
     assert "uc13_ale.analysis.legal" in section
 
 
-def test_record_e2e_scoping_note_excludes_bma_cqa_kpi_qoe_profiler() -> None:
-    """Falsifier: runbook documents record_e2e_linkage for harness-only agents."""
+def test_record_e2e_scoping_note_includes_bma_cqa_kpi_qoe_profiler() -> None:
+    """Falsifier: runbook still excludes harness agents from record_e2e_linkage scope."""
     section = _phv_section()
-    assert "not** applicable to BMA, CQA, KPI, QoE, or Profiler" in section
-    assert _HARNESS_CLI_ONE_LINER in section
-    forbidden = (
+    assert "not** applicable to BMA, CQA, KPI, QoE, or Profiler" not in section
+    required = (
         "--e2e-agent-id bma",
         "--e2e-agent-id cqa",
         "--e2e-agent-id kpi",
         "--e2e-agent-id qoe",
         "--e2e-agent-id profiler",
     )
-    for phrase in forbidden:
-        assert phrase not in section, f"runbook must not invent record_e2e_linkage for harness agents: {phrase!r}"
+    for phrase in required:
+        assert phrase in section, f"runbook must document record_e2e_linkage scope for harness agents: {phrase!r}"
+
+
+def test_record_e2e_bma_worked_example_uses_total_7() -> None:
+    section = _promotion_gate_section()
+    assert "--e2e-agent-id bma" in section
+    assert "candidate_total=7" in section
+    assert "uc13_ale.analysis.business_model" in section
+
+
+def test_record_e2e_cqa_worked_example_uses_total_6() -> None:
+    section = _promotion_gate_section()
+    assert "--e2e-agent-id cqa" in section
+    assert "candidate_total=6" in section
+    assert "uc13_ale.analysis.customer_quality" in section
+
+
+def test_record_e2e_kpi_worked_example_uses_total_3() -> None:
+    section = _promotion_gate_section()
+    assert "--e2e-agent-id kpi" in section
+    assert "candidate_total=3" in section
+    assert "uc13_ale.analysis.kpi" in section
+
+
+def test_record_e2e_qoe_worked_example_uses_adjusted_total() -> None:
+    section = _promotion_gate_section()
+    assert "--e2e-agent-id qoe" in section
+    assert "candidate_total=6" in section
+    assert "6 or 5" in section
+    assert "uc13_ale.analysis.quality_of_earnings" in section
+
+
+def test_record_e2e_profiler_worked_example_uses_total_7() -> None:
+    section = _promotion_gate_section()
+    assert "--e2e-agent-id profiler" in section
+    assert "candidate_total=7" in section
+    assert "uc13_ale.classification.company_profile" in section
 
 
 def test_record_e2e_does_not_invent_cli_flags() -> None:
