@@ -53,6 +53,57 @@ def _sample_manifest(*, run_id: str = "baseline_test_20260701") -> HarnessRun:
     )
 
 
+def _sample_pipeline_manifest(
+    *,
+    run_id: str,
+    e2e_agent_id: str = "fta",
+    catalog: str = "uc13_ale",
+) -> HarnessRun:
+    return HarnessRun(
+        run_id=run_id,
+        run_type="pipeline",
+        company_name="Elder Care",
+        catalog=catalog,
+        ingestion_snapshot="uc13_ale:35034:2026-06-25",
+        registry_hash="a" * 64,
+        gold_snapshot="b" * 64,
+        affected_intents=[],
+        gated_intents=[],
+        store_backend="sqlite",
+        harness_status="incomplete",
+        intent_count=0,
+        e2e_agent_id=e2e_agent_id,
+        created_at=datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc),
+    )
+
+
+def _finalize_pipeline_with_e2e_score(
+    store: SqliteEvalStore,
+    manifest: HarnessRun,
+    *,
+    score: int,
+    completed_at: datetime,
+) -> None:
+    store.insert_run(manifest)
+    store.finalize_run(manifest.run_id, gate_pass=None, fallback_rate=None)
+    store._conn.execute(
+        """
+        UPDATE retrieval_harness_runs
+        SET e2e_checklist_score = ?,
+            e2e_checklist_total = ?,
+            completed_at = ?
+        WHERE run_id = ?
+        """,
+        (
+            score,
+            score,
+            completed_at.astimezone(timezone.utc).isoformat(),
+            manifest.run_id,
+        ),
+    )
+    store._conn.commit()
+
+
 def _sample_results() -> list[HarnessResult]:
     return [
         HarnessResult(
@@ -314,6 +365,141 @@ def test_get_latest_baseline_returns_most_recent_complete(store: SqliteEvalStore
     store.finalize_run(newer.run_id, gate_pass=True, fallback_rate=0.0)
 
     assert store.get_latest_baseline("Elder Care", "uc13_ale") == "baseline_new"
+
+
+def test_select_prior_e2e_baseline_returns_most_recent_scored_pipeline(
+    store: SqliteEvalStore,
+):
+    older = _sample_pipeline_manifest(run_id="pipeline_old")
+    _finalize_pipeline_with_e2e_score(
+        store,
+        older,
+        score=15,
+        completed_at=datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc),
+    )
+
+    newer = _sample_pipeline_manifest(run_id="pipeline_new")
+    _finalize_pipeline_with_e2e_score(
+        store,
+        newer,
+        score=17,
+        completed_at=datetime(2026, 7, 2, 12, 0, tzinfo=timezone.utc),
+    )
+
+    baseline = store.select_prior_e2e_baseline(
+        "fta",
+        "Elder Care",
+        catalog="uc13_ale",
+    )
+    assert baseline is not None
+    assert baseline.run_id == "pipeline_new"
+    assert baseline.e2e_checklist_score == 17
+    assert baseline.run_type == "pipeline"
+
+
+def test_select_prior_e2e_baseline_returns_none_when_no_scored_pipeline(
+    store: SqliteEvalStore,
+):
+    manifest = _sample_manifest()
+    store.insert_run(manifest)
+    store.append_results(manifest.run_id, _sample_results())
+    store.finalize_run(manifest.run_id, gate_pass=True, fallback_rate=0.0)
+
+    assert (
+        store.select_prior_e2e_baseline(
+            "fta",
+            "Elder Care",
+            catalog="uc13_ale",
+        )
+        is None
+    )
+
+
+def test_select_prior_e2e_baseline_exclude_run_id_skips_newest_row(
+    store: SqliteEvalStore,
+):
+    older = _sample_pipeline_manifest(run_id="pipeline_keep")
+    _finalize_pipeline_with_e2e_score(
+        store,
+        older,
+        score=14,
+        completed_at=datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc),
+    )
+
+    newer = _sample_pipeline_manifest(run_id="pipeline_exclude")
+    _finalize_pipeline_with_e2e_score(
+        store,
+        newer,
+        score=18,
+        completed_at=datetime(2026, 7, 2, 12, 0, tzinfo=timezone.utc),
+    )
+
+    baseline = store.select_prior_e2e_baseline(
+        "fta",
+        "Elder Care",
+        catalog="uc13_ale",
+        exclude_run_id="pipeline_exclude",
+    )
+    assert baseline is not None
+    assert baseline.run_id == "pipeline_keep"
+
+
+def test_select_prior_e2e_baseline_partitions_by_catalog(store: SqliteEvalStore):
+    uc13_row = _sample_pipeline_manifest(
+        run_id="pipeline_uc13",
+        catalog="uc13_ale",
+    )
+    _finalize_pipeline_with_e2e_score(
+        store,
+        uc13_row,
+        score=16,
+        completed_at=datetime(2026, 7, 2, 12, 0, tzinfo=timezone.utc),
+    )
+
+    uc13_prod = _sample_pipeline_manifest(
+        run_id="pipeline_uc13_prod",
+        catalog="uc13",
+    )
+    _finalize_pipeline_with_e2e_score(
+        store,
+        uc13_prod,
+        score=12,
+        completed_at=datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc),
+    )
+
+    baseline = store.select_prior_e2e_baseline(
+        "fta",
+        "Elder Care",
+        catalog="uc13",
+    )
+    assert baseline is not None
+    assert baseline.run_id == "pipeline_uc13_prod"
+    assert baseline.catalog == "uc13"
+
+
+def test_select_prior_e2e_baseline_ignores_incomplete_pipeline_with_score(
+    store: SqliteEvalStore,
+):
+    manifest = _sample_pipeline_manifest(run_id="pipeline_incomplete")
+    store.insert_run(manifest)
+    store._conn.execute(
+        """
+        UPDATE retrieval_harness_runs
+        SET e2e_checklist_score = ?, e2e_checklist_total = ?
+        WHERE run_id = ?
+        """,
+        (17, 18, manifest.run_id),
+    )
+    store._conn.commit()
+
+    assert (
+        store.select_prior_e2e_baseline(
+            "fta",
+            "Elder Care",
+            catalog="uc13_ale",
+        )
+        is None
+    )
 
 
 def test_list_runs_clamps_limit_to_500(store: SqliteEvalStore):
