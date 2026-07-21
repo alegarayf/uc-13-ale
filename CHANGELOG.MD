@@ -2,6 +2,7 @@
 
 ## uc13-eval-harness-all-agents — M2 — 2026-07-21
 
+- T2 (Hub extension — QoE CHECKLIST_CASES row): Appended `qoe` tuple to `tests/test_golden_checklist_elder_care.py:CHECKLIST_CASES` (import `QOE_GOLDEN_CHECKLIST_COVERAGE`, path `eval/QOE/golden_checklist_elder_care.md`); inverted M1 falsifier to `test_checklist_cases_includes_qoe_after_m2_t2`; closed M1-T6 deferred QoE entry. Rationale: M2 hub-serialization — additive append per M1-T6 decision, zero edits to parametrized function bodies. Adversarial gap deferred: trailing `|`-table parser corruption (plan §5.2 item 4) — no second `|`-prefixed table in QoE file at T2 close; row-count/item_id assertions are the practical falsifiers.
 - T1 (QoE coverage constant + golden checklist): Added `GOLDEN_CHECKLIST_COVERAGE` (N=6) with in-module asserts to `quality_of_earnings_agent.py` and authored `eval/QOE/golden_checklist_elder_care.md` scored against live Elder Care `uc13_ale.analysis.quality_of_earnings` (`created_at` 2026-07-08). Rationale: M2 contract anchor for QoE golden checklist — 4 field-presence rows, 1 precondition-gated tier-classification row, 1 gap-correct credit per Decision M2-A. Per `.dev/decision-logs/M2-T1-qoe-coverage-constant.md`. Adversarial gap deferred: hub file/constant row-count anchor falsifier owned by T2 parameterized harness extension.
 
 ## uc13-eval-harness-all-agents — M1 — 2026-07-21

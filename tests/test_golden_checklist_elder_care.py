@@ -15,6 +15,9 @@ from agents.workstreams.customer_quality_agent import (
 )
 from agents.workstreams.kpi_agent import GOLDEN_CHECKLIST_COVERAGE as KPI_GOLDEN_CHECKLIST_COVERAGE
 from agents.workstreams.legal_contracts_agent import STAKEHOLDER_COVERAGE_REQUIREMENTS
+from agents.workstreams.quality_of_earnings_agent import (
+    GOLDEN_CHECKLIST_COVERAGE as QOE_GOLDEN_CHECKLIST_COVERAGE,
+)
 from jobs.scripts.company_profiler import (
     GOLDEN_CHECKLIST_COVERAGE as PROFILER_GOLDEN_CHECKLIST_COVERAGE,
 )
@@ -31,6 +34,7 @@ CHECKLIST_CASES: list[tuple[str, Path, list[dict]]] = [
         PROFILER_GOLDEN_CHECKLIST_COVERAGE,
     ),
     ("legal", _ROOT / "eval" / "LCA" / "golden_checklist_elder_care.md", STAKEHOLDER_COVERAGE_REQUIREMENTS),
+    ("qoe", _ROOT / "eval" / "QOE" / "golden_checklist_elder_care.md", QOE_GOLDEN_CHECKLIST_COVERAGE),
 ]
 
 VERDICT_ENUM = frozenset({"pass", "partial", "gap-correct", "n/a"})
@@ -58,9 +62,9 @@ def _parse_checklist_rows(text: str, row_count: int) -> list[dict[str, str]]:
     return rows
 
 
-def test_checklist_cases_excludes_qoe_pending_m2():
-    """Falsifier: M2 adds QoE by appending one CHECKLIST_CASES row — not registered in M1."""
-    assert all(agent_id != "qoe" for agent_id, _, _ in CHECKLIST_CASES)
+def test_checklist_cases_includes_qoe_after_m2_t2():
+    """Falsifier: M2-T2 appends one CHECKLIST_CASES row — QoE is now registered."""
+    assert any(agent_id == "qoe" for agent_id, _, _ in CHECKLIST_CASES)
 
 
 @pytest.mark.parametrize("agent_id,checklist_path,coverage_constant", CHECKLIST_CASES, ids=_CASE_IDS)
