@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-eval-harness-all-agents — M4 — 2026-07-21
+
+- T1 (README unified 7-agent rewrite): Rewrote `eval/retrieval/README.md` — inverted BMA/CQA/KPI/QoE/Profiler scoping carve-out, corrected frozen CLI one-liner (`--e2e-checklist-total <int, required>`), added `#### Promotion gate invocation` with five `evaluate_promotion` Python worked examples, reframed smoke E2E as historical bar, reconciled QoE precondition content (Decision M4-D heading rename). Rationale: closes Ambiguity Flag 2 and pairs with T2 guard-test inversion. Per `.dev/decision-logs/M4-T1-readme-unified-7-agent-rewrite.md`. Adversarial gap deferred: guard-test assertions owned by T2 until `_FROZEN_CLI_ONE_LINER` and scoping test invert land.
+
 ## uc13-eval-harness-all-agents — M3 — 2026-07-21
 
 - T4 (Promotion gate test suite — Program Gate G3): Added `eval/retrieval/tests/test_promotion_gate.py` covering all five `evaluate_promotion` decision branches, `InvalidWaiverIdError` on malformed waiver IDs, raw-score (not ratio) comparison with non-default `e2e_checklist_total`, and the H1-R falsifier (blocked run's manifest score stays NULL; `select_prior_e2e_baseline` still returns the prior promoted row). Rationale: M3 required test deliverable and Program Gate G3 — exercises T1/T2/T3 surfaces end-to-end via real `SqliteEvalStore`. Per `.dev/decision-logs/M3-T4-promotion-gate-test-suite.md`. Adversarial gap deferred: concurrent double-evaluate race on promote (spec §8 acceptable unknown).
