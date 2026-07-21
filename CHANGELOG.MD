@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-eval-harness-all-agents — 2026-07-21
+
+- T1 (Generalize `record_e2e_linkage` CLI): Made `--e2e-checklist-total` required (removed `default=18`) and froze `--e2e-agent-id` to a 7-value allowlist (`fta`, `legal`, `bma`, `cqa`, `kpi`, `qoe`, `profiler`) in `build_parser()`. Updated `eval/retrieval/tests/test_record_e2e_linkage.py` with parser contract tests and explicit total on the missing-run `main()` path. Rationale: M0 contract anchor for M2/M3/M4 consumers — callers must pass agent-specific checklist denominators. Per `.dev/decision-logs/M0-T1-record-e2e-linkage-generalization.md`. Adversarial gap deferred: no integration test that README frozen-CLI quote matches `build_parser()` after M4 doc update — T1 parser unit tests are the falsifier for the CLI surface.
+
 ## uc13-exec-summary-wed-sprint — 2026-07-17
 
 - T9 (Final assembly — stakeholder artifact selection): Operator assembly on `feat/exec-summary-expanded-synthesis` (`uc13_ale`) — **4/4 expanded** (Elder Care T24, Clearsulting/GKF/SPG T7); zero baseline fallbacks; all Volume `tldr_one_pager.md`/`.docx` pairs verified present with H1 **Executive Summary**; kill criterion not fired. Provenance record: `.dev/t9_assembly_record.md`. Rationale: mix discovered per Design Principle 2 — every company that cleared validation ships expanded synthesis; no back-fill. Adversarial gap deferred: no automated post-assembly drift guard that Volume artifacts stay expanded after selection — assembly-time volume probe is the falsifier.

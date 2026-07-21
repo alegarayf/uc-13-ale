@@ -119,6 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--e2e-agent-id",
         required=True,
+        choices=("fta", "legal", "bma", "cqa", "kpi", "qoe", "profiler"),
         help="Agent partition id (e.g. fta)",
     )
     parser.add_argument(
@@ -130,8 +131,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--e2e-checklist-total",
         type=int,
-        default=18,
-        help="Checklist denominator (default: 18)",
+        required=True,
+        help="Checklist denominator",
     )
     parser.add_argument(
         "--e2e-snapshot-table",

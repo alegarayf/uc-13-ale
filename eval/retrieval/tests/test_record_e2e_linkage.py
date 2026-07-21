@@ -70,10 +70,71 @@ def test_build_parser_rejects_non_integer_checklist_score():
                 "fta",
                 "--e2e-checklist-score",
                 "sixteen",
+                "--e2e-checklist-total",
+                "18",
                 "--e2e-snapshot-table",
                 "uc13_ale.analysis.financial_trends_eval_snapshot",
             ]
         )
+
+
+def test_build_parser_requires_e2e_checklist_total():
+    parser = linkage_module.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "--run-id",
+                "abc123",
+                "--e2e-agent-id",
+                "fta",
+                "--e2e-checklist-score",
+                "17",
+                "--e2e-snapshot-table",
+                "uc13_ale.analysis.financial_trends_eval_snapshot",
+            ]
+        )
+
+
+def test_build_parser_rejects_unknown_e2e_agent_id():
+    parser = linkage_module.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "--run-id",
+                "abc123",
+                "--e2e-agent-id",
+                "bogus",
+                "--e2e-checklist-score",
+                "17",
+                "--e2e-checklist-total",
+                "18",
+                "--e2e-snapshot-table",
+                "uc13_ale.analysis.financial_trends_eval_snapshot",
+            ]
+        )
+
+
+@pytest.mark.parametrize(
+    "agent_id",
+    ("fta", "legal", "bma", "cqa", "kpi", "qoe", "profiler"),
+)
+def test_build_parser_accepts_allowlisted_e2e_agent_ids(agent_id: str):
+    parser = linkage_module.build_parser()
+    args = parser.parse_args(
+        [
+            "--run-id",
+            "abc123",
+            "--e2e-agent-id",
+            agent_id,
+            "--e2e-checklist-score",
+            "10",
+            "--e2e-checklist-total",
+            "18",
+            "--e2e-snapshot-table",
+            "uc13_ale.analysis.financial_trends_eval_snapshot",
+        ]
+    )
+    assert args.e2e_agent_id == agent_id
 
 
 def test_record_e2e_linkage_updates_sqlite_manifest(store: SqliteEvalStore):
@@ -129,6 +190,8 @@ def test_main_returns_nonzero_on_missing_run(store, monkeypatch, tmp_path):
                 "fta",
                 "--e2e-checklist-score",
                 "16",
+                "--e2e-checklist-total",
+                "18",
                 "--e2e-snapshot-table",
                 "uc13_ale.analysis.financial_trends_eval_snapshot",
                 "--sqlite-path",
