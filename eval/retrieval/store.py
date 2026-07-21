@@ -367,6 +367,16 @@ class EvalStore(Protocol):
     def get_latest_baseline(self, company_name: str, catalog: str) -> str | None:
         ...
 
+    def select_prior_e2e_baseline(
+        self,
+        e2e_agent_id: str,
+        company_name: str,
+        *,
+        catalog: str,
+        exclude_run_id: str | None = None,
+    ) -> HarnessRun | None:
+        ...
+
     def promote_sqlite_run(self, run_id: str) -> None:
         ...
 
@@ -973,6 +983,34 @@ class SqliteEvalStore(_StoreBase):
         ).fetchone()
         return None if row is None else row["run_id"]
 
+    def select_prior_e2e_baseline(
+        self,
+        e2e_agent_id: str,
+        company_name: str,
+        *,
+        catalog: str,
+        exclude_run_id: str | None = None,
+    ) -> HarnessRun | None:
+        exclude_clause = "AND run_id != ?" if exclude_run_id is not None else ""
+        params: list[Any] = [e2e_agent_id, company_name, catalog]
+        if exclude_run_id is not None:
+            params.append(exclude_run_id)
+        row = self._conn.execute(
+            f"""
+            SELECT *
+            FROM retrieval_harness_runs
+            WHERE e2e_agent_id = ? AND company_name = ? AND catalog = ?
+              AND run_type = 'pipeline'
+              AND harness_status = 'complete'
+              AND e2e_checklist_score IS NOT NULL
+              {exclude_clause}
+            ORDER BY completed_at DESC, rowid DESC
+            LIMIT 1
+            """,
+            params,
+        ).fetchone()
+        return None if row is None else self._row_to_manifest(row)
+
     def promote_sqlite_run(self, run_id: str) -> None:
         raise SyncError("promote_sqlite_run requires DeltaEvalStore target backend")
 
@@ -1345,6 +1383,46 @@ class DeltaEvalStore(_StoreBase):
             args={"company_name": company_name, "catalog": catalog},
         ).collect()
         return None if not rows else rows[0]["run_id"]
+
+    def select_prior_e2e_baseline(
+        self,
+        e2e_agent_id: str,
+        company_name: str,
+        *,
+        catalog: str,
+        exclude_run_id: str | None = None,
+    ) -> HarnessRun | None:
+        exclude_filter = (
+            "AND run_id != :exclude_run_id" if exclude_run_id is not None else ""
+        )
+        args: dict[str, Any] = {
+            "e2e_agent_id": e2e_agent_id,
+            "company_name": company_name,
+            "catalog": catalog,
+        }
+        if exclude_run_id is not None:
+            args["exclude_run_id"] = exclude_run_id
+        rows = self.spark.sql(
+            f"""
+            SELECT *
+            FROM {self._table('retrieval_harness_runs')}
+            WHERE e2e_agent_id = :e2e_agent_id
+              AND company_name = :company_name
+              AND catalog = :catalog
+              AND run_type = 'pipeline'
+              AND harness_status = 'complete'
+              AND e2e_checklist_score IS NOT NULL
+              {exclude_filter}
+            ORDER BY completed_at DESC
+            LIMIT 1
+            """,
+            args=args,
+        ).collect()
+        return (
+            None
+            if not rows
+            else self._manifest_from_row(rows[0].asDict(recursive=True))
+        )
 
     def promote_sqlite_run(self, run_id: str) -> None:
         if self.sqlite_path is None:
