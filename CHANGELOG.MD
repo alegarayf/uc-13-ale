@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-eval-harness-all-agents — M2 — 2026-07-21
+
+- T1 (QoE coverage constant + golden checklist): Added `GOLDEN_CHECKLIST_COVERAGE` (N=6) with in-module asserts to `quality_of_earnings_agent.py` and authored `eval/QOE/golden_checklist_elder_care.md` scored against live Elder Care `uc13_ale.analysis.quality_of_earnings` (`created_at` 2026-07-08). Rationale: M2 contract anchor for QoE golden checklist — 4 field-presence rows, 1 precondition-gated tier-classification row, 1 gap-correct credit per Decision M2-A. Per `.dev/decision-logs/M2-T1-qoe-coverage-constant.md`. Adversarial gap deferred: hub file/constant row-count anchor falsifier owned by T2 parameterized harness extension.
+
 ## uc13-eval-harness-all-agents — M1 — 2026-07-21
 
 - T6 (Parameterized structural-test harness — HUB): Refactored `tests/test_golden_checklist_elder_care.py` to `CHECKLIST_CASES`-parametrized assertions for `bma`, `cqa`, `kpi`, `profiler`, and migrated `legal` (tracked `eval/LCA/` path); removed gitignored-evidence `skipif` (Decision D); derived row-count anchor from `len(coverage_constant)`. Rationale: M1 charter hub — one additive table for M2 QoE append. Per `.dev/decision-logs/M1-T6-structural-test-parameterization.md`. Adversarial coverage: `test_checklist_cases_excludes_qoe_pending_m2`, `test_golden_checklist_tracked_path_exists`.

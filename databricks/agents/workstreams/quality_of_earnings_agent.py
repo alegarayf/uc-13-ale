@@ -876,5 +876,37 @@ def main() -> dict:
         close_agent_run()
 
 
+GOLDEN_CHECKLIST_COVERAGE: list[dict] = [
+    {
+        "item_id": "revenue_quality_flags",
+        "display_name": "Revenue quality flags extraction",
+    },
+    {
+        "item_id": "ebitda_scenarios",
+        "display_name": "EBITDA scenarios computation",
+    },
+    {
+        "item_id": "pre_qofe_scope",
+        "display_name": "Pre-QofE scope items extraction",
+    },
+    {
+        "item_id": "qofe_report_present",
+        "display_name": "QofE report presence detection",
+    },
+    {
+        "item_id": "tier_classification_fidelity",
+        "display_name": "Addback tier classification fidelity",
+    },
+    {
+        "item_id": "data_room_gaps",
+        "display_name": "Data-room gaps correctly reported",
+    },
+]
+
+assert len(GOLDEN_CHECKLIST_COVERAGE) == 6
+assert all(set(req) == {"item_id", "display_name"} for req in GOLDEN_CHECKLIST_COVERAGE)
+assert len({req["item_id"] for req in GOLDEN_CHECKLIST_COVERAGE}) == 6
+
+
 if __name__ == "__main__":
     main()
