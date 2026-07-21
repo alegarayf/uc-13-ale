@@ -257,92 +257,105 @@ def main():
 
     print(f"\n=== UC13 Phase 2b — Company Profiler ({company_name}) ===")
 
-    # --- Ensure output table exists ---
-    _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.classification")
-    _spark.sql(f"""
-        CREATE TABLE IF NOT EXISTS {table_profile} (
-            company_name            STRING,
-            industry_overlay        STRING,
-            overlay_confidence      STRING,
-            revenue_model           STRING,
-            revenue_model_note      STRING,
-            business_description    STRING,
-            company_size_indicators STRING,
-            deal_type               STRING,
-            banked                  BOOLEAN,
-            banked_note             STRING,
-            vertical_subsector      STRING,
-            data_room_gaps          ARRAY<STRING>,
-            created_at              TIMESTAMP
-        ) USING DELTA
-    """)
+    from agents.shared.run_context import (
+        close_agent_run,
+        load_affected_intents,
+        open_agent_run,
+    )
 
-    # --- Detect banked/non-banked from classifier output (no LLM needed) ---
-    banked, banked_note = detect_banked(_spark, table_relevance, company_name)
-    print(f"Banked: {banked}" + (f" — {banked_note}" if banked_note else ""))
+    open_agent_run(
+        "profiler",
+        company_name=company_name,
+        catalog=catalog,
+        affected_intents=load_affected_intents("profiler"),
+    )
+    try:
+        # --- Ensure output table exists ---
+        _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.classification")
+        _spark.sql(f"""
+            CREATE TABLE IF NOT EXISTS {table_profile} (
+                company_name            STRING,
+                industry_overlay        STRING,
+                overlay_confidence      STRING,
+                revenue_model           STRING,
+                revenue_model_note      STRING,
+                business_description    STRING,
+                company_size_indicators STRING,
+                deal_type               STRING,
+                banked                  BOOLEAN,
+                banked_note             STRING,
+                vertical_subsector      STRING,
+                data_room_gaps          ARRAY<STRING>,
+                created_at              TIMESTAMP
+            ) USING DELTA
+        """)
 
-    # --- Retrieve context for each profiling dimension ---
-    import mlflow.deployments
-    client = mlflow.deployments.get_deploy_client("databricks")
+        # --- Detect banked/non-banked from classifier output (no LLM needed) ---
+        banked, banked_note = detect_banked(_spark, table_relevance, company_name)
+        print(f"Banked: {banked}" + (f" — {banked_note}" if banked_note else ""))
 
-    retrieved_context: dict[str, str] = {}
-    data_room_gaps: list[str] = []
+        # --- Retrieve context for each profiling dimension ---
+        import mlflow.deployments
+        client = mlflow.deployments.get_deploy_client("databricks")
 
-    for dimension, (query, fn_filter, ws_filter) in _PROFILING_QUERIES.items():
-        chunks = semantic_search(
-            query=query,
-            spark=_spark,
-            top_k=5,
-            file_name_filter=fn_filter,
-            workstream_filter=ws_filter,
-            tier_filter=1,
-            min_chunk_length=100,
-            embedding_endpoint=embedding_endpoint,
-        ).chunks
+        retrieved_context: dict[str, str] = {}
+        data_room_gaps: list[str] = []
 
-        if not chunks:
-            # Try again without the tier filter to widen the net.
+        for dimension, (query, fn_filter, ws_filter) in _PROFILING_QUERIES.items():
             chunks = semantic_search(
                 query=query,
                 spark=_spark,
                 top_k=5,
                 file_name_filter=fn_filter,
                 workstream_filter=ws_filter,
+                tier_filter=1,
                 min_chunk_length=100,
                 embedding_endpoint=embedding_endpoint,
             ).chunks
 
-        if chunks:
-            retrieved_context[dimension] = "\n---\n".join([
-                f"[Source: {c.file_name} | Section: {c.section_header or 'N/A'}]\n{c.chunk_text[:800]}"
-                for c in chunks
-            ])
-            print(f"  ✓ {dimension}: {len(chunks)} chunks")
-        else:
-            retrieved_context[dimension] = ""
-            gap_label = {
-                "industry_overlay":        "No CIM or Business Overview found",
-                "revenue_model":           "No revenue model documentation found",
-                "business_description":    "No CIM or Overview found",
-                "company_size_indicators": "No financial or CIM document found",
-                "deal_type":               "No CIM or deal documentation found",
-                "banked_vs_nonbanked":     "No CIM or Offering Memorandum found",
-                "vertical_subsector":      "No CIM or business description found",
-            }.get(dimension, f"No content found for {dimension}")
-            data_room_gaps.append(gap_label)
-            print(f"  ✗ {dimension}: no chunks — recorded as gap")
+            if not chunks:
+                # Try again without the tier filter to widen the net.
+                chunks = semantic_search(
+                    query=query,
+                    spark=_spark,
+                    top_k=5,
+                    file_name_filter=fn_filter,
+                    workstream_filter=ws_filter,
+                    min_chunk_length=100,
+                    embedding_endpoint=embedding_endpoint,
+                ).chunks
 
-    # --- Build LLM prompt ---
-    # Only include dimensions that have retrieved context.
-    context_parts = []
-    for dimension, context in retrieved_context.items():
-        if context:
-            context_parts.append(f"## {dimension.upper()}\n{context[:800]}")
+            if chunks:
+                retrieved_context[dimension] = "\n---\n".join([
+                    f"[Source: {c.file_name} | Section: {c.section_header or 'N/A'}]\n{c.chunk_text[:800]}"
+                    for c in chunks
+                ])
+                print(f"  ✓ {dimension}: {len(chunks)} chunks")
+            else:
+                retrieved_context[dimension] = ""
+                gap_label = {
+                    "industry_overlay":        "No CIM or Business Overview found",
+                    "revenue_model":           "No revenue model documentation found",
+                    "business_description":    "No CIM or Overview found",
+                    "company_size_indicators": "No financial or CIM document found",
+                    "deal_type":               "No CIM or deal documentation found",
+                    "banked_vs_nonbanked":     "No CIM or Offering Memorandum found",
+                    "vertical_subsector":      "No CIM or business description found",
+                }.get(dimension, f"No content found for {dimension}")
+                data_room_gaps.append(gap_label)
+                print(f"  ✗ {dimension}: no chunks — recorded as gap")
 
-    full_context = "\n\n========\n\n".join(context_parts)
+        # --- Build LLM prompt ---
+        # Only include dimensions that have retrieved context.
+        context_parts = []
+        for dimension, context in retrieved_context.items():
+            if context:
+                context_parts.append(f"## {dimension.upper()}\n{context[:800]}")
 
-    # company_name is injected explicitly — the LLM must NOT generate it.
-    json_template = """{
+        full_context = "\n\n========\n\n".join(context_parts)
+
+        # company_name is injected explicitly — the LLM must NOT generate it.
+        json_template = """{
   "industry_overlay": "one of: tech_services, healthcare_services, b2b_saas, industrial_manufacturing, consumer_dtc, other",
   "overlay_confidence": "high | medium | low",
   "revenue_model": "one of: pure_recurring, repeat_services, project_based, transactional, usage_based, licensing, marketplace, hybrid",
@@ -353,97 +366,99 @@ def main():
   "vertical_subsector": "specific sub-sector within the overlay (e.g. home_care, IT_staffing, behavioral_health)"
 }"""
 
-    prompt = (
-        "You are a private equity analyst building a structured company profile "
-        "from due diligence documents.\n\n"
-        "IMPORTANT:\n"
-        "- Do NOT generate the company name. It is provided by the system.\n"
-        "- Use only information found in the documents below.\n"
-        "- If a field cannot be determined from the documents, use null.\n"
-        "- For industry_overlay, the two primary overlays are:\n"
-        "    tech_services     — tech-enabled services, IT services, digital services\n"
-        "    healthcare_services — physician practices, home care, hospice, behavioral "
-        "health, dental, dermatology\n"
-        "  Secondary overlays: b2b_saas, industrial_manufacturing, consumer_dtc.\n"
-        "  Use 'other' only when none clearly match.\n"
-        "- For company_size_indicators, quote the numbers as stated — do not compute.\n\n"
-        "Return ONLY a valid JSON object matching this template (no markdown):\n"
-        + json_template
-        + "\n\nDue Diligence Documents:\n"
-        + full_context[:12000]
-    )
+        prompt = (
+            "You are a private equity analyst building a structured company profile "
+            "from due diligence documents.\n\n"
+            "IMPORTANT:\n"
+            "- Do NOT generate the company name. It is provided by the system.\n"
+            "- Use only information found in the documents below.\n"
+            "- If a field cannot be determined from the documents, use null.\n"
+            "- For industry_overlay, the two primary overlays are:\n"
+            "    tech_services     — tech-enabled services, IT services, digital services\n"
+            "    healthcare_services — physician practices, home care, hospice, behavioral "
+            "health, dental, dermatology\n"
+            "  Secondary overlays: b2b_saas, industrial_manufacturing, consumer_dtc.\n"
+            "  Use 'other' only when none clearly match.\n"
+            "- For company_size_indicators, quote the numbers as stated — do not compute.\n\n"
+            "Return ONLY a valid JSON object matching this template (no markdown):\n"
+            + json_template
+            + "\n\nDue Diligence Documents:\n"
+            + full_context[:12000]
+        )
 
-    print(f"\nLLM context length: {len(full_context)} chars")
-    raw_text = call_llm(client, llm_endpoint, prompt)
-    clean_text = re.sub(r"```json\s*|\s*```", "", raw_text).strip()
+        print(f"\nLLM context length: {len(full_context)} chars")
+        raw_text = call_llm(client, llm_endpoint, prompt)
+        clean_text = re.sub(r"```json\s*|\s*```", "", raw_text).strip()
 
-    try:
-        profile: dict[str, Any] = json.loads(clean_text)
-        print("✓ Profile extracted:")
-        for k, v in profile.items():
-            print(f"  {k:<28} {v}")
-    except Exception as exc:
-        print(f"Parse error: {exc}\nRaw: {raw_text[:500]}")
-        profile = {}
+        try:
+            profile: dict[str, Any] = json.loads(clean_text)
+            print("✓ Profile extracted:")
+            for k, v in profile.items():
+                print(f"  {k:<28} {v}")
+        except Exception as exc:
+            print(f"Parse error: {exc}\nRaw: {raw_text[:500]}")
+            profile = {}
 
-    # --- Save to Delta ---
-    from pyspark.sql import Row
-    from pyspark.sql.types import (
-        StructType, StructField, StringType, BooleanType,
-        ArrayType, TimestampType,
-    )
+        # --- Save to Delta ---
+        from pyspark.sql import Row
+        from pyspark.sql.types import (
+            StructType, StructField, StringType, BooleanType,
+            ArrayType, TimestampType,
+        )
 
-    save_schema = StructType([
-        StructField("company_name",            StringType(),           True),
-        StructField("industry_overlay",        StringType(),           True),
-        StructField("overlay_confidence",      StringType(),           True),
-        StructField("revenue_model",           StringType(),           True),
-        StructField("revenue_model_note",      StringType(),           True),
-        StructField("business_description",    StringType(),           True),
-        StructField("company_size_indicators", StringType(),           True),
-        StructField("deal_type",               StringType(),           True),
-        StructField("banked",                  BooleanType(),          True),
-        StructField("banked_note",             StringType(),           True),
-        StructField("vertical_subsector",      StringType(),           True),
-        StructField("data_room_gaps",          ArrayType(StringType()), True),
-        StructField("created_at",              TimestampType(),        True),
-    ])
+        save_schema = StructType([
+            StructField("company_name",            StringType(),           True),
+            StructField("industry_overlay",        StringType(),           True),
+            StructField("overlay_confidence",      StringType(),           True),
+            StructField("revenue_model",           StringType(),           True),
+            StructField("revenue_model_note",      StringType(),           True),
+            StructField("business_description",    StringType(),           True),
+            StructField("company_size_indicators", StringType(),           True),
+            StructField("deal_type",               StringType(),           True),
+            StructField("banked",                  BooleanType(),          True),
+            StructField("banked_note",             StringType(),           True),
+            StructField("vertical_subsector",      StringType(),           True),
+            StructField("data_room_gaps",          ArrayType(StringType()), True),
+            StructField("created_at",              TimestampType(),        True),
+        ])
 
-    # Never trust LLM output for company_name — documents may contain [REDACTED].
-    row = Row(
-        company_name=company_name,
-        industry_overlay=profile.get("industry_overlay"),
-        overlay_confidence=profile.get("overlay_confidence"),
-        revenue_model=profile.get("revenue_model"),
-        revenue_model_note=profile.get("revenue_model_note"),
-        business_description=profile.get("business_description"),
-        company_size_indicators=profile.get("company_size_indicators"),
-        deal_type=profile.get("deal_type"),
-        banked=banked,
-        banked_note=banked_note,
-        vertical_subsector=profile.get("vertical_subsector"),
-        data_room_gaps=data_room_gaps if data_room_gaps else None,
-        created_at=datetime.now(timezone.utc),
-    )
+        # Never trust LLM output for company_name — documents may contain [REDACTED].
+        row = Row(
+            company_name=company_name,
+            industry_overlay=profile.get("industry_overlay"),
+            overlay_confidence=profile.get("overlay_confidence"),
+            revenue_model=profile.get("revenue_model"),
+            revenue_model_note=profile.get("revenue_model_note"),
+            business_description=profile.get("business_description"),
+            company_size_indicators=profile.get("company_size_indicators"),
+            deal_type=profile.get("deal_type"),
+            banked=banked,
+            banked_note=banked_note,
+            vertical_subsector=profile.get("vertical_subsector"),
+            data_room_gaps=data_room_gaps if data_room_gaps else None,
+            created_at=datetime.now(timezone.utc),
+        )
 
-    df = _spark.createDataFrame([row], schema=save_schema)
+        df = _spark.createDataFrame([row], schema=save_schema)
 
-    # Upsert: replace this company's profile row, preserve all other companies.
-    from delta.tables import DeltaTable
-    delta_tbl = DeltaTable.forName(_spark, table_profile)
-    (
-        delta_tbl.alias("t")
-        .merge(df.alias("s"), "t.company_name = s.company_name")
-        .whenMatchedUpdateAll()
-        .whenNotMatchedInsertAll()
-        .execute()
-    )
-    print(f"\n✓ Profile saved → {table_profile}")
+        # Upsert: replace this company's profile row, preserve all other companies.
+        from delta.tables import DeltaTable
+        delta_tbl = DeltaTable.forName(_spark, table_profile)
+        (
+            delta_tbl.alias("t")
+            .merge(df.alias("s"), "t.company_name = s.company_name")
+            .whenMatchedUpdateAll()
+            .whenNotMatchedInsertAll()
+            .execute()
+        )
+        print(f"\n✓ Profile saved → {table_profile}")
 
-    if data_room_gaps:
-        print(f"\nData room gaps ({len(data_room_gaps)}):")
-        for gap in data_room_gaps:
-            print(f"  ! {gap}")
+        if data_room_gaps:
+            print(f"\nData room gaps ({len(data_room_gaps)}):")
+            for gap in data_room_gaps:
+                print(f"  ! {gap}")
+    finally:
+        close_agent_run()
 
 
 if __name__ == "__main__":

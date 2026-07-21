@@ -17,6 +17,7 @@ WORKSTREAM_MAINS = [
     ("databricks/agents/workstreams/customer_quality_agent.py", "cqa"),
     ("databricks/agents/workstreams/kpi_agent.py", "kpi"),
     ("databricks/agents/workstreams/quality_of_earnings_agent.py", "qoe"),
+    ("databricks/jobs/scripts/company_profiler.py", "profiler"),
 ]
 
 FTA_SUBAGENTS = [
