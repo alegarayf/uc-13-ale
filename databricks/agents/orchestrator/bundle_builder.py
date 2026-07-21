@@ -35,42 +35,57 @@ _EXECUTIVE_LLM_NARRATIVE_KEYS = frozenset(
         "business_snapshot_narrative",
         "mitigants_digest",
         "confidence_rationale",
-        "legal_digest",
-        "qoe_digest",
-        "kpi_digest",
-        "open_items_digest",
         "preliminary_digest",
     }
 )
 
+_EXECUTIVE_SYNTHESIS_BUNDLE_SECTION_KEYS: tuple[str, ...] = (
+    "company_framing",
+    "financials",
+    "revenue_quality",
+    "kpi_dashboard",
+    "legal",
+    "qoe",
+    "risks",
+    "confidence_by_area",
+    "headline_metrics",
+    "data_room_gaps",
+)
+
+_PRELIMINARY_DIGEST_SECTION_TAGS: tuple[str, ...] = (
+    "Business Snapshot",
+    "Financial Strip",
+    "Revenue Quality",
+    "KPI Dashboard",
+    "Legal Snapshot",
+    "Quality of Earnings",
+    "Top Risks",
+    "Confidence by Area",
+)
+
 _EXECUTIVE_LLM_SYSTEM_PROMPT = """You are the UC13 orchestrator stage-6 synthesis agent (M2 production).
-From workstream agent snapshots and gap_context in the user message, populate ONLY the executive narrative fields.
+From assembled_bundle_sections and gap_context in the user message, populate ONLY the executive narrative fields.
 Return ONLY valid JSON (no markdown fences) with optional top-level key "executive" containing:
   in_one_line (string)
   preliminary_view: { strengths (string[]), concerns (string[]), closing (string) }
   business_snapshot_narrative (string, optional) — richer narrative for the Business Snapshot section
-  preliminary_digest (string, optional) — ≤2–3 sentence lead-in for the Preliminary View section (above
-    Strengths/Concerns); synthesize the overall investment posture without duplicating every bullet
-  legal_digest (string, optional) — ≤2–3 sentence lead-in for the Legal Snapshot section; coverage posture
-    and material contract themes — detail bullets/table follow below
-  qoe_digest (string, optional) — ≤2–3 sentence lead-in for the Quality of Earnings section; EBITDA /
-    addback posture at a glance — tier detail follows below
-  kpi_digest (string, optional) — ≤2–3 sentence lead-in for the KPI Dashboard section; headline metric
-    health and flags — the KPI table follows below
-  open_items_digest (string, optional) — ≤2–3 sentence lead-in for Open Items / Data Requests; what is
-    still outstanding and why it matters — the item list follows below
-  mitigants_digest (string, optional) — PE-style mitigation-strategy narrative across the full risk set;
-    this is the sole mitigant surface in the one-pager (rendered under header "Risk Mitigation");
-    emit markdown bullets grouped by risk dimension (e.g. concentration, regulatory, operational) with
-    management actions, structural offsets, and diligence follow-ups — not a per-risk table restatement
+  preliminary_digest (string, optional) — consolidated cross-bundle overview for the Preliminary View section
+    (above Strengths/Concerns): synthesize what matters and why across the whole report — NOT a restatement
+    of preliminary_view.strengths/concerns bullets (those are retained separately). Each claim must end with
+    exactly one section tag in square brackets from this fixed vocabulary ONLY:
+    Business Snapshot, Financial Strip, Revenue Quality, KPI Dashboard, Legal Snapshot, Quality of Earnings,
+    Top Risks, Confidence by Area
+    Example: "Revenue growth is mid-single-digit with payer mix headroom. [Financial Strip]"
+  mitigants_digest (string, optional) — headline + why/relationship for Risk Mitigation: surface briefly what
+    is important and how/why (management actions, structural offsets, diligence follow-ups) — not an exhaustive
+    per-risk enumeration or table restatement; this is the sole mitigant surface in the one-pager
   confidence_rationale (string, optional) — tighter bulleted narrative on confidence in the analysis/results
     and the data gaps capping it; ground each bullet in gap_context (data_room_gaps, synthesis_gaps,
     confidence_by_area, fill_state on risks/kpis); contextualize the "## Confidence by Area" score grid
     by naming specific missing data — rendered under header "Analysis Notes" (display rename from
     "Confidence & Data Gaps")
 Do not include risks, legal, kpi_dashboard, headline_metrics, company_framing, financials, or any other keys.
-Use stated figures and agent summaries only — do not invent financial metrics.
-Each *_digest field must be at most 2–3 sentences (short lead-in only — protects the word budget).
+Use stated figures and assembled section data only — do not invent financial metrics.
 preliminary_view.closing must avoid investment advice (no buy/sell/hold recommendations)."""
 
 
@@ -107,10 +122,6 @@ def _merge_executive_llm_narrative(bundle: dict[str, Any], llm_result: dict[str,
         "business_snapshot_narrative",
         "mitigants_digest",
         "confidence_rationale",
-        "legal_digest",
-        "qoe_digest",
-        "kpi_digest",
-        "open_items_digest",
         "preliminary_digest",
     ):
         value = exc.get(key)
@@ -151,17 +162,12 @@ def _restore_structural_fields_after_llm(bundle: dict, preserved: dict[str, Any]
         bundle[key] = preserved[key]
 
 
-def _agent_context_payload(snapshots: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    payload: dict[str, Any] = {}
-    for key, snap in snapshots.items():
-        payload[key] = {
-            "delta_row": {
-                k: v for k, v in (snap.get("delta_row") or {}).items() if k != "flags"
-            },
-            "yaml_dict": snap.get("yaml_dict"),
-            "report_path": snap.get("report_path"),
-        }
-    return payload
+def _executive_synthesis_bundle_context(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Bounded assembled sections for stage-6 cross-bundle synthesis (not raw reports)."""
+    return {
+        key: deepcopy(bundle.get(key))
+        for key in _EXECUTIVE_SYNTHESIS_BUNDLE_SECTION_KEYS
+    }
 
 
 def _executive_synthesis_gap_context(bundle: dict[str, Any]) -> dict[str, Any]:
@@ -200,14 +206,14 @@ def synthesize_executive_narrative(
     snapshots: dict[str, dict[str, Any]],
     llm_endpoint: str,
 ) -> None:
-    """Stage 6: LLM polish on ``executive.*`` from agent snapshots (not rendered MD)."""
+    """Stage 6: LLM polish on ``executive.*`` from assembled bundle sections (not rendered MD)."""
+    del snapshots  # retained for call-site stability; synthesis reads assembled bundle sections
     company_name = str((bundle.get("meta") or {}).get("company_name") or "")
-    context = _agent_context_payload(snapshots)
     llm = _OrchestratorLlm()
     user_prompt = json.dumps(
         {
             "company_name": company_name,
-            "agent_snapshots": context,
+            "assembled_bundle_sections": _executive_synthesis_bundle_context(bundle),
             "current_executive_shell": bundle.get("executive"),
             "gap_context": _executive_synthesis_gap_context(bundle),
         },

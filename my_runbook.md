@@ -113,10 +113,10 @@ Cluster date (UTC): 2026-07-14
 
 **Goal:** Close the loop validation started in early July; integration + M-PHV4 get formal sign-off.
 
-- [ ] Cold-read attestation + exit checklist + M-PHV3/M-PHV4 diffs (`fefcbc7` range)
-- [ ] Run auditor skill / big-model review on integration + PHV4 scope
-- [ ] Write `.dev/audits/2026-07-__-uc13-integration-closeout.md` with `audit_status: clean` or `accepted-with-waivers`
-- [ ] Note waivers by name — see table below
+- [x ] Cold-read attestation + exit checklist + M-PHV3/M-PHV4 diffs (`fefcbc7` range)
+- [x ] Run auditor skill / big-model review on integration + PHV4 scope
+- [x ] Write `.dev/audits/2026-07-__-uc13-integration-closeout.md` with `audit_status: clean` or `accepted-with-waivers`
+- [ x] Note waivers by name — see table below .dev\audits\2026-07-16-uc13-m-phv4-retrieval-consolidation.md
 
 **Pre-audit landings (not a substitute for §8 audit file):**
 

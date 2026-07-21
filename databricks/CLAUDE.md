@@ -1,5 +1,7 @@
 # UC13 Databricks Pipeline — Developer Context
 
+> **Cursor agents:** live workspace access from the laptop is documented in repo-root [`AGENTS.md`](../AGENTS.md) and the [`databricks-access`](../.cursor/skills/databricks-access/SKILL.md) skill. This file covers pipeline implementation only.
+
 ## What this project is
 
 A private equity diligence pipeline running entirely on Databricks. It ingests a company's data room documents (PDFs, Excel, Word, CSV) from SharePoint, parses them into searchable chunks, and runs a set of workstream agents that extract structured diligence outputs (business model, financial trends, customer quality, KPIs, legal contracts, quality of earnings).
