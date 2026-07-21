@@ -1,4 +1,4 @@
-"""Structural contract tests for golden checklist eval artifact (T5 / G3)."""
+"""Structural contract tests for golden checklist eval artifacts (M1 HUB / G3)."""
 
 from __future__ import annotations
 
@@ -7,28 +7,40 @@ from pathlib import Path
 
 import pytest
 
+from agents.workstreams.business_model_agent import (
+    GOLDEN_CHECKLIST_COVERAGE as BMA_GOLDEN_CHECKLIST_COVERAGE,
+)
+from agents.workstreams.customer_quality_agent import (
+    GOLDEN_CHECKLIST_COVERAGE as CQA_GOLDEN_CHECKLIST_COVERAGE,
+)
+from agents.workstreams.kpi_agent import GOLDEN_CHECKLIST_COVERAGE as KPI_GOLDEN_CHECKLIST_COVERAGE
 from agents.workstreams.legal_contracts_agent import STAKEHOLDER_COVERAGE_REQUIREMENTS
-
-_ROOT = Path(__file__).resolve().parents[1]
-_CHECKLIST_PATH = _ROOT / ".dev" / "legal_agent" / "eval" / "golden_checklist_elder_care.md"
-
-# .dev/ is gitignored repo-wide (Option C pin protocol) — this operator-produced
-# scoring artifact is local evidence, not tracked in git, and may legitimately be
-# absent on a fresh checkout or a different machine. Skip rather than fail when
-# it's missing so this module's contract still holds wherever the evidence exists.
-pytestmark = pytest.mark.skipif(
-    not _CHECKLIST_PATH.exists(),
-    reason=f"gitignored evidence fixture not present in this checkout: {_CHECKLIST_PATH}",
+from jobs.scripts.company_profiler import (
+    GOLDEN_CHECKLIST_COVERAGE as PROFILER_GOLDEN_CHECKLIST_COVERAGE,
 )
 
+_ROOT = Path(__file__).resolve().parents[1]
+
+CHECKLIST_CASES: list[tuple[str, Path, list[dict]]] = [
+    ("bma", _ROOT / "eval" / "BMA" / "golden_checklist_elder_care.md", BMA_GOLDEN_CHECKLIST_COVERAGE),
+    ("cqa", _ROOT / "eval" / "CQA" / "golden_checklist_elder_care.md", CQA_GOLDEN_CHECKLIST_COVERAGE),
+    ("kpi", _ROOT / "eval" / "KPI" / "golden_checklist_elder_care.md", KPI_GOLDEN_CHECKLIST_COVERAGE),
+    (
+        "profiler",
+        _ROOT / "eval" / "PROFILER" / "golden_checklist_elder_care.md",
+        PROFILER_GOLDEN_CHECKLIST_COVERAGE,
+    ),
+    ("legal", _ROOT / "eval" / "LCA" / "golden_checklist_elder_care.md", STAKEHOLDER_COVERAGE_REQUIREMENTS),
+]
+
 VERDICT_ENUM = frozenset({"pass", "partial", "gap-correct", "n/a"})
-_EXPECTED_ITEM_IDS = tuple(req["item_id"] for req in STAKEHOLDER_COVERAGE_REQUIREMENTS)
-_DISPLAY_BY_ID = {req["item_id"]: req["display_name"] for req in STAKEHOLDER_COVERAGE_REQUIREMENTS}
+
+_CASE_IDS = [case[0] for case in CHECKLIST_CASES]
 
 
-def _parse_checklist_rows(text: str) -> list[dict[str, str]]:
+def _parse_checklist_rows(text: str, row_count: int) -> list[dict[str, str]]:
     """Extract data rows from the checklist markdown table (after ## Checklist header)."""
-    section = text.split("## Checklist (11 rows)", 1)[-1]
+    section = text.split(f"## Checklist ({row_count} rows)", 1)[-1]
     lines = [ln.strip() for ln in section.splitlines() if ln.strip().startswith("|")]
     # header, separator, then data rows
     data_lines = [ln for ln in lines[2:] if not re.match(r"^\|\s*-+\s*\|", ln)]
@@ -46,38 +58,70 @@ def _parse_checklist_rows(text: str) -> list[dict[str, str]]:
     return rows
 
 
-def test_golden_checklist_has_eleven_rows():
-    text = _CHECKLIST_PATH.read_text(encoding="utf-8")
-    rows = _parse_checklist_rows(text)
-    assert len(rows) == 11
+def test_checklist_cases_excludes_qoe_pending_m2():
+    """Falsifier: M2 adds QoE by appending one CHECKLIST_CASES row — not registered in M1."""
+    assert all(agent_id != "qoe" for agent_id, _, _ in CHECKLIST_CASES)
 
 
-def test_golden_checklist_item_ids_match_stakeholder_requirements():
-    text = _CHECKLIST_PATH.read_text(encoding="utf-8")
-    rows = _parse_checklist_rows(text)
-    assert tuple(r["item_id"] for r in rows) == _EXPECTED_ITEM_IDS
+@pytest.mark.parametrize("agent_id,checklist_path,coverage_constant", CHECKLIST_CASES, ids=_CASE_IDS)
+def test_golden_checklist_tracked_path_exists(
+    agent_id: str, checklist_path: Path, coverage_constant: list[dict]
+):
+    assert checklist_path.is_file(), (
+        f"{agent_id}: tracked checklist missing (Decision D — fail hard): {checklist_path}"
+    )
 
 
-def test_golden_checklist_display_names_match_constant():
-    text = _CHECKLIST_PATH.read_text(encoding="utf-8")
-    rows = _parse_checklist_rows(text)
+@pytest.mark.parametrize("agent_id,checklist_path,coverage_constant", CHECKLIST_CASES, ids=_CASE_IDS)
+def test_golden_checklist_row_count_matches_coverage_constant(
+    agent_id: str, checklist_path: Path, coverage_constant: list[dict]
+):
+    text = checklist_path.read_text(encoding="utf-8")
+    rows = _parse_checklist_rows(text, len(coverage_constant))
+    assert len(rows) == len(coverage_constant)
+
+
+@pytest.mark.parametrize("agent_id,checklist_path,coverage_constant", CHECKLIST_CASES, ids=_CASE_IDS)
+def test_golden_checklist_item_ids_match_coverage_constant(
+    agent_id: str, checklist_path: Path, coverage_constant: list[dict]
+):
+    text = checklist_path.read_text(encoding="utf-8")
+    rows = _parse_checklist_rows(text, len(coverage_constant))
+    expected_item_ids = tuple(req["item_id"] for req in coverage_constant)
+    assert tuple(r["item_id"] for r in rows) == expected_item_ids
+
+
+@pytest.mark.parametrize("agent_id,checklist_path,coverage_constant", CHECKLIST_CASES, ids=_CASE_IDS)
+def test_golden_checklist_display_names_match_constant(
+    agent_id: str, checklist_path: Path, coverage_constant: list[dict]
+):
+    text = checklist_path.read_text(encoding="utf-8")
+    rows = _parse_checklist_rows(text, len(coverage_constant))
+    display_by_id = {req["item_id"]: req["display_name"] for req in coverage_constant}
     for row in rows:
-        assert row["display_name"] == _DISPLAY_BY_ID[row["item_id"]]
+        item_id = row["item_id"]
+        assert row["display_name"] == display_by_id[item_id]
 
 
-def test_golden_checklist_verdicts_in_enum():
-    text = _CHECKLIST_PATH.read_text(encoding="utf-8")
-    rows = _parse_checklist_rows(text)
+@pytest.mark.parametrize("agent_id,checklist_path,coverage_constant", CHECKLIST_CASES, ids=_CASE_IDS)
+def test_golden_checklist_verdicts_in_enum(
+    agent_id: str, checklist_path: Path, coverage_constant: list[dict]
+):
+    text = checklist_path.read_text(encoding="utf-8")
+    rows = _parse_checklist_rows(text, len(coverage_constant))
     for row in rows:
         assert row["verdict"] in VERDICT_ENUM, (
             f"invalid verdict for {row['item_id']}: {row['verdict']!r}"
         )
 
 
-def test_golden_checklist_summary_counts_match_row_verdicts():
+@pytest.mark.parametrize("agent_id,checklist_path,coverage_constant", CHECKLIST_CASES, ids=_CASE_IDS)
+def test_golden_checklist_summary_counts_match_row_verdicts(
+    agent_id: str, checklist_path: Path, coverage_constant: list[dict]
+):
     """Falsifier: summary line must not drift from per-row verdict tallies."""
-    text = _CHECKLIST_PATH.read_text(encoding="utf-8")
-    rows = _parse_checklist_rows(text)
+    text = checklist_path.read_text(encoding="utf-8")
+    rows = _parse_checklist_rows(text, len(coverage_constant))
     tallies = {v: sum(1 for r in rows if r["verdict"] == v) for v in VERDICT_ENUM}
     summary = text.split("**Summary:**", 1)[-1]
     for verdict, count in tallies.items():
