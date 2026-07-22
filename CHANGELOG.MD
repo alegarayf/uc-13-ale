@@ -2,6 +2,7 @@
 
 ## uc13-exec-summary-wed-sprint-rev2 — 2026-07-22
 
+- T3 (Schema additive properties — thesis_bullets, key_watchouts, workforce_notes): Added three optional properties to `orchestrator_bundle.schema.yaml` — `executive.thesis_bullets` and `executive.key_watchouts` (string arrays) and `company_framing.workforce_notes` (nullable string) — and extended schema round-trip tests in `tests/test_orchestrator_bundle_builder.py` for populated/absent tolerance plus `additionalProperties: false` regression guards. Implements the schema-side consequence of T2's `workforce_notes` decision (`.dev/decision-logs/exec-summ-r2-t2-workforce-notes-field-mapping.md`). Adversarial gap deferred: no test that `workforce_notes: null` round-trips — string population and absence are covered; null typing follows existing nullable-string convention only.
 - T1 (Branch setup — Revision 2 isolation boundary): Cut `feat/exec-summary-rainmaker-restructure` from `dev` at `d06992a` (HEAD matches `dev` at cut time). Establishes the isolation boundary every downstream T2–T7 subtask assumes. Adversarial gap deferred: no automated guard that future commits land on this branch — branch-name contract is the falsifier.
 
 ## uc13-exec-summary-wed-sprint — 2026-07-17
