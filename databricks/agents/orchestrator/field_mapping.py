@@ -231,14 +231,61 @@ def _headline_from_fta(fta_yaml: dict | None) -> dict[str, str | None]:
     return empty
 
 
+def _workforce_notes_from_bma(bma_yaml: dict) -> str | None:
+    """Stage-6 read-only context from BMA workforce_capacity (aggregate + per-function)."""
+    wfc = bma_yaml.get("workforce_capacity") or {}
+    if not isinstance(wfc, dict):
+        return None
+
+    parts: list[str] = []
+
+    wf_model = wfc.get("workforce_model") or {}
+    if isinstance(wf_model, dict):
+        offshore_hc = str(wf_model.get("offshore_or_contract_headcount") or "").strip()
+        offshore_pct = str(wf_model.get("offshore_pct_of_total") or "").strip()
+        if offshore_hc or offshore_pct:
+            agg: list[str] = []
+            if offshore_hc:
+                agg.append(f"offshore/contract headcount {offshore_hc}")
+            if offshore_pct:
+                agg.append(f"offshore {offshore_pct} of total")
+            parts.append("Aggregate workforce model: " + ", ".join(agg) + ".")
+
+    hbf = wfc.get("headcount_by_function") or []
+    if isinstance(hbf, list):
+        by_function: list[str] = []
+        for row in hbf:
+            if not isinstance(row, dict):
+                continue
+            func = str(row.get("function") or "").strip()
+            headcount = str(row.get("headcount") or "").strip()
+            location_type = str(row.get("location_type") or "").strip()
+            if not func and not location_type:
+                continue
+            label = func or "Unknown function"
+            if headcount and location_type:
+                by_function.append(f"{label} {headcount} {location_type}")
+            elif location_type:
+                by_function.append(f"{label} ({location_type})")
+            elif headcount:
+                by_function.append(f"{label} {headcount}")
+        if by_function:
+            parts.append("Headcount by function: " + "; ".join(by_function) + ".")
+
+    if not parts:
+        return None
+    return " ".join(parts)
+
+
 def _company_framing_from_bma(bma_yaml: dict | None) -> dict[str, Any]:
+    empty_framing: dict[str, Any] = {
+        "overview_bullets": [],
+        "revenue_model": {"tag": "", "quality_flag": "", "note": ""},
+        "recent_changes": [],
+        "thesis": {"bullets": [], "value_creation_levers": []},
+    }
     if not bma_yaml:
-        return {
-            "overview_bullets": [],
-            "revenue_model": {"tag": "", "quality_flag": "", "note": ""},
-            "recent_changes": [],
-            "thesis": {"bullets": [], "value_creation_levers": []},
-        }
+        return empty_framing
     rev = bma_yaml.get("revenue_model") or {}
     exec_summary = bma_yaml.get("executive_summary") or ""
     bullets = [exec_summary] if exec_summary else []
@@ -247,7 +294,7 @@ def _company_framing_from_bma(bma_yaml: dict | None) -> dict[str, Any]:
         bullets.extend(
             str(p.get("name") or p) for p in products[:3] if isinstance(p, dict)
         )
-    return {
+    framing: dict[str, Any] = {
         "overview_bullets": bullets[:5],
         "revenue_model": {
             "tag": str(rev.get("tag") or ""),
@@ -257,6 +304,10 @@ def _company_framing_from_bma(bma_yaml: dict | None) -> dict[str, Any]:
         "recent_changes": bma_yaml.get("recent_model_changes") or [],
         "thesis": {"bullets": [], "value_creation_levers": []},
     }
+    workforce_notes = _workforce_notes_from_bma(bma_yaml)
+    if workforce_notes:
+        framing["workforce_notes"] = workforce_notes
+    return framing
 
 
 def _revenue_quality_from_agents(
