@@ -11,47 +11,21 @@ from agents.orchestrator.formatters import (
     format_agent_flag,
     format_diligence_entry,
     format_kpi_value,
-    is_operator_gap,
-    normalize_gap,
 )
 
 # Match populate.merge_risks_from_flags L117 — lower rank = more severe.
 SEVERITY_RANK: dict[str, int] = {"critical": 0, "material": 1, "track": 2}
 
-_HEADLINE_FIELD_LABELS: tuple[tuple[str, str], ...] = (
-    ("ltm_revenue", "LTM Revenue"),
-    ("ltm_ebitda", "LTM EBITDA"),
-    ("ltm_ebitda_margin_pct", "EBITDA Margin"),
-    ("revenue_cagr", "Revenue CAGR"),
-)
-
-_DOLLAR_RE = re.compile(r"\$[\d,]+(?:\.\d+)?[MBK]?", re.IGNORECASE)
-_CAGR_RE = re.compile(r"(?:cagr|growth)[^\d%]*(\d+\.?\d*%)", re.IGNORECASE)
-_GROWTH_PCT_RE = re.compile(r"\d+\.?\d*%\s*(?:cagr|growth|yoy)", re.IGNORECASE)
-_GROSS_MARGIN_RE = re.compile(
-    r"(?:gross\s+margin[^\d%]*(\d+\.?\d*%)|(\d+\.?\d*%)\s*gross\s+margin)",
-    re.IGNORECASE,
-)
-_EBITDA_MARGIN_RE = re.compile(
-    r"(?:ebitda\s+margin[^\d%]*(\d+\.?\d*%)|(\d+\.?\d*%)\s*ebitda\s+margin)",
-    re.IGNORECASE,
-)
 _ANNUAL_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 _MONTHLY_YEAR_RE = re.compile(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{4}\b", re.IGNORECASE)
 _YEAR_EXTRACT_RE = re.compile(r"(?:19|20)\d{2}")
 _RELATED_SUFFIX_RE = re.compile(r" \(\+\d+ related\)$")
 
-_QOE_COLLAPSE_METRIC = "tier4_addback"
-_QOE_COLLAPSE_BULLET = (
-    "{n} Tier 4 addbacks with undocumented or zero amounts — "
-    "unlikely to survive buyer QoE (see full report)."
-)
-_HEADLINE_FALLBACK_NOTE = (
-    "Headline financial metrics incomplete in source extracts — "
-    "see Preliminary View and full report."
-)
-
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+_REVENUE_QUALITY_SCALAR_CAP = 4
+_REVENUE_QUALITY_KPI_CAP = 2
+_REVENUE_QUALITY_TOTAL_CAP = 6
 
 _CONCERN_PRIORITY_KEYWORDS: tuple[str, ...] = (
     "founder",
@@ -160,15 +134,11 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
     source = bundle
     executive = source.get("executive") or {}
     preliminary = executive.get("preliminary_view") or {}
-    headline_metrics = source.get("headline_metrics") or {}
     financials = source.get("financials") or {}
     revenue_quality = source.get("revenue_quality") or {}
     company_framing = source.get("company_framing") or {}
-    legal = source.get("legal") or {}
-    qoe = source.get("qoe") or {}
 
     risks = source.get("risks") or []
-    headline = _compress_headline(headline_metrics, preliminary)
     strengths = _rank_preliminary_items(preliminary.get("strengths") or [], risks)
     concerns = _rank_preliminary_items(preliminary.get("concerns") or [], risks)
     in_one_line, show_in_one_line = _compress_in_one_line(
@@ -176,7 +146,6 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
     )
 
     view = {
-        "headline": headline,
         "in_one_line": in_one_line,
         "show_in_one_line": show_in_one_line,
         "strengths": strengths,
@@ -185,21 +154,19 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
         "business_snapshot_narrative": _optional_executive_string(
             executive, "business_snapshot_narrative"
         ),
+        "thesis_bullets": _optional_executive_string_list(executive, "thesis_bullets"),
+        "key_watchouts": _optional_executive_string_list(executive, "key_watchouts"),
         "mitigants_digest": _optional_executive_string(executive, "mitigants_digest"),
         "confidence_rationale": _optional_executive_string(
             executive, "confidence_rationale"
         ),
         "preliminary_digest": _resolve_preliminary_digest_for_tldr(executive, source),
         "financial": _compress_financial(financials),
-        "revenue_quality": _compress_revenue_quality(revenue_quality),
-        "kpi": _compress_kpi(source.get("kpi_dashboard") or []),
-        "legal": _compress_legal(legal),
-        "qoe": _compress_qoe(qoe),
+        "revenue_quality": _compress_revenue_quality(
+            revenue_quality, source.get("kpi_dashboard") or []
+        ),
         "risks": _compress_risks(source.get("risks") or []),
         "questions": _compress_questions(source.get("diligence_questions") or []),
-        "open_items": _compress_open_items(source.get("data_room_gaps") or []),
-        "confidence_by_area": dict(source.get("confidence_by_area") or {}),
-        "show_confidence_table": bool(source.get("confidence_by_area")),
     }
     if bundle != snapshot:
         raise RuntimeError("compress_for_tldr mutated input bundle")
@@ -221,6 +188,15 @@ def _optional_executive_string(executive: dict[str, Any], key: str) -> str | Non
     return str(value).strip()
 
 
+def _optional_executive_string_list(executive: dict[str, Any], key: str) -> list[str] | None:
+    """Project optional Stage 6 string[] from ``executive``; absent/empty → ``None``."""
+    value = executive.get(key)
+    if not isinstance(value, list):
+        return None
+    bullets = [str(item).strip() for item in value if not _is_blank(item)]
+    return bullets if bullets else None
+
+
 def _resolve_preliminary_digest_for_tldr(
     executive: dict[str, Any], bundle: dict[str, Any]
 ) -> str | None:
@@ -229,152 +205,6 @@ def _resolve_preliminary_digest_for_tldr(
     if raw is None:
         return None
     return _resolve_section_tag_citations(raw, bundle)
-
-
-def _compress_headline(
-    headline_metrics: dict[str, Any],
-    preliminary: dict[str, Any],
-) -> dict[str, Any]:
-    metrics: list[dict[str, str]] = []
-    for key, label in _HEADLINE_FIELD_LABELS:
-        value = headline_metrics.get(key)
-        if not _is_blank(value):
-            metrics.append({"label": label, "value": str(value).strip()})
-        if len(metrics) >= 4:
-            break
-
-    if not metrics:
-        metrics = _headline_from_preliminary(preliminary)
-
-    fallback_note: str | None = None
-    if len(metrics) < 2:
-        fallback_note = _HEADLINE_FALLBACK_NOTE
-
-    return {"metrics": metrics[:4], "fallback_note": fallback_note}
-
-
-def _parse_dollar_magnitude(amount: str) -> float:
-    """Numeric magnitude for comparing dollar matches in the same sentence."""
-    stripped = amount.lstrip("$").replace(",", "")
-    multiplier = 1.0
-    if stripped and stripped[-1].upper() in "KMB":
-        suffix = stripped[-1].upper()
-        stripped = stripped[:-1]
-        multiplier = {"K": 1_000.0, "M": 1_000_000.0, "B": 1_000_000_000.0}[suffix]
-    try:
-        return float(stripped) * multiplier
-    except ValueError:
-        return 0.0
-
-
-def _best_dollar_match(text: str) -> str | None:
-    """Return the single best dollar amount per text block (F-004)."""
-    matches = list(_DOLLAR_RE.finditer(text))
-    if not matches:
-        return None
-    if len(matches) == 1:
-        return matches[0].group(0)
-
-    ranked = sorted(
-        matches,
-        key=lambda m: (
-            _parse_dollar_magnitude(m.group(0)),
-            bool(re.search(r"[KMB]$", m.group(0), re.IGNORECASE)),
-            len(m.group(0)),
-        ),
-        reverse=True,
-    )
-    return ranked[0].group(0)
-
-
-def _margin_pct_from_match(match: re.Match[str]) -> str:
-    return match.group(1) or match.group(2)
-
-
-_BLENDED_MARGIN_KEYWORDS: tuple[str, ...] = (
-    "pro forma",
-    "adjusted",
-    "ttm",
-    "blended",
-    "company-wide",
-)
-_SEGMENT_MARGIN_KEYWORDS: tuple[str, ...] = ("hha", "live-in", "live in")
-
-
-def _margin_label_from_context(
-    text: str,
-    match: re.Match[str],
-    *,
-    is_only_margin: bool,
-    margin_ordinal: int,
-) -> str:
-    """Disambiguate gross margin ribbon label from ±80 char context (T12)."""
-    start = max(0, match.start() - 80)
-    end = min(len(text), match.end() + 80)
-    before = text[start:match.start()].casefold()
-    local = text[max(0, match.start() - 40):min(len(text), match.end() + 20)].casefold()
-    window = text[start:end].casefold()
-
-    if any(kw in local for kw in _SEGMENT_MARGIN_KEYWORDS):
-        return "Gross Margin (HHA/Live-In)"
-    if any(kw in before for kw in _BLENDED_MARGIN_KEYWORDS):
-        return "Gross Margin (Blended)"
-    if any(kw in window for kw in _BLENDED_MARGIN_KEYWORDS):
-        return "Gross Margin (Blended)"
-    if is_only_margin:
-        return "Gross Margin"
-    if margin_ordinal > 0:
-        return "Gross Margin (Segment)"
-    return "Gross Margin"
-
-
-def _headline_from_preliminary(preliminary: dict[str, Any]) -> list[dict[str, str]]:
-    texts: list[str] = []
-    for key in ("strengths", "concerns"):
-        for item in preliminary.get(key) or []:
-            if not _is_blank(item):
-                texts.append(str(item))
-
-    metrics: list[dict[str, str]] = []
-    seen_pairs: set[tuple[str, str]] = set()
-
-    gross_margin_occurrences: list[tuple[int, str, re.Match[str]]] = []
-    for text_idx, text in enumerate(texts):
-        for match in _GROSS_MARGIN_RE.finditer(text):
-            gross_margin_occurrences.append((text_idx, text, match))
-    total_margins = len(gross_margin_occurrences)
-    margin_ordinals = {
-        (text_idx, match.start(), match.end()): idx
-        for idx, (text_idx, _, match) in enumerate(gross_margin_occurrences)
-    }
-
-    def _add(label: str, value: str) -> None:
-        key = (label, value)
-        if key in seen_pairs or len(metrics) >= 4:
-            return
-        seen_pairs.add(key)
-        metrics.append({"label": label, "value": value})
-
-    for text_idx, text in enumerate(texts):
-        dollar = _best_dollar_match(text)
-        if dollar:
-            _add("Revenue", dollar)
-        for match in _CAGR_RE.finditer(text):
-            _add("Revenue CAGR", match.group(1))
-        for match in _GROWTH_PCT_RE.finditer(text):
-            _add("Growth", match.group(0))
-        for match in _GROSS_MARGIN_RE.finditer(text):
-            label = _margin_label_from_context(
-                text,
-                match,
-                is_only_margin=(total_margins == 1),
-                margin_ordinal=margin_ordinals[(text_idx, match.start(), match.end())],
-            )
-            _add(label, _margin_pct_from_match(match))
-        for match in _EBITDA_MARGIN_RE.finditer(text):
-            _add("EBITDA Margin", _margin_pct_from_match(match))
-
-    return metrics
 
 
 def _first_sentence(text: str, max_len: int = 200) -> str:
@@ -516,8 +346,32 @@ def _compress_financial(financials: dict[str, Any]) -> dict[str, Any]:
     return {"rows": rows, "observations": observations, "show": show}
 
 
-def _compress_revenue_quality(revenue_quality: dict[str, Any]) -> dict[str, Any]:
-    lines = [
+def _kpi_lines_for_revenue_quality(kpi_dashboard: list[Any]) -> list[str]:
+    """Fold KPI dashboard rows into Revenue Quality prose (Revision 2 Bucket A)."""
+    lines: list[str] = []
+    for raw in kpi_dashboard:
+        if not isinstance(raw, dict):
+            continue
+        display_name = str(raw.get("display_name") or "").strip()
+        stated_value = format_kpi_value(raw.get("stated_value")).strip()
+        if _is_blank(display_name) and _is_blank(stated_value):
+            continue
+        if display_name and stated_value:
+            lines.append(f"{display_name}: {stated_value}")
+        elif display_name:
+            lines.append(display_name)
+        else:
+            lines.append(stated_value)
+        if len(lines) >= _REVENUE_QUALITY_KPI_CAP:
+            break
+    return lines
+
+
+def _compress_revenue_quality(
+    revenue_quality: dict[str, Any],
+    kpi_dashboard: list[Any] | None = None,
+) -> dict[str, Any]:
+    scalar_lines = [
         str(v).strip()
         for v in (
             revenue_quality.get("scale_narrative"),
@@ -526,49 +380,10 @@ def _compress_revenue_quality(revenue_quality: dict[str, Any]) -> dict[str, Any]
             revenue_quality.get("retention_notes"),
         )
         if not _is_blank(v)
-    ][:2]
+    ][: _REVENUE_QUALITY_SCALAR_CAP]
+    kpi_lines = _kpi_lines_for_revenue_quality(kpi_dashboard or [])
+    lines = (scalar_lines + kpi_lines)[: _REVENUE_QUALITY_TOTAL_CAP]
     return {"lines": lines, "show": bool(lines)}
-
-
-def _compress_kpi(kpi_dashboard: list[Any]) -> dict[str, Any]:
-    rows: list[dict[str, str]] = []
-    for raw in kpi_dashboard:
-        if not isinstance(raw, dict):
-            continue
-        display_name = str(raw.get("display_name") or "").strip()
-        stated_value = format_kpi_value(raw.get("stated_value")).strip()
-        if _is_blank(display_name) and _is_blank(stated_value):
-            continue
-        rows.append(
-            {
-                "display_name": display_name,
-                "stated_value": stated_value,
-            }
-        )
-        if len(rows) >= 5:
-            break
-    return {"rows": rows, "show": bool(rows)}
-
-
-def _format_legal_bullet(flag: dict[str, Any]) -> str:
-    """Legal flag prose without mid-sentence truncation (T15 §2Δ.2)."""
-    note = str(flag.get("note") or "").strip()
-    if note:
-        return note
-    return format_agent_flag(flag)
-
-
-def _compress_legal(legal: dict[str, Any]) -> dict[str, Any]:
-    bullets = [
-        _format_legal_bullet(flag)
-        for flag in (legal.get("top_flags") or [])
-        if isinstance(flag, dict)
-    ]
-    bullets = [b for b in bullets if b][:6]
-    return {
-        "bullets": bullets,
-        "show": bool(bullets),
-    }
 
 
 def _truncate(text: str, max_len: int) -> str:
@@ -626,38 +441,6 @@ def _clean_risk_evidence(evidence: str, risk_key: str) -> str:
     return text
 
 
-def _compress_qoe(qoe: dict[str, Any]) -> dict[str, Any]:
-    flags = [f for f in (qoe.get("flags") or []) if isinstance(f, dict)]
-    summary = str(qoe.get("tier_summary") or "").strip()
-
-    by_metric: dict[str, list[dict[str, Any]]] = {}
-    for flag in flags:
-        metric = str(flag.get("metric") or "")
-        by_metric.setdefault(metric, []).append(flag)
-
-    collapse_group: list[dict[str, Any]] | None = None
-    for group in by_metric.values():
-        if len(group) >= 3:
-            if collapse_group is None or len(group) > len(collapse_group):
-                collapse_group = group
-
-    bullets: list[str] = []
-    if collapse_group is not None:
-        metric = str(collapse_group[0].get("metric") or "")
-        if metric == _QOE_COLLAPSE_METRIC:
-            bullets.append(_QOE_COLLAPSE_BULLET.format(n=len(collapse_group)))
-        else:
-            bullets.append(
-                f"{len(collapse_group)} related {metric} flags — see full report."
-            )
-    else:
-        bullets = [format_agent_flag(f) for f in flags[:2]]
-        bullets = [b for b in bullets if b]
-
-    show = bool(summary or bullets)
-    return {"summary": summary, "bullets": bullets[:2], "show": show}
-
-
 def _compress_risks(risks: list[Any]) -> list[dict[str, Any]]:
     groups: dict[str, list[dict[str, Any]]] = {}
     for row in risks:
@@ -695,36 +478,6 @@ def _compress_risks(risks: list[Any]) -> list[dict[str, Any]]:
         )
     )
     return merged[:5]
-
-
-def _gap_included(row: dict[str, Any]) -> bool:
-    if is_operator_gap(str(row.get("item") or "")):
-        return False
-    priority = str(row.get("priority") or "").lower()
-    if priority == "high":
-        return True
-    if row.get("source_agent") == "legal" and row.get("fill_state") == "gap_correct":
-        return True
-    return False
-
-
-def _compress_open_items(gaps: list[Any]) -> list[str]:
-    seen: set[str] = set()
-    items: list[str] = []
-    for row in gaps:
-        if not isinstance(row, dict) or not _gap_included(row):
-            continue
-        text = str(row.get("item") or "").strip()
-        if not text:
-            continue
-        norm = normalize_gap(text)
-        if norm in seen:
-            continue
-        seen.add(norm)
-        items.append(text)
-        if len(items) >= 5:
-            break
-    return items
 
 
 def _compress_questions(questions: list[Any]) -> list[dict[str, Any]]:
