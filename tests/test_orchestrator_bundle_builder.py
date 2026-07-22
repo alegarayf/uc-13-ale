@@ -332,6 +332,49 @@ def test_validate_bundle_accepts_preliminary_digest_without_dropped_digests(elde
         assert key not in expanded["executive"]
 
 
+def test_validate_bundle_accepts_r2_executive_list_fields_and_workforce_notes(
+    elder_care_bundle: dict,
+):
+    """Revision 2: thesis_bullets, key_watchouts, and workforce_notes are optional and additive."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["executive"]["thesis_bullets"] = [
+        "Regional home-care platform with acquisition runway.",
+        "Recurring payer mix supports durable revenue visibility.",
+    ]
+    expanded["executive"]["key_watchouts"] = [
+        "Caregiver recruiting and retention at scale.",
+        "Referral concentration in core markets.",
+    ]
+    expanded["company_framing"]["workforce_notes"] = (
+        "Offshore/contract headcount: 42 (18% of total); clinical roles are onshore."
+    )
+    validate_bundle(expanded)
+
+
+def test_elder_care_baseline_bundle_validates_without_r2_additive_fields(elder_care_bundle: dict):
+    """Kill criterion: baseline bundles without Revision 2 fields must still validate."""
+    for key in ("thesis_bullets", "key_watchouts"):
+        assert key not in elder_care_bundle["executive"]
+    assert "workforce_notes" not in elder_care_bundle["company_framing"]
+    validate_bundle(elder_care_bundle)
+
+
+def test_validate_bundle_rejects_stray_key_under_executive(elder_care_bundle: dict):
+    """additionalProperties: false on executive must still reject unrecognized keys."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["executive"]["unexpected_executive_field"] = "should not validate"
+    with pytest.raises(BundleValidationError):
+        validate_bundle(expanded)
+
+
+def test_validate_bundle_rejects_stray_key_under_company_framing(elder_care_bundle: dict):
+    """additionalProperties: false on company_framing must still reject unrecognized keys."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["company_framing"]["unexpected_framing_field"] = "should not validate"
+    with pytest.raises(BundleValidationError):
+        validate_bundle(expanded)
+
+
 def test_kpi_missing_dict_diligence_question_readable():
     """F-M2-KPI-DILIGENCE-REPR: dict missing_kpis must not render Python dict repr."""
     kpi_item = {
