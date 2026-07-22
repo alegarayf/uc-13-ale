@@ -366,11 +366,14 @@ def test_synthesize_executive_narrative_uses_snapshots_not_rendered_md() -> None
     assert bundle["risks"] == [{"risk": "keep", "severity": "track"}]
 
 
-def test_executive_llm_system_prompt_reframes_mitigants_and_confidence_v1_1() -> None:
-    """Falsifier: mitigants headline+why and confidence-with-gaps guidance retained in v1.3.0."""
-    assert "Risk Mitigation" in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "headline + why/relationship" in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "Analysis Notes" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+def test_executive_llm_system_prompt_r3_analysis_notes_and_dropped_mitigants() -> None:
+    """Falsifier: Rev3 drops mitigants_digest prompt instruction; Analysis Notes is prose-only."""
+    assert "mitigants_digest" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "headline + why/relationship" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "Risk Mitigation" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "single small paragraph" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "tighter bulleted" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "prose only, no bullets" in _EXECUTIVE_LLM_SYSTEM_PROMPT
     assert "gap_context" in _EXECUTIVE_LLM_SYSTEM_PROMPT
     assert "mitigation-strategy" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
 
@@ -635,16 +638,26 @@ def test_synthesize_executive_narrative_uses_assembled_bundle_sections() -> None
 
 
 def test_executive_llm_system_prompt_v1_3_consolidated_overview() -> None:
-    """Falsifier: v1.3.0 reframes preliminary_digest + mitigants; drops four section digests."""
+    """Falsifier: v1.3.0 reframes preliminary_digest; drops four section digests."""
     for tag in _PRELIMINARY_DIGEST_SECTION_TAGS:
         assert tag in _EXECUTIVE_LLM_SYSTEM_PROMPT
     assert "assembled_bundle_sections" in _EXECUTIVE_LLM_SYSTEM_PROMPT
     assert "NOT a restatement" in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "headline + why/relationship" in _EXECUTIVE_LLM_SYSTEM_PROMPT
     for dropped in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
         assert dropped not in _EXECUTIVE_LLM_SYSTEM_PROMPT
     assert "preliminary_digest" in _EXECUTIVE_LLM_SYSTEM_PROMPT
     assert "risk dimension" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
+
+
+def test_executive_llm_system_prompt_r3_business_snapshot_closing_and_thesis() -> None:
+    """Falsifier: Rev3 concise Business Snapshot, load-bearing thesis cap, and company-focused closing."""
+    assert "warrants a deeper dive" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "3–5 sentences max" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "4–6 short bullets maximum" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "load-bearing themes" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "omit marginal themes" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "single most consequential open question" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "not a checklist of generic diligence" in _EXECUTIVE_LLM_SYSTEM_PROMPT
 
 
 def test_merge_executive_llm_narrative_drops_v1_2_section_digests() -> None:
