@@ -24,8 +24,6 @@ from agents.orchestrator.paths import reports_volume_dir
 _WORD_COUNT_WARN = 1200
 _WORD_COUNT_STRETCH = 800
 _DICT_LEAK_SUBSTRING = "{'metric':"
-_TABLE_SEPARATOR_RE = re.compile(r"^\|[-:| ]+\|$")
-_RISK_RAW_KEY_PATTERNS = ("tier4_addback", "open_legal_matter_other", _DICT_LEAK_SUBSTRING)
 
 
 def _ascii_table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
@@ -69,50 +67,6 @@ def _check_dict_leak(body: str) -> tuple[str, str]:
     return ("pass", "no dict-shaped flag leak")
 
 
-def _extract_risk_table_rows(body: str) -> list[list[str]]:
-    """Return data rows from the ``## Top Risks`` pipe table."""
-    lines = body.splitlines()
-    in_risks = False
-    past_header = False
-    rows: list[list[str]] = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped == "## Top Risks":
-            in_risks = True
-            continue
-        if in_risks and stripped.startswith("## "):
-            break
-        if in_risks and stripped == "---":
-            break
-        if not in_risks or not stripped.startswith("|"):
-            continue
-        if _TABLE_SEPARATOR_RE.match(stripped):
-            past_header = True
-            continue
-        if not past_header:
-            if "Risk" in stripped and "Severity" in stripped:
-                past_header = True
-            continue
-        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-        if cells:
-            rows.append(cells)
-    return rows
-
-
-def _check_risk_raw_metric_keys(body: str) -> tuple[str, str]:
-    hits: list[str] = []
-    for row in _extract_risk_table_rows(body):
-        row_text = " | ".join(row)
-        for pattern in _RISK_RAW_KEY_PATTERNS:
-            if pattern in row_text:
-                hits.append(pattern)
-                break
-    if hits:
-        unique = sorted(set(hits))
-        return ("warn", f"raw metric keys in risk table ({', '.join(unique)})")
-    return ("pass", "no raw metric keys in risk table")
-
-
 def _check_operator_gaps(body: str) -> tuple[str, str]:
     hits: list[str] = []
     for line_no, line in enumerate(body.splitlines(), start=1):
@@ -134,7 +88,6 @@ def _run_gates(body: str) -> list[tuple[str, str, str]]:
         ("word_count", _check_word_count(body)),
         ("dict_leak", _check_dict_leak(body)),
         ("operator_gaps", _check_operator_gaps(body)),
-        ("risk_raw_metric_keys", _check_risk_raw_metric_keys(body)),
     )
     return [(name, status, detail) for name, (status, detail) in checks]
 

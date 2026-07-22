@@ -2,6 +2,7 @@
 
 ## uc13-exec-summary-rainmaker-rev3 — 2026-07-22
 
+- T2 (Bucket A — template + compress + quality-check restructure): Removed Vertical header, In One Line, Strengths/Concerns, Top Risks, and Risk Mitigation from `tldr_one_pager_compressed.md.j2`; collapsed Preliminary View to `preliminary_digest` only (Flag 1); kept Business Snapshot paragraph path (Flag 2); dropped `risks`/in-one-line/strengths/concerns projection and dead compress helpers from `tldr_compress.py`; removed `risk_raw_metric_keys` gate from `tldr_quality_check.py`; retired-string sweep and section-order test update in `tests/test_tldr_compression.py`. Per `.dev/decision-logs/exec-summ-r3-t2-bucket-a-restructure.md`. Adversarial gap deferred: no cluster falsifier that strength-only bundles omit Preliminary View — template guard on `preliminary_digest` is the consumer-side falsifier.
 - T1 (Bucket B — Stage-6 prompt restructure): Rewrote `_EXECUTIVE_LLM_SYSTEM_PROMPT` per operator Flags 2–5 — concise Business Snapshot paragraph, dropped `mitigants_digest` instruction, Analysis Notes as 3–5 sentence prose (retired "tighter bulleted narrative"), load-bearing thesis cap (4–6 bullets), and company-focused closing with single consequential-item pointer; retired-string sweep in `tests/test_bundle_builder.py`. Per `.dev/decision-logs/exec-summ-r3-t1-stage6-prompt-restructure.md`. Adversarial gap deferred: no cluster falsifier that live LLM omits `mitigants_digest` — T3 validation.
 
 ## uc13-exec-summary-wed-sprint-rev2 — 2026-07-22

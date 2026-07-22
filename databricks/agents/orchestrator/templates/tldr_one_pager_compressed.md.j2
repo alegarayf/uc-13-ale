@@ -1,42 +1,15 @@
 # {{ bundle.meta.company_name | default('Company', true) }} — Executive Summary
 
-**Vertical:** {{ bundle.meta.vertical_overlay | default('', true) }}  
 **Generated:** {{ bundle.meta.generated_at | default('', true) }}  
 **Overall Confidence:** {{ bundle.meta.overall_confidence | default('', true) }}
 
-{% if tldr.show_in_one_line and tldr.in_one_line -%}
-
----
-
-## In One Line
-
-{{ tldr.in_one_line }}
-{% endif -%}
-{% if tldr.strengths or tldr.concerns -%}
+{% if tldr.preliminary_digest -%}
 
 ---
 
 ## Preliminary View
-{% if tldr.preliminary_digest %}
 
 {{ tldr.preliminary_digest }}
-{% endif -%}
-{% if tldr.strengths %}
-
-### Strengths
-{%- for strength in tldr.strengths %}
-
-- {{ strength }}
-{%- endfor %}
-{% endif -%}
-{% if tldr.concerns %}
-
-### Concerns
-{%- for concern in tldr.concerns %}
-
-- {{ concern }}
-{%- endfor %}
-{% endif -%}
 {% endif -%}
 {% if tldr.business_snapshot_narrative or tldr.business_snapshot -%}
 
@@ -101,26 +74,6 @@
 
 - {{ line }}
 {%- endfor %}
-{% endif -%}
-{% if tldr.risks -%}
-
----
-
-## Top Risks
-
-| Risk | Severity | Evidence |
-|------|----------|----------|
-{%- for risk in tldr.risks %}
-| {{ risk.display_title }} | {{ risk.severity }} | {{ risk.evidence }} |
-{%- endfor %}
-{% endif -%}
-{% if tldr.mitigants_digest -%}
-
----
-
-## Risk Mitigation
-
-{{ tldr.mitigants_digest }}
 {% endif -%}
 {% if tldr.questions -%}
 

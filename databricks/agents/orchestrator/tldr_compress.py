@@ -2,51 +2,22 @@
 
 from __future__ import annotations
 
-import ast
 import copy
 import re
 from typing import Any
 
 from agents.orchestrator.formatters import (
-    format_agent_flag,
     format_diligence_entry,
     format_kpi_value,
 )
 
-# Match populate.merge_risks_from_flags L117 — lower rank = more severe.
-SEVERITY_RANK: dict[str, int] = {"critical": 0, "material": 1, "track": 2}
-
 _ANNUAL_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 _MONTHLY_YEAR_RE = re.compile(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{4}\b", re.IGNORECASE)
 _YEAR_EXTRACT_RE = re.compile(r"(?:19|20)\d{2}")
-_RELATED_SUFFIX_RE = re.compile(r" \(\+\d+ related\)$")
-
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 _REVENUE_QUALITY_SCALAR_CAP = 4
 _REVENUE_QUALITY_KPI_CAP = 2
 _REVENUE_QUALITY_TOTAL_CAP = 6
-
-_CONCERN_PRIORITY_KEYWORDS: tuple[str, ...] = (
-    "founder",
-    "key-person",
-    "key person",
-    "lease",
-    "insurance",
-    "change-of-control",
-    "consent",
-    "e&o",
-    "cyber",
-    "d&o",
-    "workers' comp",
-)
-
-_SEVERITY_SCORE: dict[str, int] = {"critical": 3, "material": 2, "track": 1}
-
-RISK_DISPLAY_TITLES: dict[str, str] = {
-    "tier4_addback": "Undocumented Tier 4 addbacks",
-    "open_legal_matter_other": "Open legal matters",
-}
 
 _PRELIMINARY_DIGEST_SECTION_TAGS: tuple[str, ...] = (
     "Business Snapshot",
@@ -133,23 +104,11 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
     snapshot = copy.deepcopy(bundle)
     source = bundle
     executive = source.get("executive") or {}
-    preliminary = executive.get("preliminary_view") or {}
     financials = source.get("financials") or {}
     revenue_quality = source.get("revenue_quality") or {}
     company_framing = source.get("company_framing") or {}
 
-    risks = source.get("risks") or []
-    strengths = _rank_preliminary_items(preliminary.get("strengths") or [], risks)
-    concerns = _rank_preliminary_items(preliminary.get("concerns") or [], risks)
-    in_one_line, show_in_one_line = _compress_in_one_line(
-        executive.get("in_one_line") or "", strengths
-    )
-
     view = {
-        "in_one_line": in_one_line,
-        "show_in_one_line": show_in_one_line,
-        "strengths": strengths,
-        "concerns": concerns,
         "business_snapshot": _compress_business_snapshot(company_framing, revenue_quality),
         "business_snapshot_narrative": _optional_executive_string(
             executive, "business_snapshot_narrative"
@@ -165,7 +124,6 @@ def compress_for_tldr(bundle: dict[str, Any]) -> dict[str, Any]:
         "revenue_quality": _compress_revenue_quality(
             revenue_quality, source.get("kpi_dashboard") or []
         ),
-        "risks": _compress_risks(source.get("risks") or []),
         "questions": _compress_questions(source.get("diligence_questions") or []),
     }
     if bundle != snapshot:
@@ -205,71 +163,6 @@ def _resolve_preliminary_digest_for_tldr(
     if raw is None:
         return None
     return _resolve_section_tag_citations(raw, bundle)
-
-
-def _first_sentence(text: str, max_len: int = 200) -> str:
-    """Return the first complete sentence, capped at a sentence boundary within max_len."""
-    text = text.strip()
-    if not text:
-        return ""
-    parts = _SENTENCE_SPLIT_RE.split(text, maxsplit=1)
-    first = parts[0]
-    if len(first) <= max_len:
-        return first
-    window = first[:max_len]
-    best_end = max(window.rfind(ch) for ch in ".!?")
-    if best_end >= 0:
-        return first[: best_end + 1]
-    return first
-
-
-def _item_severity_score(item: str, risks: list[Any], keywords: tuple[str, ...]) -> int:
-    """Rank score: max risk-severity crosswalk hit + keyword hits (T9 §4.8)."""
-    text = item.casefold()
-    score = 0
-    for risk in risks:
-        if not isinstance(risk, dict):
-            continue
-        risk_token = str(risk.get("risk") or "").casefold()
-        if not risk_token or risk_token not in text:
-            continue
-        severity = str(risk.get("severity") or "track").casefold()
-        score = max(score, _SEVERITY_SCORE.get(severity, 1))
-    for keyword in keywords:
-        if keyword.casefold() in text:
-            score += 1
-    return score
-
-
-def _rank_preliminary_items(
-    items: list[Any],
-    risks: list[Any],
-    keywords: tuple[str, ...] = _CONCERN_PRIORITY_KEYWORDS,
-) -> list[str]:
-    indexed = [
-        (idx, str(item).strip())
-        for idx, item in enumerate(items)
-        if not _is_blank(item)
-    ]
-    ranked = sorted(
-        indexed,
-        key=lambda pair: (-_item_severity_score(pair[1], risks, keywords), pair[0]),
-    )
-    return [text for _, text in ranked[:3]]
-
-
-def _compress_in_one_line(in_one_line: str, strengths: list[str]) -> tuple[str, bool]:
-    text = in_one_line.strip()
-    if not text and strengths:
-        text = _first_sentence(strengths[0])
-    if not text:
-        return "", False
-    if strengths:
-        strength_head = strengths[0].strip().casefold()
-        candidate = text.strip().casefold()
-        if strength_head.startswith(candidate) or candidate == strength_head:
-            return "", False
-    return text, True
 
 
 def _compress_business_snapshot(
@@ -384,100 +277,6 @@ def _compress_revenue_quality(
     kpi_lines = _kpi_lines_for_revenue_quality(kpi_dashboard or [])
     lines = (scalar_lines + kpi_lines)[: _REVENUE_QUALITY_TOTAL_CAP]
     return {"lines": lines, "show": bool(lines)}
-
-
-def _truncate(text: str, max_len: int) -> str:
-    if len(text) <= max_len:
-        return text
-    return text[: max_len - 3] + "..."
-
-
-def _truncate_table_cell(text: str, max_len: int = 120) -> str:
-    """Trim table cell text at word boundary with ellipsis (T10)."""
-    text = text.strip()
-    if len(text) <= max_len:
-        return text
-
-    suffix_match = _RELATED_SUFFIX_RE.search(text)
-    suffix = suffix_match.group(0) if suffix_match else ""
-    base = text[: -len(suffix)] if suffix else text
-    budget = max_len - len(suffix)
-
-    if len(base) <= budget:
-        return base + suffix
-
-    cut = base[: budget - 3]
-    last_space = cut.rfind(" ")
-    if last_space > 0:
-        cut = cut[:last_space]
-    return cut + "..." + suffix
-
-
-def _risk_display_title(key: str) -> str:
-    if key in RISK_DISPLAY_TITLES:
-        return RISK_DISPLAY_TITLES[key]
-    return " ".join(word.capitalize() for word in key.split("_"))
-
-
-def _clean_risk_evidence(evidence: str, risk_key: str) -> str:
-    """Readable Evidence prose — no raw dict repr or bare metric keys."""
-    text = evidence.strip()
-    if not text:
-        return ""
-
-    if text.startswith("{"):
-        try:
-            parsed = ast.literal_eval(text)
-        except (ValueError, SyntaxError):
-            parsed = None
-        if isinstance(parsed, dict):
-            cleaned = format_agent_flag(parsed)
-            if cleaned:
-                return cleaned
-
-    if text == risk_key or text in RISK_DISPLAY_TITLES:
-        return _risk_display_title(text if text in RISK_DISPLAY_TITLES else risk_key)
-
-    return text
-
-
-def _compress_risks(risks: list[Any]) -> list[dict[str, Any]]:
-    groups: dict[str, list[dict[str, Any]]] = {}
-    for row in risks:
-        if not isinstance(row, dict):
-            continue
-        key = str(row.get("risk") or "")
-        groups.setdefault(key, []).append(row)
-
-    merged: list[dict[str, Any]] = []
-    for risk_key, group in groups.items():
-        best = min(
-            group,
-            key=lambda r: (
-                SEVERITY_RANK.get(str(r.get("severity") or "track"), 9),
-                str(r.get("evidence") or ""),
-            ),
-        )
-        evidence = _clean_risk_evidence(str(best.get("evidence") or ""), risk_key)
-        if len(group) > 1:
-            suffix = f" (+{len(group) - 1} related)"
-            evidence = (evidence + suffix) if evidence else suffix.strip()
-        merged.append(
-            {
-                "risk": risk_key,
-                "display_title": _risk_display_title(risk_key),
-                "severity": str(best.get("severity") or "track"),
-                "evidence": _truncate_table_cell(evidence),
-            }
-        )
-
-    merged.sort(
-        key=lambda r: (
-            SEVERITY_RANK.get(str(r.get("severity") or "track"), 9),
-            str(r.get("risk") or ""),
-        )
-    )
-    return merged[:5]
 
 
 def _compress_questions(questions: list[Any]) -> list[dict[str, Any]]:
