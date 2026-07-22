@@ -670,3 +670,89 @@ def test_executive_llm_narrative_keys_allowlist_excludes_dropped_digests() -> No
     for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
         assert key not in _EXECUTIVE_LLM_NARRATIVE_KEYS
     assert "preliminary_digest" in _EXECUTIVE_LLM_NARRATIVE_KEYS
+
+
+def test_executive_llm_narrative_keys_allowlist_includes_thesis_and_watchouts() -> None:
+    """T4: allowlist admits the two new executive string[] synthesis fields."""
+    assert "thesis_bullets" in _EXECUTIVE_LLM_NARRATIVE_KEYS
+    assert "key_watchouts" in _EXECUTIVE_LLM_NARRATIVE_KEYS
+
+
+def test_executive_llm_narrative_keys_do_not_collide_with_structural_sections() -> None:
+    """T4 kill criterion: new keys must not be silently discarded by restore-after-LLM."""
+    preserved_keys = {
+        "meta",
+        "legal",
+        "data_room_gaps",
+        "kpi_dashboard",
+        "risks",
+        "diligence_questions",
+        "headline_metrics",
+        "company_framing",
+    }
+    new_keys = {"thesis_bullets", "key_watchouts"}
+    assert not new_keys & set(_EXECUTIVE_SYNTHESIS_BUNDLE_SECTION_KEYS)
+    assert not new_keys & preserved_keys
+
+
+def test_merge_executive_llm_narrative_admits_thesis_and_watchouts() -> None:
+    """T4: merge writes thesis_bullets and key_watchouts from mocked LLM string[] output."""
+    bundle = {"executive": _executive_shell()}
+    llm_result = {
+        "executive": {
+            "thesis_bullets": [
+                "  Regional platform with offshore staffing. ",
+                "Acquisition-led growth.",
+            ],
+            "key_watchouts": [
+                "Caregiver recruiting in tight labor markets",
+                "Referral concentration",
+            ],
+        }
+    }
+    _merge_executive_llm_narrative(bundle, llm_result)
+    assert bundle["executive"]["thesis_bullets"] == [
+        "Regional platform with offshore staffing.",
+        "Acquisition-led growth.",
+    ]
+    assert bundle["executive"]["key_watchouts"] == [
+        "Caregiver recruiting in tight labor markets",
+        "Referral concentration",
+    ]
+
+
+def test_merge_executive_llm_narrative_leaves_thesis_watchouts_untouched_when_absent_or_empty() -> None:
+    """T4: absent/empty thesis_bullets and key_watchouts do not overwrite bundle executive."""
+    bundle = {"executive": _executive_shell()}
+    _merge_executive_llm_narrative(
+        bundle,
+        {"executive": {"thesis_bullets": [], "key_watchouts": None}},
+    )
+    assert "thesis_bullets" not in bundle["executive"]
+    assert "key_watchouts" not in bundle["executive"]
+
+
+def test_merge_executive_llm_narrative_filters_non_string_thesis_watchout_items() -> None:
+    """Falsifier: non-string list items are dropped by _string_list, not coerced."""
+    bundle = {"executive": _executive_shell()}
+    llm_result = {
+        "executive": {
+            "thesis_bullets": ["Keep me", 42, "", "  Also keep  "],
+            "key_watchouts": [None, "Valid watchout"],
+        }
+    }
+    _merge_executive_llm_narrative(bundle, llm_result)
+    assert bundle["executive"]["thesis_bullets"] == ["Keep me", "Also keep"]
+    assert bundle["executive"]["key_watchouts"] == ["Valid watchout"]
+
+
+def test_executive_llm_system_prompt_bucket_b_attribution_instruction() -> None:
+    """T4: Bucket B attribution/qualification instruction is present in the Stage 6 prompt."""
+    assert "qualify it with source and period" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "do not silently pick one canonical number" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+
+
+def test_executive_llm_system_prompt_omits_wage_inflation_theme() -> None:
+    """T4: key_watchouts prompt explicitly omits wage-inflation-vs-pricing (no data source)."""
+    assert "wage-inflation-vs-pricing" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "omit this theme" in _EXECUTIVE_LLM_SYSTEM_PROMPT

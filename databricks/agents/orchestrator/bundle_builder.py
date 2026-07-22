@@ -36,6 +36,8 @@ _EXECUTIVE_LLM_NARRATIVE_KEYS = frozenset(
         "mitigants_digest",
         "confidence_rationale",
         "preliminary_digest",
+        "thesis_bullets",
+        "key_watchouts",
     }
 )
 
@@ -84,6 +86,21 @@ Return ONLY valid JSON (no markdown fences) with optional top-level key "executi
     confidence_by_area, fill_state on risks/kpis); contextualize the "## Confidence by Area" score grid
     by naming specific missing data — rendered under header "Analysis Notes" (display rename from
     "Confidence & Data Gaps")
+  thesis_bullets (string[], optional) — Initial Thesis & Fit bullets: synthesize from
+    assembled_bundle_sections.company_framing (including workforce/offshore context in workforce_notes
+    when present) and acquisition/expansion facts visible in company_framing and financials;
+    investment-thesis framing, not a restatement of preliminary_view.strengths
+  key_watchouts (string[], optional) — Key Watchouts bullets for the deal-screen reader: reframe toward
+    caregiver recruiting/retention, service quality at scale, referral concentration,
+    organic-vs-acquisition mix, market-level unit economics, and replicability — use
+    assembled_bundle_sections risks, kpi_gaps, financials, and revenue_quality; do NOT include
+    wage-inflation-vs-pricing (no wage/labor-cost data is mapped in the bundle — omit this theme
+    rather than inventing it)
+When business_snapshot_narrative, preliminary_view.strengths, or thesis_bullets state a company-wide
+client or caregiver count, qualify it with source and period (e.g. "~595 clients per BMA's Q4-24E
+projection" not "595 clients"). If assembled_bundle_sections or gap_context hold more than one figure
+for the same conceptual metric across agents or measurement bases, name the discrepancy explicitly —
+do not silently pick one canonical number.
 Do not include risks, legal, kpi_dashboard, headline_metrics, company_framing, financials, or any other keys.
 Use stated figures and assembled section data only — do not invent financial metrics.
 preliminary_view.closing must avoid investment advice (no buy/sell/hold recommendations)."""
@@ -137,6 +154,11 @@ def _merge_executive_llm_narrative(bundle: dict[str, Any], llm_result: dict[str,
                 bundle["executive"]["preliminary_view"][key] = strings
         if isinstance(pv.get("closing"), str) and pv["closing"].strip():
             bundle["executive"]["preliminary_view"]["closing"] = pv["closing"].strip()
+
+    for key in ("thesis_bullets", "key_watchouts"):
+        strings = _string_list(exc.get(key))
+        if strings:
+            bundle["executive"][key] = strings
 
 
 def _capture_structural_fields(bundle: dict[str, Any]) -> dict[str, Any]:
