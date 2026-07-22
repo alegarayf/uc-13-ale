@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-exec-summary-wed-sprint-rev2 — 2026-07-22
+
+- T1 (Branch setup — Revision 2 isolation boundary): Cut `feat/exec-summary-rainmaker-restructure` from `dev` at `d06992a` (HEAD matches `dev` at cut time). Establishes the isolation boundary every downstream T2–T7 subtask assumes. Adversarial gap deferred: no automated guard that future commits land on this branch — branch-name contract is the falsifier.
+
 ## uc13-exec-summary-wed-sprint — 2026-07-17
 
 - T9 (Final assembly — stakeholder artifact selection): Operator assembly on `feat/exec-summary-expanded-synthesis` (`uc13_ale`) — **4/4 expanded** (Elder Care T24, Clearsulting/GKF/SPG T7); zero baseline fallbacks; all Volume `tldr_one_pager.md`/`.docx` pairs verified present with H1 **Executive Summary**; kill criterion not fired. Provenance record: `.dev/t9_assembly_record.md`. Rationale: mix discovered per Design Principle 2 — every company that cleared validation ships expanded synthesis; no back-fill. Adversarial gap deferred: no automated post-assembly drift guard that Volume artifacts stay expanded after selection — assembly-time volume probe is the falsifier.
