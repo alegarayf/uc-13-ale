@@ -1,0 +1,75 @@
+# UC13 Diligence Pipeline (Phase 3 → 5) — Databricks Asset Bundle workflow.
+#
+# Single-task job. The task calls agents.orchestration.pipeline.run_pipeline(), which
+# is the SINGLE SOURCE OF TRUTH for the Phase 3 → Phase 5 dependency graph, parallelism,
+# retry, and failure isolation. There is deliberately NO per-agent task tree here — the
+# DAG lives in Python so dependency/degradation logic cannot drift out of sync, and the
+# per-agent SUCCESS/FAILED/SKIPPED manifest is persisted into uc13.analysis.diligence_report
+# and rendered in the memo appendix. Per-agent MLflow @mlflow.trace spans are preserved.
+#
+# Prerequisites: Phase 1–2 (ingestion) must have populated uc13.ingestion.embeddings,
+# uc13.classification.doc_relevance, and uc13.classification.company_profile for the
+# company — run the uc13_ingestion_pipeline job (or notebook Cells 3–9) first.
+#
+# Deploy:
+#   databricks bundle deploy --target <env>
+#   databricks bundle run uc13_diligence_pipeline --target <env>
+
+resources:
+  jobs:
+    uc13_diligence_pipeline:
+      name: "UC13 Diligence Pipeline (Phase 3-5)"
+      description: >
+        Runs the seven Phase 3 workstream agents (parallel where independent),
+        the Phase 4 Cross-Analysis Agent, and the Phase 5 Orchestrator Agent
+        (final memo .md + .docx). Failure-isolated: an agent that fails after
+        retries does not block agents that do not depend on it.
+
+      parameters:
+        - name: sp_company_name
+          default: ""
+          description: >
+            Company name as indexed in Unity Catalog (uc13.ingestion.embeddings).
+            Required — leave blank to abort.
+        - name: catalog
+          default: "uc13"
+          description: "Unity Catalog catalog name."
+        - name: llm_endpoint
+          default: "databricks-claude-sonnet-4-6"
+          description: "Narrative + reasoning LLM endpoint (Sonnet recommended)."
+        - name: extraction_endpoint
+          default: "databricks-claude-sonnet-4-6"
+          description: "Structured-JSON extraction LLM endpoint."
+
+      tasks:
+        - task_key: run_diligence_pipeline
+          description: >
+            Delegates to run_pipeline(): Phase 3 workstreams (Business Model,
+            Financial Trends, Customer Quality, KPI, Legal & Contracts, Quality
+            of Earnings, Forecast) → Phase 4 Cross-Analysis → Phase 5 Orchestrator.
+          spark_python_task:
+            python_file: "databricks/jobs/scripts/run_diligence_pipeline.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.llm_endpoint}}"
+              - "{{job.parameters.extraction_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          # The orchestrator itself handles per-agent retry/isolation. This is a
+          # coarse whole-job retry for transient infra failures only.
+          timeout_seconds: 14400
+          max_retries: 1
+          retry_on_timeout: true
+
+      email_notifications:
+        on_failure: []
+
+      max_concurrent_runs: 1

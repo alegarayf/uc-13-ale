@@ -1,0 +1,185 @@
+# UC13 Full Diligence Pipeline (Phase 1-5) — Databricks Asset Bundle workflow.
+#
+# End-to-end pipeline: SharePoint download → document classification → chunk
+# parsing + embedding + company profiling (Phase 1-2), then the full Phase 3-5
+# diligence analysis: seven workstream agents → Cross-Analysis → Orchestrator
+# (final diligence memo .md + .docx in Unity Catalog Volume).
+#
+# Task structure — two tasks for per-phase visibility in the Databricks UI:
+#
+#   ingestion_pipeline  Phase 1-2
+#     download_upload → document_classifier → ingestion_parser → company_profiler
+#     Calls: databricks/jobs/scripts/run_ingestion_pipeline.py
+#     Writes: upload_log · doc_relevance · chunks · embeddings · company_profile
+#
+#   diligence_pipeline  Phase 3-5  (depends_on: ingestion_pipeline)
+#     Business Model · Financial Trends · Customer Quality · KPI ·
+#     Legal & Contracts · Quality of Earnings · Forecast (Phase 3, parallel)
+#     → Cross-Analysis (Phase 4)
+#     → Orchestrator → final_diligence_memo.{md,docx} (Phase 5)
+#     Calls: databricks/jobs/scripts/run_diligence_pipeline.py
+#     Writes: uc13.analysis.{business_model, ..., forecast, cross_analysis,
+#             diligence_report}; artifact at /Volumes/uc13/analysis/reports/{company}/
+#
+# Failure isolation:
+#   Phase 1-2: each sub-step propagates failures — if download_upload or
+#   document_classifier fails, subsequent steps are SKIPPED (no files → no
+#   embeddings). The Databricks task fails, blocking diligence_pipeline.
+#   Phase 3-5: per-agent retry + failure isolation inside PipelineOrchestrator
+#   (Python). An agent that fails after retries does not block agents that do
+#   not depend on it. The run manifest is embedded in the final memo appendix.
+#
+# When to use this job vs the individual jobs:
+#   uc13_full_pipeline       — new company (Phase 1-2 not yet run) OR full refresh.
+#   uc13_ingestion_pipeline  — re-run Phase 1-2 only (e.g., new documents added).
+#   uc13_diligence_pipeline  — re-run Phase 3-5 only (embeddings already populated).
+#
+# Prerequisites:
+#   - Unity Catalog catalog "uc13" created by workspace admin.
+#   - Secrets scope "uc13" with SharePoint credentials (see workflows/README.md).
+#   - Run 00_setup_vector_search once to create the VS endpoint and index.
+#
+# Deploy:
+#   databricks bundle deploy --target <env>
+#   databricks bundle run uc13_full_pipeline --target <env>
+#     --params sp_company_name="Elder Care"
+
+resources:
+  jobs:
+    uc13_full_pipeline:
+      name: "UC13 Full Diligence Pipeline (Phase 1-5)"
+      description: >
+        End-to-end pipeline: Phase 1-2 (SharePoint ingestion, document
+        classification, embedding, company profiling) followed by Phase 3-5
+        (seven workstream agents, Cross-Analysis, and Orchestrator producing
+        the final diligence memo .md + .docx). Failure-isolated at the phase
+        level and within Phase 3-5 at the individual-agent level.
+
+      parameters:
+        # ══════════════════════════════════════════════════════════════════
+        # ONLY sp_company_name IS REQUIRED — all other parameters have
+        # sensible defaults and do not need to be changed for normal runs.
+        # SharePoint credentials come from Databricks secrets scope "uc13"
+        # (configured once per workspace, not per run).
+        # ══════════════════════════════════════════════════════════════════
+        - name: sp_company_name
+          default: ""
+          description: >
+            [REQUIRED] Company name exactly as it appears as a folder under
+            "Example Data Room" in SharePoint (e.g. "Elder Care", "Project Silo").
+            Use list_companies() in the notebook to discover available names.
+            Leave blank → job aborts immediately.
+
+        # ── Optional overrides (leave as-is for standard runs) ────────────
+        - name: catalog
+          default: "uc13"
+          description: "Optional. Unity Catalog catalog name. Default: uc13."
+        - name: schema
+          default: "ingestion"
+          description: "Optional. UC schema for raw ingestion tables. Default: ingestion."
+        - name: embedding_endpoint
+          default: "databricks-bge-large-en"
+          description: "Optional. BGE embedding endpoint. Default: databricks-bge-large-en."
+        - name: llm_endpoint
+          default: "databricks-claude-sonnet-4-6"
+          description: >
+            Optional. LLM endpoint for Phase 3-5 agents (narrative + reasoning).
+            Default: databricks-claude-sonnet-4-6 (only model with reliable 10-16K output).
+        - name: extraction_endpoint
+          default: "databricks-claude-sonnet-4-6"
+          description: >
+            Optional. Structured-JSON extraction endpoint for Phase 3-5 agents.
+            Default: same as llm_endpoint.
+        - name: vision_endpoint
+          default: ""
+          description: >
+            Optional. Vision LLM for chart/figure pages in PDFs.
+            Default: "" (vision extraction disabled). Set to "databricks-claude-haiku-4-5" to enable.
+        - name: parse_priority_tiers
+          default: "1,2"
+          description: >
+            Optional. Comma-separated priority tier numbers to parse in Phase 2b
+            (e.g. "1,2" or "all"). Default: "1,2" — parses only Tier 1 and Tier 2
+            documents for speed, then automatically backfills any workstream that
+            received zero files with its best available doc from remaining tiers.
+
+      tasks:
+        # ------------------------------------------------------------------
+        # Task 1 — Phase 1-2: Ingestion
+        # Runs all four Phase 1-2 steps sequentially inside one Python runner.
+        # Failure propagates: if download_upload or document_classifier fail,
+        # downstream steps are SKIPPED and this task exits with failure,
+        # blocking the diligence task.
+        # ------------------------------------------------------------------
+        - task_key: ingestion_pipeline
+          description: >
+            Phase 1 (SharePoint download → UC Volume + upload_log) →
+            Phase 2a (document_classifier → doc_relevance) →
+            Phase 2b (ingestion_parser → chunks + embeddings + VS index sync) →
+            Phase 2b (company_profiler → company_profile with overlay detection).
+          spark_python_task:
+            python_file: "databricks/jobs/scripts/run_ingestion_pipeline.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.schema}}"
+              - "{{job.parameters.embedding_endpoint}}"
+              - "{{job.parameters.vision_endpoint}}"
+              - "{{job.parameters.parse_priority_tiers}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          # Timeout covers download (variable on SharePoint latency) +
+          # full parse of a large data room + VS index sync.
+          timeout_seconds: 18000
+          max_retries: 1
+          retry_on_timeout: true
+
+        # ------------------------------------------------------------------
+        # Task 2 — Phase 3-5: Diligence
+        # Depends on ingestion_pipeline completing successfully.
+        # Per-agent retry and failure isolation are handled inside
+        # PipelineOrchestrator (Python) — this Databricks task is a single
+        # entry point for the entire Phase 3-5 block.
+        # ------------------------------------------------------------------
+        - task_key: diligence_pipeline
+          description: >
+            Phase 3: Business Model · Financial Trends · Customer Quality · KPI ·
+            Legal & Contracts · Quality of Earnings · Forecast (parallel where
+            independent, failure-isolated per agent).
+            Phase 4: Cross-Analysis Agent (reconciliation + CIM-claims + top-10).
+            Phase 5: Orchestrator Agent → final_diligence_memo.md + .docx.
+          depends_on:
+            - task_key: ingestion_pipeline
+          spark_python_task:
+            python_file: "databricks/jobs/scripts/run_diligence_pipeline.py"
+            parameters:
+              - "{{job.parameters.sp_company_name}}"
+              - "{{job.parameters.catalog}}"
+              - "{{job.parameters.llm_endpoint}}"
+              - "{{job.parameters.extraction_endpoint}}"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            data_security_mode: "SINGLE_USER"
+            runtime_engine: "STANDARD"
+          timeout_seconds: 14400
+          max_retries: 1
+          retry_on_timeout: true
+
+      email_notifications:
+        on_failure: []
+
+      # Process one company at a time — parallel runs would conflict on
+      # the same company's Delta table rows (DELETE + INSERT pattern).
+      max_concurrent_runs: 1
