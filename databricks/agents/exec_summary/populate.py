@@ -1,6 +1,6 @@
 """UC13 Orchestrator — M1 demo populate path (LLM synthesis + ``demo_mode: true``).
 
-For production bundles use :class:`~agents.orchestrator.bundle_builder.BundleBuilder`
+For production bundles use :class:`~agents.exec_summary.bundle_builder.BundleBuilder`
 (``BundleBuilder.build()``) — deterministic stages 0–8 with ``demo_mode: false``.
 This module preserves the notebook render fallback when a demo bundle is needed.
 """
@@ -15,7 +15,7 @@ from typing import Any
 
 from pyspark.sql import SparkSession
 
-from agents.orchestrator.bundle_builder import (
+from agents.exec_summary.bundle_builder import (
     GapAggregator,
     apply_fill_state,
     collect_synthesis_gaps,
@@ -23,11 +23,11 @@ from agents.orchestrator.bundle_builder import (
     merge_risks_from_flags,
     write_bundle_yaml,
 )
-from agents.orchestrator.confidence import ConfidenceEngine
-from agents.orchestrator.constants import AGENT_DELTA_TABLE_SUFFIXES, AGENTS_PRESENT_KEYS
-from agents.orchestrator.ingest import ingest_snapshots
-from agents.orchestrator.paths import company_safe, reports_volume_dir
-from agents.orchestrator.validate import BundleValidationError, validate_bundle
+from agents.exec_summary.confidence import ConfidenceEngine
+from agents.exec_summary.constants import AGENT_DELTA_TABLE_SUFFIXES, AGENTS_PRESENT_KEYS
+from agents.exec_summary.ingest import ingest_snapshots
+from agents.exec_summary.paths import company_safe, reports_volume_dir
+from agents.exec_summary.validate import BundleValidationError, validate_bundle
 from agents.shared.agent_base import WorkstreamAgent
 
 _gap_aggregator = GapAggregator()
@@ -483,7 +483,7 @@ def populate_bundle(
 ) -> dict:
     """M1 demo path: ingest → LLM narrative → shared stages → validate → Volume write.
 
-    Production bundles should use :class:`~agents.orchestrator.bundle_builder.BundleBuilder`.
+    Production bundles should use :class:`~agents.exec_summary.bundle_builder.BundleBuilder`.
     Sets ``meta.demo_mode`` to ``True`` and preserves the LLM synthesis stage.
     """
     if spark is None:

@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from agents.orchestrator.formatters import format_kpi_value
+from agents.exec_summary.formatters import format_kpi_value
 
 # Appendix B TL;DR rows — data-driven mapping registry (§5.11).
 # Stage-3+ rows (risks, gaps, confidence) are listed for coverage; applied elsewhere.
