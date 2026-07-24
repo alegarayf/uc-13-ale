@@ -19,7 +19,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 | **Executive summary** (Phase 8) | **CLOSED** | 4/4 companies expanded synthesis `d06992a`; Rainmaker Rev2/Rev3 merged to `dev` 2026-07-24 |
 | **Local git** | **`dev`** | `dev2` + `feat/exec-summary-rainmaker-restructure` merged 2026-07-24 |
 
-**Open follow-ups (non-blocking):** Legal restrictive re-test (target 8/11) after merge-semantics fix.
+**Open follow-ups (non-blocking):** none — BMA F2 closed 2026-07-24; Legal 9/11 PASS 2026-07-24 (post restrictive-merge fix).
 
 ---
 
@@ -85,7 +85,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 
 - [x] Pin baseline: **`baseline_1aeb0ace584a`** (supersedes `baseline_299063e87806`)
 - [x] FTA fallback + harness `dispatch_retrieval` → shared `fallback.py`
-- [x] Cluster T8: FTA **16/18** · Legal **7/11** CONDITIONAL
+- [x] Cluster T8: FTA **16/18** · Legal **9/11** PASS (2026-07-24 re-score; was 7/11 CONDITIONAL on 7/16)
 - [ ] Shared context assembly (charter item 28) — **DEFERRED**
 - [ ] `workstream_tags.py` centralization (item 30) — **DEFERRED**
 
@@ -119,7 +119,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 | Agent | Score | Gate |
 |-------|-------|------|
 | FTA | 16/18 | prior M-PHV2/M-RE3 |
-| Legal | 7/11 CONDITIONAL | prior M-PHV2/M-RE3 |
+| Legal | 9/11 PASS | prior M-PHV2/M-RE3; **9/11** post-fix 2026-07-24 (`.dev/scorecards/scorecard_lca_7_24_post_restrictive_fix_vs_7_16.md`) |
 | BMA | 7/7 | `baseline_bootstrap` |
 | CQA | 3/6 | `baseline_bootstrap` |
 | KPI | 3/3 | `baseline_bootstrap` |
@@ -180,7 +180,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 [ ] Phase 7 data room   ← you are here
 ```
 
-**Remaining:** Phase 7 design · Legal 8/11 re-test (post merge-semantics fix) · push `dev` to origin
+**Remaining:** Phase 7 design
 
 ---
 
@@ -195,4 +195,4 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 | 2026-07-16 | 3 audit | — | M-PHV4 audit `accepted-with-waivers` | PASS |
 | 2026-07-20 | 8 exec summary | d06992a | 4/4 expanded executive summaries | PASS |
 | 2026-07-21 | 6 eval harness | b2087b9 | M4 all five agents `baseline_bootstrap`; M4 audit `accepted-with-waivers` | PASS |
-| 2026-07-24 | git merge | — | `dev2` + `feat/exec-summary-rainmaker-restructure` → `dev`; runbook updated | PASS |
+| 2026-07-24 | closeout | acf4843 | BMA F2 7/7; Legal 9/11; W-M4-4 manifest spot-check; pushed `dev` | PASS |
