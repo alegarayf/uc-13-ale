@@ -144,6 +144,40 @@ def _parse_numeric(value_str: Optional[str]) -> Optional[float]:
         return None
 
 
+def _fmt_dollars(val) -> str:
+    """Format a numeric value as '$1,234,567' or '—' if absent."""
+    if val is None:
+        return "—"
+    if isinstance(val, (int, float)):
+        return f"${float(val):,.0f}"
+    n = _parse_numeric(str(val))
+    if n is None:
+        return str(val) if val else "—"
+    return f"${n:,.0f}"
+
+
+def _fmt_pct(val) -> str:
+    """Format a numeric value as '12.3%' or '—' if absent."""
+    if val is None:
+        return "—"
+    if isinstance(val, (int, float)):
+        return f"{float(val):.1f}%"
+    n = _parse_numeric(str(val))
+    return f"{n:.1f}%" if n is not None else str(val)
+
+
+def _tier_emoji(tier: str) -> str:
+    """Return a traffic-light emoji for a tier classification string."""
+    t = (tier or "").strip()
+    if t == "Tier 1":
+        return "🟢"
+    if t in ("Tier 2", "Tier 3"):
+        return "🟡"
+    if t == "Tier 4":
+        return "🔴"
+    return "⚪"
+
+
 # ---------------------------------------------------------------------------
 # LLM prompts
 # ---------------------------------------------------------------------------
@@ -177,6 +211,13 @@ information from financial due diligence documents. Rules:
    in run-rate without normalization; addbacks growing faster than reported EBITDA;
    revenue recognition policy change between years; episodic/event-driven demand
    (healthcare: hard to forecast, inconsistent referral patterns).
+   Unusual credits, rebates, discounts, refunds, or concessions that reduce stated
+   revenue — flag if material or if the pattern repeats across periods
+   (flag_type: unusual_credits_rebates_refunds).
+   AR aging deterioration, write-offs, or collections issues — flag if DSO is
+   rising alongside AR write-offs, if bad debt expense is growing, or if the
+   aging schedule shows a shift toward older buckets
+   (flag_type: ar_aging_writeoffs).
 8. For each addback from the ADDBACK SCHEDULE passthrough block: re-evaluate it
    against the VDR context to confirm or update the tier. If the passthrough
    already has supporting_doc_referenced, use that; otherwise apply the Tier 4
@@ -191,6 +232,8 @@ COMPANY PROFILE (from Phase 2 output):
 {company_profile_json}
 
 {addback_context}
+
+{working_capital_context}
 
 RETRIEVED DOCUMENT CONTEXT:
 {combined_chunk_text}
@@ -214,7 +257,7 @@ Extract quality of earnings fields and return this exact JSON structure:
   ],
   "revenue_quality_flags": [
     {{
-      "flag_type": "<dso_trending_up | period_end_spike | non_recurring_in_run_rate | addbacks_growing_faster | revenue_recognition_change | episodic_revenue | bill_and_hold>",
+      "flag_type": "<dso_trending_up | period_end_spike | non_recurring_in_run_rate | addbacks_growing_faster | revenue_recognition_change | episodic_revenue | bill_and_hold | unusual_credits_rebates_refunds | ar_aging_writeoffs>",
       "evidence": "<description of what was found>",
       "severity": "<Red | Yellow>",
       "source_doc": "<filename>",
@@ -284,6 +327,13 @@ class QualityOfEarningsAgent(WorkstreamAgent):
 
         Returns list of addback dicts. Returns empty list with a gap note if the
         Financial Trends Agent has not yet run — graceful fallback.
+
+        NOTE: this single query intentionally keeps catalog + company_name inline
+        (not :company_name bind args). ``tests/test_qoe_precondition_gate.py`` pins
+        this behaviour: it asserts both the catalog and the company name appear in
+        the emitted SQL text and stubs ``spark.sql(query)`` with no ``args`` kwarg.
+        The company_name parameterization (bind args) is applied to every other
+        SQL site in this module; see decision log T5 for the rationale.
         """
         try:
             rows = spark.sql(f"""
@@ -301,6 +351,121 @@ class QualityOfEarningsAgent(WorkstreamAgent):
             "QofE scope will rely on direct VDR retrieval only."
         )
         return []
+
+    def _load_customer_quality(self, company_name: str, spark) -> list:
+        """Load top_customers from {catalog}.analysis.customer_quality.
+
+        Returns [] with a gap note if CQA has not run or GM data is absent.
+        Only returns customers when at least one has gm_pct or gm_dollars populated.
+        """
+        try:
+            rows = spark.sql(
+                f"SELECT top_customers_json FROM {self._catalog}.analysis.customer_quality "
+                "WHERE company_name = :company_name "
+                "ORDER BY created_at DESC LIMIT 1",
+                args={"company_name": company_name},
+            ).collect()
+            if not rows:
+                self._add_gap(
+                    "Customer Quality Agent output not found — "
+                    "customer profitability cross-check skipped."
+                )
+                return []
+            customers = json.loads(rows[0]["top_customers_json"] or "[]")
+            has_gm = any(c.get("gm_pct") or c.get("gm_dollars") for c in customers)
+            if not has_gm:
+                self._add_gap(
+                    "Customer Quality Agent output present but no per-customer "
+                    "gross margin data (gm_pct / gm_dollars) — "
+                    "customer profitability cross-check skipped."
+                )
+                return []
+            return customers
+        except Exception as e:
+            self._add_gap(f"Could not load customer_quality table: {e}")
+            return []
+
+    def _detect_profitability_outliers(self, customers: list) -> list:
+        """Flag customers whose GM is materially below the portfolio average.
+
+        Only runs when gm_pct is available for at least 2 customers.
+        Returns [] if insufficient data — never raises.
+        threshold_delta = 10pp below portfolio average.
+        severity: 'material' if revenue_pct_yr1 > 20%, else 'track'.
+        """
+        if not customers:
+            return []
+
+        gm_values = []
+        for c in customers:
+            val = c.get("gm_pct")
+            if val is not None:
+                try:
+                    gm_values.append(
+                        (c, float(str(val).replace("%", "").strip()))
+                    )
+                except (ValueError, TypeError):
+                    pass
+
+        if len(gm_values) < 2:
+            return []
+
+        avg_gm = sum(v for _, v in gm_values) / len(gm_values)
+        threshold_delta = 10.0  # Flag if >10pp below portfolio average
+
+        outliers = []
+        for customer, gm in gm_values:
+            delta = gm - avg_gm
+            if delta < -threshold_delta:
+                rev_pct_raw = customer.get("revenue_pct_yr1", "unknown")
+                try:
+                    rev_pct_num = float(
+                        str(rev_pct_raw).replace("%", "").strip() or 0
+                    )
+                except (ValueError, TypeError):
+                    rev_pct_num = 0.0
+
+                outliers.append({
+                    "customer":               customer.get("customer_name", "Unknown"),
+                    "revenue_pct":            rev_pct_raw,
+                    "gm_pct":                 gm,
+                    "portfolio_avg_gm_pct":   round(avg_gm, 1),
+                    "delta_pp":               round(delta, 1),
+                    "source_doc":             customer.get("source_doc", "customer_quality_agent"),
+                    "source_location":        customer.get("source_location", ""),
+                    "severity":               "material" if rev_pct_num > 20 else "track",
+                    "note": (
+                        f"GM of {gm:.1f}% is {abs(delta):.1f}pp below the "
+                        f"portfolio average of {avg_gm:.1f}%. "
+                        f"Revenue share: {rev_pct_raw}."
+                    ),
+                })
+        return outliers
+
+    def _load_working_capital_passthrough(self, company_name: str, spark) -> dict:
+        """Load working-capital indicators extracted by the Financial Trends Agent.
+
+        Returns a dict with at least ``dso_days``, ``dpo_days``, ``ar_aging_note``
+        when available. Returns an empty dict with a gap note if the Financial
+        Trends Agent has not yet run or produced no working-capital data.
+        """
+        try:
+            rows = spark.sql(
+                f"SELECT working_capital_json FROM {self._catalog}.analysis.financial_trends "
+                "WHERE company_name = :company_name "
+                "ORDER BY created_at DESC LIMIT 1",
+                args={"company_name": company_name},
+            ).collect()
+            if rows and rows[0]["working_capital_json"]:
+                return json.loads(rows[0]["working_capital_json"])
+        except Exception:
+            pass
+        self._add_gap(
+            f"working_capital_json not found in {self._catalog}.analysis.financial_trends — "
+            "Financial Trends Agent has not run or found no working-capital data. "
+            "Period-end maneuver flags and DSO/DPO trend review will be skipped."
+        )
+        return {}
 
     # -----------------------------------------------------------------------
     # Retrieval tool methods
@@ -416,8 +581,9 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         try:
             rows = spark.sql(
                 f"SELECT * FROM {self._catalog}.classification.company_profile "
-                f"WHERE company_name = '{company_name}' "
-                f"ORDER BY created_at DESC LIMIT 1"
+                "WHERE company_name = :company_name "
+                "ORDER BY created_at DESC LIMIT 1",
+                args={"company_name": company_name},
             ).collect()
             if not rows:
                 self._add_gap("company_profile not found — run company_profiler.py first")
@@ -574,6 +740,93 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         if extracted.get("qofe_report_present") == "false":
             self._add_gap("No QofE report found in VDR — flag as data room gap")
 
+    def _apply_working_capital_flags(self, wc: dict):
+        """Generate deterministic flags from working-capital passthrough data.
+
+        Flags period-end maneuvers and DSO/DPO trends using stated figures only.
+        No computation of the peg — that is the QofE provider's scope.
+        """
+        if not wc:
+            return
+
+        source = f"{self._catalog}.analysis.financial_trends (working_capital_json)"
+
+        dso = wc.get("dso_days")
+        dpo = wc.get("dpo_days")
+        ar_aging_note = wc.get("ar_aging_note") or ""
+
+        # DSO trend — flag if list of period values shows >10 day increase
+        if isinstance(dso, list) and len(dso) >= 2:
+            dso_trend = dso[-1] - dso[0]
+            if dso_trend > 10:
+                self._add_flag(
+                    metric="dso_trend",
+                    value=f"DSO increased {round(dso_trend, 1)} days over period",
+                    threshold=">10 day increase over measurement period",
+                    severity="Yellow",
+                    note=(
+                        f"DSO increased {round(dso_trend, 1)} days over the measurement period "
+                        f"(from {dso[0]} to {dso[-1]} days) — potential period-end acceleration of "
+                        "collections or organic AR deterioration. Validate with AR aging schedule."
+                    ),
+                    source_doc=source,
+                    confidence="medium",
+                )
+            else:
+                self._log_no_flag("dso_trend", f"{dso_trend:+.1f} days", "≤+10 days")
+        elif isinstance(dso, (int, float)):
+            step = len(self._trace) + 1
+            self._trace.append({
+                "step":       step,
+                "tool":       "working_capital_review",
+                "input":      f"dso_days={dso}",
+                "output":     f"DSO stated at {dso} days — single period, no trend to evaluate",
+                "confidence": "medium",
+                "sources":    [source],
+            })
+
+        # DPO trend — flag if list of period values shows >10 day stretch
+        if isinstance(dpo, list) and len(dpo) >= 2:
+            dpo_trend = dpo[-1] - dpo[0]
+            if dpo_trend > 10:
+                self._add_flag(
+                    metric="dpo_stretch",
+                    value=f"DPO increased {round(dpo_trend, 1)} days over period",
+                    threshold=">10 day increase over measurement period",
+                    severity="Yellow",
+                    note=(
+                        f"DPO increased {round(dpo_trend, 1)} days over the measurement period "
+                        f"(from {dpo[0]} to {dpo[-1]} days) — potential AP stretch to manage "
+                        "period-end working capital. Validate with AP aging and supplier payment terms."
+                    ),
+                    source_doc=source,
+                    confidence="medium",
+                )
+            else:
+                self._log_no_flag("dpo_stretch", f"{dpo_trend:+.1f} days", "≤+10 days")
+        elif isinstance(dpo, (int, float)):
+            step = len(self._trace) + 1
+            self._trace.append({
+                "step":       step,
+                "tool":       "working_capital_review",
+                "input":      f"dpo_days={dpo}",
+                "output":     f"DPO stated at {dpo} days — single period, no trend to evaluate",
+                "confidence": "medium",
+                "sources":    [source],
+            })
+
+        # AR aging note — pass through as Yellow flag when present
+        if ar_aging_note:
+            self._add_flag(
+                metric="ar_aging_note",
+                value=ar_aging_note[:120],
+                threshold="AR aging note from Financial Trends Agent",
+                severity="Yellow",
+                note=f"AR aging observation: {ar_aging_note[:300]}",
+                source_doc=source,
+                confidence="medium",
+            )
+
     # -----------------------------------------------------------------------
     # run()
     # -----------------------------------------------------------------------
@@ -584,6 +837,11 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         self._catalog = catalog
         print(f"  Loading addback passthrough from Financial Trends Agent ...")
         addback_passthrough = self._load_addback_passthrough(company_name, spark)
+        print(f"  Loading working-capital passthrough from Financial Trends Agent ...")
+        wc_passthrough = self._load_working_capital_passthrough(company_name, spark)
+        print("  Loading customer quality data for profitability outlier detection ...")
+        customers     = self._load_customer_quality(company_name, spark)
+        prof_outliers = self._detect_profitability_outliers(customers)
 
         print(f"  Running 6 retrieval tools ...")
         tr1 = self._tool_retrieve_qofe_report(spark)
@@ -616,10 +874,18 @@ class QualityOfEarningsAgent(WorkstreamAgent):
             else "ADDBACK SCHEDULE: Not available from Financial Trends Agent."
         )
 
+        working_capital_context = (
+            f"WORKING CAPITAL INDICATORS (passed from Financial Trends Agent):\n"
+            f"{json.dumps(wc_passthrough, indent=2)}"
+            if wc_passthrough
+            else "WORKING CAPITAL INDICATORS: Not available from Financial Trends Agent."
+        )
+
         print("  Calling LLM for extraction ...")
         user_prompt = _USER_PROMPT_TEMPLATE.format(
             company_profile_json=company_profile_json,
             addback_context=addback_context,
+            working_capital_context=working_capital_context,
             combined_chunk_text=combined_chunk_text,
         )
         raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, llm_endpoint)
@@ -651,13 +917,29 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         print("  Applying QofE threshold flags ...")
         self._apply_qofe_flags(extracted, total_pct, tier4_count)
 
+        print("  Applying working-capital flags ...")
+        self._apply_working_capital_flags(wc_passthrough)
+
+        # Append standing NWC peg scope item — always present; peg computation
+        # is the QofE provider's scope, not Phase 1.
+        pre_qofe_scope = list(extracted.get("pre_qofe_scope_items") or [])
+        pre_qofe_scope.append({
+            "item": (
+                "Establish the net working capital peg over a trailing 12–24 month period"
+            ),
+            "priority": "high",
+            "related_addback_ids": [],
+        })
+
         return {
             "company_name":                 company_name,
             "executive_summary":            extracted.get("executive_summary"),
             "addback_ledger_json":          json.dumps(extracted.get("addback_ledger") or []),
             "revenue_quality_flags_json":   json.dumps(extracted.get("revenue_quality_flags") or []),
             "ebitda_scenarios_json":        json.dumps(ebitda_scenarios),
-            "pre_qofe_scope_items_json":    json.dumps(extracted.get("pre_qofe_scope_items") or []),
+            "pre_qofe_scope_items_json":    json.dumps(pre_qofe_scope),
+            "working_capital_awareness_json":       json.dumps(wc_passthrough) if wc_passthrough else "{}",
+            "customer_profitability_outliers_json": json.dumps(prof_outliers),
             "qofe_report_present":          extracted.get("qofe_report_present") == "true",
             "total_addbacks_pct_of_ebitda": total_pct,
             "tier4_addback_count":          tier4_count,
@@ -687,6 +969,7 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
     revenue_quality_flags = json.loads(result.get("revenue_quality_flags_json") or "[]")
     ebitda_scenarios     = json.loads(result.get("ebitda_scenarios_json")       or "{}")
     pre_qofe_scope_items = json.loads(result.get("pre_qofe_scope_items_json")   or "[]")
+    working_capital      = json.loads(result.get("working_capital_awareness_json") or "{}")
     citations            = json.loads(result.get("citations")                   or "[]")
 
     # ── Summarise addback ledger by tier for report header ─────────────
@@ -717,6 +1000,7 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
         },
         "addback_ledger":               addback_ledger,
         "revenue_quality_flags":        revenue_quality_flags,
+        "working_capital_awareness":    working_capital,
         "qofe_report_present":          result.get("qofe_report_present"),
         "total_addbacks_pct_of_ebitda": result.get("total_addbacks_pct_of_ebitda"),
         "tier4_addback_count":          result.get("tier4_addback_count"),
@@ -725,6 +1009,15 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
         "data_room_gaps":               result.get("data_room_gaps") or [],
         "citations":                    citations,
     }
+
+    prof_outliers_raw = result.get("customer_profitability_outliers_json")
+    if prof_outliers_raw:
+        try:
+            prof_outliers_parsed = json.loads(prof_outliers_raw)
+            if prof_outliers_parsed:
+                report["customer_profitability_outliers"] = prof_outliers_parsed
+        except Exception:
+            pass
 
     # ── Render as YAML (preferred) or JSON fallback ────────────────────
     try:
@@ -756,25 +1049,387 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Markdown assessment report
+# ---------------------------------------------------------------------------
+
+def generate_qoe_assessment(
+    result: dict,
+    spark,
+    llm_endpoint: str,
+    catalog: str = "uc13",
+    write_to_volume: bool = True,
+) -> str:
+    """Generate a human-readable markdown Quality of Earnings assessment.
+
+    Mirrors the ``generate_financial_assessment()`` pattern in
+    ``financial_trends_agent.py``:
+      1. Build deterministic tables from the result dict (no LLM).
+      2. Make one LLM narrative call (max_tokens=3,000) for section paragraphs.
+      3. Assemble and return the final markdown string.
+      4. Optionally write to a UC Volume as ``quality_of_earnings_assessment.md``.
+
+    Args:
+        result:          Output dict from ``QualityOfEarningsAgent.run()`` or
+                         the dict returned by ``main()``.
+        spark:           Active SparkSession (needed only when write_to_volume=True).
+        llm_endpoint:    Databricks model-serving endpoint name.
+        catalog:         UC catalog for volume write (default 'uc13').
+        write_to_volume: If True, writes the markdown to the reports volume.
+
+    Returns:
+        Markdown string.
+    """
+    company_name   = result.get("company_name", "Company")
+    generated_at   = result.get("created_at", "")
+    exec_summary   = result.get("executive_summary") or ""
+    qofe_present   = result.get("qofe_report_present")
+    total_pct      = result.get("total_addbacks_pct_of_ebitda")
+    tier4_count    = result.get("tier4_addback_count") or 0
+    data_room_gaps = result.get("data_room_gaps") or []
+    _flags_raw     = result.get("flags") or []
+    flags          = json.loads(_flags_raw) if isinstance(_flags_raw, str) else _flags_raw
+
+    addback_ledger    = json.loads(result.get("addback_ledger_json")              or "[]")
+    revenue_flags     = json.loads(result.get("revenue_quality_flags_json")       or "[]")
+    ebitda_scenarios  = json.loads(result.get("ebitda_scenarios_json")            or "{}")
+    scope_items       = json.loads(result.get("pre_qofe_scope_items_json")        or "[]")
+    wc                = json.loads(result.get("working_capital_awareness_json")   or "{}")
+
+    # ── EBITDA Scenarios table ─────────────────────────────────────────────
+    rep   = ebitda_scenarios.get("reported_ebitda")
+    t12   = ebitda_scenarios.get("tier1_plus_tier2_ebitda")
+    t1o   = ebitda_scenarios.get("tier1_only_ebitda")
+
+    def _delta_str(base, adj) -> str:
+        if base is None or adj is None:
+            return "—"
+        delta = adj - base
+        pct   = (delta / abs(base) * 100) if base else 0
+        return f"{'+' if delta >= 0 else ''}{_fmt_dollars(delta)} ({pct:+.1f}%)"
+
+    tbl_scenarios_lines = [
+        "| Scenario | EBITDA ($) | Delta vs. Reported |",
+        "|---|---|---|",
+        f"| **Reported** | **{_fmt_dollars(rep)}** | — |",
+        f"| Tier 1 + Tier 2 addbacks | {_fmt_dollars(t12)} | {_delta_str(rep, t12)} |",
+        f"| Tier 1 addbacks only | {_fmt_dollars(t1o)} | {_delta_str(rep, t1o)} |",
+    ]
+    tbl_scenarios = "\n".join(tbl_scenarios_lines)
+
+    # ── Addback Ledger table ───────────────────────────────────────────────
+    _tier_rank = {"Tier 1": 0, "Tier 2": 1, "Tier 3": 2, "Tier 4": 3}
+    sorted_addbacks = sorted(
+        addback_ledger,
+        key=lambda a: (
+            _tier_rank.get(a.get("tier_classification", ""), 9),
+            -abs(_parse_numeric(a.get("amount_dollars")) or 0),
+        ),
+    )
+
+    ab_lines = [
+        "| # | Description | Amount ($) | Tier | Supporting Doc | Flag |",
+        "|---|---|---|---|---|---|",
+    ]
+    for idx, item in enumerate(sorted_addbacks, 1):
+        desc    = (item.get("description") or "")[:60]
+        amt     = _fmt_dollars(item.get("amount_dollars"))
+        tier    = item.get("tier_classification") or "—"
+        sup_doc = (item.get("supporting_doc_referenced") or "—")[:40]
+        # Treat Tier 4 OR items with no VDR support as red
+        no_support = str(item.get("supporting_doc_in_vdr", "")).lower() != "true"
+        if tier == "Tier 4" or (tier not in ("Tier 1", "Tier 2", "Tier 3") and no_support):
+            emoji = "🔴"
+        else:
+            emoji = _tier_emoji(tier)
+        ab_lines.append(f"| {idx} | {desc} | {amt} | {tier} | {sup_doc} | {emoji} |")
+
+    # Tier summary rows
+    _tier_totals: dict[str, dict] = {}
+    for item in addback_ledger:
+        t   = item.get("tier_classification", "Unknown")
+        amt = abs(_parse_numeric(item.get("amount_dollars")) or 0.0)
+        if t not in _tier_totals:
+            _tier_totals[t] = {"count": 0, "total": 0.0}
+        _tier_totals[t]["count"] += 1
+        _tier_totals[t]["total"] += amt
+
+    ab_lines.append("|---|---|---|---|---|---|")
+    for tier_label in sorted(_tier_totals, key=lambda t: _tier_rank.get(t, 9)):
+        info = _tier_totals[tier_label]
+        ab_lines.append(
+            f"| | **{tier_label} subtotal ({info['count']} items)** "
+            f"| **{_fmt_dollars(info['total'])}** | | | {_tier_emoji(tier_label)} |"
+        )
+
+    tbl_addbacks = "\n".join(ab_lines) if sorted_addbacks else "_No addbacks extracted._"
+
+    # ── Revenue Quality Flags table ────────────────────────────────────────
+    sev_emoji = {"Red": "🔴", "Yellow": "🟡", "Green": "🟢"}
+    rqf_lines = [
+        "| Flag Type | Evidence | Severity | Source Doc |",
+        "|---|---|---|---|",
+    ]
+    for rqf in revenue_flags:
+        flag_type  = (rqf.get("flag_type") or "").replace("_", " ")
+        evidence   = (rqf.get("evidence") or "")[:90]
+        sev        = rqf.get("severity", "Yellow")
+        source     = (rqf.get("source_doc") or "—")[:40]
+        rqf_lines.append(
+            f"| {flag_type} | {evidence} | {sev_emoji.get(sev, '⚪')} {sev} | {source} |"
+        )
+    tbl_rqf = "\n".join(rqf_lines) if revenue_flags else "_No revenue quality flags identified._"
+
+    # ── Working Capital key-value block ───────────────────────────────────
+    wc_lines = []
+    if wc.get("dso_days") is not None:
+        wc_lines.append(f"- **DSO:** {wc['dso_days']} days")
+    if wc.get("dpo_days") is not None:
+        wc_lines.append(f"- **DPO:** {wc['dpo_days']} days")
+    if wc.get("ar_aging_note"):
+        wc_lines.append(f"- **AR Aging:** {wc['ar_aging_note']}")
+    for k, v in wc.items():
+        if k not in ("dso_days", "dpo_days", "ar_aging_note") and v is not None:
+            wc_lines.append(f"- **{k}:** {v}")
+    wc_block = "\n".join(wc_lines) if wc_lines else "_No working capital data extracted._"
+    wc_available = bool(wc_lines)
+
+    # ── Pre-QoE Scope Items list ───────────────────────────────────────────
+    scope_lines = []
+    for i, item in enumerate(scope_items, 1):
+        text     = item.get("item") or str(item)
+        priority = item.get("priority", "")
+        pri_tag  = f" _{priority}_" if priority else ""
+        scope_lines.append(f"{i}. {text}{pri_tag}")
+    scope_block = "\n".join(scope_lines) if scope_lines else "_No scope items extracted._"
+
+    # ── LLM narrative call ────────────────────────────────────────────────
+    _tier4_items = [
+        f"  - {a.get('description', '')[:80]} (${a.get('amount_dollars', '?')})"
+        for a in addback_ledger if a.get("tier_classification") == "Tier 4"
+    ]
+    _tier4_block = "\n".join(_tier4_items) if _tier4_items else "  None identified."
+
+    _rqf_summary = "\n".join(
+        f"  - {rqf.get('flag_type','')}: {(rqf.get('evidence') or '')[:100]}"
+        for rqf in revenue_flags
+    ) or "  None identified."
+
+    _scope_summary = "\n".join(
+        f"  {i}. {item.get('item','')}"
+        for i, item in enumerate(scope_items, 1)
+    ) or "  None."
+
+    _wc_summary = (
+        f"DSO={wc.get('dso_days','n/a')}  DPO={wc.get('dpo_days','n/a')}  "
+        f"AR_note={wc.get('ar_aging_note','n/a')}"
+        if wc_available else "Not available."
+    )
+
+    _ASSESS_SYS = """\
+You are a senior PE investment analyst writing a concise Quality of Earnings
+assessment for an internal diligence memo. Write observations, not conclusions.
+
+Rules:
+1. Ground every statement in the data provided. Do not invent, infer, or speculate
+   beyond what is shown.
+2. No deal verdicts ("walk away", "proceed", "attractive", "concerning deal risk").
+   Use neutral PE language: "warrants scrutiny", "requires provider confirmation",
+   "tier distribution suggests", "flag language is consistent with".
+3. If a section has no data, say so in one sentence.
+4. Return pure markdown only — no preamble, no code fences.
+5. Use exactly these 5 H3 headers (in order):
+   ### Addback Quality
+   ### Revenue Quality Observations
+   ### EBITDA Scenario Implications
+   ### Working Capital Observations
+   ### Key Questions for the QoE Provider
+6. Each of the first four sections: ≤2 sentences. Last section: numbered list of
+   ≤4 specific questions (no answers). Questions must be drawn from the scope items
+   and Tier 4 flags already shown — do not invent new questions.
+7. Be concise. The entire QoE section must fit within 1 page of the memo.
+"""
+
+    _ASSESS_USER = f"""\
+Use the Quality of Earnings data below to write the 5-section assessment.
+
+COMPANY: {company_name}
+QofE REPORT IN VDR: {'Yes' if qofe_present else 'No'}
+TOTAL ADDBACKS AS % OF EBITDA: {_fmt_pct(total_pct)}
+TIER 4 COUNT: {tier4_count}
+
+EBITDA SCENARIOS:
+{tbl_scenarios}
+
+ADDBACK TIER DISTRIBUTION:
+{json.dumps({t: d for t, d in _tier_totals.items()}, indent=2)}
+
+TIER 4 ITEMS:
+{_tier4_block}
+
+REVENUE QUALITY FLAGS:
+{_rqf_summary}
+
+WORKING CAPITAL:
+{_wc_summary}
+
+PRE-QoE SCOPE ITEMS (numbered list from agent):
+{_scope_summary}
+
+EXECUTIVE SUMMARY (from extraction agent):
+{exec_summary}
+"""
+
+    import mlflow.deployments
+    _client = mlflow.deployments.get_deploy_client("databricks")
+    os.environ.setdefault("DATABRICKS_HTTP_TIMEOUT", "600")
+    _response = _client.predict(
+        endpoint=llm_endpoint,
+        inputs={
+            "messages": [
+                {"role": "system", "content": _ASSESS_SYS},
+                {"role": "user",   "content": _ASSESS_USER},
+            ],
+            "max_tokens": 3_000,
+            "temperature": 0.0,
+        },
+    )
+    from agents.shared.agent_base import accumulate_tokens as _accum_tokens
+    _accum_tokens(_response.get("usage", {}), endpoint=llm_endpoint)
+    narrative = _response["choices"][0]["message"]["content"].strip()
+
+    # ── Assemble final markdown ────────────────────────────────────────────
+    qofe_yn   = "Yes" if qofe_present else "No"
+    overlay   = result.get("industry_overlay_used", "")
+
+    md: list[str] = []
+    md.append(f"# Quality of Earnings Assessment — {company_name}")
+    md.append(
+        f"_Generated: {generated_at}  |  "
+        f"{'Overlay: ' + overlay + '  |  ' if overlay else ''}"
+        f"QofE report in VDR: {qofe_yn}_\n"
+    )
+
+    md.append("## Executive Summary\n")
+    md.append(exec_summary if exec_summary else "_No executive summary extracted._")
+    md.append("")
+
+    md.append("---\n")
+    md.append("## EBITDA Scenarios\n")
+    md.append("> Three scenarios per spec §8.3. Computed from stated figures in the addback ledger.\n")
+    md.append(tbl_scenarios)
+    md.append("")
+
+    # Extract and append just the EBITDA scenario narrative paragraph
+    def _extract_section(narrative_text: str, header: str) -> str:
+        """Pull the content under a given ### header from the narrative string."""
+        pattern = rf"###\s*{re.escape(header)}\s*\n(.*?)(?=\n###|\Z)"
+        m = re.search(pattern, narrative_text, re.DOTALL | re.IGNORECASE)
+        return m.group(1).strip() if m else ""
+
+    ebitda_narrative = _extract_section(narrative, "EBITDA Scenario Implications")
+    if ebitda_narrative:
+        md.append(ebitda_narrative)
+        md.append("")
+
+    md.append("---\n")
+    md.append("## Addback Ledger\n")
+    md.append(
+        f"> Sorted by tier (Tier 1 first), then amount descending. "
+        f"Total addbacks as % of reported EBITDA: **{_fmt_pct(total_pct)}**. "
+        f"Tier 4 count: **{tier4_count}**.\n"
+    )
+    md.append(tbl_addbacks)
+    md.append("")
+
+    addback_narrative = _extract_section(narrative, "Addback Quality")
+    if addback_narrative:
+        md.append(addback_narrative)
+        md.append("")
+
+    md.append("---\n")
+    md.append("## Revenue Quality Flags\n")
+    md.append(tbl_rqf)
+    md.append("")
+
+    rqf_narrative = _extract_section(narrative, "Revenue Quality Observations")
+    if rqf_narrative:
+        md.append(rqf_narrative)
+        md.append("")
+
+    md.append("---\n")
+    md.append("## Working Capital\n")
+    md.append(wc_block)
+    md.append("")
+
+    wc_narrative = _extract_section(narrative, "Working Capital Observations")
+    if wc_narrative:
+        md.append(wc_narrative)
+        md.append("")
+
+    md.append("---\n")
+    md.append("## Pre-QoE Scope Items\n")
+    md.append(scope_block)
+    md.append("")
+
+    md.append("---\n")
+    md.append("## Key Questions for the QoE Provider\n")
+    kq_narrative = _extract_section(narrative, "Key Questions for the QoE Provider")
+    md.append(kq_narrative if kq_narrative else "_See scope items above._")
+    md.append("")
+
+    md.append("---\n")
+    md.append("## Data Room Gaps\n")
+    if data_room_gaps:
+        for gap in data_room_gaps:
+            md.append(f"- {gap}")
+    else:
+        md.append("None identified.")
+    md.append("")
+
+    md.append("---")
+    md.append(
+        "_Citations available in `quality_of_earnings_report.yaml` "
+        f"and `{catalog}.analysis.quality_of_earnings`._"
+    )
+
+    final_markdown = "\n".join(md)
+
+    # ── Optional volume write ──────────────────────────────────────────────
+    if write_to_volume:
+        spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
+        safe_name = company_name.replace(" ", "_").replace("/", "_")
+        dir_path  = f"/Volumes/{catalog}/analysis/reports/{safe_name}"
+        os.makedirs(dir_path, exist_ok=True)
+        file_path = f"{dir_path}/quality_of_earnings_assessment.md"
+        with open(file_path, "w", encoding="utf-8") as fh:
+            fh.write(final_markdown)
+        print(f"✓ QoE assessment → {file_path}")
+
+    return final_markdown
+
+
+# ---------------------------------------------------------------------------
 # Delta table DDL
 # ---------------------------------------------------------------------------
 
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS {table} (
-    company_name                 STRING,
-    executive_summary            STRING,
-    addback_ledger_json          STRING,
-    revenue_quality_flags_json   STRING,
-    ebitda_scenarios_json        STRING,
-    pre_qofe_scope_items_json    STRING,
-    qofe_report_present          BOOLEAN,
-    total_addbacks_pct_of_ebitda FLOAT,
-    tier4_addback_count          INT,
-    flags                        STRING,
-    data_room_gaps               ARRAY<STRING>,
-    citations                    STRING,
-    reasoning_trace              STRING,
-    created_at                   TIMESTAMP
+    company_name                   STRING,
+    executive_summary              STRING,
+    addback_ledger_json            STRING,
+    revenue_quality_flags_json     STRING,
+    ebitda_scenarios_json          STRING,
+    pre_qofe_scope_items_json      STRING,
+    working_capital_awareness_json STRING,
+    customer_profitability_outliers_json STRING,
+    qofe_report_present            BOOLEAN,
+    total_addbacks_pct_of_ebitda   FLOAT,
+    tier4_addback_count            INT,
+    flags                          STRING,
+    data_room_gaps                 ARRAY<STRING>,
+    citations                      STRING,
+    reasoning_trace                STRING,
+    created_at                     TIMESTAMP
 ) USING DELTA
 """
 
@@ -784,7 +1439,7 @@ CREATE TABLE IF NOT EXISTS {table} (
 # ---------------------------------------------------------------------------
 
 
-def main() -> dict:
+def main(spark=None) -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
@@ -799,7 +1454,8 @@ def main() -> dict:
         load_affected_intents,
         open_agent_run,
     )
-    spark = SparkSession.getActiveSession()
+    if spark is None:
+        spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
 
@@ -818,8 +1474,26 @@ def main() -> dict:
         # ── Save to Delta ──────────────────────────────────────────────────
         table = f"{catalog}.analysis.quality_of_earnings"
         spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
+
+        _EXPECTED_COLS = {
+            "company_name", "executive_summary",
+            "addback_ledger_json", "revenue_quality_flags_json", "ebitda_scenarios_json",
+            "pre_qofe_scope_items_json", "working_capital_awareness_json",
+            "customer_profitability_outliers_json",
+            "qofe_report_present", "total_addbacks_pct_of_ebitda", "tier4_addback_count",
+            "flags", "data_room_gaps", "citations", "reasoning_trace", "created_at",
+        }
+        try:
+            _live_cols = {f.name for f in spark.table(table).schema.fields}
+            if not _EXPECTED_COLS.issubset(_live_cols):
+                _missing = _EXPECTED_COLS - _live_cols
+                print(f"  [schema_migration] {table}: dropping stale table. Missing: {sorted(_missing)}")
+                spark.sql(f"DROP TABLE IF EXISTS {table}")
+        except Exception:
+            pass
+
         spark.sql(_CREATE_TABLE_SQL.format(table=table))
-        spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
+        spark.sql(f"DELETE FROM {table} WHERE company_name = :company_name", args={"company_name": company_name})
 
         from pyspark.sql import Row
         from pyspark.sql.types import (
@@ -828,20 +1502,22 @@ def main() -> dict:
         )
 
         schema = StructType([
-            StructField("company_name",                 StringType(),  True),
-            StructField("executive_summary",            StringType(),  True),
-            StructField("addback_ledger_json",          StringType(),  True),
-            StructField("revenue_quality_flags_json",   StringType(),  True),
-            StructField("ebitda_scenarios_json",        StringType(),  True),
-            StructField("pre_qofe_scope_items_json",    StringType(),  True),
-            StructField("qofe_report_present",          BooleanType(), True),
-            StructField("total_addbacks_pct_of_ebitda", FloatType(),   True),
-            StructField("tier4_addback_count",          IntegerType(), True),
-            StructField("flags",                        StringType(),  True),
-            StructField("data_room_gaps",               ArrayType(StringType()), True),
-            StructField("citations",                    StringType(),  True),
-            StructField("reasoning_trace",              StringType(),  True),
-            StructField("created_at",                   TimestampType(), True),
+            StructField("company_name",                   StringType(),  True),
+            StructField("executive_summary",              StringType(),  True),
+            StructField("addback_ledger_json",            StringType(),  True),
+            StructField("revenue_quality_flags_json",     StringType(),  True),
+            StructField("ebitda_scenarios_json",          StringType(),  True),
+            StructField("pre_qofe_scope_items_json",      StringType(),  True),
+            StructField("working_capital_awareness_json",          StringType(),  True),
+            StructField("customer_profitability_outliers_json",    StringType(),  True),
+            StructField("qofe_report_present",                     BooleanType(), True),
+            StructField("total_addbacks_pct_of_ebitda",   FloatType(),   True),
+            StructField("tier4_addback_count",            IntegerType(), True),
+            StructField("flags",                          StringType(),  True),
+            StructField("data_room_gaps",                 ArrayType(StringType()), True),
+            StructField("citations",                      StringType(),  True),
+            StructField("reasoning_trace",                StringType(),  True),
+            StructField("created_at",                     TimestampType(), True),
         ])
 
         row_data = {
@@ -851,6 +1527,8 @@ def main() -> dict:
             "revenue_quality_flags_json":   result.get("revenue_quality_flags_json"),
             "ebitda_scenarios_json":        result.get("ebitda_scenarios_json"),
             "pre_qofe_scope_items_json":    result.get("pre_qofe_scope_items_json"),
+            "working_capital_awareness_json":       result.get("working_capital_awareness_json", "{}"),
+            "customer_profitability_outliers_json": result.get("customer_profitability_outliers_json"),
             "qofe_report_present":          result.get("qofe_report_present"),
             "total_addbacks_pct_of_ebitda": result.get("total_addbacks_pct_of_ebitda"),
             "tier4_addback_count":          result.get("tier4_addback_count"),
@@ -862,7 +1540,7 @@ def main() -> dict:
         }
 
         df = spark.createDataFrame([Row(**row_data)], schema=schema)
-        df.write.format("delta").mode("append").saveAsTable(table)
+        df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table)
 
         print(f"\n✓ Saved quality of earnings output → {table}")
 
