@@ -12,6 +12,8 @@ from agents.workstreams.legal_contracts_agent import (
     _is_not_found,
     _is_true,
     _merge_register_records,
+    _pred_restrictive,
+    _reconcile_register_from_citations,
     _register_dedupe_key,
 )
 
@@ -114,6 +116,48 @@ def test_merge_register_records_unions_source_doc_citations():
     incoming = {"source_doc": "Amendment.pdf", "raw_quote": "same length"}
     merged = _merge_register_records(existing, incoming)
     assert merged["source_doc"] == "MSA.pdf | Amendment.pdf"
+
+
+def test_merge_register_records_upgrades_restrictive_not_found_to_true():
+    """Falsifier: longer raw_quote row must not preserve not_found over true on merge."""
+    existing = {
+        "counterparty_name": "Landlord",
+        "contract_type": "Lease",
+        "raw_quote": "much longer supporting quote text from winning row",
+        "restrictive_covenants": {"present": "not_found", "scope_note": None},
+    }
+    incoming = {
+        "counterparty_name": "Landlord",
+        "contract_type": "Lease",
+        "raw_quote": "short",
+        "restrictive_covenants": {"present": "true", "scope_note": "non-compete"},
+    }
+    merged = _merge_register_records(existing, incoming)
+    assert merged["restrictive_covenants"]["present"] == "true"
+
+
+def test_reconcile_register_from_citations_backfills_restrictive_present():
+    merged = {
+        "contract_register": [
+            {
+                "contract_id": 4,
+                "counterparty_name": "Guided Living",
+                "source_doc": "Guided Living - Asset Purchase Agreement - 02.07.24.pdf",
+                "restrictive_covenants": {"present": "not_found", "scope_note": None},
+            }
+        ],
+    }
+    citations = [
+        {
+            "claim": "restrictive_covenants (contract_id 4)",
+            "document": "Guided Living - Asset Purchase Agreement - 02.07.24.pdf",
+            "raw_text": "Seller has not made any changes to its Business operations",
+        }
+    ]
+    _reconcile_register_from_citations(merged, citations)
+    row = merged["contract_register"][0]
+    assert row["restrictive_covenants"]["present"] == "true"
+    assert _pred_restrictive(merged) is True
 
 
 @pytest.fixture

@@ -178,6 +178,17 @@ def _union_citation_field(existing, incoming) -> str:
     return str(existing or incoming or "")
 
 
+def _upgrade_tri_state_present(existing, incoming):
+    """Prefer true over false over not_found for present/clause_present — §5.6.1."""
+    if _is_true(existing) or _is_true(incoming):
+        return "true"
+    if not _is_not_found(existing) and existing is not None:
+        return existing
+    if not _is_not_found(incoming) and incoming is not None:
+        return incoming
+    return existing if existing is not None else incoming
+
+
 def _merge_nested_dicts(base: dict, overlay: dict) -> dict:
     """Merge nested clause dicts; non-null fields from both sides are retained."""
     merged = dict(base)
@@ -186,9 +197,66 @@ def _merge_nested_dicts(base: dict, overlay: dict) -> dict:
             continue
         if key not in merged or merged[key] is None:
             merged[key] = val
+        elif key in ("present", "clause_present") and not isinstance(merged[key], dict) and not isinstance(val, dict):
+            merged[key] = _upgrade_tri_state_present(merged[key], val)
         elif isinstance(merged[key], dict) and isinstance(val, dict):
             merged[key] = _merge_nested_dicts(merged[key], val)
     return merged
+
+
+def _doc_matches_citation(row_doc: str, cite_doc: str) -> bool:
+    row_doc = str(row_doc or "").strip()
+    cite_doc = str(cite_doc or "").strip()
+    if not row_doc or not cite_doc:
+        return False
+    if row_doc == cite_doc:
+        return True
+    for part in row_doc.split(" | "):
+        part = part.strip()
+        if part == cite_doc or cite_doc in part or part in cite_doc:
+            return True
+    return cite_doc in row_doc or row_doc in cite_doc
+
+
+def _reconcile_register_from_citations(merged: dict, citations: list[dict]) -> None:
+    """Backfill register present fields when LLM citations diverge from merged rows."""
+    contract_register = merged.get("contract_register") or []
+    if not contract_register or not citations:
+        return
+
+    by_id = {
+        str(row.get("contract_id")): row
+        for row in contract_register
+        if row.get("contract_id") is not None
+    }
+
+    for cite in citations:
+        claim = str(cite.get("claim") or "").lower()
+        if "restrictive_covenants" not in claim and "restrictive_covenant" not in claim:
+            continue
+
+        document = str(cite.get("document") or "").strip()
+        quote = str(cite.get("raw_text") or "").strip()
+        target = None
+
+        cid_match = re.search(r"contract_id\s*(\d+)", claim, re.I)
+        if cid_match:
+            target = by_id.get(cid_match.group(1))
+
+        if target is None:
+            for row in contract_register:
+                if _doc_matches_citation(row.get("source_doc", ""), document):
+                    target = row
+                    break
+
+        if target is None:
+            continue
+
+        rc = target.setdefault("restrictive_covenants", {})
+        if _is_not_found(rc.get("present")):
+            rc["present"] = "true"
+            if quote and not rc.get("scope_note"):
+                rc["scope_note"] = quote[:200]
 
 
 def _merge_register_records(existing: dict, incoming: dict) -> dict:
@@ -1668,6 +1736,7 @@ class LegalContractsAgent(WorkstreamAgent):
             print(f"    [{pass_id}] extract: {register_summary}")
 
         merged = self._merge_registers(registers)
+        _reconcile_register_from_citations(merged, self._citations_as_dicts())
         contract_register = merged.get("contract_register") or []
         litigation_register = merged.get("litigation_register") or []
 

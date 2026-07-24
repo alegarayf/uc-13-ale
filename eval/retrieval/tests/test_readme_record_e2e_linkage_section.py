@@ -38,6 +38,18 @@ def _promotion_gate_section() -> str:
     return section[start:end]
 
 
+def _promotion_gate_agent_subsection(heading_prefix: str) -> str:
+    """Slice one ##### agent block — falsifier guard against cross-agent substring matches."""
+    section = _promotion_gate_section()
+    start = section.index(heading_prefix)
+    rest = section[start + len(heading_prefix) :]
+    next_heading = rest.find("\n##### ")
+    if next_heading == -1:
+        next_heading = rest.find("\n#### ")
+    block = heading_prefix + (rest[:next_heading] if next_heading != -1 else rest)
+    return block
+
+
 def test_readme_contains_record_e2e_linkage_subsection_heading_verbatim() -> None:
     assert _HEADING in _README.read_text(encoding="utf-8")
 
@@ -98,36 +110,37 @@ def test_record_e2e_scoping_note_includes_bma_cqa_kpi_qoe_profiler() -> None:
 
 
 def test_record_e2e_bma_worked_example_uses_total_7() -> None:
-    section = _promotion_gate_section()
+    section = _promotion_gate_agent_subsection("##### BMA ")
     assert "--e2e-agent-id bma" in section
     assert "candidate_total=7" in section
     assert "uc13_ale.analysis.business_model" in section
 
 
 def test_record_e2e_cqa_worked_example_uses_total_6() -> None:
-    section = _promotion_gate_section()
+    section = _promotion_gate_agent_subsection("##### CQA ")
     assert "--e2e-agent-id cqa" in section
     assert "candidate_total=6" in section
     assert "uc13_ale.analysis.customer_quality" in section
 
 
 def test_record_e2e_kpi_worked_example_uses_total_3() -> None:
-    section = _promotion_gate_section()
+    section = _promotion_gate_agent_subsection("##### KPI ")
     assert "--e2e-agent-id kpi" in section
     assert "candidate_total=3" in section
     assert "uc13_ale.analysis.kpi" in section
 
 
 def test_record_e2e_qoe_worked_example_uses_adjusted_total() -> None:
-    section = _promotion_gate_section()
+    section = _promotion_gate_agent_subsection("##### QoE ")
     assert "--e2e-agent-id qoe" in section
     assert "candidate_total=6" in section
     assert "6 or 5" in section
     assert "uc13_ale.analysis.quality_of_earnings" in section
+    assert "--e2e-agent-id cqa" not in section
 
 
 def test_record_e2e_profiler_worked_example_uses_total_7() -> None:
-    section = _promotion_gate_section()
+    section = _promotion_gate_agent_subsection("##### Profiler ")
     assert "--e2e-agent-id profiler" in section
     assert "candidate_total=7" in section
     assert "uc13_ale.classification.company_profile" in section
