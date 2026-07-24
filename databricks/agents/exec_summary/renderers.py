@@ -7,9 +7,9 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, UndefinedError
 
-from agents.orchestrator.demo_walkthrough import get_param
-from agents.orchestrator.paths import reports_volume_dir
-from agents.orchestrator.tldr_compress import compress_for_tldr
+from agents.exec_summary.demo_walkthrough import get_param
+from agents.exec_summary.paths import reports_volume_dir
+from agents.exec_summary.tldr_compress import compress_for_tldr
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 _COMPRESSED_TLDR_TEMPLATE = "tldr_one_pager_compressed.md.j2"

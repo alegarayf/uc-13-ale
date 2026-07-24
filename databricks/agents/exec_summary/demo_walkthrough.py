@@ -7,8 +7,8 @@ from typing import Any, Sequence
 
 import yaml
 
-from agents.orchestrator.formatters import format_diligence_entry
-from agents.orchestrator.paths import reports_volume_dir
+from agents.exec_summary.formatters import format_diligence_entry
+from agents.exec_summary.paths import reports_volume_dir
 
 CONFIDENCE_AREAS: tuple[str, ...] = (
     "business_model",

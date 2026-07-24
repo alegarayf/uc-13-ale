@@ -6,7 +6,7 @@ exits 0 unless the file is missing or unreadable (exit 1 on I/O error only).
 
 CLI::
 
-    python -m agents.orchestrator.tldr_quality_check --catalog uc13_ale --company "Elder Care"
+    python -m agents.exec_summary.tldr_quality_check --catalog uc13_ale --company "Elder Care"
 """
 
 from __future__ import annotations
@@ -17,9 +17,9 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from agents.orchestrator.demo_walkthrough import get_param
-from agents.orchestrator.formatters import is_operator_gap
-from agents.orchestrator.paths import reports_volume_dir
+from agents.exec_summary.demo_walkthrough import get_param
+from agents.exec_summary.formatters import is_operator_gap
+from agents.exec_summary.paths import reports_volume_dir
 
 _WORD_COUNT_WARN = 1200
 _WORD_COUNT_STRETCH = 800

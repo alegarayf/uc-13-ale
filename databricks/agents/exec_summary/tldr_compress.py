@@ -6,7 +6,7 @@ import copy
 import re
 from typing import Any
 
-from agents.orchestrator.formatters import (
+from agents.exec_summary.formatters import (
     format_diligence_entry,
     format_kpi_value,
 )
