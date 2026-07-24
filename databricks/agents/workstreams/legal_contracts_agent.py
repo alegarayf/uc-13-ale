@@ -2066,7 +2066,7 @@ def _ensure_legal_storage(catalog: str, spark) -> None:
 # ---------------------------------------------------------------------------
 
 
-def main() -> dict:
+def main(spark=None) -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
@@ -2088,7 +2088,8 @@ def main() -> dict:
         load_affected_intents,
         open_agent_run,
     )
-    spark = SparkSession.getActiveSession()
+    if spark is None:
+        spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
 
