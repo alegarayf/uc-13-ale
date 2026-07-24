@@ -19,7 +19,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 | **Executive summary** (Phase 8) | **CLOSED** | 4/4 companies expanded synthesis `d06992a`; Rainmaker Rev2/Rev3 merged to `dev` 2026-07-24 |
 | **Local git** | **`dev`** | `dev2` + `feat/exec-summary-rainmaker-restructure` merged 2026-07-24 |
 
-**Open follow-ups (non-blocking):** M4 F2 — reconcile `eval/BMA/golden_checklist_elder_care.md` to 7/7 (scorecard/INDEX already agree); Legal restrictive re-test (target 8/11); optional UC manifest spot-check for one M4 G5 row.
+**Open follow-ups (non-blocking):** Legal restrictive re-test (target 8/11) after merge-semantics fix.
 
 ---
 
@@ -38,7 +38,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 
 - [x] `git status` clean or only intentional artifacts
 - [x] On `dev` with `dev2` + Rainmaker branches merged — 2026-07-24
-- [ ] Re-run full suite after merge — *last recorded: 761 passed at M4 audit*
+- [x] Re-run full suite after merge — **757 passed, 5 skipped** (2026-07-24)
 - [x] Attestation template open: `.dev/plans/uc13-m-phv3-integration/item23-post-merge-smoke-attestation.md`
 - [x] Cluster attached; Cell 0 pip done once per restart
 
@@ -126,7 +126,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 | QoE | 5/6 | `baseline_bootstrap` |
 | Profiler | 7/7 | `baseline_bootstrap` |
 
-**Follow-up:** Reconcile BMA checklist file to 7/7 (M4 audit F2).
+**Follow-up:** ~~Reconcile BMA checklist file to 7/7 (M4 audit F2).~~ **DONE 2026-07-24** — `eval/BMA/golden_checklist_elder_care.md` reconciled to M4-T3 7/7; W-M4-1 closed.
 
 ---
 
@@ -180,7 +180,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 [ ] Phase 7 data room   ← you are here
 ```
 
-**Remaining:** Phase 7 design · BMA checklist F2 reconciliation · Legal 8/11 re-test (optional) · push `dev` to origin
+**Remaining:** Phase 7 design · Legal 8/11 re-test (post merge-semantics fix) · push `dev` to origin
 
 ---
 
