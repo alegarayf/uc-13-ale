@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agents.orchestrator.confidence import ConfidenceEngine
+from agents.exec_summary.confidence import ConfidenceEngine
 
 
 def test_compute_by_area_missing_agent_is_low() -> None:

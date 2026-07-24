@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
-from agents.orchestrator.bundle_builder import (
+from agents.exec_summary.bundle_builder import (
     BundleBuilder,
     GapAggregator,
     _EXECUTIVE_LLM_NARRATIVE_KEYS,
@@ -24,8 +24,8 @@ from agents.orchestrator.bundle_builder import (
     merge_risks_from_flags,
     synthesize_executive_narrative,
 )
-from agents.orchestrator.constants import AGENTS_PRESENT_KEYS
-from agents.orchestrator.validate import BundleValidationError, validate_bundle
+from agents.exec_summary.constants import AGENTS_PRESENT_KEYS
+from agents.exec_summary.validate import BundleValidationError, validate_bundle
 
 _FIXTURES = Path(__file__).resolve().parent / "fixtures"
 _ELDER_CARE_SNAPSHOTS = _FIXTURES / "elder_care_agent_snapshots.yaml"
@@ -46,25 +46,25 @@ def _enter_build_patches(stack: ExitStack, snapshots: dict | None = None) -> Non
     }
     stack.enter_context(
         patch(
-            "agents.orchestrator.bundle_builder._ingest_snapshots",
+            "agents.exec_summary.bundle_builder._ingest_snapshots",
             return_value=snapshots,
         )
     )
     stack.enter_context(
         patch(
-            "agents.orchestrator.bundle_builder._load_company_profile",
+            "agents.exec_summary.bundle_builder._load_company_profile",
             return_value={"industry_overlay": "healthcare"},
         )
     )
     stack.enter_context(
         patch(
-            "agents.orchestrator.bundle_builder.freshness",
+            "agents.exec_summary.bundle_builder.freshness",
             return_value="current",
         )
     )
     stack.enter_context(
         patch(
-            "agents.orchestrator.bundle_builder.write_bundle_yaml",
+            "agents.exec_summary.bundle_builder.write_bundle_yaml",
         )
     )
 
@@ -127,22 +127,22 @@ def test_bundle_builder_sets_production_meta_and_provenance() -> None:
 
     with (
         patch(
-            "agents.orchestrator.bundle_builder._ingest_snapshots",
+            "agents.exec_summary.bundle_builder._ingest_snapshots",
             return_value=minimal_snapshots,
         ),
         patch(
-            "agents.orchestrator.bundle_builder._load_company_profile",
+            "agents.exec_summary.bundle_builder._load_company_profile",
             return_value={"industry_overlay": "healthcare"},
         ),
         patch(
-            "agents.orchestrator.bundle_builder.freshness",
+            "agents.exec_summary.bundle_builder.freshness",
             return_value="current",
         ),
         patch(
-            "agents.orchestrator.bundle_builder.validate_bundle",
+            "agents.exec_summary.bundle_builder.validate_bundle",
         ) as mock_validate,
         patch(
-            "agents.orchestrator.bundle_builder.write_bundle_yaml",
+            "agents.exec_summary.bundle_builder.write_bundle_yaml",
         ) as mock_write,
     ):
         bundle = builder.build("Elder Care", "uc13_ale", spark=mock_spark)
@@ -162,23 +162,23 @@ def test_bundle_builder_halts_when_validate_fails() -> None:
 
     with (
         patch(
-            "agents.orchestrator.bundle_builder._ingest_snapshots",
+            "agents.exec_summary.bundle_builder._ingest_snapshots",
             return_value={},
         ),
         patch(
-            "agents.orchestrator.bundle_builder._load_company_profile",
+            "agents.exec_summary.bundle_builder._load_company_profile",
             return_value={},
         ),
         patch(
-            "agents.orchestrator.bundle_builder.freshness",
+            "agents.exec_summary.bundle_builder.freshness",
             return_value="current",
         ),
         patch(
-            "agents.orchestrator.bundle_builder.validate_bundle",
+            "agents.exec_summary.bundle_builder.validate_bundle",
             side_effect=BundleValidationError("schema fail"),
         ),
         patch(
-            "agents.orchestrator.bundle_builder.write_bundle_yaml",
+            "agents.exec_summary.bundle_builder.write_bundle_yaml",
         ) as mock_write,
     ):
         with pytest.raises(BundleValidationError):
@@ -202,10 +202,10 @@ def test_bundle_builder_skips_synthesis_when_llm_endpoint_none() -> None:
     with ExitStack() as stack:
         _enter_build_patches(stack)
         mock_call_llm = stack.enter_context(
-            patch("agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm")
+            patch("agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm")
         )
         stack.enter_context(
-            patch("agents.orchestrator.bundle_builder.validate_bundle")
+            patch("agents.exec_summary.bundle_builder.validate_bundle")
         )
         builder.build("Elder Care", "uc13_ale", spark=mock_spark, llm_endpoint=None)
 
@@ -218,10 +218,10 @@ def test_bundle_builder_skips_synthesis_when_llm_endpoint_empty() -> None:
     with ExitStack() as stack:
         _enter_build_patches(stack)
         mock_call_llm = stack.enter_context(
-            patch("agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm")
+            patch("agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm")
         )
         stack.enter_context(
-            patch("agents.orchestrator.bundle_builder.validate_bundle")
+            patch("agents.exec_summary.bundle_builder.validate_bundle")
         )
         builder.build("Elder Care", "uc13_ale", spark=mock_spark, llm_endpoint="")
 
@@ -249,13 +249,13 @@ def test_bundle_builder_synthesis_populates_executive_preserves_risks() -> None:
         _enter_build_patches(stack, snapshots)
         stack.enter_context(
             patch(
-                "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+                "agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm",
                 return_value='{"executive": {}}',
             )
         )
         stack.enter_context(
             patch(
-                "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+                "agents.exec_summary.bundle_builder._OrchestratorLlm._parse_json_response",
                 return_value=llm_payload,
             )
         )
@@ -282,13 +282,13 @@ def test_bundle_builder_synthesis_fail_open_on_llm_parse_error() -> None:
         _enter_build_patches(stack, snapshots)
         stack.enter_context(
             patch(
-                "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+                "agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm",
                 return_value="not json",
             )
         )
         stack.enter_context(
             patch(
-                "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+                "agents.exec_summary.bundle_builder._OrchestratorLlm._parse_json_response",
                 side_effect=ValueError("invalid JSON"),
             )
         )
@@ -309,7 +309,7 @@ def _risks_without_llm_endpoint(snapshots: dict) -> list:
     with ExitStack() as stack:
         _enter_build_patches(stack, snapshots)
         mock_call = stack.enter_context(
-            patch("agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm")
+            patch("agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm")
         )
         bundle = builder.build("Elder Care", "uc13_ale", spark=mock_spark, llm_endpoint=None)
     mock_call.assert_not_called()
@@ -341,11 +341,11 @@ def test_synthesize_executive_narrative_uses_snapshots_not_rendered_md() -> None
 
     with (
         patch(
-            "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+            "agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm",
             side_effect=_capture_call,
         ),
         patch(
-            "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+            "agents.exec_summary.bundle_builder._OrchestratorLlm._parse_json_response",
             return_value={
                 "executive": {"in_one_line": "From snapshots", "preliminary_view": {}},
             },
@@ -428,11 +428,11 @@ def test_synthesize_executive_narrative_includes_gap_context_in_user_prompt() ->
 
     with (
         patch(
-            "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+            "agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm",
             side_effect=lambda _s, user, _e, **kw: captured.append(user) or "{}",
         ),
         patch(
-            "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+            "agents.exec_summary.bundle_builder._OrchestratorLlm._parse_json_response",
             return_value={"executive": {"in_one_line": "ok"}},
         ),
     ):
@@ -534,13 +534,13 @@ def test_bundle_builder_synthesis_populates_expanded_executive_narrative_fields(
         _enter_build_patches(stack, snapshots)
         stack.enter_context(
             patch(
-                "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+                "agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm",
                 return_value='{"executive": {}}',
             )
         )
         stack.enter_context(
             patch(
-                "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+                "agents.exec_summary.bundle_builder._OrchestratorLlm._parse_json_response",
                 return_value=llm_payload,
             )
         )
@@ -611,11 +611,11 @@ def test_synthesize_executive_narrative_uses_assembled_bundle_sections() -> None
 
     with (
         patch(
-            "agents.orchestrator.bundle_builder._OrchestratorLlm._call_llm",
+            "agents.exec_summary.bundle_builder._OrchestratorLlm._call_llm",
             side_effect=_capture_call,
         ),
         patch(
-            "agents.orchestrator.bundle_builder._OrchestratorLlm._parse_json_response",
+            "agents.exec_summary.bundle_builder._OrchestratorLlm._parse_json_response",
             return_value={
                 "executive": {"in_one_line": "From bundle", "preliminary_view": {}},
             },

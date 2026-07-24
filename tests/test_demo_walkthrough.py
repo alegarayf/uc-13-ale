@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from agents.orchestrator import demo_walkthrough as dw
+from agents.exec_summary import demo_walkthrough as dw
 
 
 def _minimal_bundle() -> dict:
@@ -107,7 +107,7 @@ def test_format_diligence_question_parses_legacy_dict_repr():
 
 
 def test_reports_volume_dir_uses_company_safe():
-    from agents.orchestrator.paths import reports_volume_dir
+    from agents.exec_summary.paths import reports_volume_dir
 
     path = reports_volume_dir("uc13_ale", "Elder Care")
     assert path.endswith("/Elder_Care")
