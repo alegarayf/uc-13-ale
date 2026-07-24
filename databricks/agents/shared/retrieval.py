@@ -319,6 +319,11 @@ def semantic_search(
         endpoint=embedding_endpoint,
         inputs={"input": [query]},
     )
+    try:
+        from agents.shared.agent_base import accumulate_tokens
+        accumulate_tokens(response.get("usage", {}), endpoint=embedding_endpoint)
+    except Exception:
+        pass
     query_embedding = response["data"][0]["embedding"]
 
     # Fetch more candidates than needed so post-retrieval filters have margin.
