@@ -1,6 +1,6 @@
 # Appendix C reference — one row per agent_id partition (±2 tolerance in CI).
-total_min: 49
-total_max: 54
+total_min: 55
+total_max: 60
 tolerance: 2
 partitions:
   profiler: 7
@@ -8,7 +8,7 @@ partitions:
   fta.opex: 3
   fta.revenue: 6
   fta.ebitda: 4
-  cqa: 5
-  kpi: 5
+  cqa: 9
+  kpi: 9
   legal: 5
   qoe: 5

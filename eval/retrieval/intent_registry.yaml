@@ -265,6 +265,43 @@
   min_chunk_length: 150
   invocation_path: direct
   extraction_confidence: static
+- intent_id: cqa.retrieve_cohort_data
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve cohort data
+  workstream_filter:
+  - CUSTOMER
+  - QUALITY_EARNINGS
+  file_name_filter:
+  - Cohort
+  - Customer
+  - Retention
+  - Revenue
+  - QofE
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: cqa.retrieve_contract_terms
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve contract terms
+  workstream_filter:
+  - CUSTOMER
+  - LEGAL
+  file_name_filter:
+  - Contract
+  - MSA
+  - Agreement
+  - SOW
+  - Legal
+  - Customer
+  top_k: 10
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
 - intent_id: cqa.retrieve_customer_concentration
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
@@ -279,6 +316,26 @@
   - CIM
   - QofE
   top_k: 12
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: cqa.retrieve_customer_health
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve customer health
+  workstream_filter:
+  - CUSTOMER
+  - QUALITY_EARNINGS
+  - FINANCIAL
+  file_name_filter:
+  - AR
+  - Aging
+  - Customer
+  - Collections
+  - Revenue
+  - QofE
+  top_k: 8
   min_chunk_length: 150
   invocation_path: direct
   extraction_confidence: static
@@ -314,6 +371,26 @@
   workstream_filter:
   - CUSTOMER
   - QUALITY_EARNINGS
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: cqa.retrieve_revenue_type_and_renewals
+  agent_id: cqa
+  source_file: databricks/agents/workstreams/customer_quality_agent.py
+  catalog: uc13_ale
+  query: retrieve revenue type and renewals
+  workstream_filter:
+  - CUSTOMER
+  - BUSINESS_MODEL
+  - FINANCIAL
+  file_name_filter:
+  - CIM
+  - Revenue
+  - Customer
+  - Model
+  - KPI
+  - Metrics
   top_k: 8
   min_chunk_length: 150
   invocation_path: direct
@@ -647,6 +724,59 @@
   source_type_priority: true
   invocation_path: with_fallback
   extraction_confidence: static
+- intent_id: kpi.retrieve_bench_and_capacity
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: bench size bench cost unassigned headcount non-billable available capacity
+    delivery capacity sales pipeline coverage capacity planning staffing plan billable
+    vs non-billable overhead headcount average sales cycle pipeline conversion
+  workstream_filter:
+  - KPI_OPS
+  - BUSINESS_MODEL
+  - FINANCIAL
+  file_name_filter:
+  - Bench
+  - Capacity
+  - Staffing
+  - Pipeline
+  - Workforce
+  - Headcount
+  - KPI
+  - Operations
+  - GTM
+  - Sales
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: kpi.retrieve_bill_rates_and_margins
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: bill rate by role hourly rate rate card blended rate consultant rate senior
+    manager director rate gross margin by project client delivery team project P&L
+    margin by vertical margin by customer segment margin schedule
+  workstream_filter:
+  - KPI_OPS
+  - FINANCIAL
+  - CUSTOMER
+  file_name_filter:
+  - Rate
+  - Bill
+  - Billing
+  - Margin
+  - Project
+  - P&L
+  - Revenue
+  - Customer
+  - KPI
+  - Dashboard
+  - Pricing
+  top_k: 10
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
 - intent_id: kpi.retrieve_delivery_model
   agent_id: kpi
   source_file: databricks/agents/workstreams/kpi_agent.py
@@ -673,6 +803,33 @@
   min_chunk_length: 150
   invocation_path: direct
   extraction_confidence: static
+- intent_id: kpi.retrieve_healthcare_labor_market
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: wage pressure labor cost inflation minimum wage market rate caregiver pay
+    labor availability recruiting difficulty staffing shortage geographic staffing
+    compensation increase salary inflation workforce availability talent pipeline
+    nurse shortage caregiver shortage clinician shortage
+  workstream_filter:
+  - KPI_OPS
+  - BUSINESS_MODEL
+  - FINANCIAL
+  file_name_filter:
+  - Workforce
+  - Recruiting
+  - Labor
+  - Staff
+  - Compensation
+  - HR
+  - Operations
+  - KPI
+  - Board
+  - Management
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
 - intent_id: kpi.retrieve_healthcare_ops
   agent_id: kpi
   source_file: databricks/agents/workstreams/kpi_agent.py
@@ -682,6 +839,33 @@
   workstream_filter:
   - KPI_OPS
   - FINANCIAL
+  top_k: 8
+  min_chunk_length: 150
+  invocation_path: direct
+  extraction_confidence: static
+- intent_id: kpi.retrieve_healthcare_revenue_per_unit
+  agent_id: kpi
+  source_file: databricks/agents/workstreams/kpi_agent.py
+  catalog: uc13_ale
+  query: revenue per client revenue per patient revenue per visit revenue per hour
+    reimbursement rate per visit billing rate per service denials rate claim denial
+    appeals collections rate write-offs revenue cycle management payor collections
+    aging receivables
+  workstream_filter:
+  - KPI_OPS
+  - FINANCIAL
+  - CUSTOMER
+  file_name_filter:
+  - Revenue
+  - Collections
+  - Denials
+  - AR
+  - Aging
+  - Payor
+  - Billing
+  - Claims
+  - Reimbursement
+  - KPI
   top_k: 8
   min_chunk_length: 150
   invocation_path: direct
