@@ -14,12 +14,100 @@ All Phase 3 agents extend WorkstreamAgent. The base class provides:
 import json
 import os
 import re
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 import mlflow.pyfunc
 import mlflow.deployments
+
+
+# ---------------------------------------------------------------------------
+# Global token counter — flat total + per-endpoint breakdown.
+#
+# Flat total  (get_token_totals)   : backward-compatible; written to VDR table.
+# Per-endpoint (get_token_breakdown): used for cost estimation and log summary.
+#
+# Pricing table (USD per 1 million tokens). Update if your Databricks contract
+# differs from Anthropic's standard pay-per-token rates.
+# ---------------------------------------------------------------------------
+_ENDPOINT_PRICING: dict = {
+    "databricks-claude-sonnet-4-6":          {"input": 3.00,  "output": 15.00},
+    "databricks-claude-haiku-4-5":           {"input": 0.80,  "output":  4.00},
+    "databricks-bge-large-en":               {"input": 0.10,  "output":  0.00},
+    "databricks-meta-llama-3-3-70b-instruct":{"input": 0.54,  "output":  1.62},
+}
+_DEFAULT_PRICING = {"input": 3.00, "output": 15.00}
+
+_token_lock = threading.Lock()
+_token_totals: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+_endpoint_totals: dict = {}   # {endpoint: {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}}
+
+
+def accumulate_tokens(usage: dict, endpoint: str = "unknown") -> None:
+    """Add token counts from a single LLM/embedding response to the global counters.
+
+    Updates both the flat total (backward-compatible) and the per-endpoint breakdown.
+    Pass `endpoint` as the Databricks Model Serving endpoint name so cost can be
+    estimated per model after the run.
+    """
+    with _token_lock:
+        for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
+            _token_totals[k] += usage.get(k, 0)
+        if endpoint not in _endpoint_totals:
+            _endpoint_totals[endpoint] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
+            _endpoint_totals[endpoint][k] += usage.get(k, 0)
+
+
+def reset_token_counter() -> None:
+    """Reset both counters to zero. Call before starting a pipeline run."""
+    with _token_lock:
+        _token_totals.update({"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+        _endpoint_totals.clear()
+
+
+def get_token_totals() -> dict:
+    """Return a copy of the flat global totals (backward-compatible for VDR table writes)."""
+    with _token_lock:
+        return dict(_token_totals)
+
+
+def get_token_breakdown() -> dict:
+    """Return a copy of the per-endpoint token breakdown."""
+    with _token_lock:
+        return {ep: dict(counts) for ep, counts in _endpoint_totals.items()}
+
+
+def print_token_summary() -> None:
+    """Print a formatted token usage and estimated cost summary to stdout."""
+    with _token_lock:
+        breakdown = {ep: dict(counts) for ep, counts in _endpoint_totals.items()}
+        totals    = dict(_token_totals)
+
+    lines = ["\n" + "=" * 60, "  TOKEN USAGE SUMMARY", "=" * 60]
+    grand_cost = 0.0
+
+    for ep, counts in sorted(breakdown.items()):
+        pricing    = _ENDPOINT_PRICING.get(ep, _DEFAULT_PRICING)
+        p_tok      = counts.get("prompt_tokens", 0)
+        c_tok      = counts.get("completion_tokens", 0)
+        cost_in    = p_tok  / 1_000_000 * pricing["input"]
+        cost_out   = c_tok  / 1_000_000 * pricing["output"]
+        ep_cost    = cost_in + cost_out
+        grand_cost += ep_cost
+        unknown_price = ep not in _ENDPOINT_PRICING
+        lines.append(f"\n  {ep}{'  [price: estimated default]' if unknown_price else ''}")
+        lines.append(f"    prompt_tokens     : {p_tok:>12,}")
+        lines.append(f"    completion_tokens : {c_tok:>12,}")
+        lines.append(f"    estimated cost    : ${ep_cost:>8.4f}  (in ${cost_in:.4f} + out ${cost_out:.4f})")
+
+    lines.append("\n" + "-" * 60)
+    lines.append(f"  TOTAL tokens  : {totals.get('total_tokens', 0):,}")
+    lines.append(f"  TOTAL cost    : ${grand_cost:.4f}  (estimated — verify against Databricks billing)")
+    lines.append("=" * 60 + "\n")
+    print("\n".join(lines))
 
 
 @dataclass
@@ -105,6 +193,7 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
                 "temperature": 0.0,  # deterministic extraction
             },
         )
+        accumulate_tokens(response.get("usage", {}), endpoint=endpoint)
         return response["choices"][0]["message"]["content"]
 
     @staticmethod

@@ -9,8 +9,18 @@ requests>=2.31.0
 python-docx>=1.1.0
 openpyxl>=3.1.0
 
-# Model serving client (document_classifier.py)
-# typing_extensions must be upgraded first — older DBR clusters ship a version
-# that is missing Sentinel, which mlflow 2.13+ requires.
+# Agent Bricks / MLflow 3 (ResponsesAgent, mlflow.genai.evaluate, CLEARS tracing)
+# mlflow[databricks] installs the managed-MLflow extras required for
+# ResponsesAgent, mlflow.genai.evaluate(), and production-scale trace ingestion.
+# pydantic>=2 is a transitive requirement of ResponsesAgent.
 typing_extensions>=4.6.0
-mlflow>=2.13.0
+mlflow[databricks]>=3.1
+pydantic>=2.0.0
+
+# PDF parsing (ingestion_parser.py vision pages)
+pymupdf>=1.24.0
+
+# PDF generation (VDR pipeline — run_vdr_pipeline.py ReportLab deliverables).
+# Declared in vdr_pipeline.yml's job env; mirrored here so notebook/local dev
+# matches the VDR job cluster.
+reportlab>=4.0.0

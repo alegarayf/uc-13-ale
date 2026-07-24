@@ -335,6 +335,7 @@ def ingest_missing(
     embedding_endpoint: str = "databricks-bge-large-en",
     schema: str = "ingestion",
     vision_endpoint: Optional[str] = None,
+    file_names_whitelist: Optional[set] = None,
 ) -> dict:
     """Parse and embed files not yet present in embeddings. APPEND only — no DELETE.
 
@@ -342,12 +343,14 @@ def ingest_missing(
     ingestion_parser.py (must be on sys.path, i.e. in jobs/scripts/).
 
     Args:
-        company_name:       Target company.
-        catalog:            UC catalog name.
-        tiers:              Priority tiers to fill (e.g. [1, 2]).
-        spark:              Active SparkSession.
-        embedding_endpoint: MLflow embedding endpoint.
-        schema:             UC ingestion schema name.
+        company_name:          Target company.
+        catalog:               UC catalog name.
+        tiers:                 Priority tiers to fill (e.g. [1, 2]). Empty list = all tiers.
+        spark:                 Active SparkSession.
+        embedding_endpoint:    MLflow embedding endpoint.
+        schema:                UC ingestion schema name.
+        file_names_whitelist:  When set, only process files whose file_name is in this set.
+                               Used by main_coverage_backfill() to target specific files.
 
     Returns:
         dict with keys: files_processed, chunks_written, embeddings_written, skipped.
@@ -369,6 +372,8 @@ def ingest_missing(
 
     # ── Identify missing files ────────────────────────────────────────────────
     missing = get_unprocessed_files(company_name, catalog, tiers, spark)
+    if file_names_whitelist is not None:
+        missing = [f for f in missing if f["file_name"] in file_names_whitelist]
 
     if not missing:
         print(f"✓ All approved Tier {tiers} files are already ingested for '{company_name}' — nothing to do.")
@@ -591,6 +596,85 @@ def main() -> dict:
     print_coverage_report(post_report)
 
     return {"coverage_report": post_report, "ingest_summary": ingest_summary}
+
+
+def main_coverage_backfill() -> dict:
+    """Phase 2c backfill: for each workstream with 0 ingested docs, parse up to N best-tier files.
+
+    Reads env vars set by run_ingestion_pipeline (sp_company_name, catalog, schema,
+    embedding_endpoint, vision_endpoint).  coverage_max_files_per_ws controls how many
+    files per uncovered workstream are ingested (default 2).
+
+    Designed to be called after a tier-filtered ingestion_parser run so that workstreams
+    that received zero documents from the tier-1/2 pass still get at least one file.
+    APPEND only — never deletes existing chunks or embeddings.
+    """
+    repo_root   = find_repo_root()
+    scripts_dir = str(Path(repo_root) / "jobs" / "scripts")
+    for p in [repo_root, scripts_dir]:
+        if p not in sys.path:
+            sys.path.insert(0, p)
+
+    company_name       = get_param("sp_company_name")
+    catalog            = get_param("catalog",            default="uc13")
+    schema             = get_param("schema",             default="ingestion")
+    embedding_endpoint = get_param("embedding_endpoint", default="databricks-bge-large-en")
+    _vision_raw        = get_param("vision_endpoint",    default="")
+    vision_endpoint: Optional[str] = _vision_raw.strip() or None
+    max_files_per_ws   = int(get_param("coverage_max_files_per_ws", default="2"))
+
+    from pyspark.sql import SparkSession
+    spark = SparkSession.getActiveSession()
+    if spark is None:
+        raise RuntimeError("No active Spark session.")
+
+    print(f"\n=== Coverage Backfill ({company_name}) ===")
+
+    # Check all workstreams across ALL tiers (not just the ones already parsed)
+    report  = get_coverage_report(company_name, catalog, tiers=[], spark=spark)
+    zero_ws = [ws for ws, d in report["by_workstream"].items() if len(d["ingested"]) == 0]
+
+    if not zero_ws:
+        print("  All workstreams already have coverage — backfill not needed.")
+        return {"files_processed": 0, "zero_coverage_workstreams": [], "backfilled_files": []}
+
+    print(f"  Zero-coverage workstreams ({len(zero_ws)}): {', '.join(sorted(zero_ws))}")
+
+    # All uningested files, no tier restriction, sorted by priority_tier ASC
+    all_missing = get_unprocessed_files(company_name, catalog, tiers=[], spark=spark)
+
+    # Pick top max_files_per_ws per zero-coverage workstream
+    seen:      set[str] = set()
+    whitelist: set[str] = set()
+    for ws in zero_ws:
+        count = 0
+        for f in all_missing:
+            if count >= max_files_per_ws:
+                break
+            if ws in f["workstream"] and f["file_name"] not in seen:
+                seen.add(f["file_name"])
+                whitelist.add(f["file_name"])
+                count += 1
+        if count == 0:
+            print(f"  ⚠  No uningested file available for workstream {ws}")
+
+    if not whitelist:
+        print("  No files available to backfill zero-coverage workstreams.")
+        return {"files_processed": 0, "zero_coverage_workstreams": zero_ws, "backfilled_files": []}
+
+    print(f"  Backfill target: {len(whitelist)} file(s) → {sorted(whitelist)}")
+
+    result = ingest_missing(
+        company_name=company_name,
+        catalog=catalog,
+        tiers=[],
+        spark=spark,
+        embedding_endpoint=embedding_endpoint,
+        schema=schema,
+        vision_endpoint=vision_endpoint,
+        file_names_whitelist=whitelist,
+    )
+    return {**result, "zero_coverage_workstreams": zero_ws, "backfilled_files": sorted(whitelist)}
 
 
 if __name__ == "__main__":

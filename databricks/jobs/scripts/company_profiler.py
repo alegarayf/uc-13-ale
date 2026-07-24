@@ -216,6 +216,15 @@ def detect_banked(spark, table_relevance: str, company_name: str) -> tuple[bool,
 # LLM call
 # ---------------------------------------------------------------------------
 
+def _try_accumulate_tokens(usage: dict, endpoint: str = "unknown") -> None:
+    """Forward LLM usage to the global token counter if agent_base is on sys.path."""
+    try:
+        from agents.shared.agent_base import accumulate_tokens
+        accumulate_tokens(usage, endpoint=endpoint)
+    except Exception:
+        pass
+
+
 def call_llm(client, endpoint: str, prompt: str) -> str:
     response = client.predict(
         endpoint=endpoint,
@@ -225,6 +234,7 @@ def call_llm(client, endpoint: str, prompt: str) -> str:
             "temperature": 0.0,
         },
     )
+    _try_accumulate_tokens(response.get("usage", {}), endpoint=endpoint)
     return response["choices"][0]["message"]["content"].strip()
 
 
