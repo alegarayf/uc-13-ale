@@ -144,6 +144,28 @@ def _parse_numeric(value_str: Optional[str]) -> Optional[float]:
         return None
 
 
+def _fmt_dollars(val) -> str:
+    """Format a numeric value as '$1,234,567' or '—' if absent."""
+    if val is None:
+        return "—"
+    if isinstance(val, (int, float)):
+        return f"${float(val):,.0f}"
+    n = _parse_numeric(str(val))
+    if n is None:
+        return str(val) if val else "—"
+    return f"${n:,.0f}"
+
+
+def _fmt_pct(val) -> str:
+    """Format a numeric value as '12.3%' or '—' if absent."""
+    if val is None:
+        return "—"
+    if isinstance(val, (int, float)):
+        return f"{float(val):.1f}%"
+    n = _parse_numeric(str(val))
+    return f"{n:.1f}%" if n is not None else str(val)
+
+
 # ---------------------------------------------------------------------------
 # LLM prompts
 # ---------------------------------------------------------------------------
@@ -166,7 +188,32 @@ information from due diligence documents. Rules:
    for healthcare overlay — flag if absent.
 9. Phase 1 posture is strict: extract stated NRR/GRR values verbatim. Do NOT
    recompute from cohort data. If the methodology is not explained in the document,
-   note that in extraction_notes.\
+   note that in extraction_notes.
+10. For each top customer: if the data room states gross margin by client (in a
+    customer workbook, QofE report, or margin-by-customer tab), extract gm_pct and
+    gm_dollars verbatim. Do NOT compute them. If the customer workbook has an AR aging
+    schedule, payment terms, or collections notes, extract payment_behavior and
+    discount_flag accordingly. These are stated-only fields — null when absent.
+11. cohort_analysis: if a cohort schedule, vintage revenue table, or customer
+    cohort analysis is present in any CUSTOMER or QUALITY_EARNINGS document, extract
+    the available vintage years and a one-sentence summary of cohort performance.
+    Do not compute cohort metrics; extract stated values only.
+12. customer_health_indicators: scan AR aging schedules, customer notes, NPS
+    summaries, and utilization reports. Extract stated metrics verbatim. For
+    late_payment_note, look for DSO trends, overdue balances by customer, or
+    collections commentary. For discount_flag on individual customers, look for
+    line-item credits or concession notes in revenue workbooks.
+13. contract_terms_summary: extract high-level contract term patterns across
+    material customer contracts. Source is contract samples, MSA summaries, or
+    legal due diligence prelim (if present in CUSTOMER or LEGAL workstream docs).
+    Do not infer terms not stated. If no contract documents are in the retrieved
+    context, all fields are 'unknown'.
+14. revenue_type_mix: extract from CIM, management decks, or QofE revenue
+    recognition notes. Use company's own definitions. If the company does not
+    explicitly state a recurring vs. project split, set all fields to null and
+    note in extraction_notes.
+15. renewal_patterns: extract from customer workbook, CIM, or KPI files. Look
+    for renewal rate tables, renewal cadence descriptions, or expansion ARR data.\
 """
 
 _USER_PROMPT_TEMPLATE = """\
@@ -188,6 +235,11 @@ Extract customer quality fields and return this exact JSON structure:
       "revenue_dollars": "<$ as stated or null>",
       "years_as_customer": "<stated or null>",
       "contract_status": "<contracted | month-to-month | unknown>",
+      "gm_pct": "<gross margin % for this customer as stated in data room or null>",
+      "gm_dollars": "<gross margin dollars for this customer as stated or null>",
+      "payment_behavior": "<'on-time' | 'slow-pay' | 'disputed' | 'unknown' — as stated or inferred from AR aging note>",
+      "discount_flag": "<true if discounts, rebates, or concessions are noted for this customer | false | null>",
+      "revenue_trend_note": "<one-sentence description of growth, decline, or churn risk for this customer as stated, or null>",
       "source_doc": "<filename>",
       "source_location": "<page or section>"
     }}
@@ -213,6 +265,45 @@ Extract customer quality fields and return this exact JSON structure:
     "average_tenure_years": "<as stated or null>",
     "tenure_distribution_note": "<description as stated or null>",
     "source_doc": "<filename>"
+  }},
+  "cohort_analysis": {{
+    "cohorts_available": "<true | false>",
+    "cohort_vintage_years": ["<year>"],
+    "cohort_summary_note": "<description of cohort performance as stated — revenue by vintage, expansion rate, or survival rate — or null>",
+    "source_doc": "<filename or null>",
+    "source_location": "<page, tab, or section or null>"
+  }},
+  "customer_health_indicators": {{
+    "utilization_note": "<stated utilization rate or trend, or null>",
+    "complaints_note": "<stated complaint rate, escalations, or NPS, or null>",
+    "late_payment_note": "<late payment or collections trend as stated in AR aging or customer notes, or null>",
+    "declining_spend_customers": ["<customer name or label if declining spend is explicitly stated, else empty list>"],
+    "discounts_rebates_note": "<description of discount or concession patterns as stated, or null>",
+    "source_doc": "<filename or null>"
+  }},
+  "contract_terms_summary": {{
+    "termination_for_convenience": "<'yes' | 'no' | 'mixed' | 'unknown' — across material customer contracts>",
+    "change_of_control_consent_required": "<'yes' | 'no' | 'mixed' | 'unknown'>",
+    "pricing_escalators": "<'yes' | 'no' | 'unknown' — whether contracts have CPI or fixed escalators>",
+    "exclusivity_clauses": "<'yes' | 'no' | 'unknown'>",
+    "auto_renewal": "<'yes' | 'no' | 'mixed' | 'unknown'>",
+    "typical_term_years": "<as stated or null>",
+    "source_doc": "<filename or null>",
+    "source_location": "<page or section or null>",
+    "note": "<any material deviation from standard terms, or null>"
+  }},
+  "revenue_type_mix": {{
+    "recurring_pct": "<% of revenue that is recurring/embedded — as stated or null>",
+    "project_onetime_pct": "<% of revenue that is project-based or one-time — as stated or null>",
+    "retainer_pct": "<% under MSA/retainer arrangements — as stated or null>",
+    "source_doc": "<filename or null>",
+    "methodology_note": "<how company defines recurring vs. project, or null>"
+  }},
+  "renewal_patterns": {{
+    "avg_renewal_rate_pct": "<stated renewal rate or null>",
+    "renewal_period_note": "<description of typical renewal cadence — annual, multi-year, evergreen — or null>",
+    "upsell_expansion_note": "<any stated data on expansion revenue at renewal — or null>",
+    "source_doc": "<filename or null>"
   }},
   "average_account_size": {{
     "acv_dollars": "<$ as stated or null>",
@@ -402,6 +493,111 @@ class CustomerQualityAgent(WorkstreamAgent):
             source_docs=source_docs,
         )
 
+    def _tool_retrieve_cohort_data(self, spark):
+        from agents.shared.retrieval import semantic_search
+        query = (
+            "cohort analysis customer vintage revenue by cohort retention by cohort "
+            "new customer revenue expansion churn by year acquired"
+        )
+        chunks = semantic_search(
+            query=query,
+            spark=spark,
+            company_name=self._company_name,
+            top_k=8,
+            workstream_filter=["CUSTOMER", "QUALITY_EARNINGS"],
+            file_name_filter=["Cohort", "Customer", "Retention", "Revenue", "QofE"],
+            min_chunk_length=150,
+        ).chunks
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name="retrieve_cohort_data",
+            input_summary="semantic_search: cohort analysis customer vintage revenue by cohort (top_k=8, workstream=CUSTOMER,QUALITY_EARNINGS)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
+    def _tool_retrieve_customer_health(self, spark):
+        from agents.shared.retrieval import semantic_search
+        query = (
+            "customer health AR aging late payment overdue DSO discounts rebates "
+            "concessions complaints NPS utilization declining spend collections"
+        )
+        chunks = semantic_search(
+            query=query,
+            spark=spark,
+            company_name=self._company_name,
+            top_k=8,
+            workstream_filter=["CUSTOMER", "QUALITY_EARNINGS", "FINANCIAL"],
+            file_name_filter=["AR", "Aging", "Customer", "Collections", "Revenue", "QofE"],
+            min_chunk_length=150,
+        ).chunks
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name="retrieve_customer_health",
+            input_summary="semantic_search: customer health AR aging late payment discounts complaints utilization (top_k=8)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
+    def _tool_retrieve_contract_terms(self, spark):
+        from agents.shared.retrieval import semantic_search
+        query = (
+            "contract terms termination for convenience change of control pricing escalator "
+            "CPI escalation auto-renewal exclusivity MSA SOW renewal mechanics "
+            "notice period right to terminate"
+        )
+        chunks = semantic_search(
+            query=query,
+            spark=spark,
+            company_name=self._company_name,
+            top_k=10,
+            workstream_filter=["CUSTOMER", "LEGAL"],
+            file_name_filter=["Contract", "MSA", "Agreement", "SOW", "Legal", "Customer"],
+            min_chunk_length=150,
+        ).chunks
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name="retrieve_contract_terms",
+            input_summary="semantic_search: contract terms termination change of control escalator renewal (top_k=10, workstream=CUSTOMER,LEGAL)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
+    def _tool_retrieve_revenue_type_and_renewals(self, spark):
+        from agents.shared.retrieval import semantic_search
+        query = (
+            "recurring revenue project revenue one-time revenue retainer ARR MRR "
+            "renewal rate expansion revenue upsell revenue mix contracted backlog"
+        )
+        chunks = semantic_search(
+            query=query,
+            spark=spark,
+            company_name=self._company_name,
+            top_k=8,
+            workstream_filter=["CUSTOMER", "BUSINESS_MODEL", "FINANCIAL"],
+            file_name_filter=["CIM", "Revenue", "Customer", "Model", "KPI", "Metrics"],
+            min_chunk_length=150,
+        ).chunks
+        source_docs = list({c.file_name for c in chunks})
+        confidence = "high" if chunks else "low"
+        return self._tool_call(
+            tool_name="retrieve_revenue_type_and_renewals",
+            input_summary="semantic_search: recurring vs project revenue renewal rate expansion upsell (top_k=8, workstream=CUSTOMER,BUSINESS_MODEL,FINANCIAL)",
+            data=chunks,
+            output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
+            confidence=confidence,
+            source_docs=source_docs,
+        )
+
     def _tool_load_company_profile(self, company_name: str, spark):
         sql = f"SELECT * FROM {self._catalog}.classification.company_profile WHERE company_name = '{company_name}' ORDER BY created_at DESC LIMIT 1"
         rows = spark.sql(sql).collect()
@@ -564,6 +760,104 @@ class CustomerQualityAgent(WorkstreamAgent):
             else:
                 self._log_no_flag("average_acv_dollars (tech)", str(acv_raw), "≥$100,000")
 
+        # Revenue type mix — project-heavy flag
+        rev_type = extracted.get("revenue_type_mix") or {}
+        project_pct_raw = rev_type.get("project_onetime_pct")
+        project_pct_num = _parse_numeric(project_pct_raw)
+        recurring_pct_raw = rev_type.get("recurring_pct")
+        recurring_pct_num = _parse_numeric(recurring_pct_raw)
+        revtype_doc = rev_type.get("source_doc", "")
+
+        if apply_tech:
+            if project_pct_num is not None and project_pct_num > 50:
+                self._add_flag(
+                    metric="revenue_type_mix_project_heavy",
+                    value=str(project_pct_raw),
+                    threshold=">50% project/one-time (tech services)",
+                    severity="Yellow",
+                    note=(
+                        f"Project/one-time revenue represents {project_pct_raw} of total revenue. "
+                        f"A predominantly project-based model implies lower revenue visibility and "
+                        f"higher re-signing risk. Source: {revtype_doc}."
+                    ),
+                    source_doc=revtype_doc,
+                    confidence="high",
+                )
+            elif recurring_pct_num is None and project_pct_num is None:
+                self._add_gap(
+                    "Revenue type split (recurring vs. project) not stated — "
+                    "required to assess revenue visibility and durability."
+                )
+            else:
+                self._log_no_flag("revenue_type_mix_project_heavy (tech)", str(project_pct_raw), "≤50%")
+
+        # Contract terms — termination for convenience flag
+        contract_terms = extracted.get("contract_terms_summary") or {}
+        tfc = contract_terms.get("termination_for_convenience", "unknown")
+        coc = contract_terms.get("change_of_control_consent_required", "unknown")
+        contract_doc = contract_terms.get("source_doc", "")
+
+        if tfc == "yes":
+            self._add_flag(
+                metric="termination_for_convenience",
+                value="yes",
+                threshold="present in material customer contracts",
+                severity="Yellow",
+                note=(
+                    "Material customer contracts include termination-for-convenience provisions. "
+                    "Buyer should confirm whether these could be triggered post-close. "
+                    f"Source: {contract_doc}."
+                ),
+                source_doc=contract_doc,
+                confidence="medium",
+            )
+        elif tfc == "unknown":
+            self._add_gap(
+                "Termination-for-convenience terms not determinable from retrieved documents — "
+                "contract review required for material customers."
+            )
+        else:
+            self._log_no_flag("termination_for_convenience", tfc, "not present")
+
+        if coc == "yes":
+            self._add_flag(
+                metric="change_of_control_consent_required",
+                value="yes",
+                threshold="CoC consent required by material customers",
+                severity="Red",
+                note=(
+                    "One or more material customer contracts require change-of-control consent. "
+                    "This is a deal execution risk that must be resolved before close. "
+                    f"Source: {contract_doc}."
+                ),
+                source_doc=contract_doc,
+                confidence="medium",
+            )
+        elif coc == "unknown":
+            self._add_gap(
+                "Change-of-control consent terms not determinable — "
+                "contract review required for all customers >20% of revenue."
+            )
+        else:
+            self._log_no_flag("change_of_control_consent_required", coc, "not required")
+
+        # Customer health — declining spend flag
+        health = extracted.get("customer_health_indicators") or {}
+        declining = health.get("declining_spend_customers") or []
+        if declining:
+            self._add_flag(
+                metric="declining_spend_customers",
+                value=str(declining),
+                threshold="one or more customers with explicitly stated declining spend",
+                severity="Yellow",
+                note=(
+                    f"Data room documents explicitly note declining spend for: {', '.join(declining)}. "
+                    "Verify whether this reflects project completion, churn risk, or scope reduction."
+                ),
+                source_doc=health.get("source_doc", ""),
+                confidence="medium",
+            )
+
         # Government payor concentration (healthcare)
         if apply_healthcare:
             govt_categories = {"medicare", "medicaid", "va", "managed care"}
@@ -618,9 +912,15 @@ class CustomerQualityAgent(WorkstreamAgent):
         tr5 = self._tool_retrieve_account_size(spark)
         tr6 = self._tool_load_company_profile(company_name, spark)
 
+        print("  Running 4 additional retrieval tools (cohort, health, contracts, revenue type) ...")
+        tr_cohort    = self._tool_retrieve_cohort_data(spark)
+        tr_health    = self._tool_retrieve_customer_health(spark)
+        tr_contracts = self._tool_retrieve_contract_terms(spark)
+        tr_revtype   = self._tool_retrieve_revenue_type_and_renewals(spark)
+
         seen_texts: set[str] = set()
         all_chunks = []
-        for tr in (tr1, tr2, tr3, tr4, tr5):
+        for tr in (tr1, tr2, tr3, tr4, tr5, tr_cohort, tr_health, tr_contracts, tr_revtype):
             for chunk in (tr.data or []):
                 if chunk.chunk_text not in seen_texts:
                     seen_texts.add(chunk.chunk_text)
@@ -676,8 +976,13 @@ class CustomerQualityAgent(WorkstreamAgent):
             "retention_json":              json.dumps(extracted.get("retention") or {}),
             "customer_tenure_json":        json.dumps(extracted.get("customer_tenure") or {}),
             "average_account_size_json":   json.dumps(extracted.get("average_account_size") or {}),
-            "payor_mix_json":              json.dumps(extracted.get("payor_mix") or []),
-            "contract_trigger_list":       [json.dumps(t) for t in trigger_list],
+            "payor_mix_json":                  json.dumps(extracted.get("payor_mix") or []),
+            "cohort_analysis_json":            json.dumps(extracted.get("cohort_analysis") or {}),
+            "customer_health_indicators_json": json.dumps(extracted.get("customer_health_indicators") or {}),
+            "contract_terms_summary_json":     json.dumps(extracted.get("contract_terms_summary") or {}),
+            "revenue_type_mix_json":           json.dumps(extracted.get("revenue_type_mix") or {}),
+            "renewal_patterns_json":           json.dumps(extracted.get("renewal_patterns") or {}),
+            "contract_trigger_list":           [json.dumps(t) for t in trigger_list],
             "flags":                       self._flags_as_dicts(),
             "discrepancies_json":          json.dumps(extracted.get("discrepancies") or []),
             "data_room_gaps":              list(self._data_room_gaps),
@@ -707,6 +1012,11 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
     customer_tenure      = json.loads(result.get("customer_tenure_json")       or "{}")
     average_account_size = json.loads(result.get("average_account_size_json")  or "{}")
     payor_mix            = json.loads(result.get("payor_mix_json")             or "[]")
+    cohort_analysis      = json.loads(result.get("cohort_analysis_json")            or "{}")
+    customer_health      = json.loads(result.get("customer_health_indicators_json") or "{}")
+    contract_terms       = json.loads(result.get("contract_terms_summary_json")     or "{}")
+    revenue_type_mix     = json.loads(result.get("revenue_type_mix_json")           or "{}")
+    renewal_patterns     = json.loads(result.get("renewal_patterns_json")           or "{}")
     contract_triggers_raw = result.get("contract_trigger_list") or []
     contract_trigger_list = [
         json.loads(t) if isinstance(t, str) else t
@@ -733,6 +1043,17 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
         "data_room_gaps":       result.get("data_room_gaps") or [],
         "citations":            citations,
     }
+
+    if cohort_analysis:
+        report["cohort_analysis"] = cohort_analysis
+    if customer_health:
+        report["customer_health"] = customer_health
+    if contract_terms:
+        report["contract_terms"] = contract_terms
+    if revenue_type_mix:
+        report["revenue_type_mix"] = revenue_type_mix
+    if renewal_patterns:
+        report["renewal_patterns"] = renewal_patterns
 
     # ── Render as YAML (preferred) or JSON fallback ────────────────────
     try:
@@ -764,6 +1085,457 @@ def _write_stakeholder_report(result: dict, catalog: str, spark) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Markdown assessment report
+# ---------------------------------------------------------------------------
+
+def generate_customer_quality_assessment(
+    result: dict,
+    spark,
+    llm_endpoint: str,
+    catalog: str = "uc13",
+    write_to_volume: bool = True,
+) -> str:
+    """Generate a human-readable markdown Customer Quality assessment from agent output.
+
+    Combines deterministic table construction (concentration, retention, revenue type,
+    contract terms, customer health, cohort summary) with a single LLM call that writes
+    7-section narrative. Mirrors the pattern in generate_financial_assessment() and
+    generate_business_model_assessment().
+
+    Args:
+        result:          Output dict from CustomerQualityAgent.run() or main().
+        spark:           Active SparkSession (needed only when write_to_volume=True).
+        llm_endpoint:    Databricks model-serving endpoint name.
+        catalog:         UC catalog for volume write (default 'uc13').
+        write_to_volume: If True, writes the markdown to the reports volume.
+
+    Returns:
+        Markdown string.
+    """
+    # ── Parse all JSON blobs ───────────────────────────────────────────────
+    company_name    = result.get("company_name", "Unknown")
+    generated_at    = result.get("created_at", "")
+    overlay         = result.get("industry_overlay_used", "")
+    exec_summary    = result.get("executive_summary") or ""
+
+    top_customers   = json.loads(result.get("top_customers_json")               or "[]")
+    concentration   = json.loads(result.get("concentration_summary_json")       or "{}")
+    retention       = json.loads(result.get("retention_json")                   or "{}")
+    customer_tenure = json.loads(result.get("customer_tenure_json")             or "{}")
+    average_account = json.loads(result.get("average_account_size_json")        or "{}")
+    payor_mix       = json.loads(result.get("payor_mix_json")                   or "[]")
+    cohort          = json.loads(result.get("cohort_analysis_json")             or "{}")
+    health          = json.loads(result.get("customer_health_indicators_json")  or "{}")
+    contract_terms  = json.loads(result.get("contract_terms_summary_json")      or "{}")
+    revenue_type    = json.loads(result.get("revenue_type_mix_json")            or "{}")
+    renewal         = json.loads(result.get("renewal_patterns_json")            or "{}")
+    _flags_raw      = result.get("flags") or []
+    flags           = json.loads(_flags_raw) if isinstance(_flags_raw, str) else _flags_raw
+    data_room_gaps  = result.get("data_room_gaps") or []
+    discrepancies   = json.loads(result.get("discrepancies_json")               or "[]")
+    citations       = json.loads(result.get("citations")                        or "[]")
+
+    def _d(val) -> str:
+        """Return '—' for any falsy value, else str(val)."""
+        return str(val) if val not in (None, "", [], {}) else "—"
+
+    # ══════════════════════════════════════════════════════════════════════
+    # PHASE 1 — Deterministic table construction
+    # ══════════════════════════════════════════════════════════════════════
+
+    # ── TABLE 1 — Customer Concentration ──────────────────────────────────
+    sev_emoji = {"Red": "🔴", "Yellow": "🟡", "Green": "🟢"}
+    overlay_lower = (overlay or "").lower()
+    is_healthcare = "healthcare" in overlay_lower
+
+    tc_lines = [
+        "| Rank | Customer | Rev % (Yr1) | Rev % (Yr2) | Rev % (Yr3) | Rev $ | Tenure (yrs) | Contract | GM % | Payment | Flag |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for c in top_customers[:10]:
+        rank         = _d(c.get("rank"))
+        name         = (_d(c.get("customer_name")))[:35]
+        pct_yr1      = _d(c.get("revenue_pct_yr1"))
+        pct_yr2      = _d(c.get("revenue_pct_yr2"))
+        pct_yr3      = _d(c.get("revenue_pct_yr3"))
+        rev_dollars  = _fmt_dollars(c.get("revenue_dollars")) if c.get("revenue_dollars") else "—"
+        tenure       = _d(c.get("years_as_customer"))
+        contract     = _d(c.get("contract_status"))
+        gm_pct       = _d(c.get("gm_pct"))
+        payment      = _d(c.get("payment_behavior"))
+
+        num = _parse_numeric(pct_yr1)
+        threshold = 20 if is_healthcare else 25
+        mid_lo    = 15
+        if num is not None and num > threshold:
+            flag_cell = "🔴"
+        elif num is not None and num >= mid_lo:
+            flag_cell = "🟡"
+        else:
+            flag_cell = ""
+
+        tc_lines.append(
+            f"| {rank} | {name} | {pct_yr1} | {pct_yr2} | {pct_yr3} | "
+            f"{rev_dollars} | {tenure} | {contract} | {gm_pct} | {payment} | {flag_cell} |"
+        )
+
+    tbl_concentration = "\n".join(tc_lines) if top_customers else "_No top-customer data extracted._"
+
+    # ── TABLE 2 — Concentration Summary ───────────────────────────────────
+    conc_src = concentration.get("source_doc") or "—"
+    conc_caption = f"> Customer revenue concentration summary. Source: {conc_src}.\n"
+    conc_lines = [
+        "| Top 1 % | Top 3 % | Top 5 % | Top 10 % |",
+        "|---|---|---|---|",
+        f"| {_d(concentration.get('top1_pct'))} | {_d(concentration.get('top3_pct'))} | "
+        f"{_d(concentration.get('top5_pct'))} | {_d(concentration.get('top10_pct'))} |",
+    ]
+    tbl_conc_summary = conc_caption + "\n".join(conc_lines) if concentration else ""
+
+    # ── TABLE 3 — Retention Metrics (key-value block) ─────────────────────
+    nrr_pct   = _d(retention.get("nrr_pct"))
+    nrr_per   = _d(retention.get("nrr_period"))
+    nrr_expl  = _d(retention.get("nrr_methodology_explained"))
+    grr_pct   = _d(retention.get("grr_pct"))
+    grr_per   = _d(retention.get("grr_period"))
+    logo_churn = _d(retention.get("logo_churn_rate_annual_pct"))
+    ret_src   = _d(retention.get("source_doc"))
+    ret_loc   = _d(retention.get("source_location"))
+
+    ret_lines = [
+        f"- **NRR:** {nrr_pct} ({nrr_per}) — methodology explained: {nrr_expl}",
+        f"- **GRR:** {grr_pct} ({grr_per})",
+        f"- **Logo Churn (annual):** {logo_churn}",
+        f"- **Source:** {ret_src} — {ret_loc}",
+    ]
+    nrr_num = _parse_numeric(nrr_pct)
+    grr_num = _parse_numeric(grr_pct)
+    if nrr_num is not None and grr_num is not None and nrr_num < grr_num:
+        ret_lines.append(
+            "\n⚠ **NRR stated below GRR — possible metric error, flagged for QoE review.**"
+        )
+    tbl_retention = "\n".join(ret_lines)
+
+    # ── TABLE 4 — Revenue Type Mix (key-value block) ───────────────────────
+    rev_all_null = all(
+        revenue_type.get(k) is None
+        for k in ("recurring_pct", "project_onetime_pct", "retainer_pct")
+    )
+    if rev_all_null or not revenue_type:
+        tbl_revenue_type = "_Revenue type split not stated in data room._"
+    else:
+        rt_lines = [
+            f"- **Recurring:** {_d(revenue_type.get('recurring_pct'))}",
+            f"- **Project / One-time:** {_d(revenue_type.get('project_onetime_pct'))}",
+            f"- **Retainer / MSA:** {_d(revenue_type.get('retainer_pct'))}",
+            f"- **Methodology:** {_d(revenue_type.get('methodology_note'))}",
+            f"- **Source:** {_d(revenue_type.get('source_doc'))}",
+        ]
+        tbl_revenue_type = "\n".join(rt_lines)
+
+    # ── TABLE 5 — Contract Terms Summary (key-value block) ────────────────
+    ct_src = contract_terms.get("source_doc")
+    if not ct_src and not contract_terms:
+        tbl_contract_terms = "_No contract documents in retrieved context — terms unknown._"
+    else:
+        ct_lines = [
+            f"- **Termination for convenience:** {_d(contract_terms.get('termination_for_convenience'))}",
+            f"- **Change-of-control consent:** {_d(contract_terms.get('change_of_control_consent_required'))}",
+            f"- **Pricing escalators:** {_d(contract_terms.get('pricing_escalators'))}",
+            f"- **Exclusivity clauses:** {_d(contract_terms.get('exclusivity_clauses'))}",
+            f"- **Auto-renewal:** {_d(contract_terms.get('auto_renewal'))}",
+            f"- **Typical term:** {_d(contract_terms.get('typical_term_years'))} years",
+            f"- **Source:** {_d(ct_src)} — {_d(contract_terms.get('source_location'))}",
+            f"- **Note:** {_d(contract_terms.get('note'))}",
+        ]
+        if not ct_src:
+            ct_lines.append("\n_No contract documents in retrieved context — terms unknown._")
+        tbl_contract_terms = "\n".join(ct_lines)
+
+    # ── TABLE 6 — Customer Health Indicators (key-value block) ────────────
+    declining = health.get("declining_spend_customers") or []
+    declining_str = ", ".join(declining) if declining else "None stated"
+    h_lines = [
+        f"- **Utilization:** {_d(health.get('utilization_note'))}",
+        f"- **Complaints / NPS:** {_d(health.get('complaints_note'))}",
+        f"- **Late payment / AR trend:** {_d(health.get('late_payment_note'))}",
+        f"- **Declining spend customers:** {declining_str}",
+        f"- **Discounts / rebates:** {_d(health.get('discounts_rebates_note'))}",
+        f"- **Source:** {_d(health.get('source_doc'))}",
+    ]
+    tbl_health = "\n".join(h_lines)
+
+    # ── TABLE 7 — Flags (pipe table) ──────────────────────────────────────
+    flag_severity_order = {"Red": 0, "Yellow": 1, "Green": 2}
+    flags_sorted = sorted(flags, key=lambda f: flag_severity_order.get(f.get("severity", ""), 3))
+    if flags_sorted:
+        fl_lines = [
+            "| Severity | Metric | Value | Threshold | Note | Source |",
+            "|---|---|---|---|---|---|",
+        ]
+        for f in flags_sorted:
+            emoji   = sev_emoji.get(f.get("severity", ""), "⚪")
+            metric  = (f.get("metric") or "")
+            val     = (f.get("value") or "")[:60]
+            thresh  = (f.get("threshold") or "")[:50]
+            note    = (f.get("note") or "")[:90]
+            src     = (f.get("source_doc") or "—")[:35]
+            fl_lines.append(f"| {emoji} {f.get('severity','')} | {metric} | {val} | {thresh} | {note} | {src} |")
+        tbl_flags = "\n".join(fl_lines)
+    else:
+        tbl_flags = "_No flags raised._"
+
+    # ── TABLE 8 — Cohort Summary (conditional) ────────────────────────────
+    cohort_avail = cohort.get("cohorts_available")
+    cohort_is_present = str(cohort_avail).lower() == "true" or cohort_avail is True
+    if cohort_is_present:
+        vintage_years = cohort.get("cohort_vintage_years") or []
+        vintage_str   = ", ".join(str(y) for y in vintage_years) if vintage_years else "—"
+        coh_lines = [
+            f"- **Vintage years available:** {vintage_str}",
+            f"- **Performance note:** {_d(cohort.get('cohort_summary_note'))}",
+            f"- **Source:** {_d(cohort.get('source_doc'))} — {_d(cohort.get('source_location'))}",
+        ]
+        tbl_cohort = "\n".join(coh_lines)
+    else:
+        tbl_cohort = ""
+
+    # ── TABLE 9 — Data Room Gaps ───────────────────────────────────────────
+    if data_room_gaps:
+        tbl_gaps = "\n".join(f"- {g}" for g in data_room_gaps)
+    else:
+        tbl_gaps = "_None identified._"
+
+    # ══════════════════════════════════════════════════════════════════════
+    # PHASE 2 — Single LLM narrative call
+    # ══════════════════════════════════════════════════════════════════════
+    _flags_summary = "\n".join(
+        f"  {f.get('severity','')} {f.get('metric','')}: {f.get('value','')} vs {f.get('threshold','')}"
+        for f in flags_sorted
+    ) or "  None."
+
+    _CQA_CONTEXT = f"""\
+COMPANY: {company_name}
+INDUSTRY OVERLAY: {overlay or 'not stated'}
+
+CUSTOMER CONCENTRATION (top customers):
+{tbl_concentration}
+
+CONCENTRATION SUMMARY:
+Top 1%={_d(concentration.get('top1_pct'))}  Top 3%={_d(concentration.get('top3_pct'))}  \
+Top 5%={_d(concentration.get('top5_pct'))}  Top 10%={_d(concentration.get('top10_pct'))}
+
+RETENTION METRICS:
+{tbl_retention}
+
+REVENUE TYPE MIX:
+{tbl_revenue_type}
+
+CONTRACT TERMS:
+{tbl_contract_terms}
+
+CUSTOMER HEALTH:
+{tbl_health}
+
+COHORT DYNAMICS:
+{tbl_cohort if tbl_cohort else 'Not available — no cohort schedule in data room.'}
+
+INVESTMENT FLAGS:
+{_flags_summary}
+
+DATA ROOM GAPS: {len(data_room_gaps)} gaps — see report
+"""
+
+    _ASSESS_SYS = """\
+You are a senior PE investment analyst writing the Customer Quality section of an
+internal diligence memo. Use the structured data provided to answer 7 specific
+questions about customer concentration, retention quality, revenue durability,
+contract risk, customer health, and cohort dynamics.
+
+Rules:
+1. Write only what the data supports. Do not invent facts.
+2. If a section has no data, write one sentence stating what is missing and why
+   it matters for underwriting.
+3. Use concrete details from the tables (names, percentages, contract terms).
+4. Use PE language: "contractually uncommitted", "project-driven concentration",
+   "churn pressure", "NRR compression", "re-signing risk", "payor-dependent",
+   "vintage erosion", "account-level margin dilution".
+5. No deal verdicts. Flag as "warrants scrutiny" or "requires confirmation" — never
+   "deal-breaker" or "acceptable risk".
+6. Return pure markdown only — no preamble, no code fences.
+7. Structure with exactly these 7 H3 headers:
+   ### 1. Concentration Risk
+   ### 2. Retention Quality (NRR / GRR / Logo Churn)
+   ### 3. Revenue Durability (Recurring vs. Project Mix)
+   ### 4. Contract Risk (Terms, CoC, Termination)
+   ### 5. Customer Health Indicators
+   ### 6. Cohort Dynamics and Vintage Performance
+   ### 7. Key Diligence Questions for Management
+8. Sections 1–6: MAX 2 bullet points (≤30 words each) + one **Analyst take:**
+   sentence (≤20 words). Section 7: numbered list of ≤4 specific questions drawn
+   only from the flags and data room gaps shown — do not invent new questions.
+9. Be concise. The entire section must fit within a 2-page memo section.
+"""
+
+    _ASSESS_USER = f"""\
+Use the customer quality data below to answer all 7 assessment questions.
+Markdown only.
+
+{_CQA_CONTEXT}
+"""
+
+    import mlflow.deployments
+    _client = mlflow.deployments.get_deploy_client("databricks")
+    os.environ.setdefault("DATABRICKS_HTTP_TIMEOUT", "600")
+    _response = _client.predict(
+        endpoint=llm_endpoint,
+        inputs={
+            "messages": [
+                {"role": "system", "content": _ASSESS_SYS},
+                {"role": "user",   "content": _ASSESS_USER},
+            ],
+            "max_tokens": 3_000,
+            "temperature": 0.0,
+        },
+    )
+    from agents.shared.agent_base import accumulate_tokens as _accum_tokens
+    _accum_tokens(_response.get("usage", {}), endpoint=llm_endpoint)
+    narrative = _response["choices"][0]["message"]["content"].strip()
+
+    # ══════════════════════════════════════════════════════════════════════
+    # PHASE 3 — Assemble final markdown
+    # ══════════════════════════════════════════════════════════════════════
+    def _extract_section(narrative_text: str, header: str) -> str:
+        """Pull the content under a given ### header from the narrative string."""
+        pattern = rf"###\s*{re.escape(header)}\s*\n(.*?)(?=\n###|\Z)"
+        m = re.search(pattern, narrative_text, re.DOTALL | re.IGNORECASE)
+        return m.group(1).strip() if m else ""
+
+    overlay_tag = f"  |  Overlay: {overlay}" if overlay else ""
+    md: list[str] = []
+    md.append(f"# Customer Quality Assessment — {company_name}")
+    md.append(f"_Generated: {generated_at}{overlay_tag}_\n")
+
+    md.append("## Executive Summary\n")
+    md.append(exec_summary if exec_summary else "_No executive summary extracted._")
+    md.append("")
+
+    # ── Customer Concentration ─────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Customer Concentration\n")
+    md.append(
+        "> Top customers by revenue share (3-year history). GM % and payment behavior\n"
+        "> extracted from customer workbook where stated. Flag: 🔴 >25% concentration risk.\n"
+    )
+    md.append(tbl_concentration)
+    md.append("")
+    if tbl_conc_summary:
+        md.append(tbl_conc_summary)
+        md.append("")
+
+    conc_narrative = _extract_section(narrative, "1. Concentration Risk")
+    if conc_narrative:
+        md.append(conc_narrative)
+        md.append("")
+
+    # ── Retention Metrics ─────────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Retention Metrics\n")
+    md.append(tbl_retention)
+    md.append("")
+
+    ret_narrative = _extract_section(narrative, "2. Retention Quality (NRR / GRR / Logo Churn)")
+    if ret_narrative:
+        md.append(ret_narrative)
+        md.append("")
+
+    # ── Revenue Durability ────────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Revenue Durability\n")
+    md.append(tbl_revenue_type)
+    md.append("")
+
+    rev_narrative = _extract_section(narrative, "3. Revenue Durability (Recurring vs. Project Mix)")
+    if rev_narrative:
+        md.append(rev_narrative)
+        md.append("")
+
+    # ── Contract Terms ────────────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Contract Terms\n")
+    md.append(tbl_contract_terms)
+    md.append("")
+
+    ct_narrative = _extract_section(narrative, "4. Contract Risk (Terms, CoC, Termination)")
+    if ct_narrative:
+        md.append(ct_narrative)
+        md.append("")
+
+    # ── Customer Health ───────────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Customer Health\n")
+    md.append(tbl_health)
+    md.append("")
+
+    health_narrative = _extract_section(narrative, "5. Customer Health Indicators")
+    if health_narrative:
+        md.append(health_narrative)
+        md.append("")
+
+    # ── Cohort Dynamics (conditional) ─────────────────────────────────────
+    if tbl_cohort:
+        md.append("---\n")
+        md.append("## Cohort Dynamics\n")
+        md.append(tbl_cohort)
+        md.append("")
+
+        cohort_narrative = _extract_section(narrative, "6. Cohort Dynamics and Vintage Performance")
+        if cohort_narrative:
+            md.append(cohort_narrative)
+            md.append("")
+
+    # ── Investment Flags ──────────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Investment Flags\n")
+    md.append(tbl_flags)
+    md.append("")
+
+    # ── Key Diligence Questions ────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Key Diligence Questions for Management\n")
+    kq_narrative = _extract_section(narrative, "7. Key Diligence Questions for Management")
+    md.append(kq_narrative if kq_narrative else "_See data room gaps and flags above._")
+    md.append("")
+
+    # ── Data Room Gaps ────────────────────────────────────────────────────
+    md.append("---\n")
+    md.append("## Data Room Gaps\n")
+    md.append(tbl_gaps)
+    md.append("")
+
+    md.append("---")
+    md.append(
+        "_Citations available in `customer_quality_report.yaml` "
+        f"and `{catalog}.analysis.customer_quality`._"
+    )
+
+    final_markdown = "\n".join(md)
+
+    # ── Optional volume write ──────────────────────────────────────────────
+    if write_to_volume:
+        spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.analysis.reports")
+        safe_name = company_name.replace(" ", "_").replace("/", "_")
+        dir_path  = f"/Volumes/{catalog}/analysis/reports/{safe_name}"
+        os.makedirs(dir_path, exist_ok=True)
+        file_path = f"{dir_path}/customer_quality_assessment.md"
+        with open(file_path, "w", encoding="utf-8") as fh:
+            fh.write(final_markdown)
+        print(f"✓ Customer quality assessment → {file_path}")
+
+    return final_markdown
+
+
+# ---------------------------------------------------------------------------
 # Delta table DDL
 # ---------------------------------------------------------------------------
 
@@ -777,6 +1549,11 @@ CREATE TABLE IF NOT EXISTS {table} (
     customer_tenure_json       STRING,
     average_account_size_json  STRING,
     payor_mix_json             STRING,
+    cohort_analysis_json           STRING,
+    customer_health_indicators_json STRING,
+    contract_terms_summary_json    STRING,
+    revenue_type_mix_json          STRING,
+    renewal_patterns_json          STRING,
     contract_trigger_list      ARRAY<STRING>,
     flags                      STRING,
     discrepancies_json         STRING,
@@ -793,7 +1570,7 @@ CREATE TABLE IF NOT EXISTS {table} (
 # ---------------------------------------------------------------------------
 
 
-def main() -> dict:
+def main(spark=None) -> dict:
     repo_root = find_repo_root()
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
@@ -808,7 +1585,8 @@ def main() -> dict:
         load_affected_intents,
         open_agent_run,
     )
-    spark = SparkSession.getActiveSession()
+    if spark is None:
+        spark = SparkSession.getActiveSession()
     if spark is None:
         raise RuntimeError("No active Spark session.")
 
@@ -826,6 +1604,25 @@ def main() -> dict:
 
         table = f"{catalog}.analysis.customer_quality"
         spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.analysis")
+
+        _EXPECTED_COLS = {
+            "company_name", "executive_summary",
+            "top_customers_json", "concentration_summary_json", "retention_json",
+            "customer_tenure_json", "average_account_size_json", "payor_mix_json",
+            "cohort_analysis_json", "customer_health_indicators_json",
+            "contract_terms_summary_json", "revenue_type_mix_json", "renewal_patterns_json",
+            "contract_trigger_list", "flags", "discrepancies_json",
+            "data_room_gaps", "citations", "reasoning_trace", "created_at",
+        }
+        try:
+            _live_cols = {f.name for f in spark.table(table).schema.fields}
+            if not _EXPECTED_COLS.issubset(_live_cols):
+                _missing = _EXPECTED_COLS - _live_cols
+                print(f"  [schema_migration] {table}: dropping stale table. Missing: {sorted(_missing)}")
+                spark.sql(f"DROP TABLE IF EXISTS {table}")
+        except Exception:
+            pass
+
         spark.sql(_CREATE_TABLE_SQL.format(table=table))
         spark.sql(f"DELETE FROM {table} WHERE company_name = '{company_name}'")
 
@@ -842,8 +1639,13 @@ def main() -> dict:
             StructField("retention_json",              StringType(),  True),
             StructField("customer_tenure_json",        StringType(),  True),
             StructField("average_account_size_json",   StringType(),  True),
-            StructField("payor_mix_json",              StringType(),  True),
-            StructField("contract_trigger_list",       ArrayType(StringType()), True),
+            StructField("payor_mix_json",                     StringType(),  True),
+            StructField("cohort_analysis_json",               StringType(),  True),
+            StructField("customer_health_indicators_json",    StringType(),  True),
+            StructField("contract_terms_summary_json",        StringType(),  True),
+            StructField("revenue_type_mix_json",              StringType(),  True),
+            StructField("renewal_patterns_json",              StringType(),  True),
+            StructField("contract_trigger_list",              ArrayType(StringType()), True),
             StructField("flags",                       StringType(),  True),
             StructField("discrepancies_json",          StringType(),  True),
             StructField("data_room_gaps",              ArrayType(StringType()), True),
@@ -860,8 +1662,13 @@ def main() -> dict:
             "retention_json":             result.get("retention_json"),
             "customer_tenure_json":       result.get("customer_tenure_json"),
             "average_account_size_json":  result.get("average_account_size_json"),
-            "payor_mix_json":             result.get("payor_mix_json"),
-            "contract_trigger_list":      result.get("contract_trigger_list") or [],
+            "payor_mix_json":                     result.get("payor_mix_json"),
+            "cohort_analysis_json":               result.get("cohort_analysis_json"),
+            "customer_health_indicators_json":    result.get("customer_health_indicators_json"),
+            "contract_terms_summary_json":        result.get("contract_terms_summary_json"),
+            "revenue_type_mix_json":              result.get("revenue_type_mix_json"),
+            "renewal_patterns_json":              result.get("renewal_patterns_json"),
+            "contract_trigger_list":              result.get("contract_trigger_list") or [],
             "flags":                      json.dumps(result.get("flags") or []),
             "discrepancies_json":         result.get("discrepancies_json"),
             "data_room_gaps":             result.get("data_room_gaps") or [],
@@ -871,13 +1678,24 @@ def main() -> dict:
         }
 
         df = spark.createDataFrame([Row(**row_data)], schema=schema)
-        df.write.format("delta").mode("append").saveAsTable(table)
+        df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table)
 
         print(f"\n✓ Saved customer quality output → {table}")
 
         report_path = _write_stakeholder_report(result, catalog, spark)
         result["report_path"] = report_path
         print(f"✓ Stakeholder report → {report_path}")
+
+        # ── Export markdown assessment report ──────────────────────────
+        generate_customer_quality_assessment(
+            result=result,
+            spark=spark,
+            llm_endpoint=llm_endpoint,
+            catalog=catalog,
+            write_to_volume=True,
+        )
+        print("✓ Customer quality assessment → written to volume")
+
         return result
     finally:
         close_agent_run()
