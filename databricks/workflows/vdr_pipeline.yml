@@ -1,0 +1,86 @@
+# VDR Diligence Pipeline — Databricks Asset Bundle workflow.
+#
+# Wrapper around the full diligence pipeline (Phase 1-5) that integrates with
+# the VDR UI via the companies_vdr_history Delta table.  Reads company info
+# from the table, runs the pipeline, copies output files to the VDR volume,
+# and writes status + results back to the table.
+#
+# Output files are written to:
+#   /Volumes/rallyday_partners_llc/default/vdr/{company_snake}/{ISO_timestamp}/
+#       executive_summary.docx  (1-page Word doc with overview + key KPIs)
+#       full_report.docx        (full diligence memo)
+#
+# The VDR UI submits records with processing_status='submitted'.  This job
+# transitions the record through 'processing' → 'done' (or 'error').
+#
+# Deploy:
+#   databricks bundle deploy --target <env>
+#   databricks bundle run vdr_pipeline --target <env>
+#     --params tableName="rallyday_partners_llc.default.companies_vdr_history" id="42"
+
+resources:
+  jobs:
+    vdr_pipeline:
+      name: "VDR Diligence Pipeline"
+      description: >
+        VDR-integrated diligence pipeline. Reads a companies_vdr_history
+        record by id, runs the full Phase 1-5 pipeline (SharePoint ingestion →
+        document classification → embedding → seven workstream agents →
+        Cross-Analysis → Orchestrator memo), copies output files to the VDR
+        volume, and updates the record with results. Triggered by the VDR UI.
+
+      git_source:
+        git_url: https://github.com/NimbleGravity/Rallyday
+        git_provider: gitHub
+        git_branch: feature/ui-pipeline-integration 
+
+      parameters:
+        - name: tableName
+          default: "rallyday_partners_llc.default.companies_vdr_history"
+          description: >
+            Fully-qualified Delta table name for VDR history records.
+
+        - name: id
+          default: ""
+          description: >
+            [REQUIRED] Row ID in the companies_vdr_history table to process.
+
+      tasks:
+        # Single task — the wrapper manages the VDR record lifecycle as one
+        # unit so error handling can always update the table status.
+        - task_key: run_vdr_pipeline
+          description: >
+            Reads VDR record → runs full diligence pipeline (Phase 1-5) →
+            copies outputs to VDR volume → updates record status.
+          spark_python_task:
+            python_file: "/Workspace/Users/hector.corro@nimblegravity.com/Rallyday/databricks/jobs/scripts/run_vdr_pipeline.py"
+            parameters:
+              - "{{job.parameters.tableName}}"
+              - "{{job.parameters.id}}"
+          environment_key: vdr_pipeline_environment
+          # VDR UI controls retries via resubmission — no automatic retries.
+          max_retries: 0
+          retry_on_timeout: false
+          # Full pipeline timeout: ingestion (up to 5h) + diligence (up to 4h).
+          timeout_seconds: 32400
+
+      environments:
+        - environment_key: vdr_pipeline_environment
+          spec:
+            client: "1"
+            dependencies:
+              - msal>=1.28.0
+              - requests>=2.31.0
+              - python-docx>=1.1.0
+              - openpyxl>=3.1.0
+              - typing_extensions>=4.6.0
+              - mlflow[databricks]>=3.1
+              - pydantic>=2.0.0
+              - pymupdf>=1.24.0
+              - reportlab>=4.0.0
+
+      email_notifications:
+        on_failure: []
+
+      # Allow parallel runs for different companies.
+      max_concurrent_runs: 3

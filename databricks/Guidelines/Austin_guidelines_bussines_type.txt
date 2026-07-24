@@ -1,0 +1,30 @@
+Ahead of our check in call later today I thought it could be helpful to outline a few of the metrics we tend to care about across our two most active sectors (tech and healthcare services) and some directional thresholds that should probably trigger a flag per our discussion.  These are not meant to be hard rules as the context matters a lot by end market, revenue model, etc as we’ve discussed so I don’t want to overemphasize these by any means as it should be up to the discretion of the investment professional to determine the materiality of some of this, but hopefully they are useful as a first-pass screen when reviewing a CIM or dataroom.
+ 
+Tech Services Businesses
+	•	Net revenue retention below ~90%: Suggests churn pressure, weaker customer stickiness, or a more project-based / transactional model
+	•	Gross revenue retention below ~80–85%
+	•	Gross margin below ~40%: Could indicate lower-value work, weak utilization, poor delivery leverage, or insufficient pricing power. For premium digital services businesses, we would generally like to see gross margins of 45-50%+
+	•	Top customer above ~25% of revenue: Should be flagged as a concentration risk, particularly if the customer is project-driven, contractually uncommitted, etc.
+	•	Organic growth below ~10–15%: For a premium tech services platform, low growth can raise questions around market positioning, sales engine maturity, customer demand, etc.
+	•	EBITDA margins below ~10–15%: Depending on the company’s stage, this may be fine, but it should be flagged
+	•	Average account size below ~$100–200K: Smaller accounts may imply more SMB exposure, lower budget durability, and a harder path to scale
+	•	Revenue that is mostly one-time project work: Not necessarily a deal-killer, but it usually deserves a flag  
+	•	Contractor-heavy or single-geography delivery model: Especially in India or less desirable geographies 
+ 
+Healthcare Services Businesses
+	•	Revenue growth below ~5–10%: Low growth may be fine in certain stable markets, but it should prompt questions around referral trends, reimbursement pressure, competition, or provider / caregiver availability
+	•	EBITDA margin below ~10%: This varies by subsector, but sub-10% margins can indicate labor inefficiency, weak reimbursement, poor scheduling / utilization, high admin burden, or lack of scale
+	•	Gross margin below ~30–35%: For people-heavy healthcare services, this is often a key indicator of wage pressure, poor labor utilization, pricing constraints, or unfavorable payer / customer mix
+	•	High customer / referral source concentration: I would flag anything where one referral source, facility, health system, payer, or customer represents more than ~20–25% of volume or revenue
+	•	Government / payer concentration above ~50%: Worth flagging if the business is heavily dependent on Medicare, Medicaid, VA, or a small number of managed care / government-related payers
+	•	Revenue tied to episodic or event-driven demand: Similar to project revenue in tech services, this should be flagged if volume is hard to forecast, referral patterns are inconsistent, or revenue depends on discrete events rather than recurring need
+	•	Employee turnover above ~30–40%: High turnover can create quality issues, hiring costs, capacity constraints, compliance risk, and margin pressure
+	•	Weak clinician / caregiver recruiting funnel: Even if current revenue looks good, constrained recruiting can cap growth  
+	•	Low utilization / productivity: For clinic-based, provider-based, home care, or field services models, utilization is a major margin driver
+	•	Compliance / quality issues: Any history of audits, adverse survey findings, licensing issues, litigation, credentialing gaps, or billing / coding concerns  
+	•	Limited site / branch-level visibility: For multi-site we would want to see revenue, margin, volume, utilization, and quality metrics at the location level. If the company cannot produce this, that is an issue
+ 
+Hoping this is helpful, but happy to discuss in more detail today when we connect.
+ 
+Best,
+Austin
