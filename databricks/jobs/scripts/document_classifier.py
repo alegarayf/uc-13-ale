@@ -153,6 +153,15 @@ def _sanitize(name: str) -> str:
     return name.translate(_SANITIZE)
 
 
+def _try_accumulate_tokens(usage: dict, endpoint: str = "unknown") -> None:
+    """Forward LLM usage to the global token counter if agent_base is on sys.path."""
+    try:
+        from agents.shared.agent_base import accumulate_tokens
+        accumulate_tokens(usage, endpoint=endpoint)
+    except Exception:
+        pass
+
+
 def classify_batch(
     files_batch: list[dict],
     client,
@@ -239,8 +248,9 @@ Return ONLY a JSON array, no markdown, no explanation. One object per file, in o
 Files:
 """ + file_list
 
+    _CLASSIFIER_ENDPOINT = "databricks-meta-llama-3-3-70b-instruct"
     response = client.predict(
-        endpoint="databricks-meta-llama-3-3-70b-instruct",
+        endpoint=_CLASSIFIER_ENDPOINT,
         inputs={
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 4000,
@@ -248,6 +258,7 @@ Files:
         },
     )
 
+    _try_accumulate_tokens(response.get("usage", {}), endpoint=_CLASSIFIER_ENDPOINT)
     text = response["choices"][0]["message"]["content"].strip()
     text = re.sub(r"```json\s*|\s*```", "", text).strip()
 
@@ -520,6 +531,9 @@ def main():
     df = _spark.createDataFrame(rows, schema=schema_spark)
 
     # Upsert: replace this company's rows, preserve all other companies.
+    # Key is (company_name, filename, folder_path) — the same filename can appear
+    # in multiple folders within one data room, so folder_path is required to
+    # avoid DELTA_MULTIPLE_SOURCE_ROW_MATCHING_TARGET_ROW_IN_MERGE errors.
     from delta.tables import DeltaTable
     delta_tbl = DeltaTable.forName(_spark, table_relevance)
     (

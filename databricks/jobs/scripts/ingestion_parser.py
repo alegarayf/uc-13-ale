@@ -188,6 +188,19 @@ FINANCIAL_LINES_PER_CHUNK  = 30    # financial sheet line items per chunk
 
 
 # ---------------------------------------------------------------------------
+# Token accounting helper
+# ---------------------------------------------------------------------------
+
+def _try_accumulate_tokens(usage: dict, endpoint: str = "unknown") -> None:
+    """Forward LLM/embedding usage to the global token counter if agent_base is on sys.path."""
+    try:
+        from agents.shared.agent_base import accumulate_tokens
+        accumulate_tokens(usage, endpoint=endpoint)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
 # Shared regex / helpers
 # ---------------------------------------------------------------------------
 
@@ -410,13 +423,23 @@ def parse_pdf(
     - Every chunk gets: [Document: {title}] [Section: {header}]
     """
     try:
-        _df = spark.sql(f"""
-            SELECT to_json(ai_parse_document(
-                content,
-                map('version', '2.0')
-            )) AS parsed
-            FROM read_files('{file_path}', format => 'binaryFile')
-        """)
+        # Read bytes in Python to avoid glob metacharacter issues ([ ] etc.) in filenames.
+        # read_files() uses glob pattern matching, so brackets cause LocalRelation <empty>
+        # which makes ai_parse_document fail with UNRESOLVED_COLUMN 'content'.
+        try:
+            with open(file_path, "rb") as _fh:
+                _raw_bytes = _fh.read()
+        except OSError as _oe:
+            print(f"  ⚠ Skipped (cannot read): {file_name} — {_oe}")
+            return []
+        if not _raw_bytes:
+            print(f"  ⚠ Skipped (empty file): {file_name}")
+            return []
+        from pyspark.sql.types import BinaryType, StructType as _BinST, StructField as _BinSF
+        import pyspark.sql.functions as _F
+        _bin_schema = _BinST([_BinSF("content", BinaryType(), False)])
+        _df = spark.createDataFrame([(_raw_bytes,)], schema=_bin_schema)
+        _df = _df.select(_F.to_json(_F.expr("ai_parse_document(content, map('version', '2.0'))")).alias("parsed"))
         _rows = _df.collect()
         if not _rows:
             print(f"  ⚠ Skipped (empty/unreadable file): {file_name}")
@@ -748,6 +771,8 @@ def _extract_figure_pages_with_vision(
                     "max_tokens": 2000,
                 },
             )
+
+            _try_accumulate_tokens(response.get("usage", {}), endpoint=vision_endpoint)
 
             text = (
                 (response.get("choices") or [{}])[0]
@@ -1267,6 +1292,7 @@ def get_embeddings_batch(texts: list[str], client, endpoint: str, batch_size: in
         batch = texts[i : i + batch_size]
         response = client.predict(endpoint=endpoint, inputs={"input": batch})
         embeddings.extend([item["embedding"] for item in response["data"]])
+        _try_accumulate_tokens(response.get("usage", {}), endpoint=endpoint)
         if i % 100 == 0:
             print(f"  Embedded {i}/{len(texts)} chunks...")
     return embeddings
@@ -1537,19 +1563,7 @@ def main():
     ]
     print(f"Files to parse: {len(file_paths)}")
 
-    # --- Parse ---
-    all_chunks: list[Chunk] = []
-    for file_path in file_paths:
-        chunks = parse_file(file_path, _spark, vision_endpoint=vision_endpoint)
-        all_chunks.extend(chunks)
-
-    _print_chunk_diagnostics(all_chunks)
-
-    if not all_chunks:
-        print("No chunks generated — exiting.")
-        return
-
-    # --- Save chunks ---
+    # --- Schema + helpers ---
     from pyspark.sql import Row
     from pyspark.sql.types import (
         StructType, StructField, StringType, IntegerType, BooleanType,
@@ -1576,34 +1590,75 @@ def main():
         StructField("created_at",     TimestampType(), False),
     ])
 
-    chunk_rows = [
-        Row(
-            company_name=company_name,
-            chunk_id=c.chunk_id, doc_id=c.doc_id, file_name=c.file_name,
-            file_type=c.file_type, relative_path=c.relative_path,
-            chunk_index=int(c.chunk_index), chunk_text=c.chunk_text,
-            section_header=c.section_header,
-            page_start=int(c.page_start) if c.page_start is not None else None,
-            page_end=int(c.page_end) if c.page_end is not None else None,
-            tab=c.tab, source_type=c.source_type, char_count=int(c.char_count),
-            created_at=now,
-        )
-        for c in all_chunks
-    ]
-    df_chunks = _spark.createDataFrame(chunk_rows, schema=chunk_schema)
-    # Replace this company's chunks so re-runs are idempotent.
+    # Flush accumulated chunks to Delta every N chunks so the driver list stays
+    # bounded. The final embedding step reads back from Delta instead of RAM.
+    _FLUSH_EVERY = 8_000
+
+    # Delete this company's existing chunks once, before the loop (idempotent).
     try:
         _spark.sql(f"DELETE FROM {table_chunks} WHERE company_name = '{company_name}'")
     except Exception:
         pass
-    df_chunks.write.mode("append").option("mergeSchema", "true").saveAsTable(table_chunks)
-    print(f"✓ Saved {df_chunks.count()} chunks → {table_chunks}")
+
+    def _flush_chunks(chunks: list) -> int:
+        if not chunks:
+            return 0
+        rows = [
+            Row(
+                company_name=company_name,
+                chunk_id=c.chunk_id, doc_id=c.doc_id, file_name=c.file_name,
+                file_type=c.file_type, relative_path=c.relative_path,
+                chunk_index=int(c.chunk_index), chunk_text=c.chunk_text,
+                section_header=c.section_header,
+                page_start=int(c.page_start) if c.page_start is not None else None,
+                page_end=int(c.page_end) if c.page_end is not None else None,
+                tab=c.tab, source_type=c.source_type, char_count=int(c.char_count),
+                created_at=now,
+            )
+            for c in chunks
+        ]
+        df = _spark.createDataFrame(rows, schema=chunk_schema)
+        df.write.mode("append").option("mergeSchema", "true").saveAsTable(table_chunks)
+        return len(rows)
+
+    # --- Parse with per-file cap and periodic flush ---
+    all_chunks: list[Chunk] = []
+    total_chunks = 0
+
+    for file_path in file_paths:
+        file_chunks = parse_file(file_path, _spark, vision_endpoint=vision_endpoint)
+        all_chunks.extend(file_chunks)
+        if len(all_chunks) >= _FLUSH_EVERY:
+            n = _flush_chunks(all_chunks)
+            total_chunks += n
+            print(f"  ↳ Flushed {n:,} chunks to Delta ({total_chunks:,} total so far)")
+            all_chunks = []
+
+    # Final flush for any remaining chunks
+    if all_chunks:
+        n = _flush_chunks(all_chunks)
+        total_chunks += n
+        all_chunks = []
+
+    if total_chunks == 0:
+        print("No chunks generated — exiting.")
+        return
+
+    print(f"✓ Saved {total_chunks:,} chunks → {table_chunks}")
 
     # --- Generate and save embeddings ---
+    # Read chunks back from Delta rather than keeping all in driver memory.
     import mlflow.deployments
 
     client = mlflow.deployments.get_deploy_client("databricks")
-    texts  = [c.chunk_text for c in all_chunks]
+
+    _emb_source = _spark.sql(f"""
+        SELECT chunk_id, doc_id, file_name, chunk_text, source_type
+        FROM {table_chunks}
+        WHERE company_name = '{company_name}'
+    """).collect()
+
+    texts = [r.chunk_text for r in _emb_source]
     print(f"\nGenerating embeddings for {len(texts)} chunks...")
     embeddings = get_embeddings_batch(texts, client, embedding_endpoint)
     print(f"Generated {len(embeddings)} embeddings")
@@ -1623,16 +1678,16 @@ def main():
     emb_rows = [
         Row(
             company_name=company_name,
-            chunk_id=all_chunks[i].chunk_id,
-            doc_id=all_chunks[i].doc_id,
-            file_name=all_chunks[i].file_name,
-            source_type=all_chunks[i].source_type,
-            workstream=relevance_map.get(all_chunks[i].file_name, {}).get("workstream"),
-            priority_tier=relevance_map.get(all_chunks[i].file_name, {}).get("priority_tier"),
+            chunk_id=_emb_source[i].chunk_id,
+            doc_id=_emb_source[i].doc_id,
+            file_name=_emb_source[i].file_name,
+            source_type=_emb_source[i].source_type,
+            workstream=relevance_map.get(_emb_source[i].file_name, {}).get("workstream"),
+            priority_tier=relevance_map.get(_emb_source[i].file_name, {}).get("priority_tier"),
             embedding=[float(x) for x in embeddings[i]],
             created_at=now,
         )
-        for i in range(len(all_chunks))
+        for i in range(len(_emb_source))
     ]
     df_emb = _spark.createDataFrame(emb_rows, schema=emb_schema)
     # Replace this company's embeddings so re-runs are idempotent.
