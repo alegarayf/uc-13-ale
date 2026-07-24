@@ -195,4 +195,5 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 | 2026-07-16 | 3 audit | — | M-PHV4 audit `accepted-with-waivers` | PASS |
 | 2026-07-20 | 8 exec summary | d06992a | 4/4 expanded executive summaries | PASS |
 | 2026-07-21 | 6 eval harness | b2087b9 | M4 all five agents `baseline_bootstrap`; M4 audit `accepted-with-waivers` | PASS |
-| 2026-07-24 | closeout | acf4843 | BMA F2 7/7; Legal 9/11; W-M4-4 manifest spot-check; pushed `dev` | PASS |
+| 2026-07-24 | git merge | — | `dev2` + `feat/exec-summary-rainmaker-restructure` → `dev`; runbook updated | PASS |
+| 2026-07-24 | closeout | acf4843→91b6b5f | BMA F2 7/7; Legal 9/11; W-M4-4 manifest spot-check; pushed `dev` | PASS |
