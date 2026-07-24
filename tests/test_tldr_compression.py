@@ -11,16 +11,16 @@ import pytest
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
-from agents.orchestrator import formatters as fmt
-from agents.orchestrator import tldr_quality_check as tqc
-from agents.orchestrator.renderers import ReportRenderer, render_to_volume
-from agents.orchestrator.tldr_compress import (
+from agents.exec_summary import formatters as fmt
+from agents.exec_summary import tldr_quality_check as tqc
+from agents.exec_summary.renderers import ReportRenderer, render_to_volume
+from agents.exec_summary.tldr_compress import (
     _resolve_section_tag_citations,
     _source_docs_for_section_tag,
     compress_for_tldr,
 )
 
-_TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "databricks" / "agents" / "orchestrator" / "templates"
+_TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "databricks" / "agents" / "exec_summary" / "templates"
 _COMPRESSED_TEMPLATE = "tldr_one_pager_compressed.md.j2"
 _LEGACY_TEMPLATE = "tldr_one_pager.md.j2"
 _FULL_REPORT_TEMPLATE = "full_report.md.j2"
@@ -815,7 +815,7 @@ def test_render_to_volume_full_report_bytes_independent_of_mode(monkeypatch, tmp
     """K4: full_report.md path must not depend on TLDR_RENDER_MODE."""
     bundle = _volume_test_bundle()
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.reports_volume_dir",
+        "agents.exec_summary.renderers.reports_volume_dir",
         lambda _catalog, _company: str(tmp_path),
     )
 
@@ -823,12 +823,12 @@ def test_render_to_volume_full_report_bytes_independent_of_mode(monkeypatch, tmp
         assert key == "TLDR_RENDER_MODE"
         return default or "compressed"
 
-    monkeypatch.setattr("agents.orchestrator.renderers.get_param", _mode_param)
+    monkeypatch.setattr("agents.exec_summary.renderers.get_param", _mode_param)
     render_to_volume(bundle, "uc13_ale", "Elder Care")
     compressed_full = (tmp_path / "full_report.md").read_text(encoding="utf-8")
 
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.get_param",
+        "agents.exec_summary.renderers.get_param",
         lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
     )
     render_to_volume(bundle, "uc13_ale", "Elder Care")
@@ -840,11 +840,11 @@ def test_render_to_volume_full_report_bytes_independent_of_mode(monkeypatch, tmp
 def test_render_to_volume_compressed_uses_projection_template(monkeypatch, tmp_path):
     bundle = _volume_test_bundle()
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.reports_volume_dir",
+        "agents.exec_summary.renderers.reports_volume_dir",
         lambda _catalog, _company: str(tmp_path),
     )
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.get_param",
+        "agents.exec_summary.renderers.get_param",
         lambda key, default=None: "compressed" if key == "TLDR_RENDER_MODE" else (default or ""),
     )
     render_to_volume(bundle, "uc13_ale", "Elder Care")
@@ -856,11 +856,11 @@ def test_render_to_volume_compressed_uses_projection_template(monkeypatch, tmp_p
 def test_render_to_volume_legacy_uses_m1_template(monkeypatch, tmp_path):
     bundle = _volume_test_bundle()
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.reports_volume_dir",
+        "agents.exec_summary.renderers.reports_volume_dir",
         lambda _catalog, _company: str(tmp_path),
     )
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.get_param",
+        "agents.exec_summary.renderers.get_param",
         lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
     )
     render_to_volume(bundle, "uc13_ale", "Elder Care")
@@ -876,13 +876,13 @@ def test_render_to_volume_legacy_skips_compress_for_tldr(monkeypatch, tmp_path):
     def _fail_compress(_bundle: dict) -> dict:
         raise AssertionError("compress_for_tldr must not run in legacy mode")
 
-    monkeypatch.setattr("agents.orchestrator.renderers.compress_for_tldr", _fail_compress)
+    monkeypatch.setattr("agents.exec_summary.renderers.compress_for_tldr", _fail_compress)
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.reports_volume_dir",
+        "agents.exec_summary.renderers.reports_volume_dir",
         lambda _catalog, _company: str(tmp_path),
     )
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.get_param",
+        "agents.exec_summary.renderers.get_param",
         lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
     )
     render_to_volume(bundle, "uc13_ale", "Elder Care")
@@ -1043,11 +1043,11 @@ def test_diligence_question_formatting(elder_care_bundle: dict):
 
 def test_legacy_mode_unchanged(elder_care_bundle: dict, monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.reports_volume_dir",
+        "agents.exec_summary.renderers.reports_volume_dir",
         lambda _catalog, _company: str(tmp_path),
     )
     monkeypatch.setattr(
-        "agents.orchestrator.renderers.get_param",
+        "agents.exec_summary.renderers.get_param",
         lambda key, default=None: "legacy" if key == "TLDR_RENDER_MODE" else (default or ""),
     )
     render_to_volume(elder_care_bundle, "uc13_ale", "Elder Care")

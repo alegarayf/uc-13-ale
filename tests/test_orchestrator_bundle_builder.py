@@ -9,18 +9,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
-from agents.orchestrator.bundle_builder import BundleBuilder, GapAggregator
-from agents.orchestrator.constants import (
+from agents.exec_summary.bundle_builder import BundleBuilder, GapAggregator
+from agents.exec_summary.constants import (
     AGENT_DELTA_TABLE_SUFFIXES,
     AGENTS_PRESENT_KEYS,
     TLDR_REQUIRED_FIELDS,
 )
-from agents.orchestrator.field_mapping import (
+from agents.exec_summary.field_mapping import (
     FIELD_MAPPINGS,
     _company_framing_from_bma,
     tldr_bundle_paths,
 )
-from agents.orchestrator.validate import BundleValidationError, validate_bundle
+from agents.exec_summary.validate import BundleValidationError, validate_bundle
 
 _FIXTURES = Path(__file__).resolve().parent / "fixtures"
 _SNAPSHOTS_PATH = _FIXTURES / "elder_care_agent_snapshots.yaml"
@@ -51,19 +51,19 @@ def _build_with_snapshots(
     profile = {"industry_overlay": "healthcare", "deal_type": "platform"}
     with (
         patch(
-            "agents.orchestrator.bundle_builder._ingest_snapshots",
+            "agents.exec_summary.bundle_builder._ingest_snapshots",
             return_value=snapshots,
         ),
         patch(
-            "agents.orchestrator.bundle_builder._load_company_profile",
+            "agents.exec_summary.bundle_builder._load_company_profile",
             return_value=profile,
         ),
         patch(
-            "agents.orchestrator.bundle_builder.freshness",
+            "agents.exec_summary.bundle_builder.freshness",
             return_value="current",
         ),
         patch(
-            "agents.orchestrator.bundle_builder.write_bundle_yaml",
+            "agents.exec_summary.bundle_builder.write_bundle_yaml",
         ),
     ):
         return builder.build(company_name, catalog, spark=mock_spark)

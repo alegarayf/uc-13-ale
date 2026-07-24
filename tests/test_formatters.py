@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from agents.orchestrator import formatters as fmt
-from agents.orchestrator.field_mapping import _kpi_rows_from_yaml
+from agents.exec_summary import formatters as fmt
+from agents.exec_summary.field_mapping import _kpi_rows_from_yaml
 
 
 def test_format_kpi_value_scalar_unchanged():
