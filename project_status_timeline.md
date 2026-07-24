@@ -83,7 +83,7 @@ Analysis quality depends on what was uploaded, classified, and embedded—not on
 
 ### Executive summary / one-pager
 
-Deterministic compression and bundle-driven LLM narrative on executive sections are in place. Still open: rename “TL;DR” to “Executive Summary” in templates, sharper bullets (e.g. mitigants), fuller wiring from bundle JSON, and clearer halt/flow from agents to final one-pager. I have a presentation experiment in mind for more LLM-generated sections.
+Deterministic compression and bundle-driven LLM narrative on executive sections are in place. Still open: rename “TL;DR” to “Executive Summary” in templates, sharper bullets (e.g. mitigants), fuller wiring from bundle JSON, and clearer halt/flow from agents to final one-pager. I have a presentation experiment in mind for more LLM-generated sections. [Sort of done for now - prob will have more iteration once feedback becomes available]
 
 ### Hector’s repo
 
