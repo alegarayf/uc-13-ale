@@ -269,6 +269,14 @@ definitions:
         type: string
       preliminary_digest:
         type: string
+      thesis_bullets:
+        type: array
+        items:
+          type: string
+      key_watchouts:
+        type: array
+        items:
+          type: string
 
   company_framing:
     type: object
@@ -317,6 +325,8 @@ definitions:
             type: array
             items:
               type: string
+      workforce_notes:
+        type: ["string", "null"]
 
   financials:
     type: object
