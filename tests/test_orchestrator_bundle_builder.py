@@ -15,7 +15,11 @@ from agents.orchestrator.constants import (
     AGENTS_PRESENT_KEYS,
     TLDR_REQUIRED_FIELDS,
 )
-from agents.orchestrator.field_mapping import FIELD_MAPPINGS, tldr_bundle_paths
+from agents.orchestrator.field_mapping import (
+    FIELD_MAPPINGS,
+    _company_framing_from_bma,
+    tldr_bundle_paths,
+)
 from agents.orchestrator.validate import BundleValidationError, validate_bundle
 
 _FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -330,6 +334,94 @@ def test_validate_bundle_accepts_preliminary_digest_without_dropped_digests(elde
     validate_bundle(expanded)
     for key in ("legal_digest", "qoe_digest", "kpi_digest", "open_items_digest"):
         assert key not in expanded["executive"]
+
+
+def test_validate_bundle_accepts_r2_executive_list_fields_and_workforce_notes(
+    elder_care_bundle: dict,
+):
+    """Revision 2: thesis_bullets, key_watchouts, and workforce_notes are optional and additive."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["executive"]["thesis_bullets"] = [
+        "Regional home-care platform with acquisition runway.",
+        "Recurring payer mix supports durable revenue visibility.",
+    ]
+    expanded["executive"]["key_watchouts"] = [
+        "Caregiver recruiting and retention at scale.",
+        "Referral concentration in core markets.",
+    ]
+    expanded["company_framing"]["workforce_notes"] = (
+        "Offshore/contract headcount: 42 (18% of total); clinical roles are onshore."
+    )
+    validate_bundle(expanded)
+
+
+def test_elder_care_baseline_bundle_validates_without_r2_additive_fields(elder_care_bundle: dict):
+    """Kill criterion: baseline bundles without Stage-6 R2 fields must still validate."""
+    for key in ("thesis_bullets", "key_watchouts"):
+        assert key not in elder_care_bundle["executive"]
+    # workforce_notes is mapping-time (T2 fixture carries workforce_capacity), not Stage-6 output
+    assert elder_care_bundle["company_framing"].get("workforce_notes")
+    validate_bundle(elder_care_bundle)
+
+
+def test_validate_bundle_rejects_stray_key_under_executive(elder_care_bundle: dict):
+    """additionalProperties: false on executive must still reject unrecognized keys."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["executive"]["unexpected_executive_field"] = "should not validate"
+    with pytest.raises(BundleValidationError):
+        validate_bundle(expanded)
+
+
+def test_validate_bundle_rejects_stray_key_under_company_framing(elder_care_bundle: dict):
+    """additionalProperties: false on company_framing must still reject unrecognized keys."""
+    expanded = deepcopy(elder_care_bundle)
+    expanded["company_framing"]["unexpected_framing_field"] = "should not validate"
+    with pytest.raises(BundleValidationError):
+        validate_bundle(expanded)
+
+
+def test_company_framing_workforce_notes_from_fixture(elder_care_snapshots: dict):
+    """T2: workforce_capacity in BMA yaml_dict maps to company_framing.workforce_notes."""
+    bma_yaml = elder_care_snapshots["business_model"]["yaml_dict"]
+    framing = _company_framing_from_bma(bma_yaml)
+    notes = framing.get("workforce_notes") or ""
+    assert "offshore/contract headcount 153" in notes
+    assert "offshore 8% of total" in notes
+    assert "Clinical / Caregivers 1650 onsite" in notes
+    assert "Clinical / Caregivers 120 offshore" in notes
+
+
+def test_company_framing_workforce_notes_absent_without_workforce_capacity():
+    """T2: workforce_notes omitted when BMA yaml lacks workforce_capacity."""
+    bma_yaml = {
+        "executive_summary": "Regional provider.",
+        "revenue_model": {"tag": "FFS", "durability_rating": "medium", "note": ""},
+    }
+    framing = _company_framing_from_bma(bma_yaml)
+    assert "workforce_notes" not in framing
+
+
+def test_elder_care_bundle_workforce_notes_validates(elder_care_bundle: dict):
+    """T2: full builder round-trip carries workforce_notes through schema validation."""
+    notes = elder_care_bundle.get("company_framing", {}).get("workforce_notes") or ""
+    assert "offshore/contract headcount 153" in notes
+    validate_bundle(elder_care_bundle)
+
+
+def test_company_framing_workforce_notes_from_aggregate_only():
+    """T2 falsifier: workforce_model alone populates workforce_notes without headcount_by_function."""
+    bma_yaml = {
+        "workforce_capacity": {
+            "workforce_model": {
+                "offshore_or_contract_headcount": "40",
+                "offshore_pct_of_total": "12%",
+            },
+        },
+    }
+    framing = _company_framing_from_bma(bma_yaml)
+    notes = framing.get("workforce_notes") or ""
+    assert "offshore/contract headcount 40" in notes
+    assert "Headcount by function" not in notes
 
 
 def test_kpi_missing_dict_diligence_question_readable():

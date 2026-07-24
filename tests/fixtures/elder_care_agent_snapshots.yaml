@@ -21,6 +21,25 @@ business_model:
       tag: Fee-for-service home health
       durability_rating: medium
       note: Census-driven
+    workforce_capacity:
+      total_headcount: 1,888 caregivers as of Dec-24
+      headcount_period: Dec-24
+      headcount_by_function:
+      - function: Clinical / Caregivers
+        headcount: '1650'
+        location_type: onsite
+      - function: Clinical / Caregivers
+        headcount: '120'
+        location_type: offshore
+      - function: Coordination
+        headcount: '85'
+        location_type: onsite
+      - function: Back-office
+        headcount: '33'
+        location_type: offshore
+      workforce_model:
+        offshore_or_contract_headcount: '153'
+        offshore_pct_of_total: 8%
   report_path: /Volumes/uc13_ale/analysis/reports/Elder_Care/business_model_report.yaml
 financial_trends:
   delta_row:
