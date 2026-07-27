@@ -153,6 +153,21 @@ def run_full_pipeline(
         run_orchestrator=True,
     )
 
+    # ── Exec summary: Rainmaker-Rev3 one-pager alongside the DAG's memo ────
+    # Runs after run_pipeline() so the Delta rows + *_report.yaml snapshots
+    # the exec-summary ingest reads are already populated.
+    from pyspark.sql import SparkSession
+
+    from agents.exec_summary.pipeline_entry import build_exec_summary
+
+    exec_spark = SparkSession.getActiveSession()
+    exec_summary_paths = build_exec_summary(
+        company_name=company_name,
+        catalog=catalog,
+        spark=exec_spark,
+        llm_endpoint=llm_endpoint,
+    )
+
     return {
         "company_name":    company_name,
         "ingestion":       ingestion,
@@ -163,6 +178,10 @@ def run_full_pipeline(
         },
         "report_md_path":   diligence.get("report_md_path"),
         "report_docx_path": diligence.get("report_docx_path"),
+        "tldr_md_path":     exec_summary_paths.get("tldr_md"),
+        "tldr_docx_path":   exec_summary_paths.get("tldr_docx"),
+        "full_report_md_path":   exec_summary_paths.get("full_report_md"),
+        "full_report_docx_path": exec_summary_paths.get("full_report_docx"),
     }
 
 

@@ -2,8 +2,9 @@
 - low conf why - tldr 
 
 
---- final report huge- why? 
+- FROM MERGE : The 3 agent merges added 8 new retrieval intents (cqa+4, kpi+4). The retrieval eval harness requires one gold label per registry intent, and real labels must be citation-backfilled from the Elder Care corpus on the cluster. How do you want to close this?
 
+Bootstrap the 8 labels on uc13_ale now
 
 ----
 
