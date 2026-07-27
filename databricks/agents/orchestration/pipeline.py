@@ -338,6 +338,8 @@ class PipelineOrchestrator:
         os.environ["catalog"] = self.catalog
         os.environ["llm_endpoint"] = self.llm_endpoint
         os.environ["extraction_endpoint"] = self.extraction_endpoint
+        os.environ["RE2_CATALOG"] = self.catalog
+        os.environ["RE2_STORE_BACKEND"] = "delta"
 
     # -- scheduling -----------------------------------------------------
     def _ready(self, key: str) -> Optional[str]:

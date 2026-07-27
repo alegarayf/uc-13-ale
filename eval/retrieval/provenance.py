@@ -49,25 +49,32 @@ def _active_spark() -> Any | None:
 
 
 def resolve_store() -> EvalStore:
-    """Resolve EvalStore backend per D5 — sqlite default without Spark."""
+    """Resolve EvalStore backend per D5 — sqlite default without Spark (local harness only)."""
     backend = os.environ.get("RE2_STORE_BACKEND", "").strip().lower()
     if backend == "sqlite":
         return SqliteEvalStore(default_sqlite_path())
 
     spark = _active_spark()
+    on_cluster = os.environ.get("DATABRICKS_RUNTIME_VERSION") is not None
+
     if backend == "delta":
         if spark is None:
-            if _provenance_required():
-                raise ProvenanceEmitError(
-                    "RE2_STORE_BACKEND=delta requires an active SparkSession"
-                )
-            return SqliteEvalStore(default_sqlite_path())
+            raise ProvenanceEmitError(
+                "RE2_STORE_BACKEND=delta requires an active SparkSession"
+            )
         catalog = os.environ.get("RE2_CATALOG", "uc13")
         return DeltaEvalStore(spark, catalog=catalog)
 
     if spark is not None:
         catalog = os.environ.get("RE2_CATALOG", "uc13")
         return DeltaEvalStore(spark, catalog=catalog)
+
+    if on_cluster:
+        raise ProvenanceEmitError(
+            "Delta provenance store required on Databricks cluster "
+            "(pass spark= to open_agent_run, or set RE2_STORE_BACKEND=sqlite "
+            "for local harness only)"
+        )
 
     return SqliteEvalStore(default_sqlite_path())
 

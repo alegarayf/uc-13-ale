@@ -9,7 +9,7 @@ import uuid
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from eval.retrieval.models import HarnessRun
 from eval.retrieval.store import DeltaEvalStore, EvalStore, SqliteEvalStore
@@ -89,9 +89,16 @@ def _git_sha() -> str | None:
         return None
 
 
-def _resolve_store(store: EvalStore | None) -> EvalStore:
+def _resolve_store(
+    store: EvalStore | None,
+    *,
+    spark: Any | None = None,
+    catalog: str = "uc13",
+) -> EvalStore:
     if store is not None:
         return store
+    if spark is not None:
+        return DeltaEvalStore(spark, catalog=catalog)
     from eval.retrieval.provenance import resolve_store
 
     return resolve_store()
@@ -114,6 +121,7 @@ def open_agent_run(
     catalog: str,
     affected_intents: list[str],
     store: EvalStore | None = None,
+    spark: Any | None = None,
 ) -> str:
     """Open a per-agent pipeline manifest (incomplete) before provenance writes."""
     if _AGENT_RUN_ID.get() is not None:
@@ -122,7 +130,7 @@ def open_agent_run(
             "call close_agent_run() first"
         )
 
-    resolved_store = _resolve_store(store)
+    resolved_store = _resolve_store(store, spark=spark, catalog=catalog)
     pipeline_thread_id = get_pipeline_thread()
     agent_run_id = uuid.uuid4().hex
 

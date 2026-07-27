@@ -70,6 +70,10 @@ def _find_open_agent_run(main_fn: ast.FunctionDef) -> ast.Call | None:
     return None
 
 
+def _has_store_or_spark_kwarg(call: ast.Call) -> bool:
+    return any(keyword.arg in ("store", "spark") for keyword in call.keywords)
+
+
 def _has_close_in_finally(main_fn: ast.FunctionDef) -> bool:
     for node in main_fn.body:
         if not isinstance(node, ast.Try):
@@ -99,6 +103,10 @@ def test_workstream_main_opens_and_closes_agent_run(rel_path: str, agent_id: str
 
     assert "load_affected_intents" in source
     assert _has_close_in_finally(main_fn), f"{rel_path}: main() must close_agent_run() in finally"
+    assert _has_store_or_spark_kwarg(open_call), (
+        f"{rel_path}: open_agent_run() must pass spark= or store= "
+        "(pipeline worker threads cannot rely on getActiveSession())"
+    )
 
 
 def _semantic_search_with_fallback_calls(path: Path) -> list[ast.Call]:

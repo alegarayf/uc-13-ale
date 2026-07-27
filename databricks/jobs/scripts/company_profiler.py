@@ -278,6 +278,7 @@ def main():
         company_name=company_name,
         catalog=catalog,
         affected_intents=load_affected_intents("profiler"),
+        spark=_spark,
     )
     try:
         # --- Ensure output table exists ---

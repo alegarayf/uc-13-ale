@@ -267,3 +267,94 @@ def test_threadpool_worker_with_copied_context_preserves_agent_run_id(store):
 
     assert seen_in_worker == run_id
     close_agent_run()
+
+
+def test_open_agent_run_spark_param_builds_delta_store(monkeypatch):
+    """Injected spark must bind Delta store even when getActiveSession() is None."""
+    from datetime import datetime, timezone
+
+    from eval.retrieval.models import HarnessRun
+
+    mock_spark = object()
+    captured: dict[str, object] = {}
+
+    class _FakeDelta:
+        def __init__(self, spark, *, catalog: str) -> None:
+            captured["spark"] = spark
+            captured["catalog"] = catalog
+
+        def insert_run(self, manifest) -> None:
+            captured["manifest_catalog"] = manifest.catalog
+            self._manifest = manifest
+
+        def compute_provenance_rates(self, run_id: str):
+            return 0.0, 0.0
+
+        def finalize_run(self, run_id, **kwargs):
+            m = self._manifest
+            return HarnessRun(
+                run_id=m.run_id,
+                run_type=m.run_type,
+                pipeline_thread_id=m.pipeline_thread_id,
+                company_name=m.company_name,
+                catalog=m.catalog,
+                ingestion_snapshot=m.ingestion_snapshot,
+                registry_hash=m.registry_hash,
+                gold_snapshot=m.gold_snapshot,
+                git_sha=m.git_sha,
+                affected_intents=m.affected_intents,
+                gated_intents=m.gated_intents,
+                store_backend="delta",
+                harness_status="complete",
+                intent_count=m.intent_count,
+                created_at=datetime.now(timezone.utc),
+            )
+
+    monkeypatch.setattr("agents.shared.run_context.DeltaEvalStore", _FakeDelta)
+    monkeypatch.setattr("eval.retrieval.provenance._active_spark", lambda: None)
+
+    set_pipeline_thread("thread-spark-inject")
+    open_agent_run(
+        "fta",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        affected_intents=["fta.opex.q1_financial_statements"],
+        spark=mock_spark,
+    )
+
+    assert captured["spark"] is mock_spark
+    assert captured["catalog"] == "uc13_ale"
+    assert captured["manifest_catalog"] == "uc13_ale"
+    close_agent_run()
+
+
+def test_open_agent_run_spark_param_from_worker_thread(monkeypatch):
+    """DAG worker threads have no active Spark session; injected spark still binds Delta."""
+    mock_spark = object()
+    seen: dict[str, object] = {}
+
+    class _FakeDelta:
+        def __init__(self, spark, *, catalog: str) -> None:
+            seen["spark"] = spark
+            seen["catalog"] = catalog
+
+        def insert_run(self, manifest) -> None:
+            pass
+
+    monkeypatch.setattr("agents.shared.run_context.DeltaEvalStore", _FakeDelta)
+    monkeypatch.setattr("eval.retrieval.provenance._active_spark", lambda: None)
+
+    def _worker() -> None:
+        open_agent_run(
+            "fta",
+            company_name="Elder Care",
+            catalog="uc13_ale",
+            affected_intents=["fta.opex.q1_financial_statements"],
+            spark=mock_spark,
+        )
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pool.submit(_worker).result()
+
+    assert seen["spark"] is mock_spark
+    assert seen["catalog"] == "uc13_ale"
