@@ -537,11 +537,26 @@ def run_vdr_pipeline(table_name: str, record_id: int) -> dict:
         elif report_md and os.path.exists(report_md):
             print(f"  [WARN] .docx not found; falling back to markdown at {report_md}")
 
-        # executive_summary.docx — styled 1-page Word doc with overview + KPIs
+        # executive_summary.docx — real Rainmaker-Rev3 one-pager (mine), built
+        # via the exec_summary ↔ DAG bridge (replaces the old 1-page placeholder).
         exec_summary_dst = os.path.join(output_dir, "executive_summary.docx")
-        print(f"  Building executive_summary.docx ...")
-        _build_executive_summary_docx(exec_summary_dst, company_name, spark, catalog="uc13")
-        files_copied.append(exec_summary_dst)
+        print(f"  Building executive_summary.docx (Rev3 one-pager) ...")
+        from agents.exec_summary.pipeline_entry import build_exec_summary
+
+        llm_endpoint = os.environ.get("llm_endpoint", "databricks-claude-sonnet-4-6")
+        exec_summary_paths = build_exec_summary(
+            company_name=company_name,
+            catalog="uc13",
+            spark=spark,
+            llm_endpoint=llm_endpoint,
+        )
+        tldr_docx = exec_summary_paths.get("tldr_docx")
+        if tldr_docx and os.path.exists(tldr_docx):
+            import shutil as _shutil
+            _shutil.copy2(tldr_docx, exec_summary_dst)
+            files_copied.append(exec_summary_dst)
+        else:
+            print(f"  [WARN] build_exec_summary did not produce a tldr_docx output")
 
         print(f"  Output files → {output_dir}")
         for f in files_copied:
