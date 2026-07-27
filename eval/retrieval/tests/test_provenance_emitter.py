@@ -280,11 +280,16 @@ def test_patch_context_allocations_updates_existing_rows(store: SqliteEvalStore)
     close_agent_run()
 
 
-def test_resolve_store_delta_without_spark_raises_when_required(
-    monkeypatch, tmp_path
-):
+def test_resolve_store_delta_without_spark_raises(monkeypatch):
     monkeypatch.setenv("RE2_STORE_BACKEND", "delta")
-    monkeypatch.setenv("RE2_PROVENANCE_REQUIRED", "1")
     monkeypatch.setattr("eval.retrieval.provenance._active_spark", lambda: None)
     with pytest.raises(ProvenanceEmitError, match="SparkSession"):
+        resolve_store()
+
+
+def test_resolve_store_on_cluster_without_spark_raises(monkeypatch):
+    monkeypatch.delenv("RE2_STORE_BACKEND", raising=False)
+    monkeypatch.setenv("DATABRICKS_RUNTIME_VERSION", "14.3")
+    monkeypatch.setattr("eval.retrieval.provenance._active_spark", lambda: None)
+    with pytest.raises(ProvenanceEmitError, match="Databricks cluster"):
         resolve_store()

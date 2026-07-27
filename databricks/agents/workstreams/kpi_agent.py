@@ -1817,6 +1817,7 @@ def main(spark=None) -> dict:
         company_name=company_name,
         catalog=catalog,
         affected_intents=load_affected_intents("kpi"),
+        spark=spark,
     )
     try:
         agent  = KPIAgent()

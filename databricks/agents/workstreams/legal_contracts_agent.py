@@ -2102,6 +2102,7 @@ def main(spark=None) -> dict:
         company_name=company_name,
         catalog=catalog,
         affected_intents=load_affected_intents("legal"),
+        spark=spark,
     )
     try:
         _ensure_legal_storage(catalog, spark)
