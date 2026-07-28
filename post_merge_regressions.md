@@ -1,9 +1,27 @@
 # Post-merge regression map — Hector `ui-pipeline-integration` → `feat/merge-hector-incoming`
 
 **Created:** 2026-07-27
-**Updated:** 2026-07-28 — root-cause investigation (R-1, R-2 confirmed; new finding R-3 added); R-1 and R-3 fixed and live-verified same day
+**Updated:** 2026-07-28 — post-fix closeout: BMA 7/7 + full DAG e2e `827597669988464` (9/0/0); profiler 7/7; Legal R-2 accepted deferred
 **Scope:** Elder Care / `uc13_ale` — golden-checklist regression analysis after sqlite-fix e2e
 **Authoring context:** Merge program `hector-ui-pipeline-merge` (plan: `.dev/plans/hector-ui-pipeline-merge/plan.md`, gates: `.dev/plans/hector-ui-pipeline-merge/CLUSTER_GATES.md`)
+
+---
+
+## Pending (as of 2026-07-28 closeout)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| **BMA scored re-validation** | **Closed** | Full e2e row `2026-07-28 22:37` scores **7/7**; orchestrator BMA section clean (no generator fallback). Scorecard: `.dev/scorecards/uc13-eval-harness-all-agents_bma_elder-care_2026-07-28.md`; promotion `promoted` on manifest `2855aef9…` |
+| **Full parallel e2e** | **Closed (DAG)** | Job `827597669988464` — **9 SUCCESS / 0 FAILED / 0 SKIPPED**; memo `.md` written. T9 bridge failed on missing `python-docx` (serverless env) — `.md` renders OK; `.docx` export blocked (infra, not agent regression) |
+| **Legal R-2** | **Deferred / accepted** | Post-fix e2e scored **7/11** (vs 9/11 baseline); LLM entity-resolution variance — passes ≥7/11 floor; dedupe hardening → backlog |
+| **Profiler G1** | **Closed** | Re-run `2026-07-28 22:15` scores **7/7** |
+| **4-company e2e** | Open | Clearsulting, GKF, SPG not run post-fix |
+| **G6 gold-label bootstrap** | Open | 8 CQA/KPI intents (`pending2.md`) |
+| **G5 VDR gate** | Open | `run_vdr_pipeline.py` not exercised |
+| **Legal dedupe hardening** | Backlog | `source_doc` in dedupe key |
+| **FTA memo generator (new)** | Open | E2e log: `section 'financial_trends' generator failed` — same `flags` string-parse class as BMA R-3; FTA G1 still passes 16.5/18 |
+
+**Closed:** sqlite fix; R-1 + R-3; T5/T6/T7 G1 hold/improve; post-fix BMA/Profiler validation; DAG e2e `827597669988464`.
 
 ---
 
