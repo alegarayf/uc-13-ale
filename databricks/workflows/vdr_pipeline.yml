@@ -13,10 +13,10 @@
 # The VDR UI submits records with processing_status='submitted'.  This job
 # transitions the record through 'processing' → 'done' (or 'error').
 #
-# Deploy:
-#   databricks bundle deploy --target <env>
-#   databricks bundle run vdr_pipeline --target <env>
-#     --params tableName="rallyday_partners_llc.default.companies_vdr_history" id="42"
+# Trigger (VDR UI or manual): pass run parameters as notebook params — they
+# arrive as the notebook widgets table_name / id. Example manual run:
+#   databricks jobs run-now <job_id> \
+#     --notebook-params '{"table_name":"rallyday_partners_llc.default.companies_vdr_history","id":"24"}'
 
 resources:
   jobs:
@@ -29,37 +29,28 @@ resources:
         Cross-Analysis → Orchestrator memo), copies output files to the VDR
         volume, and updates the record with results. Triggered by the VDR UI.
 
-      # NOTE: to run the post-merge code (Ale's integration + the exec_summary
-      # Rev3 one-pager bridge in run_vdr_pipeline.py), the job MUST resolve this
-      # branch — the old feature/ui-pipeline-integration lacks that bridge.
-      git_source:
-        git_url: https://github.com/NimbleGravity/Rallyday
-        git_provider: gitHub
-        git_branch: feature/uc13-after-merge-job-test
-
-      parameters:
-        - name: tableName
-          default: "rallyday_partners_llc.default.companies_vdr_history"
-          description: >
-            Fully-qualified Delta table name for VDR history records.
-
-        - name: id
-          default: ""
-          description: >
-            [REQUIRED] Row ID in the companies_vdr_history table to process.
+      # Code is served from the Databricks Git folder "Rallyday" (checked out to
+      # feature/uc13-after-merge-job-test) via the WORKSPACE notebook path below
+      # — NOT via job-level git_source. Keep them in sync by switching the Git
+      # folder's branch, not by editing a git_source block here.
+      #
+      # NO job-level parameters and NO task-level parameters on purpose: the VDR
+      # UI triggers the job with run parameters (table_name, id) that arrive as
+      # notebook widgets. Declaring fixed parameters here blocks the UI trigger
+      # (that is why earlier UI submissions were never picked up).
 
       tasks:
         # Single task — the wrapper manages the VDR record lifecycle as one
         # unit so error handling can always update the table status.
         - task_key: run_vdr_pipeline
           description: >
-            Reads VDR record → runs full diligence pipeline (Phase 1-5) →
-            copies outputs to VDR volume → updates record status.
-          spark_python_task:
-            python_file: "/Workspace/Users/hector.corro@nimblegravity.com/Rallyday/databricks/jobs/scripts/run_vdr_pipeline.py"
-            parameters:
-              - "{{job.parameters.tableName}}"
-              - "{{job.parameters.id}}"
+            Reads table_name/id widgets → runs full diligence pipeline
+            (Phase 1-5) → copies outputs to VDR volume → updates record status.
+          notebook_task:
+            # Thin entry notebook: declares table_name/id widgets and delegates
+            # to jobs/scripts/run_vdr_pipeline.py:run_vdr_pipeline().
+            notebook_path: "/Workspace/Users/hector.corro@nimblegravity.com/Rallyday/databricks/jobs/notebooks/run_vdr_job"
+            source: WORKSPACE
           environment_key: vdr_pipeline_environment
           # VDR UI controls retries via resubmission — no automatic retries.
           max_retries: 0
