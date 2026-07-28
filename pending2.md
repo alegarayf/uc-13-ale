@@ -1,3 +1,7 @@
+- post merge: Leave R-2 (Legal) as-is for now
+Lower priority per the analysis — it's extraction/entity-resolution variance on a historically volatile single checklist item, not a code defect blocking the merge. I'd treat the _register_dedupe_key hardening (dedupe on source_doc identity, not just normalized name+type) as a separate follow-up ticket rather than doing it now
+
+
 / ranta> new docs or updated docs -> re run the affected agent -> 
 - low conf why - tldr 
 
