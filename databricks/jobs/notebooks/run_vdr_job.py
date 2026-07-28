@@ -14,8 +14,11 @@
 # COMMAND ----------
 
 # Parameters supplied by the caller (VDR UI run-now → notebook params → widgets).
+# The UI sends the record id as "record_id"; "id" is accepted as a fallback for
+# manual runs.
 dbutils.widgets.text("table_name", "", "The name of the table where the vdr record lives")
-dbutils.widgets.text("id", "", "The id of the record to process within the table")
+dbutils.widgets.text("record_id", "", "The id of the record to process within the table")
+dbutils.widgets.text("id", "", "Alias for record_id (manual runs)")
 
 # COMMAND ----------
 
@@ -24,10 +27,11 @@ import sys
 from pathlib import Path
 
 table_name = dbutils.widgets.get("table_name") or "rallyday_partners_llc.default.companies_vdr_history"
-record_id = dbutils.widgets.get("id")
+record_id = dbutils.widgets.get("record_id") or dbutils.widgets.get("id")
 if not record_id:
     raise ValueError(
-        "Widget 'id' is required — the companies_vdr_history record id to process."
+        "Widget 'record_id' (or 'id') is required — the companies_vdr_history "
+        "record id to process."
     )
 
 # Mirror into env so imported script modules resolve the same values via their
