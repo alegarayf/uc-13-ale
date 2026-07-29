@@ -503,7 +503,11 @@ def run_vdr_pipeline(table_name: str, record_id: int) -> dict:
         from run_full_pipeline import run_full_pipeline
 
         reset_token_counter()
-        result = run_full_pipeline(company_name=company_name)
+        # Vision extraction ON by default (Haiku) so image-heavy CIM pages are
+        # transcribed to text and become retrievable. Controllable via the
+        # vision_endpoint widget/env (set to "" to disable).
+        vision_endpoint = os.environ.get("vision_endpoint", "databricks-claude-haiku-4-5")
+        result = run_full_pipeline(company_name=company_name, vision_endpoint=vision_endpoint)
         token_totals = get_token_totals()
         print_token_summary()
 
