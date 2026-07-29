@@ -1372,10 +1372,39 @@ class BusinessModelAgent:
                     seen_texts.add(chunk.chunk_text)
                     all_chunks.append(chunk)
 
-        combined_chunk_text = "\n\n---\n\n".join(
-            f"[File: {c.file_name}] [Section: {c.section_header}]\n{c.chunk_text}"
-            for c in all_chunks
-        )
+        # Bound the extraction context so the single LLM call stays fast even when
+        # vision transcription makes CIM pages large (an unbounded join blew the
+        # context up ~4x with vision ON and timed the call out). Prioritise CIM →
+        # Tier 1 → rest, cap per-chunk chars by tier, and cap the total budget.
+        # This bounds INPUT only — the output max_tokens is unchanged, so no
+        # output truncation.
+        def _is_cim_file(name: str) -> bool:
+            n = (name or "").lower()
+            return "cim" in n or "memorandum" in n or "offering" in n
+
+        def _chunk_rank(c):
+            tier = c.priority_tier if c.priority_tier is not None else 99
+            return (0 if _is_cim_file(c.file_name) else 1, tier)
+
+        all_chunks.sort(key=_chunk_rank)
+
+        _CAP_CIM, _CAP_T1, _CAP_OTHER = 3000, 2000, 900
+        _TOTAL_BUDGET = 90_000  # chars (~22K input tokens)
+        _parts: list[str] = []
+        _used = 0
+        for c in all_chunks:
+            if _is_cim_file(c.file_name):
+                cap = _CAP_CIM
+            elif (c.priority_tier if c.priority_tier is not None else 99) <= 1:
+                cap = _CAP_T1
+            else:
+                cap = _CAP_OTHER
+            block = f"[File: {c.file_name}] [Section: {c.section_header}]\n{(c.chunk_text or '')[:cap]}"
+            if _used + len(block) > _TOTAL_BUDGET:
+                break
+            _parts.append(block)
+            _used += len(block)
+        combined_chunk_text = "\n\n---\n\n".join(_parts)
 
         profile_dict = tr6.data
         company_profile_json = json.dumps(profile_dict, default=str) if profile_dict else "{}"
