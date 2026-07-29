@@ -1065,16 +1065,31 @@ def generate_financial_assessment(
     flags          = result.get("flags") or []
     data_room_gaps = result.get("data_room_gaps") or []
 
-    revenue_trend    = json.loads(result.get("revenue_trend_json")       or "[]")
-    gross_margin     = json.loads(result.get("gross_margin_json")        or "[]")
-    ebitda           = json.loads(result.get("ebitda_json")              or "[]")
-    rev_by_segment   = json.loads(result.get("revenue_by_segment_json") or "[]")
-    rev_by_customer  = json.loads(result.get("revenue_by_customer_json") or "[]")
-    opex_breakdown   = json.loads(result.get("opex_breakdown_json")      or "[]")
+    def _as_dicts(raw) -> list:
+        """Parse a JSON array field and keep only dict elements.
+
+        The extraction LLM occasionally emits a bare string inside an array
+        (e.g. a period label instead of a record). Downstream code calls
+        ``r.get(...)`` on each element, so a stray string would raise
+        ``'str' object has no attribute 'get'`` and abort the whole section.
+        Filtering to dicts makes the assessment resilient to that.
+        """
+        try:
+            data = json.loads(raw or "[]")
+        except (TypeError, ValueError):
+            return []
+        return [d for d in data if isinstance(d, dict)] if isinstance(data, list) else []
+
+    revenue_trend    = _as_dicts(result.get("revenue_trend_json"))
+    gross_margin     = _as_dicts(result.get("gross_margin_json"))
+    ebitda           = _as_dicts(result.get("ebitda_json"))
+    rev_by_segment   = _as_dicts(result.get("revenue_by_segment_json"))
+    rev_by_customer  = _as_dicts(result.get("revenue_by_customer_json"))
+    opex_breakdown   = _as_dicts(result.get("opex_breakdown_json"))
     working_capital = json.loads(result.get("working_capital_json")     or "{}")
-    budget_vs_actual= json.loads(result.get("budget_vs_actual_json")   or "[]")
-    addbacks        = json.loads(result.get("addback_schedule_json")   or "[]")
-    discrepancies   = json.loads(result.get("discrepancies")            or "[]")
+    budget_vs_actual= _as_dicts(result.get("budget_vs_actual_json"))
+    addbacks        = _as_dicts(result.get("addback_schedule_json"))
+    discrepancies   = _as_dicts(result.get("discrepancies"))
 
     # ── Period sort key ────────────────────────────────────────────────────
     def _period_rank(p: str) -> int:
