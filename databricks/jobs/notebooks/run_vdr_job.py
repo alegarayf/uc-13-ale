@@ -19,6 +19,9 @@
 dbutils.widgets.text("table_name", "", "The name of the table where the vdr record lives")
 dbutils.widgets.text("record_id", "", "The id of the record to process within the table")
 dbutils.widgets.text("id", "", "Alias for record_id (manual runs)")
+# Vision LLM for image/figure CIM pages. Default Haiku (fast, cheap, cap 8192 ok
+# for the 2K-token vision calls). Set to "" to disable, or Sonnet for dense tables.
+dbutils.widgets.text("vision_endpoint", "databricks-claude-haiku-4-5", "Vision LLM endpoint for figure/scanned CIM pages ('' to disable)")
 
 # COMMAND ----------
 
@@ -38,6 +41,7 @@ if not record_id:
 # get_param()/os.environ fallback (dbutils.widgets is not a global inside modules).
 os.environ["tableName"] = table_name
 os.environ["id"] = str(record_id)
+os.environ["vision_endpoint"] = dbutils.widgets.get("vision_endpoint")
 
 # COMMAND ----------
 
