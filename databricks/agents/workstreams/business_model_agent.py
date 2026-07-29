@@ -1410,15 +1410,51 @@ class BusinessModelAgent:
         company_profile_json = json.dumps(profile_dict, default=str) if profile_dict else "{}"
         overlay = (profile_dict or {}).get("industry_overlay", "") if profile_dict else ""
 
-        # ── Single LLM call ─────────────────────────────────────────────
-        print("  Calling LLM for extraction ...")
-        user_prompt = _USER_PROMPT_TEMPLATE.format(
+        # ── Two-pass extraction (split to stay under the serving read timeout) ──
+        # A single max_tokens=16_000 call exceeds the Databricks serving read
+        # timeout (~120s) and fails. Split the 15-field schema into two disjoint
+        # groups and extract each in a bounded call (max_tokens=8_000, well under
+        # 120s), then combine by taking each group's fields from its own pass.
+        # No output truncation: each pass emits only its group; both passes see
+        # the full context, so cross-field narrative (e.g. executive_summary)
+        # still has everything it needs.
+        base_user_prompt = _USER_PROMPT_TEMPLATE.format(
             company_profile_json=company_profile_json,
             deal_type_context=deal_type_context,
             combined_chunk_text=combined_chunk_text,
         )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=16_000)
-        extracted = self._parse_json_response(raw_response)
+
+        _GROUP_A = ["revenue_model", "products_services", "revenue_by_location",
+                    "customer_operational_metrics", "customer_profile",
+                    "sales_motion", "revenue_visibility"]
+        _GROUP_B = ["people_and_org", "workforce_capacity", "key_dependencies",
+                    "recent_model_changes", "overlay_conflict_evidence",
+                    "citations", "executive_summary", "extraction_notes"]
+
+        def _extract_group(group_fields: list, label: str) -> dict:
+            directive = (
+                "\n\n=== PARTIAL EXTRACTION PASS ===\n"
+                "In THIS response, populate ONLY these top-level JSON fields: "
+                + ", ".join(group_fields) + ".\n"
+                "Keep the EXACT same JSON structure, but for every OTHER top-level "
+                "field return null (for objects) or [] (for arrays) — do not omit "
+                "the keys. Extract the requested fields fully and completely."
+            )
+            print(f"  Calling LLM for extraction (pass {label}: {len(group_fields)} fields) ...")
+            raw = self._call_llm(
+                _SYSTEM_PROMPT, base_user_prompt + directive, _extract_ep, max_tokens=8_000
+            )
+            return self._parse_json_response(raw) or {}
+
+        res_a = _extract_group(_GROUP_A, "A/commercial")
+        res_b = _extract_group(_GROUP_B, "B/organizational")
+
+        # Combine: each group's fields come from the pass that owns them.
+        extracted = {}
+        for _f in _GROUP_A:
+            extracted[_f] = res_a.get(_f)
+        for _f in _GROUP_B:
+            extracted[_f] = res_b.get(_f)
 
         # ── Source doc validation: reject records sourced from the company profile ──
         _PROFILE_SENTINEL = "COMPANY PROFILE"
