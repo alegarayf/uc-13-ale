@@ -528,20 +528,27 @@ def run_pipeline(company_name: Optional[str] = None,
             print("  [orchestrator] → SKIPPED (cross_analysis not successful)")
         else:
             import time as _time
-            run.status = "RUNNING"
             run.started_at = datetime.now(timezone.utc).isoformat()
             _t0 = _time.time()
+            # Optimistically mark SUCCESS so the manifest EMBEDDED in the report
+            # reflects the orchestrator accurately. The DAG runs only phases 3-4,
+            # so it left the orchestrator as "phase 5 not in scope"; embedding that
+            # stale snapshot made the persisted report say the orchestrator was
+            # SKIPPED even though it ran. The report row is only written if main()
+            # completes, so on failure we revert below and nothing wrong is persisted.
+            run.status = "SUCCESS"
+            run.attempts = 1
+            run.error = None
             try:
                 from agents.orchestration import orchestrator_agent
                 orch._sync_env()
+                embed_manifest = orch.manifest()  # now shows orchestrator=SUCCESS
                 try:
                     import mlflow
                     with mlflow.start_span(name="agent::orchestrator"):
-                        orch_result = orchestrator_agent.main(manifest=manifest)
+                        orch_result = orchestrator_agent.main(manifest=embed_manifest)
                 except ImportError:
-                    orch_result = orchestrator_agent.main(manifest=manifest)
-                run.status = "SUCCESS"
-                run.attempts = 1
+                    orch_result = orchestrator_agent.main(manifest=embed_manifest)
             except Exception as exc:  # noqa: BLE001
                 run.status = "FAILED"
                 run.attempts = 1
