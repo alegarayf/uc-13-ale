@@ -243,6 +243,12 @@ def synthesize_executive_narrative(
         default=str,
     )[:120_000]
 
+    # Cap max_tokens to the endpoint's output limit. Haiku 4.5 and Llama 3.3 are
+    # capped at 8192 output tokens, so requesting 12K returns HTTP 400. Only
+    # Sonnet reliably generates >8K. (The VDR abort path can leave llm_endpoint
+    # set to Llama, so this guard matters.)
+    _ep = (llm_endpoint or "").lower()
+    _max_tok = 8_000 if ("haiku" in _ep or "llama" in _ep) else 12_000
     llm_result: dict[str, Any] = {}
     for attempt in range(2):
         try:
@@ -250,7 +256,7 @@ def synthesize_executive_narrative(
                 _EXECUTIVE_LLM_SYSTEM_PROMPT,
                 user_prompt,
                 llm_endpoint,
-                max_tokens=12_000,
+                max_tokens=_max_tok,
             )
             llm_result = llm._parse_json_response(raw)
             break
