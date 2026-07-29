@@ -1062,7 +1062,18 @@ def generate_financial_assessment(
     overlay        = result.get("industry_overlay_used", "")
     exec_summary   = result.get("executive_summary") or ""
     addback_pct    = result.get("addback_pct_of_ebitda")
-    flags          = result.get("flags") or []
+    # `flags` is persisted as a JSON STRING column (see DDL: flags STRING), so a
+    # row loaded from Delta yields a str here. sorted(flags, key=lambda f: f.get(...))
+    # would then iterate the string's characters and call .get() on a char →
+    # 'str' object has no attribute 'get'. Deserialize defensively and keep only
+    # dict elements (same pattern the business_model agent uses).
+    _flags_raw = result.get("flags")
+    if isinstance(_flags_raw, str):
+        try:
+            _flags_raw = json.loads(_flags_raw or "[]")
+        except (TypeError, ValueError):
+            _flags_raw = []
+    flags = [f for f in (_flags_raw or []) if isinstance(f, dict)]
     data_room_gaps = result.get("data_room_gaps") or []
 
     def _as_dicts(raw) -> list:
