@@ -511,13 +511,19 @@ def run_vdr_pipeline(table_name: str, record_id: int) -> dict:
         token_totals = get_token_totals()
         print_token_summary()
 
-        # ── Step 5: Check for pipeline success ──────────────────────────
+        # ── Step 5: Check the pipeline actually produced diligence outputs ──
+        # Guard: if Phase 3-5 was aborted (e.g. ingestion failed → no embeddings)
+        # or every agent failed, there is nothing to report. Bail BEFORE building
+        # the memo/one-pager — otherwise build_exec_summary runs over empty data
+        # and can crash (and would produce a meaningless report).
         summary = result.get("summary", {})
         dil_summary = summary.get("diligence", {})
-        if dil_summary.get("SUCCESS", 0) == 0 and dil_summary.get("FAILED", 0) > 0:
+        diligence = result.get("diligence", {})
+        aborted = isinstance(diligence, dict) and "note" in diligence
+        if aborted or dil_summary.get("SUCCESS", 0) == 0:
             raise RuntimeError(
-                f"Pipeline completed but all diligence agents failed. "
-                f"Summary: {summary}"
+                "Pipeline did not produce diligence outputs — ingestion/diligence "
+                f"failed or was aborted; skipping report generation. Summary: {summary}"
             )
 
         # ── Step 6: Copy outputs to VDR volume ─────────────────────────
