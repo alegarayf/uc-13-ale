@@ -142,6 +142,12 @@ _VALID_WORKSTREAMS = {
     "QUALITY_EARNINGS", "FORECAST", "BUSINESS_MODEL", "BACKGROUND",
 }
 
+# Filename substrings (lowercased) for raw row-level data exports that explode
+# into tens of thousands of chunks with no diligence narrative. Matched files are
+# forced should_parse=false. Keep this list conservative to avoid excluding
+# useful summaries (e.g. "... Data Summary" is intentionally NOT matched).
+_RAW_DATA_DUMP_PATTERNS = ("performance data", "performance detail")
+
 _SANITIZE = str.maketrans({
     '"': "'", "\\": "/", "\n": " ",
     "\u2013": "-", "\u2014": "-", "–": "-", "—": "-",
@@ -234,6 +240,10 @@ should_parse=false — EXCLUSIONARY CRITERIA (do not parse these):
   - Monthly individual bank statements (when there are dozens of them)
   - Individual caregiver or staff contracts (when there are many identical ones)
   - Personal employee files, medical records, background checks
+  - Raw row-level data exports / operational data dumps (e.g. "Performance Data",
+    "Performance Detail", visit-level or transaction-level logs with thousands of
+    rows). These carry no diligence narrative and explode into chunks. Prefer the
+    summarized version if one exists. (NOTE: a "Data Summary" IS useful — parse it.)
 
 should_parse=true: all Tier 1, Tier 2, and Tier 3 documents
 
@@ -265,7 +275,7 @@ Files:
     try:
         result = json.loads(text)
         if isinstance(result, list) and len(result) > 0:
-            for r in result:
+            for idx, r in enumerate(result):
                 # Normalise workstream to uppercase list.
                 ws_raw = r.get("workstream", ["BACKGROUND"])
                 if isinstance(ws_raw, str):
@@ -289,6 +299,22 @@ Files:
                 # Normalise confidence.
                 conf = str(r.get("extraction_confidence", "low")).lower()
                 r["extraction_confidence"] = conf if conf in ("high", "medium", "low") else "low"
+
+                # Deterministic override: raw row-level data exports (e.g.
+                # "... Performance Data ...", "... Performance Detail ...") explode
+                # into tens of thousands of chunks and carry no diligence narrative.
+                # Exclude from parsing regardless of the LLM call. Conservative
+                # patterns only — does NOT match "... Data Summary".
+                if idx < len(files_batch):
+                    _fn = (files_batch[idx].get("file_name") or "").lower()
+                    if any(p in _fn for p in _RAW_DATA_DUMP_PATTERNS):
+                        r["workstream"] = ["BACKGROUND"]
+                        r["should_parse"] = False
+                        r["priority_tier"] = None
+                        r["extraction_confidence"] = "low"
+                        r["priority_reason"] = (
+                            "raw row-level data export — excluded (would explode into chunks)"
+                        )
 
             # Pad if LLM returned fewer rows than the batch.
             while len(result) < len(files_batch):
