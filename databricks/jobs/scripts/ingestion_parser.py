@@ -1376,21 +1376,43 @@ def _wait_for_index_sync(
         # Count total embeddings now in the source table.
         total_emb = spark.sql(f"SELECT COUNT(*) AS n FROM {table_embeddings}").collect()[0]["n"]
 
-        # Trigger sync.
-        w.vector_search_indexes.sync_index(index_name=index_name)
-        print(f"\nVector search sync triggered → {index_name}")
-
-        # Obtain pipeline_id from the index spec (needed to poll the DLT update).
+        # Obtain pipeline_id first (needed to wait out a busy pipeline and to poll
+        # the DLT update below).
         idx_info   = w.vector_search_indexes.get_index(index_name=index_name)
         pipeline_id = (
             idx_info.delta_sync_index_spec.pipeline_id
             if idx_info.delta_sync_index_spec
             else None
         )
-
         if not pipeline_id:
             print("  ⚠ Could not obtain pipeline_id — falling back to row-count polling.")
-            pipeline_id = None
+
+        # Trigger sync. The index is SHARED across companies, so a prior run's sync
+        # may still be RUNNING — sync_index() then rejects with "Index is not ready
+        # to sync yet (pipeline is in state RUNNING)". Wait for it to reach a
+        # terminal state and retry the trigger instead of failing the whole parse.
+        _waited = 0
+        while True:
+            try:
+                w.vector_search_indexes.sync_index(index_name=index_name)
+                break
+            except Exception as e:
+                _msg = str(e).lower()
+                _busy = (
+                    "not ready to sync" in _msg
+                    or "state running" in _msg
+                    or "needs to be in one of" in _msg
+                )
+                if _busy and _waited < max_wait_seconds:
+                    print(
+                        f"  Index busy (a prior sync is still RUNNING); waiting "
+                        f"{poll_interval}s then retrying trigger... ({_waited}s elapsed)"
+                    )
+                    time.sleep(poll_interval)
+                    _waited += poll_interval
+                    continue
+                raise
+        print(f"\nVector search sync triggered → {index_name}")
 
         print(f"  DLT pipeline : {pipeline_id or 'unknown'}")
         print(f"  Embeddings   : {total_emb:,} rows in source table")
