@@ -1388,7 +1388,7 @@ class BusinessModelAgent:
             deal_type_context=deal_type_context,
             combined_chunk_text=combined_chunk_text,
         )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=8_192)
+        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=16_000)
         extracted = self._parse_json_response(raw_response)
 
         # ── Source doc validation: reject records sourced from the company profile ──
@@ -1835,8 +1835,10 @@ def generate_business_model_assessment(
     rm_flag        = result.get("revenue_durability_flag") or ""
     rm_flag_rule   = result.get("flag_rule_applied") or ""
     sm_tag         = result.get("sales_motion_tag") or ""
-    flags          = result.get("flags") or []
-    data_room_gaps = result.get("data_room_gaps") or []
+    _flags_raw     = result.get("flags")
+    flags          = json.loads(_flags_raw) if isinstance(_flags_raw, str) else (_flags_raw or [])
+    _gaps_raw      = result.get("data_room_gaps")
+    data_room_gaps = json.loads(_gaps_raw) if isinstance(_gaps_raw, str) else (_gaps_raw or [])
 
     products        = json.loads(result.get("products_services_json")    or "[]")
     cp              = json.loads(result.get("customer_profile_json")     or "{}")
@@ -2426,7 +2428,13 @@ def main(spark=None) -> dict:
     company_name         = get_param("sp_company_name")
     catalog              = get_param("catalog",              default="uc13")
     llm_endpoint         = get_param("llm_endpoint",         default="databricks-claude-sonnet-4-6")
-    extraction_endpoint  = get_param("extraction_endpoint",  default="databricks-claude-haiku-4-5") or None
+    _widget_extract_ep   = get_param("extraction_endpoint",  default="databricks-claude-haiku-4-5") or "databricks-claude-haiku-4-5"
+
+    if "haiku" in _widget_extract_ep.lower() or "llama" in _widget_extract_ep.lower():
+        extraction_endpoint = "databricks-claude-sonnet-4-6"
+        print(f"  [override] extraction_endpoint '{_widget_extract_ep}' → Sonnet (Haiku/Llama cap=8192 tokens; BMA 10-array schema needs Sonnet)")
+    else:
+        extraction_endpoint = _widget_extract_ep
 
     from pyspark.sql import SparkSession
     from agents.shared.run_context import (
@@ -2440,7 +2448,7 @@ def main(spark=None) -> dict:
         raise RuntimeError("No active Spark session.")
 
     print(f"\n=== Business Model Agent ({company_name}) ===")
-    print(f"  extraction: {extraction_endpoint or llm_endpoint}  narrative: {llm_endpoint}")
+    print(f"  extraction: {extraction_endpoint}  narrative: {llm_endpoint}")
 
     open_agent_run(
         "bma",
