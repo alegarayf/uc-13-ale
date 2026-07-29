@@ -180,6 +180,11 @@ def make_doc_id(path: str) -> str:
 # ---------------------------------------------------------------------------
 
 MAX_CHUNK_CHARS            = 7_500  # hard ceiling — BGE Large limit with safety buffer
+MAX_CHUNKS_PER_FILE        = 2_000  # per-file safety cap — raw-data spreadsheets can explode
+                                    # into tens of thousands of chunks (row-per-chunk), which
+                                    # blows up embedding cost and the VS index sync. Legit
+                                    # large files (CIMs ~500-1100, projection models ~800)
+                                    # stay well under this; excess beyond the cap is dropped.
 MIN_CHUNK_CHARS            = 150    # drop chunks shorter than this (content only, after prefix)
 MIN_VISION_CHUNK_CHARS     = 50     # vision-extracted chart data is naturally shorter
 CHUNK_OVERLAP_CHARS        = 200    # overlap for narrative content (PDF prose, Word)
@@ -1259,16 +1264,27 @@ def parse_file(
     doc_id    = make_doc_id(file_path)
 
     if ext == ".pdf":
-        return parse_pdf(file_path, doc_id, file_name, spark, vision_endpoint=vision_endpoint)
+        chunks = parse_pdf(file_path, doc_id, file_name, spark, vision_endpoint=vision_endpoint)
     elif ext in {".xlsx", ".xls", ".xlsm"}:
-        return parse_excel(file_path, doc_id, file_name)
+        chunks = parse_excel(file_path, doc_id, file_name)
     elif ext in {".docx", ".doc"}:
-        return parse_word(file_path, doc_id, file_name)
+        chunks = parse_word(file_path, doc_id, file_name)
     elif ext == ".csv":
-        return parse_csv(file_path, doc_id, file_name)
+        chunks = parse_csv(file_path, doc_id, file_name)
     else:
         print(f"  — skipped unsupported type: {file_name}")
         return []
+
+    # Per-file safety cap: a single raw-data spreadsheet can explode into tens of
+    # thousands of chunks, blowing up embedding cost and the VS index sync (which
+    # then times out). Truncate and log so one file can't sink the whole run.
+    if len(chunks) > MAX_CHUNKS_PER_FILE:
+        print(
+            f"  ⚠ Capping {file_name}: {len(chunks):,} chunks → {MAX_CHUNKS_PER_FILE:,} "
+            f"(raw-data file exceeded per-file cap; excess dropped)"
+        )
+        chunks = chunks[:MAX_CHUNKS_PER_FILE]
+    return chunks
 
 
 # ---------------------------------------------------------------------------
