@@ -1,5 +1,9 @@
 # Changelog
 
+## chip-b-4company-agent-validation — 2026-07-30
+
+- T1 (preflight VS index + join integrity + analysis snapshot): Added `.dev/tmp_chipb_preflight_probe.py` scoped to Clearsulting, GKF, SPG — read-only warehouse SQL plus per-company `query_index` probes (sample embedding vector + `company_name` filter; direct-access index rejects `query_text`). Live run wrote `.dev/tmp_chipb_readiness_probe_2026-07-30.json` with GO verdicts: Clearsulting (95.5% ingest, VS 3 rows), GKF (100% ingest, VS 3 rows), SPG (90.4% ingest borderline flagged, VS 3 rows). Rationale: gates T2–T4 cluster spend — confirms GKF/SPG VS index readiness that was unconfirmed pre-plan. Adversarial gap deferred: no pytest for `.dev/` operator tooling per plan contract — functional JSON + stdout GO/NO-GO lines are the falsifiers.
+
 ## hector-ui-pipeline-merge — 2026-07-28 (closeout)
 
 - Validation (post-fix closeout): Ran BMA orchestrator verify + `evaluate_promotion` (`promoted`, manifest `2855aef9…`, scorecard `.dev/scorecards/uc13-eval-harness-all-agents_bma_elder-care_2026-07-28.md`). Full parallel DAG e2e (`run_id=827597669988464`) — **9 SUCCESS / 0 FAILED / 0 SKIPPED**; G1 post-e2e: BMA **7/7**, CQA 4/6, KPI 3/3, QoE 5/6, FTA 16.5/18, Profiler **7/7**; Legal **7/11** accepted deferred (R-2). Orchestrator BMA section clean; FTA memo section still hits `flags` string-parse fallback (new open item). T9 bridge failed on missing `python-docx` on serverless (`.md` OK). Evidence: `.dev/hector_merge_e2e_Elder_Care_post_fix.log`, `.dev/g1_score_post_fix.txt`, `.dev/post_merge_closeout_submit.py`.
