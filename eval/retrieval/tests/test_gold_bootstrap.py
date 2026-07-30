@@ -24,7 +24,7 @@ from eval.retrieval.models import GoldLabel, RetrievalIntent
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REGISTRY_PATH = REPO_ROOT / "eval" / "retrieval" / "intent_registry.yaml"
 GOLD_PATH = REPO_ROOT / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
-INGESTION_SNAPSHOT = "uc13_ale:35034:2026-07-02"
+INGESTION_SNAPSHOT = "uc13_ale:35104:2026-07-30"
 
 
 class MockSpark:
@@ -68,7 +68,7 @@ def _sample_intent(intent_id: str, **overrides) -> RetrievalIntent:
 @pytest.fixture
 def mock_spark_handlers() -> dict[str, list[dict]]:
     return {
-        "COUNT(*) AS chunk_count": [{"chunk_count": 35034}],
+        "COUNT(*) AS chunk_count": [{"chunk_count": 35104}],
         "analysis.financial_trends": [
             {
                 "citations": (
@@ -98,7 +98,7 @@ def mock_spark_handlers() -> dict[str, list[dict]]:
 
 def test_format_ingestion_snapshot_normative():
     assert (
-        format_ingestion_snapshot("uc13_ale", 35034, date(2026, 7, 2))
+        format_ingestion_snapshot("uc13_ale", 35104, date(2026, 7, 30))
         == INGESTION_SNAPSHOT
     )
 
@@ -107,7 +107,7 @@ def test_compute_ingestion_snapshot_single_value(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 2),
+        ingestion_date=date(2026, 7, 30),
     )
     assert bootstrap.compute_ingestion_snapshot() == INGESTION_SNAPSHOT
 
@@ -116,7 +116,7 @@ def test_bootstrap_pass1_citation_backfill(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 2),
+        ingestion_date=date(2026, 7, 30),
     )
     intent = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -136,7 +136,7 @@ def test_bootstrap_pass2_basis_rule(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 2),
+        ingestion_date=date(2026, 7, 30),
     )
     intent = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -167,7 +167,7 @@ def test_bootstrap_pass2_cross_intent_positive(mock_spark_handlers):
     spark = MockSpark(handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 2),
+        ingestion_date=date(2026, 7, 30),
     )
     q1 = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -189,7 +189,7 @@ def test_bootstrap_failed_when_no_positives(mock_spark_handlers):
     spark = MockSpark({"COUNT(*) AS chunk_count": [{"chunk_count": 1}]})
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 2),
+        ingestion_date=date(2026, 7, 30),
     )
     intent = _sample_intent(
         "profiler.industry_overlay",
@@ -199,14 +199,14 @@ def test_bootstrap_failed_when_no_positives(mock_spark_handlers):
     label = bootstrap.bootstrap([intent])[0]
     assert label.gold_status == "bootstrap_failed"
     assert label.positive_chunk_ids == []
-    assert label.ingestion_snapshot == "uc13_ale:1:2026-07-02"
+    assert label.ingestion_snapshot == "uc13_ale:1:2026-07-30"
 
 
 def test_all_labels_share_single_ingestion_snapshot(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 2),
+        ingestion_date=date(2026, 7, 30),
     )
     intents = load_registry(REGISTRY_PATH)[:5]
     labels = bootstrap.bootstrap(intents)
@@ -275,14 +275,6 @@ def test_basis_negative_patterns_pinned_in_module():
     assert "%Pro Forma Income%" in BASIS_NEGATIVE_SECTION_PATTERNS
 
 
-@pytest.mark.xfail(
-    reason="hector-ui-pipeline-merge: T5/T6/T7 added 8 new retrieval intents "
-    "(cqa+4, kpi+4) to intent_registry.yaml. Gold labels for these must be "
-    "citation-backfilled from the Elder Care corpus on uc13_ale (cluster). "
-    "Tracked as a follow-up; remove this marker once elder_care.yaml is "
-    "re-bootstrapped to cover the expanded registry.",
-    strict=False,
-)
 def test_committed_elder_care_yaml_validates_and_covers_registry():
     assert GOLD_PATH.exists(), "elder_care.yaml must be committed for T6"
     labels = load_gold_labels(GOLD_PATH)
