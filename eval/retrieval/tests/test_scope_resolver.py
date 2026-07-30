@@ -44,12 +44,23 @@ def test_scope_resolver_cases_yaml(
     gold_labels,
 ):
     expect = case["expect"]
+    case_gold_labels = gold_labels
+    if bootstrap_failed_intent := expect.get("bootstrap_failed_in_affected_not_gated"):
+        case_gold_labels = [
+            row.model_copy(
+                update={"gold_status": "bootstrap_failed", "positive_chunk_ids": []}
+            )
+            if row.intent_id == bootstrap_failed_intent
+            else row
+            for row in gold_labels
+        ]
+
     if expect.get("error"):
         with pytest.raises(globals()[expect["error"]]):
             resolver.resolve(
                 case["git_diff_paths"],
                 registry,
-                gold_labels=gold_labels,
+                gold_labels=case_gold_labels,
                 company_name="Elder Care",
                 catalog="uc13_ale",
             )
@@ -58,7 +69,7 @@ def test_scope_resolver_cases_yaml(
     scope = resolver.resolve(
         case["git_diff_paths"],
         registry,
-        gold_labels=gold_labels,
+        gold_labels=case_gold_labels,
         company_name="Elder Care",
         catalog="uc13_ale",
     )
