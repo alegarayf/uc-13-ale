@@ -1,7 +1,7 @@
 # My runbook — integration closeout → hardening finish
 
 **For:** Alejandro only  
-**Updated:** 2026-07-24  
+**Updated:** 2026-07-30  
 **Companion:** `project_status_timeline.md` (PM-facing summary)
 
 Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batch them; don’t start a new block if the previous one failed.
@@ -30,7 +30,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 3. **One attestation per run:** paste stdout verbatim; don’t paraphrase pass/fail.
 4. **Don’t declare baselines authoritative** from sqlite or single-intent runs — promote to Delta or discard.
 5. ~~**Retrieval code stays frozen** until integration smoke + closing audit are done.~~ **Lifted 2026-07-14** — M-PHV4 landed.
-6. **Don’t cross-compare harness runs across registry versions** — `baseline_299063e87806` vs `baseline_1aeb0ace584a` raises `RegistryHashMismatchError` (intentional after `legal.insurance` fix).
+6. **Don’t cross-compare harness runs across registry versions** — `baseline_299063e87806` vs `baseline_1aeb0ace584a` raises `RegistryHashMismatchError` (intentional after `legal.insurance` fix). **`baseline_1aeb0ace584a` vs `baseline_544eb3f2a0e2`** raises the same error (intentional after 57-intent registry expansion, 2026-07-30).
 
 ---
 
@@ -83,7 +83,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 
 ## Phase 4 — Retrieval consolidation 【M-PHV4】 ✅ DONE 2026-07-16
 
-- [x] Pin baseline: **`baseline_1aeb0ace584a`** (supersedes `baseline_299063e87806`)
+- [x] Pin baseline: **`baseline_544eb3f2a0e2`** (supersedes `baseline_1aeb0ace584a` — 57-intent registry hash C, 2026-07-30; not cross-comparable to 49-intent baseline)
 - [x] FTA fallback + harness `dispatch_retrieval` → shared `fallback.py`
 - [x] Cluster T8: FTA **16/18** · Legal **9/11** PASS (2026-07-24 re-score; was 7/11 CONDITIONAL on 7/16)
 - [ ] Shared context assembly (charter item 28) — **DEFERRED**
@@ -99,7 +99,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 
 ## Phase 5 — Eval cleanup 【laptop】 ✅ DONE 2026-07-13
 
-- [x] Delta authoritative baseline: **`baseline_1aeb0ace584a`**
+- [x] Delta authoritative baseline: **`baseline_544eb3f2a0e2`** (promoted 2026-07-30; supersedes `baseline_1aeb0ace584a`)
 - [x] Local report JSONs deleted; gitignored
 
 ---
@@ -159,13 +159,13 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 |------|--------|
 | Smoke attestation | `.dev/plans/uc13-m-phv3-integration/item23-post-merge-smoke-attestation.md` |
 | M-PHV3 exit gate | `.dev/plans/uc13-m-phv3-integration/exit-gate-checklist.md` |
-| Harness baseline write-up | `harness-baseline-2026-07-15.md` |
+| Harness baseline write-up | `harness-baseline-2026-07-30.md` (active); `harness-baseline-2026-07-15.md` (historical) |
 | M-PHV4 audit | `.dev/audits/2026-07-16-uc13-m-phv4-retrieval-consolidation.md` |
 | M4 eval-harness audit | `.dev/audits/2026-07-21-uc13-eval-harness-all-agents-m4.md` |
 | FTA 7/16 scorecard | `.dev/scorecards/scorecard_7_16_post_phv4_vs_7_03.md` |
 | Legal 7/16 scorecard | `.dev/scorecards/scorecard_lca_7_16_post_phv4_vs_7_03.md` |
 | Scorecards index | `.dev/scorecards/INDEX.md` |
-| Retrieval baseline pin | **`baseline_1aeb0ace584a`** |
+| Retrieval baseline pin | **`baseline_544eb3f2a0e2`** (57-intent registry; supersedes `baseline_1aeb0ace584a`) |
 | Promotion gate | `eval/retrieval/promotion_gate.py` |
 
 ---
@@ -192,6 +192,7 @@ Use this as a **sequential checklist**. Each cluster block ≈ **2 hr** — batc
 | 2026-07-14 | 1 smoke | d3230fa | Cells 0/1/8b/8/10/11; Cell 7 deferred (OOM) | PASS (qualified) |
 | 2026-07-14 | 2 closeout | f1da4ec | T7 workflow YAML + exit gate; 539 pytest | PASS |
 | 2026-07-15/16 | 4 cluster | ec74042→fefcbc7 | `baseline_1aeb0ace584a`; FTA 16/18 · Legal 7/11 CONDITIONAL | PASS (Legal CONDITIONAL) |
+| 2026-07-30 | G6 T7 baseline | dc2ce284 | `baseline_544eb3f2a0e2` (57 intents, hash C); harness `complete`; supersedes `baseline_1aeb0ace584a` — not cross-comparable | PASS |
 | 2026-07-16 | 3 audit | — | M-PHV4 audit `accepted-with-waivers` | PASS |
 | 2026-07-20 | 8 exec summary | d06992a | 4/4 expanded executive summaries | PASS |
 | 2026-07-21 | 6 eval harness | b2087b9 | M4 all five agents `baseline_bootstrap`; M4 audit `accepted-with-waivers` | PASS |
