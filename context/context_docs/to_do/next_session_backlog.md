@@ -1,7 +1,7 @@
 # UC13 / VDR Pipeline — Next-Session Backlog
 
 > Open items to tackle in future sessions, ordered roughly by priority.
-> Context: see [`../session_vdr_integration_and_fixes.md`](../session_vdr_integration_and_fixes.md).
+> Context: see [`../fixes_and_job_done_during_this_branch.md`](../fixes_and_job_done_during_this_branch.md).
 > Branch: `feature/uc13-after-merge-job-test`.
 
 ## 🟣 Product roadmap — next few days (Hector's priorities)
