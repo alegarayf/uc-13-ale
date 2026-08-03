@@ -18,6 +18,7 @@ for _path in (_REPO_ROOT / "databricks", _REPO_ROOT):
         sys.path.insert(0, _entry)
 
 from eval.retrieval.errors import PreconditionError
+from eval.retrieval.gold.bootstrap import load_gold_labels
 from eval.retrieval.harness import (
     EvalHarness,
     ablation_arm_to_merge_rank_mode,
@@ -189,8 +190,6 @@ def test_eval_harness_populates_ablation_arm_on_ablation_run(tmp_path):
     harness = EvalHarness(gold_path=GOLD_PATH, registry_path=default_registry_path())
     created = datetime(2026, 7, 3, tzinfo=timezone.utc)
     registry_hash = compute_registry_hash(default_registry_path())
-    from eval.retrieval.gold.bootstrap import load_gold_labels
-
     gold_labels = load_gold_labels(GOLD_PATH)
     gold_snapshot = compute_gold_snapshot(gold_labels)
 
@@ -199,7 +198,7 @@ def test_eval_harness_populates_ablation_arm_on_ablation_run(tmp_path):
         run_type="baseline",
         company_name="Elder Care",
         catalog="uc13_ale",
-        ingestion_snapshot="uc13_ale:35034:2026-07-02",
+        ingestion_snapshot=load_gold_labels(GOLD_PATH)[0].ingestion_snapshot,
         registry_hash=registry_hash,
         gold_snapshot=gold_snapshot,
         affected_intents=["fta.opex.q3_projected_financials"],
@@ -279,13 +278,14 @@ def test_eval_harness_ablation_config_unknown_arm_fails_fast(tmp_path):
 
 
 _MATRIX_INTENT_ID = "fta.opex.q3_projected_financials"
-_MATRIX_POS_IDS = (
-    "bfbcfe31-e9b1-4017-acd7-97601be54c04",
-    "c088efb9-8cf9-46a5-8aba-aed9eab703dc",
-    "7cf789fd-dabd-47fa-8ee7-47a001d5fb68",
+_matrix_gold_row = next(
+    row for row in load_gold_labels(GOLD_PATH) if row.intent_id == _MATRIX_INTENT_ID
 )
+_MATRIX_POS_IDS = tuple(_matrix_gold_row.positive_chunk_ids[:3])
 _MATRIX_FILLER_ID = "00000000-0000-4000-8000-000000000099"
 _MATRIX_FILLER_ID_2 = "00000000-0000-4000-8000-00000000009a"
+assert _MATRIX_FILLER_ID not in _matrix_gold_row.positive_chunk_ids
+assert _MATRIX_FILLER_ID_2 not in _matrix_gold_row.positive_chunk_ids
 
 
 @dataclass

@@ -503,17 +503,27 @@ def run_vdr_pipeline(table_name: str, record_id: int) -> dict:
         from run_full_pipeline import run_full_pipeline
 
         reset_token_counter()
-        result = run_full_pipeline(company_name=company_name)
+        # Vision extraction ON by default (Haiku) so image-heavy CIM pages are
+        # transcribed to text and become retrievable. Controllable via the
+        # vision_endpoint widget/env (set to "" to disable).
+        vision_endpoint = os.environ.get("vision_endpoint", "databricks-claude-haiku-4-5")
+        result = run_full_pipeline(company_name=company_name, vision_endpoint=vision_endpoint)
         token_totals = get_token_totals()
         print_token_summary()
 
-        # ── Step 5: Check for pipeline success ──────────────────────────
+        # ── Step 5: Check the pipeline actually produced diligence outputs ──
+        # Guard: if Phase 3-5 was aborted (e.g. ingestion failed → no embeddings)
+        # or every agent failed, there is nothing to report. Bail BEFORE building
+        # the memo/one-pager — otherwise build_exec_summary runs over empty data
+        # and can crash (and would produce a meaningless report).
         summary = result.get("summary", {})
         dil_summary = summary.get("diligence", {})
-        if dil_summary.get("SUCCESS", 0) == 0 and dil_summary.get("FAILED", 0) > 0:
+        diligence = result.get("diligence", {})
+        aborted = isinstance(diligence, dict) and "note" in diligence
+        if aborted or dil_summary.get("SUCCESS", 0) == 0:
             raise RuntimeError(
-                f"Pipeline completed but all diligence agents failed. "
-                f"Summary: {summary}"
+                "Pipeline did not produce diligence outputs — ingestion/diligence "
+                f"failed or was aborted; skipping report generation. Summary: {summary}"
             )
 
         # ── Step 6: Copy outputs to VDR volume ─────────────────────────

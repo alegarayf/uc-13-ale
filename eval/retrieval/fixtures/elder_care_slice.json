@@ -1,35 +1,8 @@
 {
   "catalog": "uc13_ale",
   "company_name": "Elder Care",
-  "ingestion_snapshot": "uc13_ale:35034:2026-07-02",
+  "ingestion_snapshot": "uc13_ale:35104:2026-07-30",
   "chunks": [
-    {
-      "chunk_id": "bfbcfe31-e9b1-4017-acd7-97601be54c04",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
-    },
-    {
-      "chunk_id": "c088efb9-8cf9-46a5-8aba-aed9eab703dc",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
-    },
-    {
-      "chunk_id": "7cf789fd-dabd-47fa-8ee7-47a001d5fb68",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
-    },
     {
       "chunk_id": "6abc7d75-dfec-44d2-b937-2dc958fa1be7",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
@@ -76,7 +49,7 @@
       "source_type": "text"
     },
     {
-      "chunk_id": "7aa22689-0dec-446a-a229-8a72360adba3",
+      "chunk_id": "334eb3e2-9be4-46ad-abce-490cdc29e6e7",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
       "file_name": "CIM.pdf",
       "page_start": 1,
@@ -85,7 +58,7 @@
       "source_type": "text"
     },
     {
-      "chunk_id": "187c84f7-9b7b-4e63-9277-8955e2de8914",
+      "chunk_id": "d2e28adc-4139-4352-9b9b-84bdb4cbd705",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
       "file_name": "CIM.pdf",
       "page_start": 1,
@@ -94,7 +67,7 @@
       "source_type": "text"
     },
     {
-      "chunk_id": "460cefd8-5e19-4e4d-ae27-96144481d850",
+      "chunk_id": "d81dc8d6-0cf0-43f4-974f-206047e2a218",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
       "file_name": "CIM.pdf",
       "page_start": 1,
@@ -103,18 +76,27 @@
       "source_type": "text"
     },
     {
-      "chunk_id": "c94ec23d-5e4b-4d9f-80cb-386c906f3334",
+      "chunk_id": "a7b59e05-594c-423d-927e-8032ed4358af",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
+      "file_name": "Vendor_Agreements_Summary.pdf",
       "page_start": 1,
       "priority_tier": 1,
       "section_header": "CI fixture",
       "source_type": "text"
     },
     {
-      "chunk_id": "4be7a56c-ab6c-466b-b82a-27840879d959",
+      "chunk_id": "6712732a-bbe7-43bb-96c2-1ecce64be23d",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
+      "file_name": "Vendor_Agreements_Summary.pdf",
+      "page_start": 1,
+      "priority_tier": 1,
+      "section_header": "CI fixture",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "bce0d2c4-f33b-4943-8d9d-5c01c4c68657",
+      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
+      "file_name": "Vendor_Agreements_Summary.pdf",
       "page_start": 1,
       "priority_tier": 1,
       "section_header": "CI fixture",
@@ -247,27 +229,90 @@
       "source_type": "text"
     },
     {
-      "chunk_id": "0d6f13b3-bcc5-4e6c-a7ae-94220bc3a4d3",
+      "chunk_id": "3ac9bf4f-2c52-4f95-9de5-f17f0e1c26c1",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
+      "file_name": "CIM.pdf",
       "page_start": 1,
       "priority_tier": 1,
       "section_header": "CI fixture",
       "source_type": "text"
     },
     {
-      "chunk_id": "37628688-3e51-427a-ba07-0b61dc1cf5fe",
+      "chunk_id": "ebe963a9-ef72-47ee-a927-4beb915c2c06",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
+      "file_name": "CIM.pdf",
       "page_start": 1,
       "priority_tier": 1,
       "section_header": "CI fixture",
       "source_type": "text"
     },
     {
-      "chunk_id": "5cb0b2f7-8545-4074-ba02-2f88daba2dd6",
+      "chunk_id": "3a43d920-bdd2-466b-ae93-e7e77a7cb310",
       "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
+      "file_name": "CIM.pdf",
+      "page_start": 1,
+      "priority_tier": 1,
+      "section_header": "CI fixture",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "d3256738-cb92-4c9b-bb52-a9714648599a",
+      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
+      "file_name": "CIM.pdf",
+      "page_start": 1,
+      "priority_tier": 1,
+      "section_header": "CI fixture",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "ce5e0f2f-e15e-4644-87cb-812bd348946e",
+      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
+      "file_name": "CIM.pdf",
+      "page_start": 1,
+      "priority_tier": 1,
+      "section_header": "CI fixture",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "abc7b241-429e-4735-9c1f-fe0fa054b05c",
+      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
+      "file_name": "CIM.pdf",
+      "page_start": 1,
+      "priority_tier": 1,
+      "section_header": "CI fixture",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "2c114987-ff5a-4fe8-91e3-2b3ee2f14687",
+      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
+      "file_name": "CIM.pdf",
+      "page_start": 1,
+      "priority_tier": 1,
+      "section_header": "CI fixture",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "3d395f33-1768-40b9-83de-5821659325a6",
+      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
+      "file_name": "CIM.pdf",
+      "page_start": 1,
+      "priority_tier": 1,
+      "section_header": "CI fixture",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "e8b3dbdd-e628-4312-8c00-25d647dfad05",
+      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
+      "file_name": "CIM.pdf",
+      "page_start": 1,
+      "priority_tier": 1,
+      "section_header": "CI fixture",
+      "source_type": "text"
+    },
+    {
+      "chunk_id": "2cfafcd8-1b4b-4b3e-9d97-e416e86b30b9",
+      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
+      "file_name": "CIM.pdf",
       "page_start": 1,
       "priority_tier": 1,
       "section_header": "CI fixture",
@@ -281,22 +326,17 @@
       "catalog": "uc13_ale",
       "gold_status": "ready",
       "positive_chunk_ids": [
-        "bfbcfe31-e9b1-4017-acd7-97601be54c04",
-        "c088efb9-8cf9-46a5-8aba-aed9eab703dc",
-        "7cf789fd-dabd-47fa-8ee7-47a001d5fb68",
         "6abc7d75-dfec-44d2-b937-2dc958fa1be7",
         "4a562585-3506-4aea-a5fa-a5b007fd78bf",
         "5c2a1065-ccb1-45c4-a735-e679799c5a9a",
         "72564410-1d50-4750-8715-e19d1f764811",
         "f4edd68a-f226-4f93-8671-bd3b0624ffc0",
-        "7aa22689-0dec-446a-a229-8a72360adba3",
-        "187c84f7-9b7b-4e63-9277-8955e2de8914",
-        "460cefd8-5e19-4e4d-ae27-96144481d850",
-        "c94ec23d-5e4b-4d9f-80cb-386c906f3334",
-        "4be7a56c-ab6c-466b-b82a-27840879d959"
+        "334eb3e2-9be4-46ad-abce-490cdc29e6e7",
+        "d2e28adc-4139-4352-9b9b-84bdb4cbd705",
+        "d81dc8d6-0cf0-43f4-974f-206047e2a218"
       ],
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:35034:2026-07-02",
+      "ingestion_snapshot": "uc13_ale:35104:2026-07-30",
       "confidence": "high"
     },
     {
@@ -305,6 +345,9 @@
       "catalog": "uc13_ale",
       "gold_status": "ready",
       "positive_chunk_ids": [
+        "a7b59e05-594c-423d-927e-8032ed4358af",
+        "6712732a-bbe7-43bb-96c2-1ecce64be23d",
+        "bce0d2c4-f33b-4943-8d9d-5c01c4c68657",
         "383ac106-e856-459e-8481-86fa93b4bb3f",
         "979c683b-6cca-4166-a3d6-af8441a313d8",
         "7782dd8e-7fcb-4ad0-913f-6e950d0a0532",
@@ -318,25 +361,32 @@
         "c423c2b9-f88f-4804-bdb5-b0a40b836e43",
         "37405da7-ffe9-43b9-a600-44fa1a0bb3ee",
         "d5767a9c-c9cf-4d37-8538-77bbcebee294",
-        "42b1d3c7-343b-4358-a7cd-c9ea83ac509e",
-        "0d6f13b3-bcc5-4e6c-a7ae-94220bc3a4d3",
-        "37628688-3e51-427a-ba07-0b61dc1cf5fe",
-        "5cb0b2f7-8545-4074-ba02-2f88daba2dd6"
+        "42b1d3c7-343b-4358-a7cd-c9ea83ac509e"
       ],
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:35034:2026-07-02",
+      "ingestion_snapshot": "uc13_ale:35104:2026-07-30",
       "confidence": "high"
     },
     {
       "intent_id": "cqa.retrieve_customer_concentration",
       "company_name": "Elder Care",
       "catalog": "uc13_ale",
-      "gold_status": "bootstrap_failed",
-      "positive_chunk_ids": [],
+      "gold_status": "ready",
+      "positive_chunk_ids": [
+        "3ac9bf4f-2c52-4f95-9de5-f17f0e1c26c1",
+        "ebe963a9-ef72-47ee-a927-4beb915c2c06",
+        "3a43d920-bdd2-466b-ae93-e7e77a7cb310",
+        "d3256738-cb92-4c9b-bb52-a9714648599a",
+        "ce5e0f2f-e15e-4644-87cb-812bd348946e",
+        "abc7b241-429e-4735-9c1f-fe0fa054b05c",
+        "2c114987-ff5a-4fe8-91e3-2b3ee2f14687",
+        "3d395f33-1768-40b9-83de-5821659325a6",
+        "e8b3dbdd-e628-4312-8c00-25d647dfad05",
+        "2cfafcd8-1b4b-4b3e-9d97-e416e86b30b9"
+      ],
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:35034:2026-07-02",
-      "confidence": "low",
-      "notes": "Pass 1 found zero positives"
+      "ingestion_snapshot": "uc13_ale:35104:2026-07-30",
+      "confidence": "high"
     }
   ],
   "mock_vs_scores": {

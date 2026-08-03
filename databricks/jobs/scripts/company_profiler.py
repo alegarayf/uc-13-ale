@@ -143,37 +143,37 @@ def find_repo_root(marker="agents"):
 _PROFILING_QUERIES: dict[str, tuple[str, list[str], list[str]]] = {
     "industry_overlay": (
         "industry sector service type end market vertical",
-        ["CIM", "Business", "Overview", "Summary", "Profile"],
+        ["CIM", "Memorandum", "Business", "Overview", "Summary", "Profile"],
         ["BUSINESS_MODEL"],
     ),
     "revenue_model": (
         "revenue model contract type recurring revenue subscription retainer",
-        ["CIM", "Business", "Overview", "Summary", "Profile"],
+        ["CIM", "Memorandum", "Business", "Overview", "Summary", "Profile"],
         ["BUSINESS_MODEL"],
     ),
     "business_description": (
         "company description what the company does services offered overview",
-        ["CIM", "Business", "Overview", "Summary", "Profile"],
+        ["CIM", "Memorandum", "Business", "Overview", "Summary", "Profile"],
         ["BUSINESS_MODEL"],
     ),
     "company_size_indicators": (
         "revenue headcount EBITDA gross margin employees size scale",
-        ["CIM", "Financial", "P&L", "Profit", "EBITDA"],
+        ["CIM", "Memorandum", "Financial", "P&L", "Profit", "EBITDA"],
         ["FINANCIAL", "BUSINESS_MODEL"],
     ),
     "deal_type": (
         "buyout growth equity recapitalization transaction type deal structure",
-        ["CIM", "Business", "Overview", "Summary"],
+        ["CIM", "Memorandum", "Business", "Overview", "Summary"],
         ["BUSINESS_MODEL"],
     ),
     "banked_vs_nonbanked": (
         "CIM offering memorandum banker investment bank process",
-        ["CIM", "Offering", "OM"],
+        ["CIM", "Memorandum", "Offering", "OM"],
         ["BUSINESS_MODEL"],
     ),
     "vertical_subsector": (
         "sub-sector specialty product lines service lines niche segment",
-        ["CIM", "Business", "Overview", "Summary", "Profile"],
+        ["CIM", "Memorandum", "Business", "Overview", "Summary", "Profile"],
         ["BUSINESS_MODEL"],
     ),
 }
@@ -317,6 +317,7 @@ def main():
                 query=query,
                 spark=_spark,
                 top_k=5,
+                company_name=company_name,
                 file_name_filter=fn_filter,
                 workstream_filter=ws_filter,
                 tier_filter=1,
@@ -325,13 +326,17 @@ def main():
             ).chunks
 
             if not chunks:
-                # Try again without the tier filter to widen the net.
+                # Widen progressively: drop the filename / workstream / tier
+                # filters and do a pure company-scoped semantic search. The narrow
+                # fn_filter can silently exclude the CIM — a file named
+                # "...Confidential Information Memorandum.pdf" does NOT contain the
+                # substring "CIM" — so the fallback must not keep it. Company
+                # isolation is preserved via company_name.
                 chunks = semantic_search(
                     query=query,
                     spark=_spark,
-                    top_k=5,
-                    file_name_filter=fn_filter,
-                    workstream_filter=ws_filter,
+                    top_k=8,
+                    company_name=company_name,
                     min_chunk_length=100,
                     embedding_endpoint=embedding_endpoint,
                 ).chunks
