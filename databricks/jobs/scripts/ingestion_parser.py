@@ -180,6 +180,11 @@ def make_doc_id(path: str) -> str:
 # ---------------------------------------------------------------------------
 
 MAX_CHUNK_CHARS            = 7_500  # hard ceiling — BGE Large limit with safety buffer
+MAX_CHUNKS_PER_FILE        = 2_000  # per-file safety cap — raw-data spreadsheets can explode
+                                    # into tens of thousands of chunks (row-per-chunk), which
+                                    # blows up embedding cost and the VS index sync. Legit
+                                    # large files (CIMs ~500-1100, projection models ~800)
+                                    # stay well under this; excess beyond the cap is dropped.
 MIN_CHUNK_CHARS            = 150    # drop chunks shorter than this (content only, after prefix)
 MIN_VISION_CHUNK_CHARS     = 50     # vision-extracted chart data is naturally shorter
 CHUNK_OVERLAP_CHARS        = 200    # overlap for narrative content (PDF prose, Word)
@@ -1259,16 +1264,27 @@ def parse_file(
     doc_id    = make_doc_id(file_path)
 
     if ext == ".pdf":
-        return parse_pdf(file_path, doc_id, file_name, spark, vision_endpoint=vision_endpoint)
+        chunks = parse_pdf(file_path, doc_id, file_name, spark, vision_endpoint=vision_endpoint)
     elif ext in {".xlsx", ".xls", ".xlsm"}:
-        return parse_excel(file_path, doc_id, file_name)
+        chunks = parse_excel(file_path, doc_id, file_name)
     elif ext in {".docx", ".doc"}:
-        return parse_word(file_path, doc_id, file_name)
+        chunks = parse_word(file_path, doc_id, file_name)
     elif ext == ".csv":
-        return parse_csv(file_path, doc_id, file_name)
+        chunks = parse_csv(file_path, doc_id, file_name)
     else:
         print(f"  — skipped unsupported type: {file_name}")
         return []
+
+    # Per-file safety cap: a single raw-data spreadsheet can explode into tens of
+    # thousands of chunks, blowing up embedding cost and the VS index sync (which
+    # then times out). Truncate and log so one file can't sink the whole run.
+    if len(chunks) > MAX_CHUNKS_PER_FILE:
+        print(
+            f"  ⚠ Capping {file_name}: {len(chunks):,} chunks → {MAX_CHUNKS_PER_FILE:,} "
+            f"(raw-data file exceeded per-file cap; excess dropped)"
+        )
+        chunks = chunks[:MAX_CHUNKS_PER_FILE]
+    return chunks
 
 
 # ---------------------------------------------------------------------------
@@ -1360,21 +1376,43 @@ def _wait_for_index_sync(
         # Count total embeddings now in the source table.
         total_emb = spark.sql(f"SELECT COUNT(*) AS n FROM {table_embeddings}").collect()[0]["n"]
 
-        # Trigger sync.
-        w.vector_search_indexes.sync_index(index_name=index_name)
-        print(f"\nVector search sync triggered → {index_name}")
-
-        # Obtain pipeline_id from the index spec (needed to poll the DLT update).
+        # Obtain pipeline_id first (needed to wait out a busy pipeline and to poll
+        # the DLT update below).
         idx_info   = w.vector_search_indexes.get_index(index_name=index_name)
         pipeline_id = (
             idx_info.delta_sync_index_spec.pipeline_id
             if idx_info.delta_sync_index_spec
             else None
         )
-
         if not pipeline_id:
             print("  ⚠ Could not obtain pipeline_id — falling back to row-count polling.")
-            pipeline_id = None
+
+        # Trigger sync. The index is SHARED across companies, so a prior run's sync
+        # may still be RUNNING — sync_index() then rejects with "Index is not ready
+        # to sync yet (pipeline is in state RUNNING)". Wait for it to reach a
+        # terminal state and retry the trigger instead of failing the whole parse.
+        _waited = 0
+        while True:
+            try:
+                w.vector_search_indexes.sync_index(index_name=index_name)
+                break
+            except Exception as e:
+                _msg = str(e).lower()
+                _busy = (
+                    "not ready to sync" in _msg
+                    or "state running" in _msg
+                    or "needs to be in one of" in _msg
+                )
+                if _busy and _waited < max_wait_seconds:
+                    print(
+                        f"  Index busy (a prior sync is still RUNNING); waiting "
+                        f"{poll_interval}s then retrying trigger... ({_waited}s elapsed)"
+                    )
+                    time.sleep(poll_interval)
+                    _waited += poll_interval
+                    continue
+                raise
+        print(f"\nVector search sync triggered → {index_name}")
 
         print(f"  DLT pipeline : {pipeline_id or 'unknown'}")
         print(f"  Embeddings   : {total_emb:,} rows in source table")

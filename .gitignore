@@ -231,6 +231,28 @@ eval/retrieval/.local/
 # RE² harness report snapshots (operator artifacts; authoritative state is Delta ops)
 eval/retrieval/reports/*.json
 
+# Personal operator notes at repo root (local only)
+/OPEN_ITEMS.md
+/my_runbook.md
+/pending.md
+/pending2.md
+/left_off.md
+/to_also_think_about.md
+/to_dive_deeper.md
+/ALEJANDRO_GARAY_CONTRIBUTION_TIMELINE.md
+/project_status_timeline.md
+/post_merge_regressions.md
+/sqlite_removal.md
+/ingestion_parser_run_notes.md
+/uc13-company-data-analysis.md
+/uc13-company-data-analysis.canvas.tsx
+/uc13-company-data-analysis.html
+/detailed_work_summary_ui_pipeline_integration.md
+/work_summary_ui_pipeline_integration.md
+/GOLD_LABEL_BOOTSTRAP_HANDOFF.md
+/merge_scout*.md
+/MERGE_SCOUT*.md
+
 # Rallyday — local dev, agent workflow, and generated artifacts
 .dev/
 databricks/.env
