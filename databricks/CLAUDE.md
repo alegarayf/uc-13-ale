@@ -26,8 +26,10 @@ databricks/
       run_ingestion_pipeline.py   # Phase 1-2 runner: download → classify → parse (tiers 1&2) → coverage_backfill → profile (sequential)
       run_diligence_pipeline.py   # Phase 3-5 runner: delegates to PipelineOrchestrator DAG
       run_full_pipeline.py        # Phase 1-5 end-to-end runner: calls run_ingestion_pipeline() then run_pipeline()
+      run_vdr_pipeline.py         # VDR wrapper: reads companies_vdr_history row → run_full_pipeline() → copies docx to VDR volume → updates record
     notebooks/
       test_pipeline.ipynb           # End-to-end test notebook — adapt when scripts change
+      run_vdr_job.py                # notebook_task entry for the VDR job: reads table_name/record_id widgets → run_vdr_pipeline()
       00_setup_vector_search.ipynb  # One-time VS endpoint + index setup
       01_document_classifier.ipynb  # Phase 2a: classify + tag documents
       02_ingestion_parser.ipynb     # Phase 2b: parse → chunks + embeddings
@@ -53,6 +55,7 @@ databricks/
     orchestration/
       pipeline.py                   # PipelineOrchestrator: Phase 3→5 DAG, parallelism, retry, failure isolation, run manifest; to_result_card()
       orchestrator_agent.py         # Phase 5: assembles final diligence memo (.md + .docx)
+    exec_summary/                   # (Ale) Bundle/report layer: BundleBuilder, tldr_compress, Rev3 one-pager; build_exec_summary() is the VDR bridge
     subagents/
       workstream/
         financial/        # Parallel sub-agents for FinancialTrendsAgent (see section below)
@@ -69,6 +72,7 @@ databricks/
     uc13_ingestion_pipeline.yml  # Phase 1-2 job (multi-task, individual script per task)
     uc13_diligence_pipeline.yml  # Phase 3-5 job (single task → PipelineOrchestrator DAG)
     uc13_full_pipeline.yml       # Phase 1-5 end-to-end job (2 tasks: ingestion → diligence)
+    vdr_pipeline.yml             # UI-triggered VDR job (notebook_task, no params; reads companies_vdr_history)
   Guidelines/             # Client spec (Austin email, business type guidelines) + build spec PDF
   context_docs/
     architecture/         # UC13 pipeline architecture docs (HTML + Markdown)
@@ -153,7 +157,12 @@ Unity Catalog: **`uc13`**
 | `uc13.analysis.cross_analysis` | `cross_analysis_agent.py` | Reconciliation log, CIM-claims vs data-room, top-10 issues, gap list |
 | `uc13.analysis.diligence_report` | `orchestration/orchestrator_agent.py` | Final memo metadata + coherence log + agent run manifest; artifacts at `/Volumes/uc13/analysis/reports/{company}/final_diligence_memo.{md,docx}` |
 
-Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync, auto-updated)
+Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
+
+- **`columns_to_sync` must include the metadata columns** (`company_name`, `workstream`, `priority_tier`, `source_type`, `file_name`, `chunk_id`, `doc_id`) or filter **pushdown fails** ("Columns referenced in filters are not present in index") and `semantic_search` silently falls back to unfiltered retrieval + post-filter → poor recall and cross-company bleed. `setup_vector_search.py` already lists them.
+- **A pre-existing index is NOT auto-updated** — `setup_vector_search` is idempotent and skips an existing index, so an index created by older code keeps its old (metadata-less) sync spec. To change synced columns you must **drop + recreate** the index and re-sync (~181K rows), then re-run.
+
+**`uc13.ops` schema (RE² provenance store) — hard prerequisite.** `pipeline.py` sets `RE2_STORE_BACKEND=delta`, so every agent's retrieval writes provenance to `{catalog}.ops.retrieval_harness_runs`. If the `ops` schema/tables don't exist in the catalog, **all agents crash** with `TABLE_OR_VIEW_NOT_FOUND`. Create them once per catalog with `eval/retrieval/scripts/apply_ops_ddl.sql` (`{catalog}`→ target; additive `IF NOT EXISTS`). This is separate from `setup_vector_search` and must be run for any new catalog.
 
 ---
 
@@ -167,15 +176,25 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync, auto-upd
 | `run_diligence_pipeline.py` | 3-5 | Embeddings already populated; re-running or debugging diligence agents |
 | `run_full_pipeline.py` | 1-5 | New company (first-time run) or full refresh |
 
-### Three Databricks jobs
+### Databricks jobs
 
 | Job YAML | Tasks | Entry point |
 |---|---|---|
 | `uc13_ingestion_pipeline.yml` | 1 per script (multi-task, existing) | Individual Phase 1-2 scripts |
 | `uc13_diligence_pipeline.yml` | 1 task (single-task) | `run_diligence_pipeline.py` |
 | `uc13_full_pipeline.yml` | 2 tasks: `ingestion_pipeline` → `diligence_pipeline` | `run_ingestion_pipeline.py` then `run_diligence_pipeline.py` |
+| `vdr_pipeline.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_job` → `run_vdr_pipeline.py` |
 
 `uc13_full_pipeline.yml` uses **two tasks** (not one) so each phase has independent visibility, timeouts, and retries in the Databricks job UI. If ingestion fails, the diligence task is automatically blocked.
+
+### VDR pipeline (UI-triggered) — `run_vdr_pipeline.py` + `run_vdr_job` notebook
+
+The **VDR Diligence Pipeline** job (`617196299594076` in the Rallyday workspace) is how the Project Lighthouse UI runs diligence. Key facts:
+
+- **Task = `notebook_task`** pointing at `jobs/notebooks/run_vdr_job` with **NO job/task parameters**. The UI triggers `run-now` passing **notebook params `table_name` + `record_id`** (note: `record_id`, not `id`), which arrive as widgets. Declaring fixed task parameters blocks the UI trigger — do not add them.
+- The notebook reads the widgets and calls `run_vdr_pipeline(table_name, record_id)`, which reads a `rallyday_partners_llc.default.companies_vdr_history` row, runs `run_full_pipeline()` (Phase 1-5, catalog **hardcoded `uc13`**), copies `full_report.docx` (the orchestrator memo) + `executive_summary.docx` (the `agents/exec_summary` Rev3 one-pager bridge) to `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`, and flips the record `processing → done`/`error`.
+- **Code source = a Databricks Git folder** (`Rallyday`, under a user's `/Workspace/Users/…`) checked out to the working branch — NOT the job's `git_source` block (dead config). To ship code to the job: push, then `databricks repos update <id> --branch <b>`.
+- **Vision is ON by default in this path** (Haiku), overridable via the `vision_endpoint` widget (`""` disables). SharePoint folder is resolved from the `sp_folder_path` secret + `company_name` (`{folder}/Example Data Room/{company_name}`); the record's `source_data_location` is display-only and NOT used.
 
 ### Phase 1-2 runner (`run_ingestion_pipeline.py`)
 
@@ -229,7 +248,15 @@ Sparse-page detection in `parse_pdf()` automatically flags pages inside a financ
 
 ### `_call_llm()` — max_tokens override
 
-The base class default is `max_tokens=12_000`. Agents with especially large extraction schemas (e.g. `financial_trends_agent.py`, which uses a 10-array schema) should pass an explicit override: `self._call_llm(..., max_tokens=16_000)`. The assessment narrative LLM call is a separate invocation and has its own `max_tokens` (6,000). Never rely on the default for production agents — set it explicitly in each `_call_llm()` call so truncation budget is visible at the call site.
+The base class default is `max_tokens=12_000`. Agents with especially large extraction schemas should pass an explicit override. The assessment narrative LLM call is a separate invocation and has its own `max_tokens` (6,000). Never rely on the default for production agents — set it explicitly in each `_call_llm()` call so truncation budget is visible at the call site.
+
+**Serving read timeout ≈ 120s — single calls must finish under it.** The Databricks serving read timeout is ~120s per request (not reliably raised by env vars). A ~12K-token Sonnet generation completes under it; **~16K does not** and dies with `TimeoutError: Timed out after 0:10:00` (retries until the 10-min budget). Consequences:
+- **BMA extraction is split into TWO bounded passes** (`business_model_agent.py`): commercial fields and organizational fields, each `max_tokens=8_000`, combined by taking each group's fields from its own pass. Do not collapse it back to a single 16K call. This is the FTA sub-agent pattern applied to BMA.
+- If any other agent's single extraction grows past ~12K output, split it the same way rather than raising `max_tokens`.
+
+### Assessment generators — `flags` is a JSON STRING column
+
+Several analysis tables persist `flags` as a **`STRING`** column (JSON), while `data_room_gaps` is `ARRAY<STRING>`. A `generate_*_assessment()` that loads a Delta row therefore gets `flags` as a **str**, not a list. Any code that iterates it (e.g. `sorted(flags, key=lambda f: f.get("severity"))`) must **deserialize defensively first** (`json.loads(x) if isinstance(x, str) else (x or [])`, then keep only dict elements) — otherwise it iterates the string's characters and raises `'str' object has no attribute 'get'`, which makes the orchestrator fall back to a generic memo section. Already fixed in `business_model_agent.py` and `financial_trends_agent.py`; audit the others (CQA/KPI/QoE/Legal/Forecast) if a section falls back.
 
 ### Schema changes in analysis tables
 
