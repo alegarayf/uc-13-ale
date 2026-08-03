@@ -24,6 +24,7 @@ from eval.retrieval.models import GoldLabel, RetrievalIntent
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REGISTRY_PATH = REPO_ROOT / "eval" / "retrieval" / "intent_registry.yaml"
 GOLD_PATH = REPO_ROOT / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
+GOLD_COUNTS_PATH = REPO_ROOT / "eval" / "retrieval" / "fixtures" / "gold_positive_counts.yaml"
 INGESTION_SNAPSHOT = "uc13_ale:35104:2026-07-30"
 
 
@@ -285,6 +286,22 @@ def test_committed_elder_care_yaml_validates_and_covers_registry():
     assert snapshot == INGESTION_SNAPSHOT
     for label in labels:
         GoldLabel.model_validate(label.model_dump(mode="json"))
+
+
+def test_committed_gold_positive_counts_match_manifest():
+    """Pin per-intent positive counts and gold_method — update manifest on intentional rebootstrap."""
+    assert GOLD_COUNTS_PATH.exists(), "gold_positive_counts.yaml manifest required"
+    labels = load_gold_labels(GOLD_PATH)
+    manifest = yaml.safe_load(GOLD_COUNTS_PATH.read_text(encoding="utf-8"))
+    assert manifest["ingestion_snapshot"] == INGESTION_SNAPSHOT
+    assert manifest["row_count"] == len(labels)
+    actual_total = sum(len(label.positive_chunk_ids) for label in labels)
+    assert manifest["total_positive_chunk_ids"] == actual_total
+    for label in labels:
+        expected = manifest["intents"][label.intent_id]
+        assert expected["gold_status"] == label.gold_status
+        assert expected["gold_method"] == label.gold_method
+        assert expected["positive_count"] == len(label.positive_chunk_ids)
 
 
 def test_committed_elder_care_yaml_matches_fixture_shape():
