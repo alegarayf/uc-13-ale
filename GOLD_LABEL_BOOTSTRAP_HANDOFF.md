@@ -462,6 +462,7 @@ Only if operator explicitly expands retrieval harness beyond Elder Care. Require
 2. New registry hash — future baselines use hash C.
 3. Hector merge G6 closed.
 4. CQA/KPI retrieval regression detectable on Elder Care.
+5. **Gold ground-truth rework (T2):** full-registry rebootstrap redefined `positive_chunk_ids` for 41/49 pre-existing intents (total positives 51,987 → 23,721, −54%); 16 moved `filename_closure` → `citation_backfill`. Baselines are incomparable to the 49-intent era for **registry expansion and gold rework** — see `harness-baseline-2026-07-30.md` §Gold magnitude shift.
 
 ### After Chip B
 
@@ -471,7 +472,7 @@ Only if operator explicitly expands retrieval harness beyond Elder Care. Require
 
 ### Does not close
 
-- phv4 NEW-2 waiver (registry hash compare substitute).
+- ~~phv4 NEW-2 waiver (registry hash compare substitute).~~ **Closed 2026-07-30** — D-14.5 accepted; `.dev/attestations/chip-a-g6-d14-5-baseline-sign-off.md`.
 - Legal R-2 (t4c variance) — deferred per operator.
 - Formal `evaluate_promotion` for 2026-07-27 e2e batch — still open in `post_merge_regressions.md`.
 
@@ -577,7 +578,7 @@ Suggested program sizes (for reference only):
 | O-14.9 | **SPG BMA token-cap watch** during Chip B | `post_merge_regressions.md`, 71k chunks | R-1 fix should help; watch e2e log for truncation |
 | O-14.10 | **QoE extraction token-cap preemptive check** | `CLUSTER_GATES.md` G1 watch-item | Same class as BMA R-1; currently holds 5/6 |
 | O-14.11 | **Phase C multi-company gold YAML** (`clearsulting.yaml`, `gkf.yaml`, `spg.yaml`) | M4 Decision 3 (default: defer), §1b | Only if operator escalates harness beyond Elder Care |
-| O-14.12 | **phv4 NEW-2 program sign-off** — accept substitute stability evidence for item-31 | `pending2.md` | Program decision after O-14.1 baseline promotion; cannot retro-compare to `baseline_299063e87806` |
+| O-14.12 | ~~**phv4 NEW-2 program sign-off**~~ **CLOSED 2026-07-30** — substitute stability evidence accepted for item-31 (includes gold magnitude disclosure) | `.dev/attestations/chip-a-g6-d14-5-baseline-sign-off.md` | D-14.5 closed; `baseline_544eb3f2a0e2` supersedes 49-intent era |
 | O-14.13 | **Audit F-3** — test or written waiver for `build_exec_summary(..., llm_endpoint=None)` | `.dev/audits/2026-07-27-hector-ui-pipeline-merge.md` | Merge audit `pass-with-conditions`; not G6-blocking |
 | O-14.14 | **G2–G4 formal sign-off** in `CLUSTER_GATES.md` | `post_merge_regressions.md` — partially evidenced by e2e `1074138209208842` | Mark PASS with stdout if not already done |
 | O-14.15 | **Clearsulting Legal 0/11 attestation** — thin-data narrative, not agent failure | `uc13-company-data-analysis.md`, M-PHV2 scorecards | Required context when scoring Chip B |
@@ -592,7 +593,7 @@ Suggested program sizes (for reference only):
 | D-14.2 | **Pre-existing `bootstrap_failed` intents** | Fix during rebootstrap vs document-only vs stay out of scope | §5.1 vs 6-intent harness rollup |
 | D-14.3 | **Package size** | A (G6 only) / B (G6 + harness + BMA + scorecards) / C (+ 4-company + VDR + Profiler) | §14 program sizes |
 | D-14.4 | **Phase C multi-company gold labels** | Escalate vs keep deferred per M4 Decision 3 | `eval/retrieval/README.md` L759 |
-| D-14.5 | **phv4 NEW-2** | Accept substitute stability evidence vs hold for more baselines | `pending2.md` |
+| D-14.5 | ~~**phv4 NEW-2**~~ **CLOSED 2026-07-30** — accepted `baseline_544eb3f2a0e2` as substitute stability evidence (registry hash C + gold rework disclosed) | `.dev/attestations/chip-a-g6-d14-5-baseline-sign-off.md` |
 
 ---
 

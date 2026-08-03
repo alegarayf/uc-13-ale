@@ -1,0 +1,232 @@
+ingestion_snapshot: uc13_ale:35104:2026-07-30
+total_positive_chunk_ids: 23721
+row_count: 57
+intents:
+  bma.detect_cim_presence:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  bma.retrieve_business_overview:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  bma.retrieve_model_changes_and_dependencies:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  bma.retrieve_people_and_org:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  bma.retrieve_pricing_and_margins:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  bma.retrieve_revenue_by_location_and_metrics:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  bma.retrieve_revenue_visibility:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  bma.retrieve_sales_and_customers:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  bma.retrieve_workforce_and_capacity:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 36
+  cqa.retrieve_account_size:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  cqa.retrieve_cohort_data:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  cqa.retrieve_contract_terms:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  cqa.retrieve_customer_concentration:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  cqa.retrieve_customer_health:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  cqa.retrieve_customer_tenure:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  cqa.retrieve_payor_mix:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  cqa.retrieve_retention_metrics:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  cqa.retrieve_revenue_type_and_renewals:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 10
+  fta.ebitda.q1_financial_statements:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 0
+  fta.ebitda.q2_ebitda_and_margins:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.ebitda.q3_working_capital:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.ebitda.q4_addback_schedule:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.opex.q1_financial_statements:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 0
+  fta.opex.q2_working_capital:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.opex.q3_projected_financials:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.revenue.q1_financial_statements:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 0
+  fta.revenue.q2_revenue_by_segment:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.revenue.q3_revenue_by_geography:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.revenue.q4_customer_concentration:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.revenue.q4_customer_concentration_fallback:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  fta.revenue.q5_quickbooks_pl:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 8
+  kpi.retrieve_bench_and_capacity:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 2842
+  kpi.retrieve_bill_rates_and_margins:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 2829
+  kpi.retrieve_delivery_model:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 28
+  kpi.retrieve_headcount_attrition:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 2829
+  kpi.retrieve_healthcare_labor_market:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 2842
+  kpi.retrieve_healthcare_ops:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 2829
+  kpi.retrieve_healthcare_revenue_per_unit:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 2829
+  kpi.retrieve_kpi_dashboard:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 15
+  kpi.retrieve_pipeline_backlog:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 2829
+  legal.contracts_vendors_platform:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 17
+  legal.employment:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 17
+  legal.insurance:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 17
+  legal.ip_privacy:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 17
+  legal.litigation:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 17
+  profiler.banked_vs_nonbanked:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 13
+  profiler.business_description:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 13
+  profiler.company_size_indicators:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 2827
+  profiler.deal_type:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 13
+  profiler.industry_overlay:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 13
+  profiler.revenue_model:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 13
+  profiler.vertical_subsector:
+    gold_status: partial
+    gold_method: filename_closure
+    positive_count: 13
+  qoe.retrieve_ebitda_bridge:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 73
+  qoe.retrieve_owner_comp_support:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 73
+  qoe.retrieve_qofe_report:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 73
+  qoe.retrieve_revenue_footnotes:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 73
+  qoe.retrieve_revenue_quality:
+    gold_status: ready
+    gold_method: citation_backfill
+    positive_count: 73
