@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-03 — hector-vdr-session merge scout execution
+
+- Merge (`feature/uc13-after-merge-job-test` → `feat/merge-hector-incoming`): Integrated Hector VDR session fixes — UI notebook entry (`run_vdr_job.py`), `vdr_pipeline.yml` widget trigger pattern, `run_vdr_pipeline.py` abort guard + default vision, profiler `company_name` isolation + Memorandum recall, FTA assessment `flags` JSON deserialize, exec-summary Haiku/Llama token cap, shared VS index busy-wait, ingestion chunk cap + raw-data classifier exclusion, Phase-5 manifest accuracy. Rationale: closes G5 VDR gate and FTA memo fallback; fixes cross-company profiler bleed confirmed on Clearsulting/GKF VDR runs. Merge itself was conflict-free (`git merge --no-commit` completed automatically); adversarial pass before merge found and committed separately a pre-existing unrelated WIP (untracking 18 personal operator docs from version control) so the merge commit stayed clean. Full suite: **766 passed / 5 skipped** post-merge. Adversarial gap deferred: Elder Care chunk-cap validation at 1,386-file scale still pending operator re-run on `uc13_ale`.
+
+- Reject (BMA extraction — operator decision): **Did not adopt** Hector two-pass BMA extraction (`7ff1157`, `2d22931`) — restored single-call Sonnet + `max_tokens=16_000` path validated on Chip B e2e (SPG 71k chunks, BMA 7/7). Rationale: Hector split was a VDR-session timeout patch against Rallyday `uc13` serving limits, not prod code on the eval-validated extraction contract; Chip B golden-checklist evidence binds to the existing R-1 remediation.
+
+- Note (`flags` STRING contract): FTA `generate_financial_assessment` now matches BMA/CQA/KPI/QoE defensive `json.loads` on `flags` column — orchestrator memo sections no longer fall back on `'str' object has no attribute 'get'`. Legal/Forecast generators unchanged (lower iteration risk). Per Hector `f47a7c1` + existing local BMA R-3.
+
+- Infra (catalog): Retained **`uc13_ale`** as eval/dev catalog; Hector `uc13.ops` DDL pattern already mirrored for harness Delta store — re-run `apply_ops_ddl.sql` for `uc13_ale` if new ops objects added on Rallyday side.
+
+- Docs: Closed **FTA memo generator** and **G5 VDR gate** rows in `post_merge_regressions.md` and `OPEN_ITEMS.md`; updated `CLUSTER_GATES.md` G5 to PASS with Hector run evidence (Clearsulting run 31, GKF run 36); updated `my_runbook.md` Phase 9 checklist; synced `pending2.md`. Push to `hector` remote deferred pending explicit coordination on their prod VDR branch naming.
+
 ## chip-b-4company-agent-validation — 2026-07-30
 
 - T7 (document gaps, regressions, and attestations in post_merge_regressions.md): Updated `post_merge_regressions.md` — closed G6 gold-label bootstrap row (Chip A audit pass-with-conditions, 57 gold rows, 765 tests); closed 4-company e2e row with T2–T6 outcomes (all three Chip B companies 9/0/0, informational G1 scores); added Chip B attestation section for Clearsulting Legal 0/11 thin-data, SPG BMA R-1 hold at 71k chunks, and QoE token-cap watch (no truncation). Rationale: tracked regression map now reflects Chip B closeout per plan deliverable B4. Adversarial gap deferred: no automated test for markdown tracker — manual review per plan contract.
