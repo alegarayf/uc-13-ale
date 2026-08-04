@@ -164,9 +164,8 @@ def get_coverage_report(
           - total_approved, total_ingested, total_missing
           - by_workstream: {ws: {approved, ingested, missing}} (lists of filenames)
     """
-    schema           = "ingestion"
-    table_relevance  = f"{catalog}.classification.doc_relevance"
-    table_embeddings = f"{catalog}.{schema}.embeddings"
+    schema          = "ingestion"
+    table_relevance = f"{catalog}.classification.doc_relevance"
 
     tier_sql = (
         f"AND priority_tier IN ({', '.join(str(t) for t in tiers)})"
@@ -183,14 +182,19 @@ def get_coverage_report(
     """).collect()
 
     try:
-        ingested_rows = spark.sql(f"""
-            SELECT DISTINCT file_name
-            FROM   {table_embeddings}
-            WHERE  company_name = '{company_name}'
-        """).collect()
-        ingested_names: set[str] = {r.file_name for r in ingested_rows}
-    except Exception:
-        ingested_names = set()
+        from status_store import COMPLETE, StatusStore
+    except ImportError:
+        scripts_dir = str(Path(__file__).parent)
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from status_store import COMPLETE, StatusStore
+
+    status_map = StatusStore(spark, catalog, schema).read_status_map(company_name)
+    ingested_names: set[str] = {
+        row.file_name
+        for row in status_map.values()
+        if row.status == COMPLETE
+    }
 
     by_ws: dict[str, dict] = {}
     approved_all: set[str] = set()
