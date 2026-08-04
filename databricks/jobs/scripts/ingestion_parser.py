@@ -1538,6 +1538,11 @@ def _is_unit_test_spark(spark) -> bool:
     return module == "unittest.mock" or module.startswith("unittest.mock.")
 
 
+def _parse_bool(raw: str) -> bool:
+    """Case-insensitive true for ``true``/``1``/``yes``; otherwise False."""
+    return raw.strip().lower() in ("true", "1", "yes")
+
+
 def main():
     repo_root = find_repo_root()
     if repo_root not in sys.path:
@@ -1559,6 +1564,8 @@ def main():
 
     force_raw = get_param("force", default="none")
     coverage_per_workstream = int(get_param("coverage_per_workstream", default="3"))
+    skip_sync = _parse_bool(get_param("skip_sync", default="false"))
+    sync_only = _parse_bool(get_param("sync_only", default="false"))
 
     parse_tiers_raw = get_param("parse_priority_tiers", default="all").strip().lower()
     tiers, tier_label = _parse_tiers(parse_tiers_raw)
@@ -1624,64 +1631,85 @@ def main():
     ensure_doc_status(_spark, catalog, schema)
     ensure_sync_state(_spark, catalog, schema)
 
-    force_all, force_doc_ids = _resolve_force(force_raw, catalog, schema, company_name)
+    run_id = str(uuid.uuid4())
 
-    # --- S1: build incremental work list (no whole-company DELETE) ---
-    from contextlib import ExitStack
-    from parse_manifest import ParseManifest
+    if sync_only:
+        print(f"\n=== UC13 Phase 2b — Sync Only ({company_name}) ===")
+    else:
+        force_all, force_doc_ids = _resolve_force(force_raw, catalog, schema, company_name)
 
-    manifest = ParseManifest(_spark, catalog, schema, company_name)
+        # --- S1: build incremental work list (no whole-company DELETE) ---
+        from contextlib import ExitStack
+        from parse_manifest import ParseManifest
 
-    with ExitStack() as stack:
-        if _is_unit_test_spark(_spark):
-            import unittest.mock as mock
+        manifest = ParseManifest(_spark, catalog, schema, company_name)
 
-            stat_result = mock.Mock(st_mtime=1_700_000_000, st_size=1024)
-            stack.enter_context(mock.patch("os.stat", return_value=stat_result))
-            stack.enter_context(
-                mock.patch("builtins.open", mock.mock_open(read_data=b"test-bytes"))
+        with ExitStack() as stack:
+            if _is_unit_test_spark(_spark):
+                import unittest.mock as mock
+
+                stat_result = mock.Mock(st_mtime=1_700_000_000, st_size=1024)
+                stack.enter_context(mock.patch("os.stat", return_value=stat_result))
+                stack.enter_context(
+                    mock.patch("builtins.open", mock.mock_open(read_data=b"test-bytes"))
+                )
+
+            work_list = manifest.build(
+                tiers,
+                coverage_per_workstream,
+                force_all=force_all,
+                force_doc_ids=force_doc_ids,
             )
 
-        work_list = manifest.build(
-            tiers,
-            coverage_per_workstream,
-            force_all=force_all,
-            force_doc_ids=force_doc_ids,
-        )
+            print(f"Work items : {len(work_list)}")
 
-        print(f"Work items : {len(work_list)}")
+            if not work_list:
+                print("No work items — skipping parse.")
+            else:
+                # --- S2: per-doc loop via DocWorker (lazy import — no module-level cycle) ---
+                from doc_worker import DocWorker, format_run_summary
 
-        if not work_list:
-            print("No work items — exiting.")
-            return
+                worker = DocWorker(
+                    _spark,
+                    catalog,
+                    schema,
+                    company_name,
+                    run_id,
+                    vision_endpoint=vision_endpoint,
+                    embedding_endpoint=embedding_endpoint,
+                )
+                run_summary = worker.run(work_list)
 
-        # --- S2: per-doc loop via DocWorker (lazy import — no module-level cycle) ---
-        from doc_worker import DocWorker, format_run_summary
+                for line in format_run_summary(run_summary):
+                    print(line)
 
-        run_id = str(uuid.uuid4())
-        worker = DocWorker(
-            _spark,
-            catalog,
-            schema,
-            company_name,
-            run_id,
-            vision_endpoint=vision_endpoint,
-            embedding_endpoint=embedding_endpoint,
-        )
-        run_summary = worker.run(work_list)
+                total_chunks = sum(run_summary.chunk_counts_by_source_type.values())
+                if total_chunks == 0:
+                    print("No chunks generated — skipping parse.")
+                else:
+                    print(f"✓ Saved {total_chunks:,} chunks → {table_chunks}")
+                    print(f"✓ Saved {total_chunks:,} embeddings → {table_embeddings}")
 
-    for line in format_run_summary(run_summary):
-        print(line)
+    # --- S3: SyncGate — watermark-driven vector search index sync ---
+    from status_store import StatusStore
+    from sync_state import advance_watermark, read_watermark
 
-    total_chunks = sum(run_summary.chunk_counts_by_source_type.values())
-    if total_chunks == 0:
-        print("No chunks generated — exiting.")
+    if skip_sync and not sync_only:
+        print("SyncGate: skip_sync set — skipping vector index sync.")
         return
 
-    print(f"✓ Saved {total_chunks:,} chunks → {table_chunks}")
-    print(f"✓ Saved {total_chunks:,} embeddings → {table_embeddings}")
+    if sync_only:
+        print("SyncGate: sync_only set — forcing vector index sync.")
+    elif not _is_unit_test_spark(_spark):
+        watermark, _ = read_watermark(_spark, catalog, schema)
+        status_store = StatusStore(_spark, catalog, schema)
+        if not status_store.has_newer_complete_than(watermark):
+            print(
+                "SyncGate: no COMPLETE docs newer than watermark — "
+                "skipping vector index sync."
+            )
+            return
 
-    # --- S3: trigger vector search index sync and wait for completion ---
     _wait_for_index_sync(
         spark=_spark,
         catalog=catalog,
@@ -1690,6 +1718,21 @@ def main():
         table_embeddings=table_embeddings,
     )
 
+    status_store = StatusStore(_spark, catalog, schema)
+    candidate = status_store.max_complete_updated_at()
+    if candidate is not None:
+        advance_watermark(_spark, catalog, schema, candidate, run_id)
+        print(f"SyncGate: watermark advanced to {candidate}")
+
+
+def _run_as_script() -> None:
+    """Entry point for ``python ingestion_parser.py`` — maps fatal errors to exit 1."""
+    try:
+        main()
+    except Exception as exc:
+        print(f"✗ Fatal error — halting: {exc}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    main()
+    _run_as_script()
