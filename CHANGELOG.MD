@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-ingestion-parser / M0 — State & Manifest Foundations — 2026-08-04
+
+- T3 (sync_state DDL ensure): Added `databricks/jobs/scripts/sync_state.py` with `ensure_sync_state(spark, catalog, schema)` — idempotent `CREATE TABLE IF NOT EXISTS` for the §8.4 3-column `sync_state` schema (`catalog_scope`, `last_successful_sync`, `run_id`). Rationale: M0 durable-state layer; M2 SyncGate will target these exact columns for watermark read/write. Adversarial gap deferred: no M0 unit test per plan contract — T5 dry-run checkpoint (`table exists after S0`) is the falsifier.
+
 ## 2026-08-03 — hector-vdr-session merge scout execution
 
 - Merge (`feature/uc13-after-merge-job-test` → `feat/merge-hector-incoming`): Integrated Hector VDR session fixes — UI notebook entry (`run_vdr_job.py`), `vdr_pipeline.yml` widget trigger pattern, `run_vdr_pipeline.py` abort guard + default vision, profiler `company_name` isolation + Memorandum recall, FTA assessment `flags` JSON deserialize, exec-summary Haiku/Llama token cap, shared VS index busy-wait, ingestion chunk cap + raw-data classifier exclusion, Phase-5 manifest accuracy. Rationale: closes G5 VDR gate and FTA memo fallback; fixes cross-company profiler bleed confirmed on Clearsulting/GKF VDR runs. Merge itself was conflict-free (`git merge --no-commit` completed automatically); adversarial pass before merge found and committed separately a pre-existing unrelated WIP (untracking 18 personal operator docs from version control) so the merge commit stayed clean. Full suite: **766 passed / 5 skipped** post-merge. Adversarial gap deferred: Elder Care chunk-cap validation at 1,386-file scale still pending operator re-run on `uc13_ale`.
