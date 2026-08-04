@@ -227,11 +227,27 @@ def test_parse_bool_round_trip(raw: str, expected: bool) -> None:
     assert ip._parse_bool(raw) is expected
 
 
-def test_dunder_main_wraps_fatal_exception_in_sys_exit_1() -> None:
+def test_dunder_main_wraps_fatal_exception_in_sys_exit_1(capsys) -> None:
     with patch("ingestion_parser.main", side_effect=RuntimeError("boom")):
         with pytest.raises(SystemExit) as exc_info:
             ip._run_as_script()
         assert exc_info.value.code == 1
+    captured = capsys.readouterr().out
+    assert "✗ Fatal error — halting" in captured
+    assert "boom" in captured
+
+
+def test_run_as_script_wraps_index_sync_error_in_sys_exit_1(capsys) -> None:
+    with patch(
+        "ingestion_parser.main",
+        side_effect=ip.IndexSyncError("pipeline state=FAILED indexed=0/100"),
+    ):
+        with pytest.raises(SystemExit) as exc_info:
+            ip._run_as_script()
+        assert exc_info.value.code == 1
+    captured = capsys.readouterr().out
+    assert "✗ Fatal error — halting" in captured
+    assert "FAILED" in captured
 
 
 class _ProductionSparkStub:
@@ -362,3 +378,176 @@ def test_main_watermark_skip_and_sync_paths(
     assert "sync_only set" in captured
     mock_wait_for_sync.assert_called_once()
     mock_advance_watermark.assert_called_once()
+
+
+@patch("sync_state.advance_watermark")
+@patch("sync_state.read_watermark", return_value=(_TS_1, _RUN_1))
+@patch("ingestion_parser._wait_for_index_sync")
+@patch("sync_state.ensure_sync_state")
+@patch("status_store.ensure_doc_status")
+@patch("ingestion_parser.get_param", side_effect=_get_param_side_effect({}))
+@patch("ingestion_parser.find_repo_root", return_value=str(_REPO_ROOT))
+@patch("pyspark.sql.SparkSession.getActiveSession")
+@patch("parse_manifest.ParseManifest")
+def test_two_consecutive_no_change_runs_skip_sync_without_advancing_watermark(
+    mock_manifest_cls,
+    mock_get_active_session,
+    _mock_find_repo_root,
+    _mock_get_param,
+    _mock_ensure_doc_status,
+    _mock_ensure_sync_state,
+    mock_wait_for_sync,
+    _mock_read_watermark,
+    mock_advance_watermark,
+    capsys,
+) -> None:
+    """Runnable falsifier: back-to-back no-change runs must not trigger sync or advance."""
+    mock_manifest_cls.return_value.build.return_value = []
+    spark = _ProductionSparkStub(has_newer=False, max_updated_at=_TS_2)
+    mock_get_active_session.return_value = spark
+
+    ip.main()
+    first_out = capsys.readouterr().out
+    ip.main()
+    second_out = capsys.readouterr().out
+
+    for captured in (first_out, second_out):
+        assert "no COMPLETE docs newer than watermark" in captured
+    mock_wait_for_sync.assert_not_called()
+    mock_advance_watermark.assert_not_called()
+
+
+@patch("sync_state.advance_watermark")
+@patch("sync_state.read_watermark", return_value=(_TS_1, _RUN_1))
+@patch("ingestion_parser._wait_for_index_sync")
+@patch("sync_state.ensure_sync_state")
+@patch("status_store.ensure_doc_status")
+@patch("ingestion_parser.find_repo_root", return_value=str(_REPO_ROOT))
+@patch("pyspark.sql.SparkSession.getActiveSession")
+@patch("parse_manifest.ParseManifest")
+def test_skip_sync_then_plain_run_triggers_sync(
+    mock_manifest_cls,
+    mock_get_active_session,
+    _mock_find_repo_root,
+    _mock_ensure_doc_status,
+    _mock_ensure_sync_state,
+    mock_wait_for_sync,
+    mock_read_watermark,
+    mock_advance_watermark,
+    capsys,
+) -> None:
+    """Runnable falsifier: skip_sync run must not block a later plain run from syncing."""
+    mock_manifest_cls.return_value.build.return_value = []
+    spark_skip = _ProductionSparkStub(has_newer=True, max_updated_at=_TS_2)
+    mock_get_active_session.return_value = spark_skip
+
+    with patch(
+        "ingestion_parser.get_param",
+        side_effect=_get_param_side_effect({"skip_sync": "true"}),
+    ):
+        ip.main()
+
+    skip_out = capsys.readouterr().out
+    assert "skip_sync set" in skip_out
+    mock_wait_for_sync.assert_not_called()
+    mock_advance_watermark.assert_not_called()
+
+    mock_wait_for_sync.reset_mock()
+    mock_advance_watermark.reset_mock()
+    mock_read_watermark.return_value = (_TS_1, _RUN_1)
+
+    spark_sync = _ProductionSparkStub(has_newer=True, max_updated_at=_TS_2)
+    mock_get_active_session.return_value = spark_sync
+
+    with patch(
+        "ingestion_parser.get_param",
+        side_effect=_get_param_side_effect({}),
+    ):
+        ip.main()
+
+    plain_out = capsys.readouterr().out
+    assert "skip_sync set" not in plain_out
+    mock_wait_for_sync.assert_called_once()
+    mock_advance_watermark.assert_called_once()
+
+
+@patch("sync_state.advance_watermark")
+@patch("sync_state.read_watermark", return_value=(None, None))
+@patch("ingestion_parser._wait_for_index_sync")
+@patch("sync_state.ensure_sync_state")
+@patch("status_store.ensure_doc_status")
+@patch("ingestion_parser.get_param", side_effect=_get_param_side_effect({}))
+@patch("ingestion_parser.find_repo_root", return_value=str(_REPO_ROOT))
+@patch("pyspark.sql.SparkSession.getActiveSession")
+@patch("parse_manifest.ParseManifest")
+def test_has_newer_complete_than_none_empty_catalog_returns_false(
+    mock_manifest_cls,
+    mock_get_active_session,
+    _mock_find_repo_root,
+    _mock_get_param,
+    _mock_ensure_doc_status,
+    _mock_ensure_sync_state,
+    mock_wait_for_sync,
+    _mock_read_watermark,
+    mock_advance_watermark,
+    capsys,
+) -> None:
+    """Cold-start with zero COMPLETE rows: predicate false, sync skipped naturally."""
+    mock_manifest_cls.return_value.build.return_value = []
+    spark = _ProductionSparkStub(has_newer=False, max_updated_at=None)
+    mock_get_active_session.return_value = spark
+
+    ip.main()
+
+    captured = capsys.readouterr().out
+    assert "no COMPLETE docs newer than watermark" in captured
+    mock_wait_for_sync.assert_not_called()
+    mock_advance_watermark.assert_not_called()
+
+
+@patch("sync_state.advance_watermark")
+@patch("sync_state.read_watermark", return_value=(_TS_1, _RUN_1))
+@patch("ingestion_parser._wait_for_index_sync")
+@patch("sync_state.ensure_sync_state")
+@patch("status_store.ensure_doc_status")
+@patch("ingestion_parser.get_param", side_effect=_get_param_side_effect({}))
+@patch("ingestion_parser.find_repo_root", return_value=str(_REPO_ROOT))
+@patch("pyspark.sql.SparkSession.getActiveSession")
+@patch("doc_worker.DocWorker")
+@patch("parse_manifest.ParseManifest")
+def test_m_phv1_success_stdout_binding_strings(
+    mock_manifest_cls,
+    mock_doc_worker_cls,
+    mock_get_active_session,
+    _mock_find_repo_root,
+    _mock_get_param,
+    _mock_ensure_doc_status,
+    _mock_ensure_sync_state,
+    mock_wait_for_sync,
+    _mock_read_watermark,
+    _mock_advance_watermark,
+    capsys,
+) -> None:
+    """M-PHV1 success row: chunk/embed save lines coexist with ✓ Index ready."""
+    from doc_worker import RunSummary
+
+    mock_manifest_cls.return_value.build.return_value = [MagicMock()]
+    mock_worker = MagicMock()
+    mock_doc_worker_cls.return_value = mock_worker
+    mock_worker.run.return_value = RunSummary(chunk_counts_by_source_type={"text": 3})
+
+    def _print_index_ready(**_kwargs):
+        print("✓ Index ready and current — uc13.ingestion.embeddings_index")
+
+    mock_wait_for_sync.side_effect = _print_index_ready
+
+    spark = _ProductionSparkStub(has_newer=True, max_updated_at=_TS_2)
+    mock_get_active_session.return_value = spark
+
+    ip.main()
+
+    captured = capsys.readouterr().out
+    assert "✓ Saved 3 chunks" in captured
+    assert "✓ Saved 3 embeddings" in captured
+    assert "✓ Index ready" in captured
+    assert "watermark advanced" in captured
