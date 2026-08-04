@@ -38,10 +38,20 @@ def test_full_pipeline_ingestion_task_param_order_matches_run_ingestion_pipeline
 
 
 def test_ingestion_pipeline_ingestion_parser_task_appends_force_and_coverage():
-    """Falsifier: direct ingestion_parser task must wire T5's frozen param names."""
+    """Falsifier: direct ingestion_parser task must wire M1 force/coverage params."""
     block = _task_block(_INGESTION_SOURCE, "ingestion_parser")
     params = re.findall(r"\{\{job\.parameters\.(\w+)\}\}", block)
-    assert params[-2:] == ["force", "coverage_per_workstream"]
+    assert "force" in params and "coverage_per_workstream" in params
+    force_idx = params.index("force")
+    coverage_idx = params.index("coverage_per_workstream")
+    assert force_idx < coverage_idx
+
+
+def test_ingestion_pipeline_ingestion_parser_task_appends_skip_sync_and_sync_only():
+    """Falsifier: direct ingestion_parser task must wire M2 T5 frozen param names."""
+    block = _task_block(_INGESTION_SOURCE, "ingestion_parser")
+    params = re.findall(r"\{\{job\.parameters\.(\w+)\}\}", block)
+    assert params[-2:] == ["skip_sync", "sync_only"]
 
 
 def test_job_parameters_define_force_and_coverage_defaults():
@@ -57,6 +67,16 @@ def test_job_parameters_define_force_and_coverage_defaults():
         )
         assert force is not None and force.group(1) == "none"
         assert coverage is not None and coverage.group(1) == "3"
+
+
+def test_ingestion_pipeline_job_parameters_define_skip_sync_defaults():
+    """Falsifier: M2 T5 job-level skip_sync/sync_only must exist with frozen defaults."""
+    for name in ("skip_sync", "sync_only"):
+        match = re.search(
+            rf"- name: {name}\s+default: \"([^\"]+)\"",
+            _INGESTION_SOURCE,
+        )
+        assert match is not None and match.group(1) == "false"
 
 
 def test_full_pipeline_uses_spark_python_task_not_python_script_for_ingestion():

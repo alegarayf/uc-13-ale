@@ -59,6 +59,16 @@ resources:
           description: >
             Optional. Max coverage-injection docs per uncovered workstream
             during manifest build. Default: 3.
+        - name: skip_sync
+          default: "false"
+          description: >
+            Optional. When true, skip vector index sync after parse (SyncGate
+            escape hatch). Default: false.
+        - name: sync_only
+          default: "false"
+          description: >
+            Optional. When true, run vector index sync only (skip S1/S2 parse
+            phases). Default: false.
 
       tasks:
         # ------------------------------------------------------------------
@@ -172,6 +182,8 @@ resources:
               - "{{job.parameters.embedding_endpoint}}"
               - "{{job.parameters.force}}"
               - "{{job.parameters.coverage_per_workstream}}"
+              - "{{job.parameters.skip_sync}}"
+              - "{{job.parameters.sync_only}}"
           new_cluster:
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_DS3_v2"
