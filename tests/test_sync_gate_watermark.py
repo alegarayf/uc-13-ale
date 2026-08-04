@@ -1,14 +1,16 @@
 """SyncGate watermark contract tests (M2).
 
-T1: StatusStore catalog-wide predicate/candidate reads (this packet).
-T2/T3/T6 extend this file with sync_state and SyncGate decision-block tests.
+T1: StatusStore catalog-wide predicate/candidate reads.
+T2: sync_state watermark read/advance (this packet).
+T3/T6 extend with SyncGate decision-block and __main__ guard tests.
 """
 
 from __future__ import annotations
 
 import sys
 import types
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -53,8 +55,14 @@ if "pyspark" not in sys.modules:
     sys.modules["pyspark.sql.types"] = _types_mod
 
 from status_store import COMPLETE, StatusStore  # noqa: E402
+import sync_state  # noqa: E402
 
 _SCHEMA = "ingestion"
+_CATALOG = "uc13"
+_TS_1 = datetime(2026, 8, 4, 12, 0, 0, tzinfo=timezone.utc)
+_TS_2 = datetime(2026, 8, 4, 18, 0, 0, tzinfo=timezone.utc)
+_RUN_1 = "run-abc"
+_RUN_2 = "run-def"
 
 
 def _assert_catalog_wide_sql(sql: str) -> None:
@@ -111,3 +119,88 @@ def test_catalog_wide_candidate_no_company_filter() -> None:
     assert result == recent_updated_at
     assert len(captured) == 1
     _assert_catalog_wide_sql(captured[0])
+
+
+class _InMemorySyncStateSpark:
+    """Minimal Spark stub: one MERGE-keyed row per catalog_scope."""
+
+    def __init__(self) -> None:
+        self._rows: dict[str, dict] = {}
+        self._pending_row: dict | None = None
+        self.sql_calls: list[str] = []
+
+    def createDataFrame(self, rows, schema=None):
+        self._pending_row = rows[0]
+        frame = MagicMock()
+        frame.createOrReplaceTempView = MagicMock()
+        return frame
+
+    def sql(self, query: str):
+        self.sql_calls.append(query)
+        result = MagicMock()
+        if query.strip().upper().startswith("SELECT"):
+            escaped = _CATALOG.replace("'", "''")
+            marker = f"catalog_scope = '{escaped}'"
+            if marker not in query:
+                result.collect.return_value = []
+                return result
+            stored = self._rows.get(_CATALOG)
+            if stored is None:
+                result.collect.return_value = []
+            else:
+                result.collect.return_value = [
+                    SimpleNamespace(
+                        last_successful_sync=stored["last_successful_sync"],
+                        run_id=stored["run_id"],
+                    )
+                ]
+            return result
+
+        if "MERGE INTO" in query.upper():
+            assert self._pending_row is not None
+            key = self._pending_row["catalog_scope"]
+            self._rows[key] = dict(self._pending_row)
+            assert "ON target.catalog_scope = source.catalog_scope" in query
+        return result
+
+
+def test_watermark_read_no_row_returns_none() -> None:
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = []
+
+    assert sync_state.read_watermark(spark, _CATALOG, _SCHEMA) == (None, None)
+
+    sql = spark.sql.call_args[0][0]
+    assert f"{_CATALOG}.{_SCHEMA}.sync_state" in sql
+    assert "catalog_scope = 'uc13'" in sql
+
+
+def test_watermark_advance_persists_and_is_idempotent() -> None:
+    spark = _InMemorySyncStateSpark()
+
+    sync_state.advance_watermark(spark, _CATALOG, _SCHEMA, _TS_1, _RUN_1)
+    assert spark._pending_row["catalog_scope"] == _CATALOG
+    assert len(spark._rows) == 1
+    ts_after_first, run_after_first = sync_state.read_watermark(spark, _CATALOG, _SCHEMA)
+    assert ts_after_first == _TS_1
+    assert run_after_first == _RUN_1
+
+    sync_state.advance_watermark(spark, _CATALOG, _SCHEMA, _TS_2, _RUN_2)
+    assert len(spark._rows) == 1
+    ts_after_second, run_after_second = sync_state.read_watermark(spark, _CATALOG, _SCHEMA)
+    assert ts_after_second == _TS_2
+    assert run_after_second == _RUN_2
+
+    merge_sql = [q for q in spark.sql_calls if "MERGE INTO" in q.upper()]
+    assert len(merge_sql) == 2
+
+
+def test_advance_watermark_propagates_sql_failure() -> None:
+    spark = MagicMock()
+    spark.createDataFrame.return_value.createOrReplaceTempView = MagicMock()
+    spark.sql.side_effect = RuntimeError("simulated MERGE failure")
+
+    with pytest.raises(RuntimeError, match="simulated MERGE failure"):
+        sync_state.advance_watermark(
+            spark, _CATALOG, _SCHEMA, _TS_1, f"run-{uuid.uuid4().hex}"
+        )
