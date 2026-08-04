@@ -258,7 +258,9 @@ eval/retrieval/reports/*.json
 databricks/.env
 databricks/tmp/
 databricks/context_docs/
-docs/
+docs/*
+!docs/backlog.md
+!docs/session_log.md
 
 # TypeScript / Vitest build and coverage output
 backend-api/dist/
