@@ -1,8 +1,9 @@
 """SyncGate watermark contract tests (M2).
 
 T1: StatusStore catalog-wide predicate/candidate reads.
-T2: sync_state watermark read/advance (this packet).
-T3/T6 extend with SyncGate decision-block and __main__ guard tests.
+T2: sync_state watermark read/advance.
+T3: SyncGate decision block, _parse_bool, __main__ guard.
+T6 extends with additional SyncGate paths.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -56,6 +57,7 @@ if "pyspark" not in sys.modules:
 
 from status_store import COMPLETE, StatusStore  # noqa: E402
 import sync_state  # noqa: E402
+import ingestion_parser as ip  # noqa: E402
 
 _SCHEMA = "ingestion"
 _CATALOG = "uc13"
@@ -204,3 +206,159 @@ def test_advance_watermark_propagates_sql_failure() -> None:
         sync_state.advance_watermark(
             spark, _CATALOG, _SCHEMA, _TS_1, f"run-{uuid.uuid4().hex}"
         )
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("true", True),
+        ("TRUE", True),
+        ("1", True),
+        ("yes", True),
+        ("Yes", True),
+        ("false", False),
+        ("0", False),
+        ("no", False),
+        ("", False),
+        ("maybe", False),
+    ],
+)
+def test_parse_bool_round_trip(raw: str, expected: bool) -> None:
+    assert ip._parse_bool(raw) is expected
+
+
+def test_dunder_main_wraps_fatal_exception_in_sys_exit_1() -> None:
+    with patch("ingestion_parser.main", side_effect=RuntimeError("boom")):
+        with pytest.raises(SystemExit) as exc_info:
+            ip._run_as_script()
+        assert exc_info.value.code == 1
+
+
+class _ProductionSparkStub:
+    """Non-mock Spark so SyncGate watermark logic is exercised."""
+
+    __module__ = "pyspark.sql.session"
+
+    def __init__(self, *, has_newer: bool, max_updated_at: datetime | None) -> None:
+        self._has_newer = has_newer
+        self._max_updated_at = max_updated_at
+
+    def sql(self, query: str):
+        result = MagicMock()
+        if "LIMIT 1" in query:
+            if self._has_newer:
+                result.collect.return_value = [SimpleNamespace(n=1)]
+            else:
+                result.collect.return_value = []
+        elif "MAX(updated_at)" in query:
+            result.collect.return_value = [
+                SimpleNamespace(max_updated_at=self._max_updated_at)
+            ]
+        else:
+            result.collect.return_value = []
+        return result
+
+    def createDataFrame(self, rows, schema=None):
+        frame = MagicMock()
+        frame.createOrReplaceTempView = MagicMock()
+        return frame
+
+
+def _get_param_side_effect(overrides: dict[str, str]):
+    base = {
+        "sp_company_name": "TestCo",
+        "catalog": _CATALOG,
+        "schema": _SCHEMA,
+        "embedding_endpoint": "databricks-bge-large-en",
+        "vision_endpoint": "",
+        "parse_priority_tiers": "all",
+        "force": "none",
+        "coverage_per_workstream": "3",
+        "skip_sync": "false",
+        "sync_only": "false",
+    }
+    base.update(overrides)
+
+    def _side_effect(key: str, default=None):
+        return base.get(key, default)
+
+    return _side_effect
+
+
+@patch("sync_state.advance_watermark")
+@patch("sync_state.read_watermark", return_value=(_TS_1, _RUN_1))
+@patch("ingestion_parser._wait_for_index_sync")
+@patch("sync_state.ensure_sync_state")
+@patch("status_store.ensure_doc_status")
+@patch("ingestion_parser.get_param", side_effect=_get_param_side_effect({}))
+@patch("ingestion_parser.find_repo_root", return_value=str(_REPO_ROOT))
+@patch("pyspark.sql.SparkSession.getActiveSession")
+@patch("parse_manifest.ParseManifest")
+def test_main_watermark_skip_and_sync_paths(
+    mock_manifest_cls,
+    mock_get_active_session,
+    _mock_find_repo_root,
+    _mock_get_param,
+    _mock_ensure_doc_status,
+    _mock_ensure_sync_state,
+    mock_wait_for_sync,
+    mock_read_watermark,
+    mock_advance_watermark,
+    capsys,
+) -> None:
+    mock_manifest_cls.return_value.build.return_value = []
+
+    spark = _ProductionSparkStub(has_newer=False, max_updated_at=_TS_2)
+    mock_get_active_session.return_value = spark
+
+    ip.main()
+
+    captured = capsys.readouterr().out
+    assert "no COMPLETE docs newer than watermark" in captured
+    mock_wait_for_sync.assert_not_called()
+    mock_advance_watermark.assert_not_called()
+
+    mock_wait_for_sync.reset_mock()
+    mock_advance_watermark.reset_mock()
+    mock_read_watermark.return_value = (_TS_1, _RUN_1)
+
+    spark_sync = _ProductionSparkStub(has_newer=True, max_updated_at=_TS_2)
+    mock_get_active_session.return_value = spark_sync
+
+    ip.main()
+
+    captured = capsys.readouterr().out
+    mock_wait_for_sync.assert_called_once()
+    mock_advance_watermark.assert_called_once_with(
+        spark_sync, _CATALOG, _SCHEMA, _TS_2, mock_advance_watermark.call_args[0][4]
+    )
+    assert "watermark advanced" in captured
+
+    mock_wait_for_sync.reset_mock()
+    mock_advance_watermark.reset_mock()
+
+    with patch(
+        "ingestion_parser.get_param",
+        side_effect=_get_param_side_effect({"skip_sync": "true"}),
+    ):
+        ip.main()
+
+    captured = capsys.readouterr().out
+    assert "skip_sync set" in captured
+    mock_wait_for_sync.assert_not_called()
+
+    mock_wait_for_sync.reset_mock()
+    mock_advance_watermark.reset_mock()
+    mock_read_watermark.return_value = (_TS_1, _RUN_1)
+
+    with patch(
+        "ingestion_parser.get_param",
+        side_effect=_get_param_side_effect({"sync_only": "true"}),
+    ):
+        ip.main()
+
+    captured = capsys.readouterr().out
+    assert "Sync Only" in captured
+    assert "sync_only set" in captured
+    mock_wait_for_sync.assert_called_once()
+    mock_advance_watermark.assert_called_once()
