@@ -2,6 +2,8 @@
 
 ## uc13-ingestion-parser / M0 — State & Manifest Foundations — 2026-08-04
 
+- T1 (`make_doc_id` constructor): Added `databricks/jobs/scripts/doc_id.py` with structured `make_doc_id(catalog, schema, company, folder_path, file_name)` and contract-test subset `tests/test_make_doc_id.py` (normalization, trailing-slash suppression, bracket filenames, `posixpath` byte-identity vs `ingestion_parser` reference path build). Rationale: frozen M0 contract for doc_id-keyed manifest and M1+ corpus joins; coexistence with single-arg `ingestion_parser.make_doc_id` until M1 rewire. Decision log: `.dev/planning/uc13-ingestion-parser/M0/decisions/T1.md`. Adversarial gap deferred: on-cluster re-parse stability proof — T5 dry-run checkpoint owns that falsifier.
+
 - T3 (sync_state DDL ensure): Added `databricks/jobs/scripts/sync_state.py` with `ensure_sync_state(spark, catalog, schema)` — idempotent `CREATE TABLE IF NOT EXISTS` for the §8.4 3-column `sync_state` schema (`catalog_scope`, `last_successful_sync`, `run_id`). Rationale: M0 durable-state layer; M2 SyncGate will target these exact columns for watermark read/write. Adversarial gap deferred: no M0 unit test per plan contract — T5 dry-run checkpoint (`table exists after S0`) is the falsifier.
 
 ## 2026-08-03 — hector-vdr-session merge scout execution
