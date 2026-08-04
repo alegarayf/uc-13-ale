@@ -359,11 +359,11 @@ class ParseManifest:
     ) -> None:
         existing = resolved_by_id.get(self._doc_id_for_approved(approved))
         if existing is not None:
-            existing.coverage_injected = True
             if existing.classification not in _WORK_LIST_CLASSIFICATIONS:
                 summary.classification_counts[existing.classification] -= 1
                 existing.classification = classification
                 summary.classification_counts[classification] += 1
+                existing.coverage_injected = True
             return
 
         resolved = self._process_approved_row(
