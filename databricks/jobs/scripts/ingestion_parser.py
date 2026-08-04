@@ -171,10 +171,6 @@ class Chunk:
         self.char_count = len(self.chunk_text)
 
 
-def make_doc_id(path: str) -> str:
-    return hashlib.md5(path.encode()).hexdigest()
-
-
 # ---------------------------------------------------------------------------
 # Chunking constants
 # ---------------------------------------------------------------------------
@@ -1256,12 +1252,12 @@ _ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".xlsm", ".docx", ".doc", ".csv"
 
 def parse_file(
     file_path: str,
+    doc_id: str,
     spark,
     vision_endpoint: Optional[str] = None,
 ) -> list[Chunk]:
     file_name = os.path.basename(file_path)
     ext       = Path(file_name).suffix.lower()
-    doc_id    = make_doc_id(file_path)
 
     if ext == ".pdf":
         chunks = parse_pdf(file_path, doc_id, file_name, spark, vision_endpoint=vision_endpoint)

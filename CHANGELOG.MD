@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-ingestion-parser / M1 — Per-Doc Loop — 2026-08-04
+
+- T1 (doc_id call-site consistency): `parse_file` now requires caller-supplied `doc_id` as second positional arg; removed old single-arg `ingestion_parser.make_doc_id(path)`; `ensure_coverage.ingest_missing()` computes `doc_id` via `doc_id.make_doc_id` before each parse; added `tests/test_docworker_doc_id_consistency.py`. Rationale: frozen contract anchor so DocWorker and StatusStore share byte-identical doc_ids with ParseManifest. Decision log: `.dev/planning/uc13-ingestion-parser/M1/decisions/T1.md`. Adversarial gap deferred: `ingestion_parser.main()` parse loop still on pre-T5 signature until T5 rewire — G1 mocks `parse_file`; production `main()` intentionally broken mid-milestone.
+
 ## uc13-ingestion-parser / M0 — State & Manifest Foundations — 2026-08-04
 
 - T6 (§7 amendment — audit F1/F2/F3): Fixed `parse_manifest.py` coverage sub-pass to flag `coverage_injected` only on genuine SKIP→work-list rescue (was over-flagging tier-manifest docs on any zero-COMPLETE workstream — a cold-start provenance violation of §8.1); the post-hoc `coverage_injected_count` derivation needed no change. Added `tests/test_parse_manifest_coverage.py` (Spark-free flag-provenance regression, both directions). Corrected "13-column" → "14-column" `doc_status` label (the DDL was always the correct 14 cols). See `.dev/audits/2026-08-04-uc13-ingestion-parser-M0.md`.
