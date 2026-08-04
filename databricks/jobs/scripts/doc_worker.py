@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 import ingestion_parser as ip
@@ -21,6 +23,7 @@ from pyspark.sql.types import (
 from status_store import (
     COMPLETE,
     EMBEDDING,
+    FAILED,
     PARSER_VERSION,
     PARSING,
     ZERO_CHUNKS,
@@ -30,10 +33,60 @@ from status_store import (
 _CLASSIFICATION_NEW = "NEW"
 EMPTY_EXTRACTION = "EMPTY_EXTRACTION"
 ALL_CHUNKS_FILTERED = "ALL_CHUNKS_FILTERED"
+PARSE_EXCEPTION = "PARSE_EXCEPTION"
+FILE_NOT_FOUND = "FILE_NOT_FOUND"
+UNSUPPORTED_EXTENSION = "UNSUPPORTED_EXTENSION"
+EMBED_EXCEPTION = "EMBED_EXCEPTION"
+VISION_ENDPOINT_ERROR = "VISION_ENDPOINT_ERROR"
+
+_ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".xlsm", ".docx", ".doc", ".csv"}
+
+
+@dataclass
+class RunSummary:
+    """Per-run aggregates returned by DocWorker.run() (not ParseManifest.ManifestSummary)."""
+
+    chunk_counts_by_source_type: dict[str, int] = field(default_factory=dict)
+    vision_pages_attempted: int = 0
+    vision_pages_skipped: int = 0
+    vision_pages_failed: int = 0
+
+
+def format_run_summary(summary: RunSummary) -> list[str]:
+    """Pure formatter for RunSummary — printed once from main() after the per-doc loop."""
+    lines = [
+        "",
+        "=== UC13 Phase 2b — DocWorker Run Summary ===",
+        "",
+    ]
+    if summary.chunk_counts_by_source_type:
+        lines.append("Chunks by source_type:")
+        for source_type in sorted(summary.chunk_counts_by_source_type):
+            count = summary.chunk_counts_by_source_type[source_type]
+            lines.append(f"  {source_type}: {count}")
+    else:
+        lines.append("Chunks by source_type: (none)")
+    lines.extend(
+        [
+            "",
+            f"Vision pages attempted: {summary.vision_pages_attempted}",
+            f"Vision pages skipped:   {summary.vision_pages_skipped}",
+            f"Vision pages failed:    {summary.vision_pages_failed}",
+        ]
+    )
+    return lines
 
 
 def _escape_sql_literal(value: str) -> str:
     return value.replace("'", "''")
+
+
+def _count_source_types(chunks: list[ip.Chunk]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for chunk in chunks:
+        key = chunk.source_type or "text"
+        counts[key] = counts.get(key, 0) + 1
+    return counts
 
 
 class DocWorker:
@@ -57,6 +110,7 @@ class DocWorker:
         self.vision_endpoint = vision_endpoint
         self.embedding_endpoint = embedding_endpoint
         self._status_store = StatusStore(spark, catalog, schema)
+        self._last_chunk_source_counts: dict[str, int] | None = None
 
     @property
     def _table_chunks(self) -> str:
@@ -70,7 +124,21 @@ class DocWorker:
     def _table_relevance(self) -> str:
         return f"{self.catalog}.classification.doc_relevance"
 
+    def run(self, work_list: list[ManifestItem]) -> RunSummary:
+        """Process each manifest item; per-doc failures continue to the next doc."""
+        summary = RunSummary()
+        for item in work_list:
+            self.process(item)
+            if self._last_chunk_source_counts:
+                for source_type, count in self._last_chunk_source_counts.items():
+                    summary.chunk_counts_by_source_type[source_type] = (
+                        summary.chunk_counts_by_source_type.get(source_type, 0)
+                        + count
+                    )
+        return summary
+
     def process(self, item: ManifestItem) -> None:
+        self._last_chunk_source_counts = None
         now = datetime.now(timezone.utc)
 
         self._status_store.upsert(
@@ -87,42 +155,93 @@ class DocWorker:
             coverage_injected=item.coverage_injected,
         )
 
-        if item.classification != _CLASSIFICATION_NEW:
-            self._delete_stale_corpus(item.doc_id)
+        try:
+            if item.classification != _CLASSIFICATION_NEW:
+                self._delete_stale_corpus(item.doc_id)
 
-        content_hash = self._compute_content_hash(item.full_path)
+            ext = Path(item.file_name).suffix.lower()
+            if ext not in _ALLOWED_EXTENSIONS:
+                self._upsert_failed(
+                    item,
+                    UNSUPPORTED_EXTENSION,
+                    f"unsupported extension: {ext}",
+                )
+                return
 
-        chunks = ip.parse_file(
-            item.full_path,
-            item.doc_id,
-            self.spark,
-            vision_endpoint=self.vision_endpoint,
+            try:
+                content_hash = self._compute_content_hash(item.full_path)
+            except FileNotFoundError as exc:
+                self._upsert_failed(item, FILE_NOT_FOUND, str(exc))
+                return
+            except OSError as exc:
+                reason = (
+                    FILE_NOT_FOUND
+                    if getattr(exc, "errno", None) == 2
+                    else PARSE_EXCEPTION
+                )
+                self._upsert_failed(item, reason, str(exc))
+                return
+
+            chunks = ip.parse_file(
+                item.full_path,
+                item.doc_id,
+                self.spark,
+                vision_endpoint=self.vision_endpoint,
+            )
+
+            if not chunks:
+                zero_reason = (
+                    ALL_CHUNKS_FILTERED
+                    if item.source_size > 0
+                    else EMPTY_EXTRACTION
+                )
+                self._status_store.upsert(
+                    company_name=self.company,
+                    doc_id=item.doc_id,
+                    file_name=item.file_name,
+                    relative_path=item.relative_path,
+                    status=ZERO_CHUNKS,
+                    source_mtime=item.source_mtime,
+                    source_size=item.source_size,
+                    run_id=self.run_id,
+                    parser_version=PARSER_VERSION,
+                    updated_at=datetime.now(timezone.utc),
+                    coverage_injected=item.coverage_injected,
+                    error=zero_reason,
+                )
+                return
+
+            self._last_chunk_source_counts = _count_source_types(chunks)
+
+            try:
+                self._append_chunks(chunks, now)
+                self._embed_and_complete(chunks, item, content_hash, now)
+            except Exception as exc:
+                self._upsert_failed(item, EMBED_EXCEPTION, str(exc))
+
+        except Exception as exc:
+            self._upsert_failed(item, PARSE_EXCEPTION, str(exc))
+
+    def _upsert_failed(
+        self,
+        item: ManifestItem,
+        reason_class: str,
+        detail: str,
+    ) -> None:
+        self._status_store.upsert(
+            company_name=self.company,
+            doc_id=item.doc_id,
+            file_name=item.file_name,
+            relative_path=item.relative_path,
+            status=FAILED,
+            source_mtime=item.source_mtime,
+            source_size=item.source_size,
+            run_id=self.run_id,
+            parser_version=PARSER_VERSION,
+            updated_at=datetime.now(timezone.utc),
+            coverage_injected=item.coverage_injected,
+            error=f"{reason_class}: {detail}",
         )
-
-        if not chunks:
-            zero_reason = (
-                ALL_CHUNKS_FILTERED
-                if item.source_size > 0
-                else EMPTY_EXTRACTION
-            )
-            self._status_store.upsert(
-                company_name=self.company,
-                doc_id=item.doc_id,
-                file_name=item.file_name,
-                relative_path=item.relative_path,
-                status=ZERO_CHUNKS,
-                source_mtime=item.source_mtime,
-                source_size=item.source_size,
-                run_id=self.run_id,
-                parser_version=PARSER_VERSION,
-                updated_at=datetime.now(timezone.utc),
-                coverage_injected=item.coverage_injected,
-                error=zero_reason,
-            )
-            return
-
-        self._append_chunks(chunks, now)
-        self._embed_and_complete(chunks, item, content_hash, now)
 
     def _compute_content_hash(self, file_path: str) -> str:
         """Return md5 hex digest of file bytes (one explicit read per doc)."""
