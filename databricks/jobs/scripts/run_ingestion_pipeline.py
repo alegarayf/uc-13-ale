@@ -97,6 +97,8 @@ def run_ingestion_pipeline(
     vision_endpoint: str = "",
     parse_priority_tiers: str = "1,2",
     skip_download: bool = False,
+    force: str = "none",
+    coverage_per_workstream: int = 3,
 ) -> dict:
     """Run Phase 1-2 in dependency order and return a step-by-step summary.
 
@@ -128,6 +130,8 @@ def run_ingestion_pipeline(
         os.environ["llm_endpoint"] = "databricks-meta-llama-3-3-70b-instruct"
     os.environ["vision_endpoint"]      = vision_endpoint
     os.environ["parse_priority_tiers"] = parse_priority_tiers
+    os.environ["force"]                = force
+    os.environ["coverage_per_workstream"] = str(coverage_per_workstream)
 
     scripts_dir = _find_scripts_dir()
     repo_root   = _find_repo_root(scripts_dir)
@@ -258,6 +262,8 @@ def main():
     embedding_endpoint   = _arg(3, "embedding_endpoint",   "databricks-bge-large-en")
     vision_endpoint      = _arg(4, "vision_endpoint",      "")
     parse_priority_tiers = _arg(5, "parse_priority_tiers", "1,2")
+    force                = _arg(6, "force", "none")
+    coverage_per_workstream = int(_arg(7, "coverage_per_workstream", "3"))
 
     if not company_name:
         raise RuntimeError(
@@ -270,6 +276,8 @@ def main():
     os.environ["embedding_endpoint"]   = embedding_endpoint
     os.environ["vision_endpoint"]      = vision_endpoint
     os.environ["parse_priority_tiers"] = parse_priority_tiers
+    os.environ["force"]                = force
+    os.environ["coverage_per_workstream"] = str(coverage_per_workstream)
 
     summary = run_ingestion_pipeline(
         company_name=company_name,
@@ -278,6 +286,8 @@ def main():
         embedding_endpoint=embedding_endpoint,
         vision_endpoint=vision_endpoint,
         parse_priority_tiers=parse_priority_tiers,
+        force=force,
+        coverage_per_workstream=coverage_per_workstream,
     )
 
     # Surface a hard failure to the Databricks job UI only if ALL steps that
