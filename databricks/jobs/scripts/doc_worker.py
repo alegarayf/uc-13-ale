@@ -1,7 +1,8 @@
-"""Per-document ingestion worker (M1 DocWorker — claim, clean, parse, write chunks)."""
+"""Per-document ingestion worker (M1 DocWorker — claim through COMPLETE)."""
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -9,13 +10,22 @@ import ingestion_parser as ip
 from parse_manifest import ManifestItem
 from pyspark.sql import Row, SparkSession
 from pyspark.sql.types import (
+    ArrayType,
+    FloatType,
     IntegerType,
     StringType,
     StructField,
     StructType,
     TimestampType,
 )
-from status_store import PARSER_VERSION, PARSING, ZERO_CHUNKS, StatusStore
+from status_store import (
+    COMPLETE,
+    EMBEDDING,
+    PARSER_VERSION,
+    PARSING,
+    ZERO_CHUNKS,
+    StatusStore,
+)
 
 _CLASSIFICATION_NEW = "NEW"
 EMPTY_EXTRACTION = "EMPTY_EXTRACTION"
@@ -27,7 +37,7 @@ def _escape_sql_literal(value: str) -> str:
 
 
 class DocWorker:
-    """Per-doc unit of work: claim → clean → parse → write chunks (embed/complete in T3+)."""
+    """Per-doc unit of work: claim → clean → parse → write chunks → embed → COMPLETE."""
 
     def __init__(
         self,
@@ -37,6 +47,7 @@ class DocWorker:
         company: str,
         run_id: str,
         vision_endpoint: Optional[str] = None,
+        embedding_endpoint: str = "databricks-bge-large-en",
     ) -> None:
         self.spark = spark
         self.catalog = catalog
@@ -44,6 +55,7 @@ class DocWorker:
         self.company = company
         self.run_id = run_id
         self.vision_endpoint = vision_endpoint
+        self.embedding_endpoint = embedding_endpoint
         self._status_store = StatusStore(spark, catalog, schema)
 
     @property
@@ -53,6 +65,10 @@ class DocWorker:
     @property
     def _table_embeddings(self) -> str:
         return f"{self.catalog}.{self.schema}.embeddings"
+
+    @property
+    def _table_relevance(self) -> str:
+        return f"{self.catalog}.classification.doc_relevance"
 
     def process(self, item: ManifestItem) -> None:
         now = datetime.now(timezone.utc)
@@ -73,6 +89,8 @@ class DocWorker:
 
         if item.classification != _CLASSIFICATION_NEW:
             self._delete_stale_corpus(item.doc_id)
+
+        content_hash = self._compute_content_hash(item.full_path)
 
         chunks = ip.parse_file(
             item.full_path,
@@ -104,6 +122,27 @@ class DocWorker:
             return
 
         self._append_chunks(chunks, now)
+        self._embed_and_complete(chunks, item, content_hash, now)
+
+    def _compute_content_hash(self, file_path: str) -> str:
+        """Return md5 hex digest of file bytes (one explicit read per doc)."""
+        with open(file_path, "rb") as fh:
+            return hashlib.md5(fh.read()).hexdigest()
+
+    def _lookup_relevance(self, file_name: str) -> tuple[Optional[list[str]], Optional[int]]:
+        escaped_company = _escape_sql_literal(self.company)
+        escaped_file_name = _escape_sql_literal(file_name)
+        rows = self.spark.sql(
+            f"SELECT workstream, priority_tier "
+            f"FROM {self._table_relevance} "
+            f"WHERE company_name = '{escaped_company}' "
+            f"AND filename = '{escaped_file_name}' "
+            f"LIMIT 1"
+        ).collect()
+        if not rows:
+            return None, None
+        row = rows[0]
+        return list(row.workstream or []), row.priority_tier
 
     def _delete_stale_corpus(self, doc_id: str) -> None:
         """Delete prior chunks/embeddings for this doc_id (loud — no swallow)."""
@@ -161,4 +200,81 @@ class DocWorker:
         frame = self.spark.createDataFrame(rows, schema=chunk_schema)
         frame.write.mode("append").option("mergeSchema", "true").saveAsTable(
             self._table_chunks
+        )
+
+    def _embed_and_complete(
+        self,
+        chunks: list[ip.Chunk],
+        item: ManifestItem,
+        content_hash: str,
+        created_at: datetime,
+    ) -> None:
+        self._status_store.upsert(
+            company_name=self.company,
+            doc_id=item.doc_id,
+            file_name=item.file_name,
+            relative_path=item.relative_path,
+            status=EMBEDDING,
+            source_mtime=item.source_mtime,
+            source_size=item.source_size,
+            run_id=self.run_id,
+            parser_version=PARSER_VERSION,
+            updated_at=datetime.now(timezone.utc),
+            coverage_injected=item.coverage_injected,
+        )
+
+        import mlflow.deployments
+
+        client = mlflow.deployments.get_deploy_client("databricks")
+        texts = [c.chunk_text for c in chunks]
+        embeddings = ip.get_embeddings_batch(texts, client, self.embedding_endpoint)
+
+        workstream, priority_tier = self._lookup_relevance(item.file_name)
+
+        emb_schema = StructType(
+            [
+                StructField("company_name", StringType(), False),
+                StructField("chunk_id", StringType(), False),
+                StructField("doc_id", StringType(), False),
+                StructField("file_name", StringType(), False),
+                StructField("source_type", StringType(), True),
+                StructField("workstream", ArrayType(StringType()), True),
+                StructField("priority_tier", IntegerType(), True),
+                StructField("embedding", ArrayType(FloatType()), False),
+                StructField("created_at", TimestampType(), False),
+            ]
+        )
+        emb_rows = [
+            Row(
+                company_name=self.company,
+                chunk_id=chunks[i].chunk_id,
+                doc_id=chunks[i].doc_id,
+                file_name=chunks[i].file_name,
+                source_type=chunks[i].source_type,
+                workstream=workstream,
+                priority_tier=priority_tier,
+                embedding=[float(x) for x in embeddings[i]],
+                created_at=created_at,
+            )
+            for i in range(len(chunks))
+        ]
+        emb_frame = self.spark.createDataFrame(emb_rows, schema=emb_schema)
+        emb_frame.write.mode("append").option("mergeSchema", "true").saveAsTable(
+            self._table_embeddings
+        )
+
+        self._status_store.upsert(
+            company_name=self.company,
+            doc_id=item.doc_id,
+            file_name=item.file_name,
+            relative_path=item.relative_path,
+            status=COMPLETE,
+            source_mtime=item.source_mtime,
+            source_size=item.source_size,
+            run_id=self.run_id,
+            parser_version=PARSER_VERSION,
+            updated_at=datetime.now(timezone.utc),
+            coverage_injected=item.coverage_injected,
+            chunk_count=len(chunks),
+            content_hash=content_hash,
         )
