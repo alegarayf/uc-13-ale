@@ -102,6 +102,17 @@ resources:
             (e.g. "1,2" or "all"). Default: "1,2" — parses only Tier 1 and Tier 2
             documents for speed, then automatically backfills any workstream that
             received zero files with its best available doc from remaining tiers.
+        - name: force
+          default: "none"
+          description: >
+            Optional. Force re-parse scope: "none" (incremental default),
+            "company" (reclassify all docs STALE), or comma-separated relative
+            volume paths. Default: none.
+        - name: coverage_per_workstream
+          default: "3"
+          description: >
+            Optional. Max coverage-injection docs per uncovered workstream
+            during manifest build. Default: 3.
 
       tasks:
         # ------------------------------------------------------------------
@@ -126,6 +137,8 @@ resources:
               - "{{job.parameters.embedding_endpoint}}"
               - "{{job.parameters.vision_endpoint}}"
               - "{{job.parameters.parse_priority_tiers}}"
+              - "{{job.parameters.force}}"
+              - "{{job.parameters.coverage_per_workstream}}"
           new_cluster:
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_DS3_v2"
