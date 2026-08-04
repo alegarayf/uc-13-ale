@@ -2,6 +2,8 @@
 
 ## uc13-ingestion-parser / M1 — Per-Doc Loop — 2026-08-04
 
+- T2 (DocWorker skeleton): Added `databricks/jobs/scripts/doc_worker.py` — `DocWorker` with claim (`PARSING` upsert), conditional clean (loud delete-by-doc_id for STALE/RETRY only), `ip.parse_file` parse, chunk append, and zero-chunks early exit (`ZERO_CHUNKS` + `EMPTY_EXTRACTION`/`ALL_CHUNKS_FILTERED`). Rationale: new per-doc module resolves context-map Flag 2 (import direction + module placement) without touching `ingestion_parser.main()` until T5. Decision log: `.dev/planning/uc13-ingestion-parser/M1/decisions/T2.md`. Adversarial gap deferred: no pytest that NEW classification skips delete — M4 / T5 integration checkpoint.
+
 - T1 (doc_id call-site consistency): `parse_file` now requires caller-supplied `doc_id` as second positional arg; removed old single-arg `ingestion_parser.make_doc_id(path)`; `ensure_coverage.ingest_missing()` computes `doc_id` via `doc_id.make_doc_id` before each parse; added `tests/test_docworker_doc_id_consistency.py`. Rationale: frozen contract anchor so DocWorker and StatusStore share byte-identical doc_ids with ParseManifest. Decision log: `.dev/planning/uc13-ingestion-parser/M1/decisions/T1.md`. Adversarial gap deferred: `ingestion_parser.main()` parse loop still on pre-T5 signature until T5 rewire — G1 mocks `parse_file`; production `main()` intentionally broken mid-milestone.
 
 ## uc13-ingestion-parser / M0 — State & Manifest Foundations — 2026-08-04
