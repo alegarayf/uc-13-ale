@@ -51,6 +51,13 @@ _DOC_STATUS_SCHEMA = StructType(
 )
 
 
+def _sql_timestamp_literal(dt: datetime) -> str:
+    """Format a datetime for Spark SQL TIMESTAMP literals."""
+    if dt.microsecond:
+        return dt.strftime("%Y-%m-%d %H:%M:%S.%f")
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def normalize_status(status: str | None) -> str:
     """Return status if in §16 closed set; otherwise FAILED."""
     if status in ALLOWED_STATUSES:
@@ -154,6 +161,35 @@ class StatusStore:
                 updated_at=row.updated_at,
             )
         return result
+
+    def has_newer_complete_than(self, since: datetime | None) -> bool:
+        """Catalog-wide predicate for SyncGate (§6 S3, H3).
+
+        Returns True if any row with status COMPLETE has updated_at strictly
+        greater than ``since``. When ``since`` is None (cold start), returns
+        True iff at least one COMPLETE row exists anywhere in the catalog.
+        """
+        query = f"""
+            SELECT 1 AS n
+            FROM {self.table}
+            WHERE status = '{COMPLETE}'
+        """
+        if since is not None:
+            since_literal = _sql_timestamp_literal(since)
+            query += f"\n              AND updated_at > TIMESTAMP '{since_literal}'"
+        query += "\n            LIMIT 1"
+        return len(self.spark.sql(query).collect()) > 0
+
+    def max_complete_updated_at(self) -> datetime | None:
+        """Catalog-wide MAX(updated_at) over COMPLETE rows; None if none exist."""
+        rows = self.spark.sql(f"""
+            SELECT MAX(updated_at) AS max_updated_at
+            FROM {self.table}
+            WHERE status = '{COMPLETE}'
+        """).collect()
+        if not rows or rows[0].max_updated_at is None:
+            return None
+        return rows[0].max_updated_at
 
     def upsert(
         self,
