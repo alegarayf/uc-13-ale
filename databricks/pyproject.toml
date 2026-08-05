@@ -19,6 +19,8 @@ dependencies = [
 
 [tool.uv]
 dev-dependencies = [
+    "pymupdf>=1.28.0",
     "pytest>=8.0.0",
     "ruff>=0.4.0",
+    "weasyprint>=69.0",
 ]
