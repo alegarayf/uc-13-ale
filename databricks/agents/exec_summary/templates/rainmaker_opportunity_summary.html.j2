@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ bundle.meta.company_name | default('Company', true) }} — Opportunity Summary</title>
+<style>
+  :root {
+    --navy:    #1F3864;
+    --blue:    #2E75B6;
+    --row-alt: #EEF3FA;
+    --red-bg:  #FFE5E5;
+    --red-txt: #C00000;
+    --ylw-bg:  #FFF2CC;
+    --ylw-txt: #7F6000;
+    --box-bg:  #F2F4F7;
+    --meta:    #595959;
+    --border:  #BFD0E8;
+  }
+  @page { size: A4; margin: 16mm 14mm 20mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1A1A1A;
+    font-size: 9.5pt;
+    line-height: 1.35;
+    margin: 0;
+  }
+  .page { page-break-after: always; padding-bottom: 10mm; }
+  .page:last-child { page-break-after: auto; }
+  h1 { color: var(--navy); font-size: 18pt; margin: 0 0 2mm 0; }
+  h2.section-header {
+    color: #FFFFFF; background: var(--navy);
+    font-size: 11pt; letter-spacing: 0.03em; text-transform: uppercase;
+    padding: 2.5mm 4mm; margin: 0 0 4mm 0;
+  }
+  h3.block-header {
+    color: var(--navy); font-size: 9.5pt; letter-spacing: 0.02em;
+    text-transform: uppercase; border-bottom: 1.5pt solid var(--navy);
+    padding-bottom: 1mm; margin: 4mm 0 2mm 0;
+  }
+  .subtitle { color: var(--meta); font-size: 10.5pt; margin-bottom: 6mm; }
+  .brand { float: right; color: var(--navy); font-weight: bold; font-size: 11pt; }
+  .callout-row { display: flex; gap: 4mm; margin: 6mm 0; }
+  .callout {
+    flex: 1; background: var(--box-bg); border: 0.5pt solid var(--border);
+    border-radius: 2mm; padding: 3mm 4mm;
+  }
+  .callout .label {
+    color: var(--navy); font-weight: bold; font-size: 8pt;
+    text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 1.5mm;
+  }
+  .footer {
+    color: var(--meta); font-size: 7.5pt;
+    border-top: 0.5pt solid var(--border); padding-top: 2mm; margin-top: 8mm;
+  }
+  ul.bullets { margin: 0 0 3mm 0; padding-left: 4.5mm; }
+  ul.bullets li { margin-bottom: 1.5mm; }
+  table.data-table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm 0; }
+  table.data-table th, table.data-table td {
+    border-bottom: 0.5pt solid var(--border); padding: 1.5mm 2mm; text-align: left; vertical-align: top;
+  }
+  table.data-table th { color: var(--navy); font-size: 8pt; text-transform: uppercase; }
+  table.data-table tr:nth-child(even) td { background: var(--row-alt); }
+  .tile-row { display: flex; gap: 3mm; margin: 3mm 0 5mm 0; flex-wrap: wrap; }
+  .tile {
+    flex: 1 1 26mm; background: var(--box-bg); border: 0.5pt solid var(--border);
+    border-radius: 2mm; padding: 3mm; text-align: center;
+  }
+  .tile .value { color: var(--navy); font-size: 15pt; font-weight: bold; display: block; }
+  .tile .label { color: var(--meta); font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.02em; }
+  .severity-pill {
+    display: inline-block; padding: 0.5mm 2mm; border-radius: 1mm;
+    font-size: 7.5pt; font-weight: bold; text-transform: uppercase;
+  }
+  .confidence-row {
+    display: flex; justify-content: space-between; padding: 1.2mm 0;
+    border-bottom: 0.4pt solid var(--border); font-size: 9pt;
+  }
+  .confidence-row .badge {
+    font-weight: bold; font-size: 8pt; padding: 0.3mm 2mm; border-radius: 1mm;
+  }
+  .two-col { display: flex; gap: 8mm; }
+  .two-col > div { flex: 1; }
+  p.closing { font-style: italic; color: var(--meta); margin-top: 3mm; }
+</style>
+</head>
+<body>
+
+<!-- Page 1 — Cover -->
+<section class="page cover">
+  <span class="brand">rallyday PARTNERS</span>
+  <h1>{{ bundle.meta.company_name | default('Company', true) }}</h1>
+  <div class="subtitle">
+    {{ bundle.company_framing.revenue_model.tag | default('', true) | replace('_', ' ') | title }}
+    {% if bundle.meta.vertical_overlay %}· {{ bundle.meta.vertical_overlay | replace('_', ' ') | title }}{% endif %}
+    &nbsp;|&nbsp; First-Pass Diligence Screen
+  </div>
+
+  <div class="callout-row">
+    <div class="callout">
+      <div class="label">Purpose</div>
+      <div>Initial screen of the data room; frames the operating picture, the thesis, and the issues to diligence.</div>
+    </div>
+    <div class="callout">
+      <div class="label">Basis of Preparation</div>
+      <div>{{ bundle.meta.basis_of_preparation | default('Synthesized from the available data room. Figures are management-reported and unverified.', true) }}</div>
+    </div>
+    <div class="callout">
+      <div class="label">Status</div>
+      <div>
+        {{ bundle.meta.disclaimer_text | default('Preliminary — for internal discussion only. Not investment advice and not a recommendation; subject to confirmatory diligence.', true) }}
+        <br><strong>Overall confidence: {{ bundle.meta.overall_confidence | default('n/a', true) | upper }}.</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Proprietary &amp; Confidential — Not for distribution &nbsp;|&nbsp; Page 1</div>
+</section>
+
+<!-- Page 2 — Company & Investment Framing -->
+<section class="page framing">
+  <h2 class="section-header">Company &amp; Investment Framing</h2>
+  <p><strong>In one line:</strong> {{ bundle.executive.in_one_line | default('', true) }}</p>
+
+  <h3 class="block-header">Company Overview</h3>
+  <ul class="bullets">
+    {% for bullet in (bundle.company_framing.overview_bullets or []) %}
+    <li>{{ bullet }}</li>
+    {% endfor %}
+  </ul>
+
+  <h3 class="block-header">Service &amp; Revenue Model</h3>
+  <ul class="bullets">
+    <li>{{ bundle.company_framing.revenue_model.note | default('', true) }}</li>
+    {% if bundle.revenue_quality.scale_narrative %}<li>{{ bundle.revenue_quality.scale_narrative }}</li>{% endif %}
+    {% if bundle.revenue_quality.end_market_mix %}<li>{{ bundle.revenue_quality.end_market_mix }}</li>{% endif %}
+  </ul>
+
+  <h3 class="block-header">Initial Investment Thesis &amp; Fit</h3>
+  <ul class="bullets">
+    {# executive.thesis_bullets is the field the BundleBuilder actually populates
+       today; company_framing.thesis.bullets is schema-defined but currently
+       always empty across all 3 real fixtures — fall back to it if that changes. #}
+    {% for bullet in (bundle.executive.thesis_bullets or bundle.company_framing.thesis.bullets or []) %}
+    <li>{{ bullet }}</li>
+    {% endfor %}
+    {% for lever in (bundle.company_framing.thesis.value_creation_levers or []) %}
+    <li>{{ lever }}</li>
+    {% endfor %}
+  </ul>
+
+  <h3 class="block-header">Key Watchouts / Areas to Prove</h3>
+  <ul class="bullets">
+    {% for watchout in (bundle.executive.key_watchouts or []) %}
+    <li>{{ watchout }}</li>
+    {% endfor %}
+  </ul>
+
+  <div class="footer">Proprietary &amp; Confidential — Not for distribution &nbsp;|&nbsp; Page 2</div>
+</section>
+
+<!-- Page 3 — Operating Data / Revenue Quality / Diligence Priorities -->
+<section class="page operating">
+  <h2 class="section-header">Operating Data · Revenue Quality · Diligence Priorities</h2>
+
+  <h3 class="block-header">Financial Data Availability</h3>
+  <table class="data-table">
+    <tr><th>Financial data availability</th><th>Status</th></tr>
+    {% for row in (rainmaker.financial_availability or []) %}
+    <tr><td>{{ row.label }}</td><td>{{ row.status }}</td></tr>
+    {% endfor %}
+  </table>
+
+  <h3 class="block-header">Operating Snapshot</h3>
+  <div class="tile-row">
+    {% for tile in (rainmaker.stat_tiles or []) %}
+    <div class="tile">
+      <span class="value">{{ tile.value }}</span>
+      <span class="label">{{ tile.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3 class="block-header">Revenue Quality &amp; Customer Base</h3>
+      <ul class="bullets">
+        {% if bundle.revenue_quality.concentration %}<li>{{ bundle.revenue_quality.concentration }}</li>{% endif %}
+        {% if bundle.revenue_quality.retention_notes %}<li>{{ bundle.revenue_quality.retention_notes }}</li>{% endif %}
+        {% if not (bundle.revenue_quality.concentration or bundle.revenue_quality.retention_notes) %}
+        <li>Not yet assessed in this preview.</li>
+        {% endif %}
+      </ul>
+    </div>
+    <div>
+      <h3 class="block-header">Priority Diligence Questions</h3>
+      <ul class="bullets">
+        {% for q in (bundle.diligence_questions or [])[:5] %}
+        <li><strong>{{ q.category | default('', true) | title }}:</strong> {{ q.question | default('', true) }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">Proprietary &amp; Confidential — Not for distribution &nbsp;|&nbsp; Page 3</div>
+</section>
+
+<!-- Page 4 — Risk Register / Mitigation Path -->
+<section class="page risk">
+  <h2 class="section-header">Risk Register · Mitigation Path</h2>
+
+  <h3 class="block-header">Top Risks</h3>
+  <table class="data-table">
+    <tr><th>Risk</th><th>Severity</th><th>Evidence</th></tr>
+    {% for row in (rainmaker.risks or []) %}
+    <tr>
+      <td>{{ row.risk | replace('_', ' ') | title }}</td>
+      <td><span class="severity-pill" style="background: var({{ row.severity_bg_var }}); color: var({{ row.severity_color_var }});">{{ row.severity_label }}</span></td>
+      <td>{{ row.evidence }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="two-col">
+    <div>
+      <h3 class="block-header">Strengths That Partially Offset</h3>
+      <ul class="bullets">
+        {% for s in (bundle.executive.preliminary_view.strengths or [])[:3] %}
+        <li>{{ s }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3 class="block-header">Confidence by Area</h3>
+      {% for row in (rainmaker.confidence_rows or []) %}
+      <div class="confidence-row">
+        <span>{{ row.area }}</span>
+        <span class="badge">{{ row.level }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <h3 class="block-header">Mitigation &amp; Follow-up Priorities</h3>
+  <ul class="bullets">
+    {% for row in (rainmaker.risks or [])[:5] %}
+    {% if row.mitigant_or_question %}<li>{{ row.mitigant_or_question }}</li>{% endif %}
+    {% endfor %}
+  </ul>
+  {% if bundle.executive.preliminary_view.closing %}
+  <p class="closing">{{ bundle.executive.preliminary_view.closing }}</p>
+  {% endif %}
+
+  <div class="footer">Proprietary &amp; Confidential — Not for distribution &nbsp;|&nbsp; Page 4</div>
+</section>
+
+</body>
+</html>

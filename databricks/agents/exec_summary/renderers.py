@@ -16,14 +16,21 @@ _COMPRESSED_TLDR_TEMPLATE = "tldr_one_pager_compressed.md.j2"
 _LEGACY_TLDR_TEMPLATE = "tldr_one_pager.md.j2"
 
 
+def _autoescape_html_templates(template_name: str | None) -> bool:
+    """Autoescape only ``*.html.j2`` templates (the Rainmaker one); the existing
+    ``*.md.j2`` templates render plain Markdown and must stay unescaped —
+    changing that would alter every existing report's output."""
+    return bool(template_name) and template_name.endswith(".html.j2")
+
+
 class ReportRenderer:
-    """Render orchestrator bundle dicts to markdown via Jinja2 templates."""
+    """Render orchestrator bundle dicts to markdown/HTML via Jinja2 templates."""
 
     def __init__(self, templates_dir: Path | None = None) -> None:
         base = templates_dir or _TEMPLATES_DIR
         self._env = Environment(
             loader=FileSystemLoader(str(base)),
-            autoescape=False,
+            autoescape=_autoescape_html_templates,
         )
 
     def render(
@@ -31,14 +38,19 @@ class ReportRenderer:
         bundle: dict[str, Any],
         template_path: str | Path,
         tldr: dict[str, Any] | None = None,
+        rainmaker: dict[str, Any] | None = None,
     ) -> str:
-        """Render *template_path* with ``bundle``; optional ``tldr`` projection (D5-A)."""
+        """Render *template_path* with ``bundle``; optional ``tldr`` projection (D5-A)
+        or ``rainmaker`` projection (Rainmaker template — see rainmaker_view.py)."""
         template_name = Path(template_path).name
         try:
             template = self._env.get_template(template_name)
-            if tldr is None:
-                return template.render(bundle=bundle)
-            return template.render(bundle=bundle, tldr=tldr)
+            context: dict[str, Any] = {"bundle": bundle}
+            if tldr is not None:
+                context["tldr"] = tldr
+            if rainmaker is not None:
+                context["rainmaker"] = rainmaker
+            return template.render(**context)
         except UndefinedError as exc:
             raise UndefinedError(f"{template_name}: {exc}") from exc
 
@@ -86,5 +98,85 @@ def render_to_volume(
         fh.write(tldr_md)
     print(f"[orchestrator] render tldr → {tldr_out}")
     written["tldr"] = tldr_out
+
+    return written
+
+
+# ---------------------------------------------------------------------------
+# Rainmaker "Opportunity Summary" template (CIM-first POC — plan §5, §5.5)
+# ---------------------------------------------------------------------------
+
+_RAINMAKER_TEMPLATE = "rainmaker_opportunity_summary.html.j2"
+
+
+def _html_to_pdf(html: str, pdf_path: str) -> str | None:
+    """Render *html* to *pdf_path*, trying WeasyPrint first (best CSS
+    fidelity — page-break, flexbox, web fonts) and falling back to PyMuPDF
+    Story (already a pipeline dependency; no extra system libraries needed —
+    Apéndice A.5/R1 note WeasyPrint requires cairo/pango, which Databricks
+    Serverless compute cannot install). Returns the engine name used, or
+    ``None`` if neither is available/succeeds — callers should still ship
+    the HTML output in that case.
+    """
+    try:
+        import weasyprint  # noqa: PLC0415
+
+        weasyprint.HTML(string=html).write_pdf(pdf_path)
+        return "weasyprint"
+    except Exception as exc:  # pragma: no cover - depends on system libs
+        print(f"[rainmaker] WeasyPrint unavailable/failed ({exc!r}); falling back to PyMuPDF Story")
+
+    try:
+        import fitz  # noqa: PLC0415  (PyMuPDF)
+
+        story = fitz.Story(html=html)
+        writer = fitz.DocumentWriter(pdf_path)
+        page_rect = fitz.paper_rect("a4")
+        more = 1
+        while more:
+            device = writer.begin_page(page_rect)
+            more, _ = story.place(page_rect)
+            story.draw(device)
+            writer.end_page()
+        writer.close()
+        return "pymupdf"
+    except Exception as exc:  # pragma: no cover - depends on pymupdf availability
+        print(f"[rainmaker] PyMuPDF Story also failed ({exc!r}); shipping HTML only")
+        return None
+
+
+def render_rainmaker(
+    bundle: dict[str, Any],
+    catalog: str,
+    company_name: str,
+) -> dict[str, str]:
+    """Render the Rainmaker "Opportunity Summary" one-pager (HTML + PDF).
+
+    Unlike :func:`render_to_volume` (the Rev3 prose bridge), this produces
+    ONLY the visual one-pager — no ``full_report`` — matching the CIM-first
+    preview's scope (no Cross-Analysis/Orchestrator memo; plan §5.5).
+
+    Returns ``{"html": path}`` plus ``{"pdf": path}`` when a PDF engine
+    succeeded.
+    """
+    from agents.exec_summary.rainmaker_view import rainmaker_view as _rainmaker_view
+
+    vol_dir = reports_volume_dir(catalog, company_name)
+    renderer = ReportRenderer()
+    view = _rainmaker_view(bundle)
+
+    html_out = f"{vol_dir}/rainmaker_opportunity_summary.html"
+    html = renderer.render(bundle, _TEMPLATES_DIR / _RAINMAKER_TEMPLATE, rainmaker=view)
+    with open(html_out, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    print(f"[rainmaker] render html → {html_out}")
+
+    written: dict[str, str] = {"html": html_out}
+
+    pdf_out = f"{vol_dir}/executive_review_rainmaker.pdf"
+    engine = _html_to_pdf(html, pdf_out)
+    if engine:
+        written["pdf"] = pdf_out
+        print(f"[rainmaker] render pdf → {pdf_out} (engine={engine})")
 
     return written

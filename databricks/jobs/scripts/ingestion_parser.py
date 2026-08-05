@@ -1314,6 +1314,19 @@ def get_embeddings_batch(texts: list[str], client, endpoint: str, batch_size: in
     return embeddings
 
 
+def build_file_whitelist_filter(whitelist_json: str) -> tuple[str, str]:
+    """(sql_clause, label) for the ``approved_rows`` query's optional
+    ``filename IN (...)`` scoping (CIM-first preview — plan §7 Día 2,
+    Apéndice A.1). Empty/``"[]"``/blank → ``("", "no whitelist")``, i.e.
+    today's full-room behavior unchanged.
+    """
+    whitelist = json.loads(whitelist_json or "[]")
+    if not whitelist:
+        return "", "no whitelist"
+    quoted = ", ".join("'" + fn.replace("'", "''") + "'" for fn in whitelist)
+    return f"AND filename IN ({quoted})", f"whitelist ({len(whitelist)} file(s))"
+
+
 def _print_chunk_diagnostics(all_chunks: list) -> None:
     from collections import Counter
     if not all_chunks:
@@ -1521,6 +1534,14 @@ def main():
         tier_filter = f"AND priority_tier IN ({', '.join(tiers)})"
         tier_label  = f"tier(s) {', '.join(tiers)}"
 
+    # Optional scoping to a specific file subset (CIM-first preview — plan
+    # §7 Día 2, Apéndice A.1). Default "[]" = every approved file, i.e.
+    # today's behavior unchanged. Threaded via env/get_param, same pattern
+    # as parse_priority_tiers above (main() takes no arguments).
+    whitelist_filter, whitelist_label = build_file_whitelist_filter(
+        get_param("file_whitelist", default="[]")
+    )
+
     volume_path      = f"/Volumes/{catalog}/{schema}/raw_files/{company_name}"
     table_relevance  = f"{catalog}.classification.doc_relevance"
     table_chunks     = f"{catalog}.{schema}.chunks"
@@ -1534,6 +1555,7 @@ def main():
     print(f"\n=== UC13 Phase 2b — Ingestion Parser ({company_name}) ===")
     print(f"Volume     : {volume_path}")
     print(f"Parsing    : {tier_label}")
+    print(f"Scoping    : {whitelist_label}")
 
     # --- Ensure output tables exist ---
     _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
@@ -1581,6 +1603,7 @@ def main():
         WHERE should_parse = true
           AND company_name = '{company_name}'
           {tier_filter}
+          {whitelist_filter}
         ORDER BY priority_tier ASC NULLS LAST
     """).collect()
 
