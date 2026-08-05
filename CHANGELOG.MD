@@ -1,5 +1,9 @@
 # Changelog
 
+## uc13-ingestion-parser / M3 — doc_id Join Slice — 2026-08-04
+
+- T2 (retrieval.py JOIN migration + join-integrity tests): Migrated `_hydrate_chunks_sql` and `_keyword_fallback_sql` JOIN predicates from `file_name`/`company_name` to `c.doc_id = r.doc_id`; updated `test_hydrate_sql_join_predicate_unchanged`, added `test_keyword_fallback_sql_join_predicate_migrated` and doc_id-keyed orphan helpers (`ChunkRowByDocId`, `DocRelevanceRowByDocId`, `_orphan_chunk_ids_by_doc_id`, `test_orphan_chunks_detected_by_doc_id_key`); left `test_bootstrap_join_predicate_unchanged` and `eval/retrieval/gold/bootstrap.py` unmigrated per charter scope. Rationale: M3 hub-adjacent join-key contract change on widely-consumed retrieval paths without retrieval redesign beyond the key. Decision log: `.dev/planning/uc13-ingestion-parser/M3/decisions/T2.md`. Adversarial gap deferred: NULL `doc_id` rows — inner join drops them silently; no unit falsifier in T2.
+
 ## uc13-ingestion-parser / M2 — Sync Watermark & Coverage Fold-in — 2026-08-04
 
 - T6 (watermark/SyncGate test finalization + CLAUDE.md): Finalized `tests/test_sync_gate_watermark.py` with runnable-checkpoint falsifiers (two consecutive no-change runs, skip_sync-then-plain-run sync, M-PHV1 success/fatal stdout rows including `_run_as_script` + `IndexSyncError` exit 1, cold-start empty-COMPLETE predicate); updated `databricks/CLAUDE.md` "Ingestion — three modes" for Phase 2c deprecation and watermark-driven `skip_sync`/`sync_only`. Rationale: M2 exit-gate verification closes T1–T5 contract rows end-to-end without new surfaces. Adversarial coverage: `test_has_newer_complete_than_none_empty_catalog_returns_false`. Adversarial gap deferred: `advance_watermark` failure after successful sync — runtime-armed only (T3 carried finding).
