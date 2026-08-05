@@ -1,5 +1,11 @@
 # Changelog
 
+## uc13-ingestion-parser / M4 — Validation & Rollout — 2026-08-05
+
+- T2 (DocWorker status-transition and interrupted-state-redo tests): Added `tests/test_docworker_state_transitions.py` — mock-Spark coverage for `DocWorker.process` claim→PARSING→EMBEDDING→COMPLETE success path, failure branches (`UNSUPPORTED_EXTENSION`, `FILE_NOT_FOUND`, `PARSE_EXCEPTION`, `EMBED_EXCEPTION`, `ZERO_CHUNKS`), `_upsert_failed` FAILED(reason) writes, `_delete_stale_corpus` delete-by-doc_id (chunks + embeddings), STALE/RETRY redo vs NEW skip-delete, and SQL-literal escaping. Rationale: closes M4 item-12 DocWorker/interrupted-redo pytest gap deferred since M1 T4. Adversarial coverage: `test_delete_stale_corpus_escapes_sql_literals_in_doc_id`. Adversarial gap deferred: no unit test that `_embed_and_complete` surfaces `VISION_ENDPOINT_ERROR` — requires vision-endpoint failure seam not exercised by current `get_embeddings_batch` mock path.
+
+- T4 (G1 verification — sync-contract suite stays green): Ran `tests/test_ingestion_parser_sync.py` — 10 collected cases (7 functions, 3 parametrized ×2), all passed, exit code 0. No code changes. Adversarial gap deferred: shared `tests/conftest.py` fixture drift from concurrent T3 edits — not falsifiable in this read-only subtask; failure would surface as a G1 regression here.
+
 ## uc13-ingestion-parser / M3 — doc_id Join Slice — 2026-08-04
 
 - T5 (catalog-mismatch guard for doc_id backfill — audit F2 amendment): Added optional `hash_catalog` keyword to `_build_classification_record` and `_backfill_missing_doc_ids` in `document_classifier.py` (defaults to `catalog`; loud print when divergent); `main()` reads optional `doc_id_hash_catalog` job param and threads it into backfill only. Rationale: closes live G4 incident where `uc13_ale` table backfill hashed against the wrong catalog while `chunks.doc_id` used `uc13`. Decision log: `.dev/planning/uc13-ingestion-parser/M3/decisions/T5.md`. + `tests/test_document_classifier_doc_id.py` (4 new tests). Adversarial coverage: `test_backfill_uses_explicit_hash_catalog_when_diverges_from_table_catalog`. Adversarial gap deferred: no unit test that `main()` threads `doc_id_hash_catalog` from `get_param` — would require dbutils/widget seam mock; backfill function contract is the falsifier.
