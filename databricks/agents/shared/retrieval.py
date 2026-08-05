@@ -168,8 +168,7 @@ def _hydrate_chunks_sql(
             r.priority_tier
         FROM {catalog}.ingestion.chunks c
         JOIN {catalog}.classification.doc_relevance r
-            ON c.file_name = r.filename
-           AND c.company_name = r.company_name
+            ON c.doc_id = r.doc_id
         WHERE c.chunk_id IN {ids_clause}
           {company_filter}
     """
@@ -204,8 +203,7 @@ def _keyword_fallback_sql(
             r.priority_tier
         FROM {catalog}.ingestion.chunks c
         JOIN {catalog}.classification.doc_relevance r
-            ON c.file_name = r.filename
-           AND c.company_name = r.company_name
+            ON c.doc_id = r.doc_id
         WHERE ({conditions})
             AND r.should_parse = true
             {company_filter}
