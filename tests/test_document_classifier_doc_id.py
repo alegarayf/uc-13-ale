@@ -134,3 +134,92 @@ def test_build_classification_record_folder_path_dot_matches_root_doc_id() -> No
     )
     expected = make_doc_id(_CATALOG, _SCHEMA, _COMPANY, None, "root_only.pdf")
     assert record["doc_id"] == expected
+
+
+def test_build_classification_record_hash_catalog_defaults_to_catalog() -> None:
+    """M3/T5: omitting hash_catalog must be byte-for-byte identical to pre-amendment behavior."""
+    record = dc._build_classification_record(**_base_kwargs())
+    expected = make_doc_id(_CATALOG, _SCHEMA, _COMPANY, "Financials", "annual_report.pdf")
+    assert record["doc_id"] == expected
+
+
+def test_build_classification_record_explicit_hash_catalog_overrides_catalog() -> None:
+    """M3/T5: an explicit hash_catalog must be used for the hash, not the table catalog."""
+    record = dc._build_classification_record(
+        **_base_kwargs() | {"catalog": "uc13_ale", "hash_catalog": "uc13"},
+    )
+    expected = make_doc_id("uc13", _SCHEMA, _COMPANY, "Financials", "annual_report.pdf")
+    assert record["doc_id"] == expected
+    # Falsifier: must not equal the table-catalog hash — that's the mismatch the live incident hit.
+    assert record["doc_id"] != make_doc_id("uc13_ale", _SCHEMA, _COMPANY, "Financials", "annual_report.pdf")
+
+
+def test_backfill_uses_explicit_hash_catalog_when_diverges_from_table_catalog(capsys) -> None:
+    """M3/T5: reproduces the live G4 incident's shape.
+
+    _backfill_missing_doc_ids invoked against a table catalog ("uc13_ale")
+    whose chunks.doc_id was actually hashed with a different catalog
+    ("uc13") at ingestion time. The backfill must hash with hash_catalog,
+    not catalog, and must emit a loud warning about the divergence.
+    """
+    table_catalog = "uc13_ale"
+    hash_catalog = "uc13"
+
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [
+        SimpleNamespace(
+            company_name=_COMPANY,
+            filename="contract.pdf",
+            folder_path="Legal",
+        ),
+    ]
+
+    merge_builder = MagicMock()
+    merge_builder.whenMatchedUpdate.return_value = merge_builder
+    delta_table = MagicMock()
+    delta_table.alias.return_value.merge.return_value = merge_builder
+
+    expected_id = make_doc_id(hash_catalog, _SCHEMA, _COMPANY, "Legal", "contract.pdf")
+    wrong_id = make_doc_id(table_catalog, _SCHEMA, _COMPANY, "Legal", "contract.pdf")
+    assert expected_id != wrong_id  # sanity: the two catalogs must actually hash differently
+
+    mock_delta = MagicMock()
+    mock_delta.tables.DeltaTable.forName.return_value = delta_table
+    with patch.dict(sys.modules, {"delta": mock_delta, "delta.tables": mock_delta.tables}):
+        updated = dc._backfill_missing_doc_ids(
+            spark, table_catalog, _SCHEMA, _TABLE, hash_catalog=hash_catalog,
+        )
+
+    assert updated == 1
+    created_rows = spark.createDataFrame.call_args[0][0]
+    assert created_rows[0].doc_id == expected_id
+    assert created_rows[0].doc_id != wrong_id
+
+    captured = capsys.readouterr()
+    assert f"catalog '{hash_catalog}'" in captured.out
+    assert f"table catalog '{table_catalog}'" in captured.out
+
+
+def test_backfill_hash_catalog_defaults_to_catalog_no_warning(capsys) -> None:
+    """M3/T5: omitting hash_catalog must be byte-for-byte identical to pre-amendment behavior."""
+    spark = MagicMock()
+    spark.sql.return_value.collect.return_value = [
+        SimpleNamespace(company_name=_COMPANY, filename="contract.pdf", folder_path="Legal"),
+    ]
+
+    merge_builder = MagicMock()
+    merge_builder.whenMatchedUpdate.return_value = merge_builder
+    delta_table = MagicMock()
+    delta_table.alias.return_value.merge.return_value = merge_builder
+
+    mock_delta = MagicMock()
+    mock_delta.tables.DeltaTable.forName.return_value = delta_table
+    with patch.dict(sys.modules, {"delta": mock_delta, "delta.tables": mock_delta.tables}):
+        updated = dc._backfill_missing_doc_ids(spark, _CATALOG, _SCHEMA, _TABLE)
+
+    assert updated == 1
+    created_rows = spark.createDataFrame.call_args[0][0]
+    assert created_rows[0].doc_id == make_doc_id(_CATALOG, _SCHEMA, _COMPANY, "Legal", "contract.pdf")
+
+    captured = capsys.readouterr()
+    assert "Hashing doc_id against catalog" not in captured.out

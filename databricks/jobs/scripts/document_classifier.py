@@ -393,9 +393,20 @@ def _build_classification_record(
     extraction_confidence: str,
     mod_date: str | None,
     format_: str,
+    hash_catalog: str | None = None,
 ) -> dict:
-    """Build one doc_relevance row dict including canonical doc_id."""
+    """Build one doc_relevance row dict including canonical doc_id.
+
+    `hash_catalog` (M3/T5): the catalog make_doc_id hashes against. Defaults
+    to `catalog` (pre-T5 behavior). Pass explicitly only when the table's
+    catalog differs from the catalog used to hash the corresponding
+    chunks.doc_id at ingestion time (see databricks/CLAUDE.md "Catalog
+    convention") — a mismatch here silently orphans the resulting doc_id
+    against retrieval.py's JOIN.
+    """
     from doc_id import make_doc_id
+
+    effective_hash_catalog = hash_catalog if hash_catalog is not None else catalog
 
     return {
         "company_name":          company_name,
@@ -409,7 +420,7 @@ def _build_classification_record(
         "extraction_confidence": extraction_confidence,
         "mod_date":              mod_date,
         "format":                format_,
-        "doc_id": make_doc_id(catalog, schema, company_name, folder_path, filename),
+        "doc_id": make_doc_id(effective_hash_catalog, schema, company_name, folder_path, filename),
     }
 
 
@@ -418,12 +429,24 @@ def _backfill_missing_doc_ids(
     catalog: str,
     schema: str,
     table_relevance: str,
+    hash_catalog: str | None = None,
 ) -> int:
-    """Populate doc_id on existing doc_relevance rows where it is NULL."""
+    """Populate doc_id on existing doc_relevance rows where it is NULL.
+
+    `hash_catalog` (M3/T5): see `_build_classification_record`'s docstring.
+    Defaults to `catalog` (pre-T5 behavior).
+    """
     from delta.tables import DeltaTable
     from doc_id import make_doc_id
     from pyspark.sql import Row
     from pyspark.sql.types import StringType, StructField, StructType
+
+    effective_hash_catalog = hash_catalog if hash_catalog is not None else catalog
+    if effective_hash_catalog != catalog:
+        print(
+            f"⚠ Hashing doc_id against catalog '{effective_hash_catalog}' "
+            f"(differs from table catalog '{catalog}')"
+        )
 
     pending = spark.sql(f"""
         SELECT company_name, filename, folder_path
@@ -440,7 +463,7 @@ def _backfill_missing_doc_ids(
             "filename":     row.filename,
             "folder_path":  row.folder_path,
             "doc_id": make_doc_id(
-                catalog, schema, row.company_name, row.folder_path, row.filename,
+                effective_hash_catalog, schema, row.company_name, row.folder_path, row.filename,
             ),
         }
         for row in pending
@@ -481,6 +504,7 @@ def main():
     company_name = get_param("sp_company_name")
     catalog      = get_param("catalog",  default="uc13")
     schema       = get_param("schema",   default="ingestion")
+    doc_id_hash_catalog = get_param("doc_id_hash_catalog", default="") or None
 
     volume_path    = f"/Volumes/{catalog}/{schema}/raw_files/{company_name}"
     table_log      = f"{catalog}.{schema}.upload_log"
@@ -671,7 +695,9 @@ def main():
 
     print(f"✓ Saved {len(final_results)} classifications → {table_relevance}")
 
-    n_backfilled = _backfill_missing_doc_ids(_spark, catalog, schema, table_relevance)
+    n_backfilled = _backfill_missing_doc_ids(
+        _spark, catalog, schema, table_relevance, hash_catalog=doc_id_hash_catalog,
+    )
     print(f"✓ Backfilled doc_id for {n_backfilled} existing doc_relevance rows")
 
     print(f"\n  Tier 1 (highest value): {sum(1 for r in final_results if r['priority_tier'] == 1)}")
