@@ -1,0 +1,1193 @@
+meta:
+  schema_version: 0.1.0
+  company_name: Elder Care
+  company_safe: Elder_Care
+  catalog: uc13_preview
+  deal_type: growth_equity
+  generated_at: '2026-08-05T06:39:24.663395Z'
+  status: complete
+  freshness: current
+  render_state: bundle_only
+  demo_mode: false
+  disclaimer_text: ''
+  basis_of_preparation: Phase 3 workstream outputs (M2 deterministic builder). cim_detected=True
+  overall_confidence: low
+  agents_present:
+    business_model: true
+    financial_trends: true
+    customer_quality: true
+    kpi: true
+    legal: true
+    quality_of_earnings: true
+  vertical_overlay: healthcare_services
+headline_metrics:
+  ltm_revenue: ''
+  ltm_ebitda: ''
+  ltm_ebitda_margin_pct: 30.0%
+  revenue_cagr: 35.9%
+  enterprise_value_indicated: null
+  rule_of_40: null
+executive:
+  in_one_line: Private-pay Northeast home care platform with a ~45% revenue CAGR since 2020, but reported EBITDA is nearly
+    entirely a pro-forma construct — addbacks exceed stated earnings by 2.5x and carry no third-party support.
+  preliminary_view:
+    strengths:
+    - 'Exceptional top-line trajectory: Pro Forma Adjusted Revenue grew from $8.96M (2020) to $44.7M (TTM Aug-24), a ~45%
+      CAGR, driven by a combination of organic market expansion (Long Island scaled from $229K to $11.6M) and two bolt-on
+      acquisitions (Guided Living, Unicity).'
+    - Gross margin expansion from 42.1% (2020) to 45.6% (TTM Aug-24) suggests improving service mix and pricing discipline
+      at mature locations, with NYC billing at $3,116/client/week versus a $1,927 portfolio average.
+    - 'Offshore/global team model (44 resources, ~41% of total headcount) demonstrably constrains SG&A: admin payroll grew
+      only 10.2% against 61.2% headcount growth since December 2021, providing a structural cost advantage that is partially
+      replicable in acquired entities.'
+    - Multi-state footprint (NY, NJ, MA, CT) with site-level P&L visibility and differentiated bill rates by geography creates
+      a testable unit-economics framework for evaluating de novo and acquisition targets.
+    - 'Acquisition integration track record is nascent but concrete: IT systems consolidated, caregiver recruiter replaced
+      with offshore equivalent at Guided Living within 30 days of close, generating $62K in immediate savings.'
+    concerns:
+    - 'Pro-forma EBITDA is almost entirely manufactured: 17 addback line items aggregate to ~$8.9M against reported EBITDA
+      of $2.77M (246.9% of reported earnings), with zero third-party QofE support in the data room — the true run-rate earnings
+      base is unverifiable at this stage.'
+    - The single largest addback — $2.49M in executive compensation normalization (89.8% of reported EBITDA) — has no documentation;
+      the replacement cost of equivalent management is unknown and could materially compress any buyer-adjusted EBITDA.
+    - Cash-basis accounting with a $665K cash-to-accrual revenue conversion addback (24% of reported EBITDA) and no reconciliation
+      provided introduces material revenue recognition uncertainty ahead of any audit or QofE process.
+    - Speculative forward-looking addbacks ($909K Unicity synergies, $430K Guided Living ramp-up, $190K CT de novo ramp-up)
+      are embedded in the TTM earnings bridge — these represent anticipated future performance, not historical earnings.
+    - Caregiver headcount is disclosed only for the Massachusetts/Guided Living location (165 scheduled caregivers); system-wide
+      caregiver count, turnover rate, open requisitions, and labor availability by market are entirely absent, making workforce
+      capacity and growth constraints unassessable.
+    - Referral source concentration is undisclosed — the top referral channel breakdown is incomplete (only 2 categories surfaced
+      vs. 4+ expected), and no customer revenue concentration data is available, leaving a key revenue quality and retention
+      risk unquantified.
+    closing: 'The most consequential open question the full report addresses — and that any buyer must resolve before underwriting
+      a purchase price — is what normalized, cash-basis, pre-synergy EBITDA actually looks like once a third-party QofE strips
+      the $2.49M executive comp addback, the $665K revenue recognition conversion, and the $1.34M in combined acquisition
+      pre-close and speculative ramp-up credits: the answer determines whether this is a mid-single-digit or sub-5% EBITDA-margin
+      business, and whether the implied acquisition multiple is defensible.'
+  business_snapshot_narrative: 'Elder Care is a private-pay home care services platform operating across six Northeast markets
+    (New York, Westchester, Long Island, Connecticut, New Jersey, Massachusetts), delivering home health aide and nursing
+    services on an hourly and live-in basis. Revenue has compounded at approximately 45% annually from $8.96M (2020) to $44.7M
+    (TTM Aug-24), with growth sourced from organic market launches, a de novo Connecticut office, and two acquisitions closed
+    in 2023–2024 (Guided Living in Massachusetts, Unicity in New Jersey). The business operates a hybrid workforce model —
+    roughly 41% of total headcount is offshore in the Philippines — which has demonstrably held SG&A growth well below headcount
+    growth. The revenue quality flag is Yellow: the company books on a cash basis, payor mix is undisclosed, referral concentration
+    is unknown, and the EBITDA bridge is heavily pro-forma, warranting a full independent QofE before any earnings-based valuation
+    can be anchored.'
+  confidence_rationale: 'Confidence is rated high only for financial trends, where the CIM provides a multi-year geographic
+    revenue build and margin history. All other areas are materially capped by data room gaps: the KPI agent could not source
+    system-wide caregiver headcount, turnover rate, open requisitions, or payor mix — the inputs most critical to assessing
+    workforce capacity and revenue durability in a labor-intensive home care model. The legal agent retrieved zero documents
+    across all 11 checklist categories, meaning litigation exposure, change-of-control provisions, founder agreements, and
+    referral/channel dependencies are entirely unreviewed. The QofE agent found no independent QofE report in the data room,
+    and the business model agent experienced token-limit truncations that may have cut referral source data short (only 2
+    of an expected 4+ categories were recovered). Taken together, the absence of a third-party QofE, undisclosed payor mix,
+    and zero legal document production mean that the pro-forma earnings figure, revenue quality, and deal-closing risk profile
+    cannot be reliably assessed from available materials.'
+  preliminary_digest: Revenue has compounded at ~45% annually to $44.7M TTM Aug-24, with gross margins expanding from 42%
+    to 46% — the organic growth trajectory and margin profile at mature locations are the primary reasons to engage further.
+    [Financial Strip] The EBITDA bridge contains 17 addback line items totaling ~$8.9M against $2.77M reported EBITDA (246.9%),
+    with no third-party QofE in the data room; the $2.49M executive compensation normalization alone equals 89.8% of reported
+    earnings and is entirely undocumented. [Quality of Earnings] The company books revenue on a cash basis, and a $665K cash-to-accrual
+    conversion is embedded in the pro-forma bridge without reconciliation, making the stated revenue figure unreliable until
+    an audit-quality review is completed. [Revenue Quality] Site-level KPI visibility exists (billed hours, bill rates, clients
+    by location), but system-wide caregiver headcount, turnover rate, and open requisition data are absent — the workforce
+    capacity underpinning the growth forecast cannot be stress-tested. [KPI Dashboard] Referral source concentration and top-customer
+    revenue percentages are undisclosed, and no customer contracts, change-of-control provisions, or litigation history have
+    been produced — the legal and customer quality layers are effectively unreviewed. [Legal Snapshot] The offshore global
+    team model (44 resources, ~41% of headcount) is a structural cost lever that has held admin payroll growth to 10% against
+    61% headcount growth, and is a differentiated element of the operating model worth evaluating for scalability. [Business
+    Snapshot] Confidence is high only on financial trends (margin direction, geographic revenue build); business model, KPI,
+    legal, and forecast support are all rated low due to data room gaps that are material to valuation. [Confidence by Area]
+  thesis_bullets:
+  - 'Rapid multi-market build-out: organic expansion from Westchester into NYC, Long Island, Connecticut, and two acquisitions
+    into New Jersey and Massachusetts have scaled revenue ~5x in four years, demonstrating a repeatable geographic entry playbook
+    in the Northeast private-pay home care market.'
+  - 'Offshore operating model as structural margin lever: a 44-person Philippines-based global team covering finance, billing,
+    compliance, on-call, and caregiver recruiting has decoupled headcount growth from admin cost growth — a differentiated
+    capability that has already been deployed post-acquisition at Guided Living.'
+  - 'Acquisition integration as a near-term earnings catalyst: two bolt-on deals (Guided Living at 4.5x synergy-adjusted EBITDA,
+    Unicity at 5.3x) provide a template for further tuck-in M&A, with IT consolidation and offshore staffing substitution
+    as the primary synergy levers.'
+  - 'Premium private-pay positioning with high weekly revenue intensity: NYC clients generate $3,116/week in billed revenue
+    versus a $1,927 portfolio average, suggesting meaningful upside as newer markets (NJ at $1,792, MA at $1,830) mature toward
+    the NYC/Long Island rate profile.'
+  - 'Nursing services as a cross-sell and margin-mix opportunity: launched in Manhattan in 2019 and expanded to Brooklyn,
+    Westchester, and Queens, nursing represents a higher-acuity, potentially higher-margin service line that is still early
+    in its geographic rollout.'
+  key_watchouts:
+  - 'Caregiver recruiting and retention capacity is unquantified at the system level: only the Massachusetts location''s 165-caregiver
+    headcount is disclosed; open requisition counts, turnover rates, and geographic labor availability constraints are absent
+    — if caregiver supply is the binding constraint on growth, the revenue forecast is not supportable from available data.'
+  - 'Referral source concentration is a blind spot: the referral breakdown is incomplete (2 of 4+ expected categories), top-customer
+    revenue percentages are undisclosed, and no referral or channel agreements have been produced — a single concentrated
+    referral relationship unwinding post-close could disproportionately impact census.'
+  - 'Organic vs. acquisition revenue mix is obscured by the pro-forma bridge: pre-acquisition results for Guided Living ($377K)
+    and Unicity ($1,077K) are addbacks in the TTM earnings schedule, making it difficult to isolate the organic growth rate
+    of the legacy business from acquired revenue — a critical distinction for underwriting future organic growth.'
+  - 'Service quality and care management capacity at scale: the CIM discloses 12 onsite care management staff system-wide
+    against ~998 clients served TTM Aug-24 (per CIM); as the platform scales toward 1,251 projected 2024E clients, the ratio
+    of care managers to clients and any associated quality or compliance incidents are undisclosed.'
+  - 'Market-level unit economics vary materially and newer markets are unproven at scale: Connecticut ($600K TTM, $43 billed
+    hours/week/client) and New Jersey ($7.6M TTM, $1,792/week/client) are early-stage relative to Long Island and NYC — whether
+    their unit economics converge to mature-market levels or plateau at lower margins is not yet determinable.'
+  - 'Replicability of the offshore model in acquired entities carries integration risk: the global team substitution at Guided
+    Living generated $62K in savings but is a single data point; the compliance, licensing, and cultural dimensions of deploying
+    a Philippines-based team across multi-state regulated home care operations have not been stress-tested at larger acquired
+    scale.'
+company_framing:
+  overview_bullets:
+  - Home Health Aide – Hourly (6-7 Hours)
+  - Home Health Aide – Hourly (8+ Hours)
+  - Live-In Care (Per Day)
+  revenue_model:
+    tag: repeat_services
+    quality_flag: Yellow
+    note: Elder Care earns revenue by providing private pay home care services (home health aides, live-in care, nursing)
+      to clients in the Northeast. Pro Forma Adjusted Revenue grew from $8.96M in 2020 to $44.7M TTM Aug-24, a ~45% CAGR.
+  recent_changes:
+  - change_type: geography
+    description: Elder Care re-launched under David Gilberg and Loren Gilberg, expanding from Westchester into NYC.
+    approximate_date: '2017'
+    impact_note: Revenue grew from $1.7M (FY17) to $4.5M (FY19) as Westchester and NYC scaled.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: Executive Team
+  - change_type: product
+    description: Elder Care launched nursing care services in Manhattan.
+    approximate_date: '2019'
+    impact_note: Nursing services subsequently expanded to Brooklyn, Westchester, and Queens including hourly visit nursing
+      and live-in nursing.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: Cross Sell Opportunities
+  - change_type: geography
+    description: Nursing services expanded to Brooklyn, Westchester, and Queens, including hourly visit nursing and live-in
+      nursing.
+    approximate_date: '2020'
+    impact_note: null
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: Cross Sell Opportunities
+  - change_type: staffing
+    description: Elder Care launched its Philippines-based back-office global team.
+    approximate_date: December 2021
+    impact_note: Team grew from 15 global resources (Nov-23) to 44 (Dec-24), a 193.3% increase. Admin payroll expense grew
+      only 10.2% despite 61.2% headcount growth.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: Streamlined Operations Driven by Outsourced Team
+  - change_type: ma
+    description: Acquisition of Guided Living Senior Home Care (Plymouth, MA and Cape Cod, MA), founded 2012.
+    approximate_date: March 2024
+    impact_note: Contributed $4.25M PF Adj. Revenue and $1.36M PF Adj. Clinic-Level EBITDA in TTM Aug-24. Synergy-adjusted
+      EBITDA multiple of 4.5x vs. stated EBITDA multiple of 5.4x.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: M&A Strategy Focused on New Markets & Operational Synergies
+  - change_type: ma
+    description: Acquisition of Unicity Healthcare (Bergen County, NJ), founded 2010.
+    approximate_date: '2024'
+    impact_note: Contributed $7.57M PF Adj. Revenue and $2.46M PF Adj. Clinic-Level EBITDA in TTM Aug-24. Synergy-adjusted
+      EBITDA multiple of 5.3x vs. stated EBITDA multiple of 26.7x.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: M&A Strategy Focused on New Markets & Operational Synergies
+  - change_type: geography
+    description: De novo launch of Connecticut (Stamford, CT) office under ECHC LLC.
+    approximate_date: '2023'
+    impact_note: CT generated $200K revenue in 2023 and $600K in TTM Aug-24; start-up losses removed as EBITDA adjustment.
+      PF Adj. EBITDA of $138K in TTM Aug-24.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: Pro Forma Income Statement – Connecticut
+  - change_type: staffing
+    description: Replaced Guided Living's caregiver recruiter with an Elder Care Global Resource team member.
+    approximate_date: October 2024
+    impact_note: Generated cost savings of $62K.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: 5 30 Days Pre-Close
+  - change_type: operational
+    description: Consolidated IT systems across acquisitions (Guided Living and Unicity) into Elder Care's technology stack
+      including WellSky, Slack, Jotform, and Viventium.
+    approximate_date: '2024'
+    impact_note: Generated cost savings of $500–$1K/month; further email and caregiver recruitment system synergies expected
+      in 2025 generating $20K+/year.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: 5 30 Days Pre-Close
+  - change_type: staffing
+    description: Hired Todd Abramson as Chief Operating Officer.
+    approximate_date: '2022'
+    impact_note: 2 years with Elder Care as of CIM date; brought operational scaling experience from Santander, IBM, and mid-stage
+      start-ups.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: Executive Team
+  - change_type: geography
+    description: Long Island office launched and scaled from $229K revenue (2020) to $8.8M (2023) and $11.6M (TTM Aug-24).
+    approximate_date: '2020'
+    impact_note: Long Island grew from 1 client (Q1-20) to 91 clients (Q3-24).
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    source_location: Attractive Financial Profile
+  thesis:
+    bullets: []
+    value_creation_levers: []
+  workforce_notes: 'Aggregate workforce model: offshore/contract headcount 44, offshore 40.7% of total. Headcount by function:
+    Caregiver Recruitment 5 onsite; Caregiver Recruitment 1 offshore; Marketing 11 onsite; Marketing 0 offshore; Finance 1
+    onsite; Finance 10 offshore; HR/Corp. Recruitment 4 onsite; HR/Corp. Recruitment 2 offshore; Compliance 0 onsite; Compliance
+    2 offshore; Training 1 onsite; Training 1 offshore; Executive 4 onsite; Executive 0 offshore; Office Directors 5 onsite;
+    Office Directors 0 offshore; Care Management 12 onsite; Care Management 0 offshore; Nursing 11 onsite; Nursing 0 offshore;
+    Coordination 12 onsite; Coordination 10 offshore; On Call 0 onsite; On Call 10 offshore; Patient Services 1 onsite; Patient
+    Services 2 offshore; Gilbert Metante (Accounting Lead) 1 offshore; Neil Boncato (Collections Lead) 1 offshore; Accounting
+    2 offshore; Billing 4 offshore; Payroll 2 offshore; Corporate Recruiting 1 offshore; Human Resources 1 offshore; Training
+    (Global) 1 offshore; Compliance (Global) 2 offshore; Caregiver Recruiting (Global) 7 offshore; On-Call Specialists (Global)
+    9 offshore; Tristan Rentuaya (On-Call Management) 1 offshore.'
+financials:
+  table_rows:
+  - year: 2020A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 42.1%
+    ebitda: ''
+    ebitda_margin_pct: 36.6%
+  - year: 2021A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 42.3%
+    ebitda: ''
+    ebitda_margin_pct: 33.4%
+  - year: 2022A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 44.0%
+    ebitda: ''
+    ebitda_margin_pct: 31.4%
+  - year: 2023A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 45.6%
+    ebitda: ''
+    ebitda_margin_pct: 30.3%
+  - year: TTM Aug-24
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 45.6%
+    ebitda: ''
+    ebitda_margin_pct: 30.0%
+  - year: 2020A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 42.1%
+    ebitda: ''
+    ebitda_margin_pct: 36.6%
+  - year: 2021A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 42.3%
+    ebitda: ''
+    ebitda_margin_pct: 33.4%
+  - year: 2022A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 44.0%
+    ebitda: ''
+    ebitda_margin_pct: 31.4%
+  - year: 2023A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 45.6%
+    ebitda: ''
+    ebitda_margin_pct: 30.3%
+  - year: TTM Aug-24
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 45.6%
+    ebitda: ''
+    ebitda_margin_pct: 30.0%
+  observations: []
+  geographic_mix:
+  - segment: New York
+    revenue_pct: null
+    revenue_dollars: 1,525
+    period: 2020A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New York
+    revenue_pct: null
+    revenue_dollars: 4,517
+    period: 2021A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New York
+    revenue_pct: null
+    revenue_dollars: 10,496
+    period: 2022A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New York
+    revenue_pct: null
+    revenue_dollars: 12,972
+    period: 2023A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New York
+    revenue_pct: null
+    revenue_dollars: 13,588
+    period: TTM Aug-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Westchester
+    revenue_pct: null
+    revenue_dollars: 7,042
+    period: 2020A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Westchester
+    revenue_pct: null
+    revenue_dollars: 7,990
+    period: 2021A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Westchester
+    revenue_pct: null
+    revenue_dollars: 7,524
+    period: 2022A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Westchester
+    revenue_pct: null
+    revenue_dollars: 8,200
+    period: 2023A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Westchester
+    revenue_pct: null
+    revenue_dollars: 8,759
+    period: TTM Aug-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Long Island
+    revenue_pct: null
+    revenue_dollars: '229'
+    period: 2020A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Long Island
+    revenue_pct: null
+    revenue_dollars: 1,644
+    period: 2021A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Long Island
+    revenue_pct: null
+    revenue_dollars: 2,815
+    period: 2022A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Long Island
+    revenue_pct: null
+    revenue_dollars: 8,837
+    period: 2023A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Long Island
+    revenue_pct: null
+    revenue_dollars: 11,644
+    period: TTM Aug-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Connecticut
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2020A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Connecticut
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2021A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Connecticut
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2022A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Connecticut
+    revenue_pct: null
+    revenue_dollars: '200'
+    period: 2023A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Connecticut
+    revenue_pct: null
+    revenue_dollars: '600'
+    period: TTM Aug-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Massachusetts
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2020A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Massachusetts
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2021A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Massachusetts
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2022A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Massachusetts
+    revenue_pct: null
+    revenue_dollars: 1,205
+    period: 2023A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Massachusetts
+    revenue_pct: null
+    revenue_dollars: 4,250
+    period: TTM Aug-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New Jersey
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2020A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New Jersey
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2021A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New Jersey
+    revenue_pct: null
+    revenue_dollars: '-'
+    period: 2022A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New Jersey
+    revenue_pct: null
+    revenue_dollars: 2,523
+    period: 2023A
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: New Jersey
+    revenue_pct: null
+    revenue_dollars: 7,569
+    period: TTM Aug-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Home Care (Live-in / Hourly)
+    revenue_pct: 85.4%
+    revenue_dollars: null
+    period: TTM Nov-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Service Type 2
+    revenue_pct: 10.8%
+    revenue_dollars: null
+    period: TTM Nov-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Service Type 3
+    revenue_pct: 1.6%
+    revenue_dollars: null
+    period: TTM Nov-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+  - segment: Service Type 4
+    revenue_pct: 2.2%
+    revenue_dollars: null
+    period: TTM Nov-24
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+revenue_quality:
+  scale_narrative: ''
+  concentration: ''
+  end_market_mix: ''
+  retention_notes: ''
+kpi_dashboard:
+- metric_id: census_or_patient_panel
+  display_name: Census Or Patient Panel
+  stated_value: 998 clients served TTM Aug-24; 2024E 1,251 total clients across all locations
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: caregiver_headcount
+  display_name: Caregiver Headcount
+  stated_value: 165 scheduled caregivers TTM Aug-24 (Massachusetts/Guided Living location only)
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: utilization_or_productivity_note
+  display_name: Utilization Or Productivity Note
+  stated_value: 'TTM Nov-24 billed hours per week per client: Long Island 67, New York 71, Westchester 58, Connecticut 43,
+    Massachusetts 42, New Jersey 78; location average 60 hours/week/client'
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: wage_pressure_note
+  display_name: Wage Pressure Note
+  stated_value: Rate increases are implemented 2-3 months after competitors; direct expenses modeled based on August 2024
+    TTM margin profile as go-forward assumption
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: revenue_per_client_dollars
+  display_name: Revenue Per Client Dollars
+  stated_value: 'TTM Nov-24 billed amount per week per client: Long Island $2,749, New York $3,116, Westchester $2,075, Massachusetts
+    $1,830, New Jersey $1,792; location average $1,927'
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: revenue_per_hour_dollars
+  display_name: Revenue Per Hour Dollars
+  stated_value: 'Blended hourly bill rates vary by location; Home Health Aides: Plymouth $45.00/hr, Westchester $37.00/hr,
+    Long Island $36.75/hr, NYC $37.00/hr, New Jersey $35.50/hr, Connecticut $36.00/hr'
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: revenue_per_unit_note
+  display_name: Revenue Per Unit Note
+  stated_value: Revenue tracked per client per week (billed amount) and per hour (billed rate). Hourly bill rates at mature
+    locations expected to increase year-over-year per projection assumptions.
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: site_level_visibility
+  display_name: Site Level Visibility
+  stated_value: 'true'
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: site_level_visibility_note
+  display_name: Site Level Visibility Note
+  stated_value: Revenue, EBITDA, clients served, caregiver headcount, billed hours, and bill rates are broken out by individual
+    location (New York, Westchester, Long Island, Connecticut, Massachusetts, New Jersey)
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+qoe:
+  addback_pct_of_ebitda: '246.9'
+  tier_summary: The Elder Care TTM Aug-24 EBITDA bridge contains 17 addback line items, all classified Tier 4 due to the absence
+    of any supporting documentation references across the entire addback schedule. The aggregate quantum of adjustments —
+    including $2,490K in executive compensation normalization, $1,077K and $377K in pre-acquisition results for Unicity and
+    Guided Living respectively, $909K in unverified synergies, and $430K/$190K in speculative maturity ramp-ups — substantially
+    exceeds the reported EBITDA of $2,773K, indicating a heavily pro-forma adjusted earnings presentation. Key revenue quality
+    concerns include a $665K cash-to-accrual revenue conversion with no reconciliation provided, vague non-recurring revenue
+    exclusions, and the episodic demand characteristics inherent to private pay home care with multiple recently acquired
+    or de novo entities.
+  flags:
+  - metric: tier4_addback
+    value: '[A] Credit card expense allocation ($(0))'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [A] Credit card expense allocation ($(0)) — unlikely to survive buyer QofE. Source: 2024 Elder
+      Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[B] Non-recurring transactions ($182)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [B] Non-recurring transactions ($182) — unlikely to survive buyer QofE. Source: 2024 Elder Care
+      - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[C] Non-operating transactions ($53)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [C] Non-operating transactions ($53) — unlikely to survive buyer QofE. Source: 2024 Elder Care
+      - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[D] Cash-to-accrual revenue adjustment ($665)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [D] Cash-to-accrual revenue adjustment ($665) — unlikely to survive buyer QofE. Source: 2024 Elder
+      Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[E] Payroll accrual ($(158))'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [E] Payroll accrual ($(158)) — unlikely to survive buyer QofE. Source: 2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[F] Straight-line rent expense ($(33))'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [F] Straight-line rent expense ($(33)) — unlikely to survive buyer QofE. Source: 2024 Elder Care
+      - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[G] Run-rate executive compensation ($2,490)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [G] Run-rate executive compensation ($2,490) — unlikely to survive buyer QofE. Source: 2024 Elder
+      Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[H] Normalized expenses ($94)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [H] Normalized expenses ($94) — unlikely to survive buyer QofE. Source: 2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[I] De novo start-up losses (ECHC) ($189)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [I] De novo start-up losses (ECHC) ($189) — unlikely to survive buyer QofE. Source: 2024 Elder
+      Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[J] Guided Living pre-acquisition results ($377)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [J] Guided Living pre-acquisition results ($377) — unlikely to survive buyer QofE. Source: 2024
+      Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[K] Unicity pre-acquisition results ($1,077)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [K] Unicity pre-acquisition results ($1,077) — unlikely to survive buyer QofE. Source: 2024 Elder
+      Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[L] Reclass adjustments ($0)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [L] Reclass adjustments ($0) — unlikely to survive buyer QofE. Source: 2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[M] Corporate overhead allocation ($0)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [M] Corporate overhead allocation ($0) — unlikely to survive buyer QofE. Source: 2024 Elder Care
+      - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[N] Guided Living ramp-up/maturity adjustment ($430)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [N] Guided Living ramp-up/maturity adjustment ($430) — unlikely to survive buyer QofE. Source:
+      2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[O] Unicity incremental earnings from synergies ($909)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [O] Unicity incremental earnings from synergies ($909) — unlikely to survive buyer QofE. Source:
+      2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[P] De novo ramp-up/maturity adjustment (ECHC) ($190)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [P] De novo ramp-up/maturity adjustment (ECHC) ($190) — unlikely to survive buyer QofE. Source:
+      2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: '[Q] Corporate overhead allocation ($-)'
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: [Q] Corporate overhead allocation ($-) — unlikely to survive buyer QofE. Source: 2024 Elder Care
+      - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[B] Non-recurring transactions ($182, 6.6% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (6.6%) with no VDR document support: [B] Non-recurring transactions. Source: 2024 Elder Care
+      - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[D] Cash-to-accrual revenue adjustment ($665, 24.0% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (24.0%) with no VDR document support: [D] Cash-to-accrual revenue adjustment. Source: 2024
+      Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[E] Payroll accrual ($(158), 5.7% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (5.7%) with no VDR document support: [E] Payroll accrual. Source: 2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[G] Run-rate executive compensation ($2,490, 89.8% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (89.8%) with no VDR document support: [G] Run-rate executive compensation. Source: 2024 Elder
+      Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[I] De novo start-up losses (ECHC) ($189, 6.8% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (6.8%) with no VDR document support: [I] De novo start-up losses (ECHC). Source: 2024 Elder
+      Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[J] Guided Living pre-acquisition results ($377, 13.6% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (13.6%) with no VDR document support: [J] Guided Living pre-acquisition results. Source:
+      2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[K] Unicity pre-acquisition results ($1,077, 38.8% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (38.8%) with no VDR document support: [K] Unicity pre-acquisition results. Source: 2024 Elder
+      Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[N] Guided Living ramp-up/maturity adjustment ($430, 15.5% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (15.5%) with no VDR document support: [N] Guided Living ramp-up/maturity adjustment. Source:
+      2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[O] Unicity incremental earnings from synergies ($909, 32.8% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (32.8%) with no VDR document support: [O] Unicity incremental earnings from synergies. Source:
+      2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: '[P] De novo ramp-up/maturity adjustment (ECHC) ($190, 6.9% of EBITDA)'
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (6.9%) with no VDR document support: [P] De novo ramp-up/maturity adjustment (ECHC). Source:
+      2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: total_addbacks_pct_of_ebitda
+    value: 246.9%
+    threshold: '>20% of reported EBITDA'
+    severity: Yellow
+    note: Total addbacks represent 246.9% of reported EBITDA — QofE review high priority. Heavy reliance on addbacks increases
+      deal risk.
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: high
+  - metric: revenue_quality_non_recurring_in_run_rate
+    value: Addback [B] removes $182K of 'various non-recurring revenue' from the TTM period with no itemization
+    threshold: 'Revenue quality pattern: non_recurring_in_run_rate'
+    severity: Yellow
+    note: 'Revenue quality concern (non_recurring_in_run_rate): Addback [B] removes $182K of ''various non-recurring revenue''
+      from the TTM period with no itemization or documentation, raising the risk that recurring revenue streams are being
+      excluded from the run-r. Source: 2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: medium
+  - metric: revenue_quality_revenue_recognition_change
+    value: Addback [D] applies a $665K cash-to-accrual revenue conversion in the TTM period, indicating the com
+    threshold: 'Revenue quality pattern: revenue_recognition_change'
+    severity: Red
+    note: 'Revenue quality concern (revenue_recognition_change): Addback [D] applies a $665K cash-to-accrual revenue conversion
+      in the TTM period, indicating the company''s books are maintained on a cash basis; this represents a material revenue
+      recognition methodol. Source: 2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: medium
+  - metric: revenue_quality_addbacks_growing_faster
+    value: Total pro-forma addbacks in the TTM Aug-24 schedule (including synergies, ramp-ups, and pre-acquisit
+    threshold: 'Revenue quality pattern: addbacks_growing_faster'
+    severity: Red
+    note: 'Revenue quality concern (addbacks_growing_faster): Total pro-forma addbacks in the TTM Aug-24 schedule (including
+      synergies, ramp-ups, and pre-acquisition results) aggregate to approximately $8,900K against reported EBITDA of $2,773K,
+      meaning adjustme. Source: 2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: medium
+  - metric: revenue_quality_episodic_revenue
+    value: The company operates in home care services with private pay revenue; the CIM notes strategic initiat
+    threshold: 'Revenue quality pattern: episodic_revenue'
+    severity: Yellow
+    note: 'Revenue quality concern (episodic_revenue): The company operates in home care services with private pay revenue;
+      the CIM notes strategic initiatives driving growth, but referral patterns and client retention in home care are inherently
+      episodic. Source: 2024 Elder Care - CIM_vF.pdf.'
+    source_doc: 2024 Elder Care - CIM_vF.pdf
+    confidence: medium
+legal:
+  assessed_count: 0
+  checklist_total: 11
+  section_confidence: low
+  top_flags: []
+  top_gaps:
+  - Customer contracts — termination for convenience
+  - Change-of-control clauses
+  - Exclusivity, MFN, non-compete, non-solicit
+  - Vendor pricing / cancellation terms
+  - Platform / reseller / channel dependencies
+  - Employee, contractor, commission agreements
+  - Founder / key employee agreements
+  - Litigation exposure
+  recommended_diligence:
+  - doc_type: Top Customer Contracts / MSAs / SOWs
+    priority: High
+    item_id: t4c
+  - doc_type: Top Customer Contracts / MSAs / SOWs
+    priority: High
+    item_id: coc
+  - doc_type: Top Customer Contracts / MSAs / SOWs
+    priority: High
+    item_id: restrictive
+  - doc_type: Vendor Contracts
+    priority: Medium
+    item_id: vendor
+  - doc_type: Referral / Channel / Platform Agreements
+    priority: High
+    item_id: platform
+  - doc_type: Employment Agreements
+    priority: Medium
+    item_id: employment
+  - doc_type: Founder / Key Employee Agreements
+    priority: High
+    item_id: founder
+  - doc_type: Litigation Summary / Legal Matters Schedule
+    priority: High
+    item_id: litigation
+confidence_by_area:
+  business_model: low
+  financial_trends: high
+  customer_quality: medium
+  kpi: low
+  legal: low
+  quality_of_earnings: medium
+  forecast_support: low
+provenance:
+  agent_report_paths:
+    business_model: /Volumes/uc13_preview/analysis/reports/Elder_Care/business_model_report.yaml
+    financial_trends: /Volumes/uc13_preview/analysis/reports/Elder_Care/financial_trends_report.yaml
+    customer_quality: /Volumes/uc13_preview/analysis/reports/Elder_Care/customer_quality_report.yaml
+    kpi: /Volumes/uc13_preview/analysis/reports/Elder_Care/kpi_report.yaml
+    legal: /Volumes/uc13_preview/analysis/reports/Elder_Care/legal_report.yaml
+    quality_of_earnings: /Volumes/uc13_preview/analysis/reports/Elder_Care/quality_of_earnings_report.yaml
+  agent_delta_tables:
+    business_model: uc13_preview.analysis.business_model
+    financial_trends: uc13_preview.analysis.financial_trends
+    customer_quality: uc13_preview.analysis.customer_quality
+    kpi: uc13_preview.analysis.kpi
+    legal: uc13_preview.analysis.legal
+    quality_of_earnings: uc13_preview.analysis.quality_of_earnings
+  bundle_builder_version: 0.2.0-m2
+  synthesis_gaps:
+  - field_path: headline_metrics.ltm_revenue
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+  - field_path: revenue_quality.concentration
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+  - field_path: company_framing.thesis.bullets
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+risks:
+- risk: ebitda_margin_pct
+  severity: critical
+  evidence: 7.9% (2024 Elder Care - CIM_vF.pdf
+  mitigant_or_question: 'EBITDA margin of 7.9% is below the ~10% threshold, which may indicate labor inefficiency, weak reimbursement,
+    poor scheduling/utilization, high admin burden, or lack of scale. Source: 2024 Elder Care - CIM_vF.pdf.'
+  source_agent: financial_trends
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: '[J] Guided Living pre-acquisition results ($377, 13.6% of EBITDA) (2024 Elder Care - CIM_vF.pdf'
+  mitigant_or_question: 'Addback >5% of EBITDA (13.6%) with no VDR document support: [J] Guided Living pre-acquisition results.
+    Source: 2024 Elder Care - CIM_vF.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: '[N] Guided Living ramp-up/maturity adjustment ($430, 15.5% of EBITDA) (2024 Elder Care - CIM_vF.pdf'
+  mitigant_or_question: 'Addback >5% of EBITDA (15.5%) with no VDR document support: [N] Guided Living ramp-up/maturity adjustment.
+    Source: 2024 Elder Care - CIM_vF.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: '[D] Cash-to-accrual revenue adjustment ($665, 24.0% of EBITDA) (2024 Elder Care - CIM_vF.pdf'
+  mitigant_or_question: 'Addback >5% of EBITDA (24.0%) with no VDR document support: [D] Cash-to-accrual revenue adjustment.
+    Source: 2024 Elder Care - CIM_vF.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: '[O] Unicity incremental earnings from synergies ($909, 32.8% of EBITDA) (2024 Elder Care - CIM_vF.pdf'
+  mitigant_or_question: 'Addback >5% of EBITDA (32.8%) with no VDR document support: [O] Unicity incremental earnings from
+    synergies. Source: 2024 Elder Care - CIM_vF.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: '[K] Unicity pre-acquisition results ($1,077, 38.8% of EBITDA) (2024 Elder Care - CIM_vF.pdf'
+  mitigant_or_question: 'Addback >5% of EBITDA (38.8%) with no VDR document support: [K] Unicity pre-acquisition results.
+    Source: 2024 Elder Care - CIM_vF.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: '[E] Payroll accrual ($(158), 5.7% of EBITDA) (2024 Elder Care - CIM_vF.pdf'
+  mitigant_or_question: 'Addback >5% of EBITDA (5.7%) with no VDR document support: [E] Payroll accrual. Source: 2024 Elder
+    Care - CIM_vF.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: '[B] Non-recurring transactions ($182, 6.6% of EBITDA) (2024 Elder Care - CIM_vF.pdf'
+  mitigant_or_question: 'Addback >5% of EBITDA (6.6%) with no VDR document support: [B] Non-recurring transactions. Source:
+    2024 Elder Care - CIM_vF.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+data_room_gaps:
+- item: 'LLM response was truncated by the token limit (Unterminated string starting at: line 600 column 19 (char 23325)).
+    Partial JSON was recovered — records cut off mid-stream are excluded. Consider raising max_tokens or reducing retrieved
+    context size.'
+  priority: medium
+  source_agent: business_model
+  fill_state: filled_cited
+- item: 'LLM response was truncated by the token limit (Unterminated string starting at: line 613 column 16 (char 25091)).
+    Partial JSON was recovered — records cut off mid-stream are excluded. Consider raising max_tokens or reducing retrieved
+    context size.'
+  priority: medium
+  source_agent: business_model
+  fill_state: filled_cited
+- item: referral_source_breakdown has only 2 record(s) for a healthcare company. Most healthcare businesses have 4+ referral
+    source categories — the LLM may have stopped early. Review the retrieved referral table.
+  priority: medium
+  source_agent: business_model
+  fill_state: filled_cited
+- item: Budget vs. actual data was not found in retrieved documents. If the data room includes a management reporting package,
+    board deck, monthly controller report, or rolling forecast, confirm those files are tagged with the FINANCIAL workstream
+    and re-run the agent. Budget vs. actual is required to assess forecast credibility.
+  priority: medium
+  source_agent: financial_trends
+  fill_state: filled_cited
+- item: Top referral source/customer revenue % not stated — required for concentration threshold evaluation (healthcare)
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Termination-for-convenience terms not determinable from retrieved documents — contract review required for material
+    customers.
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Change-of-control consent terms not determinable — contract review required for all customers >20% of revenue.
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Payor mix not stated — required field for healthcare overlay; request from management
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Staff turnover rate not stated — required for healthcare services workforce risk assessment
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: Claims denial rate not stated — required for healthcare revenue cycle assessment.
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [caregiver_turnover_rate_pct]: What is the annual caregiver turnover rate by location, and how does it
+    compare to industry benchmarks? What retention programs are in place?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [payor_mix]: What is the precise payor mix by location (private pay, long-term care insurance, Medicaid,
+    Medicare, other)? Has the mix shifted over the past three years?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [ar_aging_by_payor]: Can you provide an AR aging schedule broken out by payor class (0-30, 31-60, 61-90,
+    90+ days)? What is the current DSO and write-off rate?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [denials_rate_pct]: What percentage of billed claims (particularly long-term care insurance) are denied
+    on first submission? What is the appeals success rate and average resolution time?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [referral_source_breakdown]: What are the top referral sources by volume and revenue, and what percentage
+    of new clients comes from each channel? Is there concentration risk in any single referral source?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [compliance_incidents]: Has the company experienced any state licensing actions, survey deficiencies,
+    billing audits, litigation, or credentialing gaps in the past five years? Please provide full disclosure.'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [total_caregiver_headcount_all_locations]: What is the total scheduled caregiver headcount by location
+    as of the most recent period? How many are full-time vs. part-time vs. per-diem?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [collections_rate_pct]: What is the net collections rate as a percentage of billed charges? What is the
+    annual bad debt or write-off amount by location and payor?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [labor_availability_note]: What is the current open caregiver requisition count by location? Are there
+    geographic markets where caregiver recruitment is materially constrained, and how does this affect growth capacity?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [clinician_headcount]: How many RNs and LPNs are currently employed or contracted across all locations?
+    What percentage of total billed hours are nursing vs. home health aide services?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: contract_trigger_list not found — Customer Quality Agent has not run or returned no material customers. Legal Agent
+    proceeding without triggered reviews.
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 't4c: no documents retrieved for contracts_vendors_platform pass — request Top Customer Contracts / MSAs / SOWs'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'coc: no documents retrieved for contracts_vendors_platform pass — request Top Customer Contracts / MSAs / SOWs'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'restrictive: no documents retrieved for contracts_vendors_platform pass — request Top Customer Contracts / MSAs /
+    SOWs'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'vendor: no documents retrieved for contracts_vendors_platform pass — request Vendor Contracts'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'platform: no documents retrieved for contracts_vendors_platform pass — request Referral / Channel / Platform Agreements'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'employment: no documents retrieved for employment pass — request Employment Agreements'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'founder: no documents retrieved for employment pass — request Founder / Key Employee Agreements'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'litigation: no documents retrieved for litigation pass — request Litigation Summary / Legal Matters Schedule'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'privacy: no documents retrieved for ip_privacy pass — request Privacy Policy / BAA / DPA'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'ip: no documents retrieved for ip_privacy pass — request IP Assignment / OSS Policy'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'insurance: no documents retrieved for insurance pass — request Insurance Certificates / Policies'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: Customer contracts — termination for convenience
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Change-of-control clauses
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Exclusivity, MFN, non-compete, non-solicit
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Vendor pricing / cancellation terms
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Platform / reseller / channel dependencies
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Employee, contractor, commission agreements
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Founder / key employee agreements
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Litigation exposure
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Data privacy / security obligations
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: IP ownership, assignment, OSS
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Insurance coverage gaps
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Customer Quality Agent output present but no per-customer gross margin data (gm_pct / gm_dollars) — customer profitability
+    cross-check skipped.
+  priority: medium
+  source_agent: quality_of_earnings
+  fill_state: filled_cited
+- item: No QofE report found in VDR — flag as data room gap
+  priority: medium
+  source_agent: quality_of_earnings
+  fill_state: filled_cited
+diligence_questions:
+- category: legal
+  question: Request and review Top Customer Contracts / MSAs / SOWs
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Top Customer Contracts / MSAs / SOWs
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Top Customer Contracts / MSAs / SOWs
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Vendor Contracts
+  priority: Medium
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Referral / Channel / Platform Agreements
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Employment Agreements
+  priority: Medium
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Founder / Key Employee Agreements
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Litigation Summary / Legal Matters Schedule
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized

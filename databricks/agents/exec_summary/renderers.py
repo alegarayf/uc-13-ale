@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 from typing import Any
 
@@ -39,9 +40,13 @@ class ReportRenderer:
         template_path: str | Path,
         tldr: dict[str, Any] | None = None,
         rainmaker: dict[str, Any] | None = None,
+        narrative: dict[str, Any] | None = None,
+        brand_logo_data_uri: str | None = None,
     ) -> str:
-        """Render *template_path* with ``bundle``; optional ``tldr`` projection (D5-A)
-        or ``rainmaker`` projection (Rainmaker template — see rainmaker_view.py)."""
+        """Render *template_path* with ``bundle``; optional ``tldr`` projection (D5-A),
+        ``rainmaker`` projection (Capa A — see rainmaker_view.py), ``narrative``
+        (Capa B — see rainmaker_narrative.py), or ``brand_logo_data_uri`` (Rainmaker
+        cover logo, base64 data URI)."""
         template_name = Path(template_path).name
         try:
             template = self._env.get_template(template_name)
@@ -50,6 +55,10 @@ class ReportRenderer:
                 context["tldr"] = tldr
             if rainmaker is not None:
                 context["rainmaker"] = rainmaker
+            if narrative is not None:
+                context["narrative"] = narrative
+            if brand_logo_data_uri is not None:
+                context["brand_logo_data_uri"] = brand_logo_data_uri
             return template.render(**context)
         except UndefinedError as exc:
             raise UndefinedError(f"{template_name}: {exc}") from exc
@@ -145,16 +154,41 @@ def _html_to_pdf(html: str, pdf_path: str) -> str | None:
         return None
 
 
+_BRAND_LOGO_PATH = _TEMPLATES_DIR / "assets" / "rallyday_logo.jpeg"
+
+
+def _logo_data_uri(logo_path: Path = _BRAND_LOGO_PATH) -> str | None:
+    """Base64 data URI for the Rallyday cover logo (plan §3.5) — a filesystem
+    ``src`` path is not reliable across WeasyPrint/PyMuPDF on Serverless, so
+    the asset is embedded inline. Tolerant of a missing/unreadable asset:
+    returns ``None`` rather than raising, so the cover simply omits the logo
+    (never fabricates a placeholder)."""
+    try:
+        data = logo_path.read_bytes()
+    except OSError as exc:
+        print(f"[rainmaker] brand logo unavailable ({exc!r}); rendering cover without it")
+        return None
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"data:image/jpeg;base64,{encoded}"
+
+
 def render_rainmaker(
     bundle: dict[str, Any],
     catalog: str,
     company_name: str,
+    narrative: dict[str, Any] | None = None,
 ) -> dict[str, str]:
-    """Render the Rainmaker "Opportunity Summary" one-pager (HTML + PDF).
+    """Render the Rainmaker "Opportunity Summary" (HTML + PDF, 3 pages).
 
     Unlike :func:`render_to_volume` (the Rev3 prose bridge), this produces
-    ONLY the visual one-pager — no ``full_report`` — matching the CIM-first
+    ONLY the visual summary — no ``full_report`` — matching the CIM-first
     preview's scope (no Cross-Analysis/Orchestrator memo; plan §5.5).
+
+    ``narrative`` is Capa B's output (see ``rainmaker_narrative.synthesize_
+    rainmaker_narrative``) — computed by the caller (entry point) so this
+    function stays render-only and never makes an LLM call itself. Pass
+    ``None`` (default) to render with the deterministic bundle fallbacks
+    only (no prose synthesis) — this never breaks the render.
 
     Returns ``{"html": path}`` plus ``{"pdf": path}`` when a PDF engine
     succeeded.
@@ -164,9 +198,16 @@ def render_rainmaker(
     vol_dir = reports_volume_dir(catalog, company_name)
     renderer = ReportRenderer()
     view = _rainmaker_view(bundle)
+    logo_data_uri = _logo_data_uri()
 
     html_out = f"{vol_dir}/rainmaker_opportunity_summary.html"
-    html = renderer.render(bundle, _TEMPLATES_DIR / _RAINMAKER_TEMPLATE, rainmaker=view)
+    html = renderer.render(
+        bundle,
+        _TEMPLATES_DIR / _RAINMAKER_TEMPLATE,
+        rainmaker=view,
+        narrative=narrative,
+        brand_logo_data_uri=logo_data_uri,
+    )
     with open(html_out, "w", encoding="utf-8") as fh:
         fh.write(html)
     print(f"[rainmaker] render html → {html_out}")

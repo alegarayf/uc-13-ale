@@ -155,6 +155,7 @@ def run_vdr_rainmaker(
         print(f"  CIM detected: {cim_files}")
 
         from agents.exec_summary.bundle_builder import BundleBuilder
+        from agents.exec_summary.rainmaker_narrative import synthesize_rainmaker_narrative
         from agents.exec_summary.renderers import render_rainmaker
         from agents.exec_summary.validate import validate_bundle
         from agents.orchestration.pipeline import run_pipeline
@@ -192,7 +193,11 @@ def run_vdr_rainmaker(
 
         bundle = BundleBuilder().build(company_name, PREVIEW_CATALOG, spark, llm_endpoint)
         validate_bundle(bundle)
-        rendered = render_rainmaker(bundle, PREVIEW_CATALOG, company_name)
+
+        narrative = synthesize_rainmaker_narrative(bundle, llm_endpoint, spark)
+        print(f"  Rainmaker narrative synthesis: {narrative.get('synthesis_status')}")
+
+        rendered = render_rainmaker(bundle, PREVIEW_CATALOG, company_name, narrative=narrative)
 
         token_totals = get_token_totals()
         print_token_summary()

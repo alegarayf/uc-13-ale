@@ -161,36 +161,75 @@ def _flag_sort_key(flag: dict) -> tuple:
     return (sev, flag.get("metric") or "", flag.get("note") or "")
 
 
+# EBITDA version preference when a period has more than one version record
+# (mirrors the 3-version cap documented for EbitdaSubAgent — pf_adjusted is
+# the most decision-useful figure, reported is the fallback of last resort).
+_EBITDA_VERSION_PRIORITY = ("pf_adjusted", "clinic_level_adjusted", "reported")
+
+
+def _ebitda_version_rank(record: dict) -> int:
+    version = str(record.get("version") or "").strip().lower()
+    try:
+        return _EBITDA_VERSION_PRIORITY.index(version)
+    except ValueError:
+        return len(_EBITDA_VERSION_PRIORITY)
+
+
+def _canonical_ebitda_by_period(ebitda_rows: list) -> dict[str, dict]:
+    """One EBITDA record per period, preferring pf_adjusted > clinic_level_adjusted
+    > reported > anything else (fix B0 — FTA can emit multiple EBITDA versions
+    for the same period, which previously produced duplicate table rows)."""
+    by_period: dict[str, dict] = {}
+    for r in ebitda_rows:
+        if not isinstance(r, dict):
+            continue
+        period = str(r.get("period", r.get("label", "")))
+        if not period:
+            continue
+        existing = by_period.get(period)
+        if existing is None or _ebitda_version_rank(r) < _ebitda_version_rank(existing):
+            by_period[period] = r
+    return by_period
+
+
 def _fta_table_rows(fta_yaml: dict | None) -> list[dict[str, str]]:
     if not fta_yaml:
         return []
     revenue_trend = fta_yaml.get("revenue_trend") or []
     ebitda_rows = fta_yaml.get("ebitda") or []
     gross_margin = fta_yaml.get("gross_margin") or []
-    ebitda_by_period = {
-        str(r.get("period", r.get("label", ""))): r
-        for r in ebitda_rows
-        if isinstance(r, dict)
-    }
+    ebitda_by_period = _canonical_ebitda_by_period(ebitda_rows)
     gm_by_period = {
         str(r.get("period", "")): r for r in gross_margin if isinstance(r, dict)
     }
     rows: list[dict[str, str]] = []
+    seen_periods: set[str] = set()
     for rev in revenue_trend:
         if not isinstance(rev, dict):
             continue
         period = str(rev.get("period") or rev.get("label") or "")
+        if not period or period in seen_periods:
+            # Fix B0 — revenue_trend can carry duplicate records for the same
+            # period (e.g. from multiple source documents); keep the first.
+            continue
+        seen_periods.add(period)
         ebitda = ebitda_by_period.get(period, {})
         gm = gm_by_period.get(period, {})
         rows.append(
             {
                 "year": period,
-                "revenue": str(rev.get("revenue") or rev.get("value") or ""),
-                "gross_profit": str(gm.get("gross_profit") or ""),
+                "revenue": str(
+                    rev.get("revenue_stated") or rev.get("revenue") or rev.get("value") or ""
+                ),
+                "gross_profit": str(
+                    gm.get("gm_dollars_stated") or gm.get("gross_profit") or ""
+                ),
                 "gross_margin_pct": str(
                     gm.get("gm_pct_stated") or gm.get("gross_margin_pct") or ""
                 ),
-                "ebitda": str(ebitda.get("ebitda") or ebitda.get("value") or ""),
+                "ebitda": str(
+                    ebitda.get("ebitda_dollars") or ebitda.get("ebitda") or ebitda.get("value") or ""
+                ),
                 "ebitda_margin_pct": str(
                     ebitda.get("ebitda_margin_pct") or ebitda.get("margin_pct") or ""
                 ),
@@ -214,7 +253,9 @@ def _headline_from_fta(fta_yaml: dict | None) -> dict[str, str | None]:
     ebitda_rows = fta_yaml.get("ebitda") or []
     if revenue_trend:
         latest = revenue_trend[-1] if isinstance(revenue_trend[-1], dict) else {}
-        empty["ltm_revenue"] = str(latest.get("revenue") or latest.get("value") or "")
+        empty["ltm_revenue"] = str(
+            latest.get("revenue_stated") or latest.get("revenue") or latest.get("value") or ""
+        )
         yoy_values = [
             r.get("yoy_growth_pct")
             for r in revenue_trend
@@ -223,8 +264,12 @@ def _headline_from_fta(fta_yaml: dict | None) -> dict[str, str | None]:
         if yoy_values:
             empty["revenue_cagr"] = str(yoy_values[-1])
     if ebitda_rows:
-        latest_e = ebitda_rows[-1] if isinstance(ebitda_rows[-1], dict) else {}
-        empty["ltm_ebitda"] = str(latest_e.get("ebitda") or latest_e.get("value") or "")
+        last_raw = ebitda_rows[-1] if isinstance(ebitda_rows[-1], dict) else {}
+        last_period = str(last_raw.get("period", ""))
+        latest_e = _canonical_ebitda_by_period(ebitda_rows).get(last_period, last_raw)
+        empty["ltm_ebitda"] = str(
+            latest_e.get("ebitda_dollars") or latest_e.get("ebitda") or latest_e.get("value") or ""
+        )
         empty["ltm_ebitda_margin_pct"] = str(
             latest_e.get("ebitda_margin_pct") or latest_e.get("margin_pct") or ""
         )

@@ -18,15 +18,20 @@ import yaml
 from agents.exec_summary.renderers import render_rainmaker
 
 _FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
-_COMPANIES = ["elder_care", "clearsulting", "gkf"]
+_COMPANIES = ["elder_care", "clearsulting", "gkf", "b2b_saas"]
 
 _EXPECTED_MARKERS = (
     "Company &amp; Investment Framing",
-    "Operating Data",
-    "Risk Register",
-    "Confidence by Area",
+    "Financial Performance",
+    "Priority Diligence Questions",
     "Proprietary &amp; Confidential",
 )
+
+# Iteración 2 (plan_raimaker_format.md §0/F1/F4): the Rainmaker format is
+# exactly 3 pages, leading with affirmative framing + financial figures —
+# the Risk Register / Confidence by Area page from the prior 4-page
+# template must never reappear (Austin feedback F1 — "exception report" feel).
+_REMOVED_PAGE_4_MARKERS = ("Risk Register", "Confidence by Area")
 
 # Narrative fragments that are specific to Elder Care's business — a marker
 # of "Elder-Care-shaped" leakage if they show up when rendering a different
@@ -65,6 +70,29 @@ def test_render_rainmaker_writes_html_and_returns_paths(monkeypatch, tmp_path, c
     html = html_path.read_text(encoding="utf-8")
     for marker in _EXPECTED_MARKERS:
         assert marker in html, f"missing marker {marker!r} for {company}"
+    for marker in _REMOVED_PAGE_4_MARKERS:
+        assert marker not in html, f"removed page-4 marker {marker!r} reappeared for {company}"
+
+
+def test_render_rainmaker_has_exactly_three_pages(monkeypatch, tmp_path):
+    """Structural non-regression for F4 (Austin: "too expansive for an
+    executive summary") — the reference Rainmaker format is 3 pages."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert html.count('class="page') == 3
+
+
+def test_render_rainmaker_body_never_embeds_bracketed_source_citations(monkeypatch, tmp_path, company):
+    """F5 (Austin: bracketed inline citations are distracting) — the 3-page
+    body must never render raw evidence/citation text inline. Removing the
+    Risk Register page (F1) already achieves this; this test locks it in."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert ".pdf" not in html
 
 
 def test_render_rainmaker_does_not_mutate_bundle(monkeypatch, tmp_path, company):
@@ -145,6 +173,7 @@ def test_render_rainmaker_partial_bundle_degrades_without_raising(monkeypatch, t
     bundle["kpi_dashboard"] = []
     bundle["data_room_gaps"] = []
     bundle["diligence_questions"] = []
+    bundle["company_framing"]["overview_bullets"] = []
     bundle["legal"] = {
         "assessed_count": 0,
         "checklist_total": 11,
@@ -156,5 +185,76 @@ def test_render_rainmaker_partial_bundle_degrades_without_raising(monkeypatch, t
 
     result = render_rainmaker(bundle, "uc13_preview", "Elder Care")
     html = Path(result["html"]).read_text(encoding="utf-8")
-    assert "Risk Register" in html
+    assert "Not yet assessed in this preview." in html
     assert "Company &amp; Investment Framing" in html
+
+
+def test_render_rainmaker_narrative_none_falls_back_to_bundle_bullets(monkeypatch, tmp_path):
+    """Paso 6 gate: narrative=None (default) must render deterministically
+    from the bundle's own bullets — never break, never require an LLM call."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], narrative=None)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    for bullet in bundle["company_framing"]["overview_bullets"]:
+        assert bullet in html
+
+
+def test_render_rainmaker_narrative_degraded_falls_back_like_none(monkeypatch, tmp_path):
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    degraded = {
+        "one_liner": None, "company_overview": None, "business_model": None,
+        "investment_thesis": None, "recommendation": None,
+        "commercial_revenue_quality": None, "diligence_priorities": None,
+        "synthesis_status": "degraded",
+    }
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], narrative=degraded)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    for bullet in bundle["company_framing"]["overview_bullets"]:
+        assert bullet in html
+
+
+def test_render_rainmaker_narrative_populated_uses_prose_not_bundle_bullets(monkeypatch, tmp_path):
+    """Paso 6 gate: with narrative populated, the template uses the LLM
+    prose instead of the raw bundle bullets."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    narrative = {
+        "one_liner": "A synthesized one-liner distinct from the bundle default.",
+        "company_overview": ["Synthesized overview bullet — not in the bundle."],
+        "business_model": ["Synthesized business model bullet."],
+        "investment_thesis": {"value_drivers": ["Synthesized value driver."], "why_special": "Synthesized why-special sentence."},
+        "recommendation": "This appears worthy of additional pursuit because of A, B and C, subject primarily to proving X, Y and Z.",
+        "commercial_revenue_quality": [{"topic": "Synthesized Topic", "detail": "Synthesized detail."}],
+        "diligence_priorities": ["Synthesized diligence priority question."],
+        "synthesis_status": "success",
+    }
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], narrative=narrative)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert "A synthesized one-liner distinct from the bundle default." in html
+    assert "Synthesized overview bullet — not in the bundle." in html
+    assert "This appears worthy of additional pursuit" in html
+    assert "Synthesized diligence priority question." in html
+
+
+def test_render_rainmaker_includes_brand_logo_when_asset_present(monkeypatch, tmp_path):
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert "data:image/jpeg;base64," in html
+
+
+def test_render_rainmaker_renders_dollar_pnl_table_on_diverse_overlay(monkeypatch, tmp_path):
+    """Anti-overfit (P2): a different overlay (b2b_saas) with populated $
+    figures renders the full P&L table + snapshot chart end-to-end through
+    render_rainmaker, not just through the pure rainmaker_view unit tests."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("b2b_saas")
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert "$4.0" in html
+    assert "$12.0" in html
+    assert "2022A" in html and "2024A" in html
+    assert "<svg" in html and "chart-legend" in html
