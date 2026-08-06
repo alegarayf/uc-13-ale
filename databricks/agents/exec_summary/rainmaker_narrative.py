@@ -172,9 +172,22 @@ _NON_FABRICATION_RULE = (
 
 _SYSTEM_PROMPT_FRAMING = f"""You are drafting the "Company & Investment Framing" section of a private-equity \
 first-pass opportunity summary (the Rainmaker format). Your audience is an investment team deciding whether \
-this deal is worth pursuing further.
+this deal is worth pursuing further. This summary must stay SHORT and GENERAL — the full operational detail \
+belongs in the underlying workstream reports, not here.
 
 {_NON_FABRICATION_RULE}
+
+LENGTH DISCIPLINE (strict, do not exceed):
+- "company_overview": at most 5 bullets, HIGH-LEVEL only — what the company does, its market/footprint, its \
+  scale and growth in aggregate terms. Do NOT include granular operational detail such as specific hourly \
+  rates, per-location billed hours/week, individual location-by-location pricing, or other line-item \
+  operating metrics — those are workstream-report detail, not first-pass framing. Generalize: e.g. write \
+  "operates across N markets with private-pay pricing" rather than listing each market's rate card.
+- "business_model": EXACTLY 3 bullets, covering — in this order — (1) where the revenue comes from (the \
+  revenue model itself), (2) one notable change or signal in gross margin, or the single most relevant KPI \
+  tied to the revenue model, (3) the reported EBITDA figure and its behavior/trend (not a full addback \
+  bridge — that belongs in Revenue Quality, not here).
+- "investment_thesis.value_drivers": at most 3 bullets — the strongest, most decision-relevant drivers only.
 
 Write a BALANCED AND AFFIRMATIVE investment thesis: connect the attractive elements present in the input \
 (e.g. growth, margins, recurring-revenue signals, operational strengths) into ONE coherent reason the business \
@@ -189,15 +202,30 @@ Respond with ONLY a JSON object, no markdown fences, with these exact keys:
 {{
   "one_liner": "<1 sentence — what the business is and why it could be interesting>",
   "company_overview": ["<bullet>", "..."],
-  "business_model": ["<bullet>", "..."],
+  "business_model": ["<revenue source bullet>", "<gross margin/KPI signal bullet>", "<reported EBITDA status bullet>"],
   "investment_thesis": {{"value_drivers": ["<bullet>", "..."], "why_special": "<1-2 sentences connecting the drivers>"}},
   "recommendation": "<the recommendation sentence, exact structure above>"
 }}"""
 
 _SYSTEM_PROMPT_REVQUAL_DILIGENCE = f"""You are drafting the "Revenue Quality & Customer Base" and "Priority \
-Diligence Questions" sections of a private-equity first-pass opportunity summary (the Rainmaker format).
+Diligence Questions" sections of a private-equity first-pass opportunity summary (the Rainmaker format). Keep \
+both sections tight — this is a first-pass screen, not the full workstream report.
 
 {_NON_FABRICATION_RULE}
+
+LENGTH DISCIPLINE (strict, do not exceed):
+- "commercial_revenue_quality": at most 5 bullets — the most decision-relevant revenue-quality/customer-base \
+  signals only.
+- "diligence_priorities": EXACTLY 5 questions, one for each of these five topics, in this order: \
+  (1) EBITDA — validating the reported vs. adjusted EBITDA bridge; \
+  (2) gross margin — what drives it and whether it is durable; \
+  (3) cash flow — cash conversion, working capital, or collections behavior; \
+  (4) operations rollout — how the business scales/replicates operationally (new locations, new capacity, \
+  delivery model) as it grows; \
+  (5) source documents — the single most important missing or unverified document/schedule needed to \
+  confirm the numbers above. \
+  If the input genuinely has nothing to ground one of these five topics, still ask the most relevant general \
+  question for that topic rather than skipping it or inventing a company-specific fact.
 
 CRITICAL — diligence question relevance: the input includes "revenue_model" (how this specific business earns \
 revenue). Every diligence question you generate MUST be relevant to that revenue model. Do NOT ask questions \
@@ -209,7 +237,7 @@ revenue_model and revenue_quality signals.
 Respond with ONLY a JSON object, no markdown fences, with these exact keys:
 {{
   "commercial_revenue_quality": [{{"topic": "<short topic>", "detail": "<1 sentence>"}}, "..."],
-  "diligence_priorities": ["<question>", "..."]
+  "diligence_priorities": ["<EBITDA question>", "<gross margin question>", "<cash flow question>", "<operations rollout question>", "<source documents question>"]
 }}"""
 
 _FRAMING_RESULT_KEYS = ("one_liner", "company_overview", "business_model", "investment_thesis", "recommendation")
