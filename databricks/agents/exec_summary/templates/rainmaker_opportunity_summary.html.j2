@@ -29,7 +29,7 @@
   .subtitle { color: #595959; font-size: 10.5pt; margin-bottom: 4mm; }
   .logo-row { display: flex; justify-content: space-between; align-items: flex-start; }
   .logo-row img { max-height: 11mm; }
-  .callout-row { display: flex; gap: 4mm; margin: 8mm 0; position: absolute; bottom: 22mm; left: 14mm; right: 14mm; }
+  .callout-row { display: flex; gap: 4mm; margin: 90mm 0 0 0; }
   .callout {
     flex: 1; background: #F2F4F7; border: 0.5pt solid #BFD0E8;
     border-radius: 2mm; padding: 3mm 4mm;
@@ -65,7 +65,7 @@
     border-bottom: 0.5pt solid #BFD0E8; padding: 1.3mm 2mm; text-align: right; vertical-align: top;
     font-size: 8.3pt; overflow: hidden;
   }
-  table.data-table th:first-child, table.data-table td:first-child { text-align: left; width: 26%; }
+  table.data-table th:first-child, table.data-table td:first-child { text-align: left; }
   table.data-table th { color: #fff; background: #1F3864; font-size: 7.5pt; text-transform: uppercase; }
   table.data-table tr.highlight td { background: #EEF3FA; font-weight: bold; }
   .snapshot-row { display: flex; gap: 6mm; margin: 3mm 0 5mm 0; }
@@ -93,7 +93,7 @@
 <body>
 
 <!-- Page 1 — Cover -->
-<section class="page cover" style="position: relative; min-height: 240mm;">
+<section class="page cover">
   <div class="logo-row">
     <div></div>
     {% if brand_logo_data_uri %}<img src="{{ brand_logo_data_uri }}" alt="Rallyday Partners">{% endif %}
@@ -146,7 +146,7 @@
       <h3 class="block-header">Company Overview</h3>
       <div class="card-body">
         <ul class="bullets">
-          {% for bullet in (narrative.company_overview if (narrative and narrative.company_overview) else (bundle.company_framing.overview_bullets or [])) %}
+          {% for bullet in (narrative.company_overview if (narrative and narrative.company_overview) else (bundle.company_framing.overview_bullets or []))[:5] %}
           <li>{{ bullet }}</li>
           {% else %}
           <li>Not yet assessed in this preview.</li>
@@ -160,7 +160,7 @@
       <div class="card-body">
         <ul class="bullets">
           {% if narrative and narrative.business_model %}
-          {% for bullet in narrative.business_model %}
+          {% for bullet in narrative.business_model[:3] %}
           <li>{{ bullet }}</li>
           {% endfor %}
           {% elif bundle.company_framing.revenue_model.note %}
@@ -178,11 +178,11 @@
         <ul class="bullets">
           {% if narrative and narrative.investment_thesis and narrative.investment_thesis.value_drivers %}
           {% if narrative.investment_thesis.why_special %}<li><strong>{{ narrative.investment_thesis.why_special }}</strong></li>{% endif %}
-          {% for bullet in narrative.investment_thesis.value_drivers %}
+          {% for bullet in narrative.investment_thesis.value_drivers[:3] %}
           <li>{{ bullet }}</li>
           {% endfor %}
           {% else %}
-          {% for bullet in (bundle.executive.thesis_bullets or bundle.company_framing.thesis.bullets or []) %}
+          {% for bullet in (bundle.executive.thesis_bullets or bundle.company_framing.thesis.bullets or [])[:4] %}
           <li>{{ bullet }}</li>
           {% else %}
           <li>Not yet assessed in this preview.</li>
@@ -196,7 +196,7 @@
       <h3 class="block-header watchouts">Key Watchouts / Areas to Prove</h3>
       <div class="card-body">
         <ul class="bullets">
-          {% for watchout in (bundle.executive.key_watchouts or []) %}
+          {% for watchout in (bundle.executive.key_watchouts or [])[:4] %}
           <li>{{ watchout }}</li>
           {% else %}
           <li>Not yet assessed in this preview.</li>
@@ -221,11 +221,12 @@
   <div class="divider"></div>
 
   {% if rainmaker.financials.periods %}
+  {% set period_col_pct = (78 / rainmaker.financials.periods | length) | round(2) %}
   <table class="data-table">
     <thead>
       <tr>
-        <th>({{ rainmaker.financials.currency }} in millions)</th>
-        {% for period in rainmaker.financials.periods %}<th>{{ period }}</th>{% endfor %}
+        <th style="width: 22%;">({{ rainmaker.financials.currency }} in millions)</th>
+        {% for period in rainmaker.financials.periods %}<th style="width: {{ period_col_pct }}%;">{{ period }}</th>{% endfor %}
       </tr>
     </thead>
     <tbody>
@@ -316,7 +317,7 @@
       <h3 class="block-header">Revenue Quality &amp; Customer Base</h3>
       <ul class="bullets">
         {% if narrative and narrative.commercial_revenue_quality %}
-        {% for item in narrative.commercial_revenue_quality %}
+        {% for item in narrative.commercial_revenue_quality[:5] %}
         <li><strong>{{ item.topic }}:</strong> {{ item.detail }}</li>
         {% endfor %}
         {% else %}
@@ -333,11 +334,11 @@
       <h3 class="block-header">Priority Diligence Questions</h3>
       <ul class="bullets">
         {% if narrative and narrative.diligence_priorities %}
-        {% for q in narrative.diligence_priorities %}
+        {% for q in narrative.diligence_priorities[:5] %}
         <li>{{ q }}</li>
         {% endfor %}
         {% else %}
-        {% for q in (rainmaker.diligence_questions or []) %}
+        {% for q in (rainmaker.diligence_questions or [])[:5] %}
         <li><strong>{{ q.category | default('', true) | title }}:</strong> {{ q.question | default('', true) }}</li>
         {% else %}
         <li>Not yet assessed in this preview.</li>

@@ -258,3 +258,73 @@ def test_render_rainmaker_renders_dollar_pnl_table_on_diverse_overlay(monkeypatc
     assert "$12.0" in html
     assert "2022A" in html and "2024A" in html
     assert "<svg" in html and "chart-legend" in html
+
+
+# ---------------------------------------------------------------------------
+# Stakeholder review round 1 fixes (cover overlap + bullet-count discipline).
+# ---------------------------------------------------------------------------
+
+
+def test_render_rainmaker_cover_callouts_not_absolutely_positioned(monkeypatch, tmp_path):
+    """Regression guard: `.callout-row { position: absolute; }` rendered the
+    Purpose/Basis/Status cards on top of the title under the real production
+    PDF engine (WeasyPrint) — reported by the stakeholder against a real
+    run. Must stay in normal flow."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert "position: absolute" not in html
+
+
+def _extract_block(html: str, start_marker: str, end_marker: str = "</div>\n    </div>") -> str:
+    start = html.index(start_marker)
+    return html[start : start + 4000]
+
+
+def test_render_rainmaker_bullet_counts_stay_within_stakeholder_caps(monkeypatch, tmp_path):
+    """Stakeholder feedback (round 1): Company Overview <=5, Product & Revenue
+    Model exactly <=3, Investment Thesis/Key Watchouts <=4 each, Revenue
+    Quality/Diligence Questions <=5 each — regardless of how many bullets the
+    LLM or the bundle fallback would otherwise produce."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    narrative = {
+        "one_liner": "One liner.",
+        "company_overview": [f"Overview bullet {i}" for i in range(10)],
+        "business_model": [f"Business model bullet {i}" for i in range(10)],
+        "investment_thesis": {"value_drivers": [f"Driver {i}" for i in range(10)], "why_special": "Why special."},
+        "recommendation": "Recommendation sentence.",
+        "commercial_revenue_quality": [{"topic": f"Topic {i}", "detail": "Detail."} for i in range(10)],
+        "diligence_priorities": [f"Question {i}?" for i in range(10)],
+        "synthesis_status": "success",
+    }
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], narrative=narrative)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+
+    overview_block = _extract_block(html, "Company Overview")
+    assert overview_block.count("Overview bullet") == 5
+
+    business_model_block = _extract_block(html, "Product &amp; Revenue Model")
+    assert business_model_block.count("Business model bullet") == 3
+
+    thesis_block = _extract_block(html, "Initial Investment Thesis &amp; Fit")
+    assert thesis_block.count("Driver ") == 3
+
+    revqual_block = _extract_block(html, "Revenue Quality &amp; Customer Base")
+    assert revqual_block.count("Topic ") == 5
+
+    diligence_block = _extract_block(html, "Priority Diligence Questions")
+    assert diligence_block.count("Question ") == 5
+
+
+def test_render_rainmaker_key_watchouts_capped_at_four(monkeypatch, tmp_path):
+    """Key Watchouts is bundle-sourced (not LLM), so it needs its own cap
+    independent of narrative — verified against a bundle with >4 watchouts."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = copy.deepcopy(_load("elder_care"))
+    bundle["executive"]["key_watchouts"] = [f"Watchout number {i}" for i in range(10)]
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], narrative=None)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    watchouts_block = _extract_block(html, "Key Watchouts")
+    assert watchouts_block.count("Watchout number") == 4
