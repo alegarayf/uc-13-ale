@@ -171,6 +171,84 @@ def test_format_attestation_phv_line_zero_failed_omits_reason_clause() -> None:
     assert format_attestation_phv_line(result) == "10 approved, 10 complete"
 
 
+def test_format_attestation_phv_line_surfaces_in_flight_row_with_zero_failed() -> None:
+    """Elder Care after the 4h timeout kill: one doc stranded in PARSING, 0 FAILED.
+
+    Regression for M4 audit F1 — the pre-fix formatter returned
+    ``"475 approved, 474 complete"`` and the stranded document was invisible.
+    """
+    result = {
+        "total": 475,
+        "status_counts": {"COMPLETE": 474, "PARSING": 1},
+        "failed_details": [],
+    }
+
+    assert format_attestation_phv_line(result) == (
+        "475 approved, 474 complete, 1 not terminal: PARSING (1)"
+    )
+
+
+def test_format_attestation_phv_line_reports_failed_and_in_flight_together() -> None:
+    result = {
+        "total": 20,
+        "status_counts": {
+            "COMPLETE": 15,
+            "ZERO_CHUNKS": 2,
+            "PENDING": 2,
+            "EMBEDDING": 1,
+        },
+        "failed_details": [
+            {"status": "ZERO_CHUNKS", "error": "ALL_CHUNKS_FILTERED", "count": 2},
+        ],
+    }
+
+    assert format_attestation_phv_line(result) == (
+        "20 approved, 15 complete, 2 failed with reason ALL_CHUNKS_FILTERED (2), "
+        "3 not terminal: EMBEDDING (1), PENDING (2)"
+    )
+
+
+def test_format_attestation_phv_line_surfaces_unrecognized_status() -> None:
+    """A status outside spec §16's closed set must not vanish into "approved"."""
+    result = {
+        "total": 5,
+        "status_counts": {"COMPLETE": 4, "WEDGED": 1},
+        "failed_details": [],
+    }
+
+    assert format_attestation_phv_line(result) == (
+        "5 approved, 4 complete, 1 not terminal: WEDGED (1)"
+    )
+
+
+def test_format_attestation_phv_line_ignores_zero_valued_in_flight_statuses() -> None:
+    result = {
+        "total": 4,
+        "status_counts": {"COMPLETE": 4, "PARSING": 0},
+        "failed_details": [],
+    }
+
+    assert format_attestation_phv_line(result) == "4 approved, 4 complete"
+
+
+def test_run_attestation_query_counts_in_flight_rows_into_total() -> None:
+    spark = _StubSpark(
+        status_rows=[
+            _StubRow(status="COMPLETE", cnt=474),
+            _StubRow(status="PARSING", cnt=1),
+        ],
+        error_rows=[_StubRow(status="PARSING", error=None, cnt=1)],
+    )
+
+    result = run_attestation_query(spark, _CATALOG, _SCHEMA, _COMPANY)
+
+    assert result["total"] == 475
+    assert result["status_counts"]["PARSING"] == 1
+    assert format_attestation_phv_line(result) == (
+        "475 approved, 474 complete, 1 not terminal: PARSING (1)"
+    )
+
+
 @pytest.mark.parametrize(
     "company",
     ["Elder Care", "Acme's Docs"],
