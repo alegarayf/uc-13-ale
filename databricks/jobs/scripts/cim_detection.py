@@ -12,8 +12,12 @@ Verified against real CIMs in `uc13`/`uc13_ale` (plan §0.5):
     name/path regex match is sufficient (no full-text content parsing needed).
   - Elder Care: "2024 Elder Care - CIM_vF.pdf" — direct "CIM" match.
   - GKF: "Project Ajax CIM vF - Rallyday Partners.pdf" — direct match, but the
-    same "CIM" SharePoint folder also holds a Teaser and an IOI process
-    letter that are NOT the memorandum — must be excluded.
+    same SharePoint folder (named "Process, Teaser, and CIM" in production)
+    also holds a Teaser and an IOI process letter that are NOT the
+    memorandum — must be excluded by their OWN file name, not by the shared
+    folder name (see ``is_cim_candidate`` — excluding on the folder name
+    would incorrectly exclude the real CIM too, since "teaser" appears in
+    that folder's name).
 
 Content-based confirmation (parsing the candidate's extracted text rather
 than its filename) is intentionally NOT implemented here: it was not needed
@@ -70,11 +74,21 @@ def _target(file: _FileLike) -> str:
 
 
 def is_cim_candidate(file: _FileLike) -> bool:
-    """True if *file*'s name/path matches a CIM pattern and no exclusion pattern."""
-    target = _target(file)
-    if _CIM_EXCLUDE_RE.search(target):
+    """True if *file*'s name/path matches a CIM pattern and its OWN file name
+    does not match an exclusion pattern.
+
+    Exclusion patterns are checked against the file's own name only — never
+    against ancestor folder names. A real data room folder observed in
+    production is named "Process, Teaser, and CIM" (holding the real CIM
+    alongside a Teaser and an IOI process letter); checking exclusions
+    against the joined folder+name string previously matched "teaser" in
+    that FOLDER name and incorrectly excluded the real CIM file, whose own
+    file name contains no exclusion term at all.
+    """
+    own_name = (getattr(file, "name", "") or "").lower()
+    if _CIM_EXCLUDE_RE.search(own_name):
         return False
-    return bool(_CIM_NAME_RE.search(target))
+    return bool(_CIM_NAME_RE.search(_target(file)))
 
 
 def _matches_special_folder(file: _FileLike, special_folder: str) -> bool:

@@ -69,6 +69,29 @@ _SPG_FILES = [
     _File("SPG Customer Contracts.pdf", "Example Data Room/SPG/Legal", 800_000),
 ]
 
+# Real production folder name (not the generic "GKF/CIM" fixture above) —
+# observed live: the folder itself is named "Process, Teaser, and CIM", so
+# its own name contains the "teaser" exclusion substring. Regression fixture
+# for the bug where exclusion patterns matched against relative_path+name
+# excluded the real CIM file too (its OWN name has no exclusion term).
+_GKF_FILES_REAL_FOLDER_NAME = [
+    _File(
+        "Project Ajax CIM vF - Rallyday Partners.pdf",
+        "Example Data Room/GKF/Process, Teaser, and CIM",
+        5_814_306,
+    ),
+    _File(
+        "Project Ajax Teaser vF.pdf",
+        "Example Data Room/GKF/Process, Teaser, and CIM",
+        900_000,
+    ),
+    _File(
+        "Project Ajax IOI Process Letter_vE.pdf",
+        "Example Data Room/GKF/Process, Teaser, and CIM",
+        300_000,
+    ),
+]
+
 
 def test_clearsulting_detected_by_full_name_phrase_match_no_cim_substring():
     connector = _FakeConnector(_CLEARSULTING_FILES)
@@ -88,6 +111,15 @@ def test_gkf_excludes_teaser_and_ioi_selects_real_memorandum():
     assert result == ["Project Ajax CIM vF - Rallyday Partners.pdf"]
     assert "Project Ajax Teaser.pdf" not in result
     assert "Project Ajax IOI Process Letter.pdf" not in result
+
+
+def test_gkf_real_folder_name_containing_teaser_still_finds_the_cim():
+    """Regression: a folder literally named "Process, Teaser, and CIM" must
+    not exclude the real CIM file just because "teaser" appears in the
+    folder name — exclusion must be judged on the file's own name."""
+    connector = _FakeConnector(_GKF_FILES_REAL_FOLDER_NAME)
+    result = detect_cim("GKF", connector)
+    assert result == ["Project Ajax CIM vF - Rallyday Partners.pdf"]
 
 
 def test_spg_has_no_cim_returns_empty_list():
@@ -118,6 +150,9 @@ def test_special_folder_ignored_when_a_real_cim_exists():
         ("Project Ajax IOI Process Letter.pdf", "Example Data Room/GKF/CIM", False),
         ("SPG Financial Statements FY24.xlsx", "Example Data Room/SPG/Financials", False),
         ("Mutual NDA.pdf", "Example Data Room/GKF/CIM", False),
+        # Folder name itself contains "teaser" — must not exclude the CIM file.
+        ("Project Ajax CIM vF - Rallyday Partners.pdf", "Example Data Room/GKF/Process, Teaser, and CIM", True),
+        ("Project Ajax Teaser vF.pdf", "Example Data Room/GKF/Process, Teaser, and CIM", False),
     ],
 )
 def test_is_cim_candidate_matches_and_exclusions(name, relative_path, expected):
