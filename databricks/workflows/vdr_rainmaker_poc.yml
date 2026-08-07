@@ -10,7 +10,7 @@
 #
 # Output files are written to:
 #   /Volumes/rallyday_partners_llc/default/vdr/{company_snake}/{ISO_timestamp}/
-#       executive_review_rainmaker.pdf
+#       executive_summary.pdf
 #       rainmaker_opportunity_summary.html
 #
 # Trigger (manual, for the POC — no UI wiring yet):

@@ -214,7 +214,7 @@ def render_rainmaker(
 
     written: dict[str, str] = {"html": html_out}
 
-    pdf_out = f"{vol_dir}/executive_review_rainmaker.pdf"
+    pdf_out = f"{vol_dir}/executive_summary.pdf"
     engine = _html_to_pdf(html, pdf_out)
     if engine:
         written["pdf"] = pdf_out

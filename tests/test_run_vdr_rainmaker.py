@@ -151,7 +151,7 @@ def test_cim_found_runs_scoped_route_2_and_renders_pdf(monkeypatch, _common_patc
     assert result["status"] == "success"
     assert result["cim_files"] == cim_files
     copied = {Path(p).name for p in result["files"]}
-    assert copied == {"executive_review_rainmaker.pdf", "rainmaker_opportunity_summary.html"}
+    assert copied == {"executive_summary.pdf", "rainmaker_opportunity_summary.html"}
     for p in result["files"]:
         assert Path(p).exists()
 
