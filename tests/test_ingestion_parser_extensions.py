@@ -44,14 +44,22 @@ def _ensure_pyspark_stub() -> None:
         def alias(self, _name: str):
             return self
 
+    # Never override an already-installed or already-stubbed pyspark — see the
+    # repo-root conftest.py docstring. Assigning expr/to_json unconditionally would
+    # replace the real API for every module collected after this one (M4 audit F5).
     if "pyspark.sql.functions" not in sys.modules:
         _functions_mod = types.ModuleType("pyspark.sql.functions")
+        _functions_mod.expr = lambda sql: _ColExpr()
+        _functions_mod.to_json = lambda col: _ColExpr()
         sys.modules["pyspark.sql.functions"] = _functions_mod
     else:
         _functions_mod = sys.modules["pyspark.sql.functions"]
-
-    _functions_mod.expr = lambda sql: _ColExpr()
-    _functions_mod.to_json = lambda col: _ColExpr()
+        for _attr, _stub in (
+            ("expr", lambda sql: _ColExpr()),
+            ("to_json", lambda col: _ColExpr()),
+        ):
+            if not hasattr(_functions_mod, _attr):
+                setattr(_functions_mod, _attr, _stub)
 
     class _SparkSession:
         @staticmethod

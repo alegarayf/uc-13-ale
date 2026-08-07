@@ -7,6 +7,7 @@ _upsert_failed (FAILED(reason) writes), and _delete_stale_corpus
 
 from __future__ import annotations
 
+import re
 import sys
 import types
 from pathlib import Path
@@ -253,13 +254,61 @@ def test_delete_stale_corpus_deletes_chunks_and_embeddings_by_doc_id() -> None:
     assert _COMPANY in delete_calls[0]
 
 
+class _RowStateSpark:
+    """Spark double that applies DELETE-by-(company_name, doc_id) to in-memory rows.
+
+    A `MagicMock` spark cannot express idempotency — it only records calls, so
+    asserting a doubled call count passes for any implementation that runs at all
+    (M4 audit F9). This double holds corpus state, so a `_delete_stale_corpus` that
+    over-deleted, under-deleted, or was not repeat-safe would fail the assertions.
+    """
+
+    _DELETE_RE = re.compile(
+        r"DELETE FROM (?P<table>\S+) +WHERE company_name = '(?P<company>.*?)' "
+        r"AND doc_id = '(?P<doc_id>.*?)'$"
+    )
+
+    def __init__(self, rows: dict[str, list[tuple[str, str]]]) -> None:
+        self.rows = {table: list(entries) for table, entries in rows.items()}
+
+    def sql(self, query: str) -> MagicMock:
+        match = self._DELETE_RE.match(" ".join(query.split()))
+        if match is None:
+            raise AssertionError(f"unexpected SQL: {query}")
+        # SQL literals arrive escaped; unescape to compare against stored values.
+        company = match["company"].replace("''", "'")
+        doc_id = match["doc_id"].replace("''", "'")
+        table = self.rows.setdefault(match["table"], [])
+        self.rows[match["table"]] = [
+            row for row in table if row != (company, doc_id)
+        ]
+        return MagicMock()
+
+
 def test_delete_stale_corpus_repeat_is_idempotent() -> None:
-    spark = _make_spark_mock()
+    """Second delete leaves the corpus in the state the first one produced."""
+    chunks_table = f"{_CATALOG}.{_SCHEMA}.chunks"
+    embeddings_table = f"{_CATALOG}.{_SCHEMA}.embeddings"
+    other_doc = "b" * 32
+    initial = {
+        chunks_table: [(_COMPANY, _DOC_ID), (_COMPANY, _DOC_ID), (_COMPANY, other_doc)],
+        embeddings_table: [(_COMPANY, _DOC_ID), (_COMPANY, other_doc)],
+    }
+    spark = _RowStateSpark(initial)
     worker = _make_worker(spark)
+
     worker._delete_stale_corpus(_DOC_ID)
+    after_first = {table: list(rows) for table, rows in spark.rows.items()}
+
+    # The doc's own rows are gone from both tables; the other doc survives.
+    assert after_first == {
+        chunks_table: [(_COMPANY, other_doc)],
+        embeddings_table: [(_COMPANY, other_doc)],
+    }
+
     worker._delete_stale_corpus(_DOC_ID)
 
-    assert len(_delete_sql_calls(spark)) == 4
+    assert spark.rows == after_first
 
 
 @pytest.mark.parametrize("classification", ["STALE", "RETRY"])

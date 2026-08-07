@@ -17,6 +17,7 @@ _DEFAULT_SCHEMA = "ingestion"
 _DEFAULT_COMPANY = "Elder Care"
 
 _TERMINAL_FAILURE_STATUSES = frozenset({"FAILED", "ZERO_CHUNKS"})
+_TERMINAL_STATUSES = frozenset({"COMPLETE"}) | _TERMINAL_FAILURE_STATUSES
 
 
 def _escape_sql_literal(value: str) -> str:
@@ -116,7 +117,14 @@ def run_vision_share_query(
 
 
 def format_attestation_phv_line(result: dict[str, Any]) -> str:
-    """PHV target shape: *\"N approved, M complete, K failed with reason X.\"*"""
+    """PHV target shape: *\"N approved, M complete, K failed with reason X.\"*
+
+    Any row in a non-terminal status (``PENDING``/``PARSING``/``EMBEDDING``, or an
+    unrecognized status) is counted into "approved" but has not reached a terminal,
+    explained state — which is exactly what G5 attests to. Such rows get their own
+    trailing clause so a stranded document can never read as a rounding difference
+    between the approved and complete counts.
+    """
     total = int(result["total"])
     status_counts = result["status_counts"]
     complete = int(status_counts.get("COMPLETE", 0))
@@ -124,21 +132,31 @@ def format_attestation_phv_line(result: dict[str, Any]) -> str:
         int(status_counts.get(status, 0)) for status in _TERMINAL_FAILURE_STATUSES
     )
 
-    if failed_count == 0:
-        return f"{total} approved, {complete} complete"
+    line = f"{total} approved, {complete} complete"
 
-    reason_parts: list[str] = []
-    for detail in result.get("failed_details", []):
-        if detail["status"] not in _TERMINAL_FAILURE_STATUSES:
-            continue
-        label = detail["error"] if detail["error"] else detail["status"]
-        reason_parts.append(f"{label} ({detail['count']})")
+    if failed_count:
+        reason_parts: list[str] = []
+        for detail in result.get("failed_details", []):
+            if detail["status"] not in _TERMINAL_FAILURE_STATUSES:
+                continue
+            label = detail["error"] if detail["error"] else detail["status"]
+            reason_parts.append(f"{label} ({detail['count']})")
 
-    reason_str = ", ".join(reason_parts) if reason_parts else "unknown"
-    return (
-        f"{total} approved, {complete} complete, "
-        f"{failed_count} failed with reason {reason_str}"
-    )
+        reason_str = ", ".join(reason_parts) if reason_parts else "unknown"
+        line += f", {failed_count} failed with reason {reason_str}"
+
+    in_flight = {
+        status: int(count)
+        for status, count in status_counts.items()
+        if status not in _TERMINAL_STATUSES and int(count)
+    }
+    if in_flight:
+        detail_str = ", ".join(
+            f"{status} ({in_flight[status]})" for status in sorted(in_flight)
+        )
+        line += f", {sum(in_flight.values())} not terminal: {detail_str}"
+
+    return line
 
 
 def print_attestation_report(
