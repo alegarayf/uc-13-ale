@@ -210,7 +210,7 @@ def run_vdr_rainmaker(
         files_copied = []
         pdf_src = rendered.get("pdf")
         if pdf_src and os.path.exists(pdf_src):
-            dst = os.path.join(output_dir, "executive_review_rainmaker.pdf")
+            dst = os.path.join(output_dir, "executive_summary.pdf")
             shutil.copy2(pdf_src, dst)
             files_copied.append(dst)
         html_src = rendered.get("html")
