@@ -254,11 +254,38 @@ eval/retrieval/reports/*.json
 /MERGE_SCOUT*.md
 
 # Rallyday — local dev, agent workflow, and generated artifacts
+.claude/
 .dev/
 databricks/.env
 databricks/tmp/
 databricks/context_docs/
 docs/
+
+# Root-level eval harness exports and ablation snapshots
+/ablation_*.csv
+
+# Root-level agent-generated reports and run artifacts
+/CIM_STATS_from_agent.md
+/full_report.*
+/harness-baseline-*.md
+/orchestrator_bundle.yaml
+/result_json_*.json
+/tldr_one_pager_*
+
+# Root-level financial / legal agent report exports
+/financial_trends*.csv
+/financial_trends_report_*.yaml
+/legal_report_*.yaml
+/legal_contracts_report_*.yaml
+/legal-*.md
+
+# Root-level planning drafts and milestone closeout notes (authoritative copies in .dev/)
+/*_brief_draft.md
+/M4_ROLLOUT_CLOSEOUT.md
+
+# Duplicate reference docs (canonical copies under context/)
+/Austin_email_guidelines.txt
+/Project_Rainmaker_Opportunity_Summary_Rallyday_vF.pdf
 
 # TypeScript / Vitest build and coverage output
 backend-api/dist/
