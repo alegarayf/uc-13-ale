@@ -352,3 +352,163 @@ def test_generate_skeleton_gold_yaml_from_registry(tmp_path):
     loaded = yaml.safe_load(out.read_text(encoding="utf-8"))
     assert len(loaded) == len(intents)
     assert all(row["ingestion_snapshot"] == INGESTION_SNAPSHOT for row in loaded)
+
+
+def _fta_q1_q3_handlers(**extra: list[dict]) -> dict[str, list[dict]]:
+    """Handlers for q1 zero-out scenarios with cross-intent sibling pair."""
+    handlers: dict[str, list[dict]] = {
+        "COUNT(*) AS chunk_count": [{"chunk_count": 35104}],
+        "analysis.financial_trends": [
+            {
+                "citations": (
+                    '[{"document": "2024 Elder Care - CIM_vF.pdf", '
+                    '"location": "p. 49 Historical P&L Summary"}, '
+                    '{"document": "2024 Elder Care - CIM_vF.pdf", '
+                    '"location": "p. 52 Projected financials"}]'
+                ),
+                "created_at": "2026-07-02T00:00:00Z",
+            }
+        ],
+        "p. 49": [{"chunk_id": "chunk_cite001"}],
+        "p. 52": [{"chunk_id": "chunk_cite001"}],
+        "section_header ILIKE '%Projection%'": [{"chunk_id": "chunk_basis_neg"}],
+        "section_header ILIKE '%Tax Return%'": [{"chunk_id": "chunk_tax001"}],
+    }
+    handlers.update(extra)
+    return handlers
+
+
+def _assert_no_empty_ready_partial(labels: list[GoldLabel]) -> None:
+    for label in labels:
+        if label.gold_status in {"ready", "partial"}:
+            assert label.positive_chunk_ids, (
+                f"{label.intent_id} emitted {label.gold_status!r} with empty positives"
+            )
+
+
+def test_pass2_zero_out_reengages_section_range_fallback():
+    handlers = _fta_q1_q3_handlers(
+        **{
+            "page_start BETWEEN 45 AND 50": [
+                {"chunk_id": "chunk_sec001"},
+                {"chunk_id": "chunk_sec002"},
+            ],
+        }
+    )
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 7, 30))
+    q1 = _sample_intent(
+        "fta.opex.q1_financial_statements",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q3 = _sample_intent(
+        "fta.opex.q3_projected_financials",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    labels = {row.intent_id: row for row in bootstrap.bootstrap([q1, q3])}
+    q1_label = labels["fta.opex.q1_financial_statements"]
+
+    assert q1_label.gold_status == "ready"
+    assert q1_label.gold_method == "section_range"
+    assert q1_label.confidence == "high"
+    assert set(q1_label.positive_chunk_ids) == {"chunk_sec001", "chunk_sec002"}
+    assert "Pass 1 citation_backfill zeroed by pass-2 negatives" in (q1_label.notes or "")
+    assert "fallback section_range engaged" in (q1_label.notes or "")
+    negative_ids = set(q1_label.negative_chunk_ids or [])
+    assert negative_ids.isdisjoint(q1_label.positive_chunk_ids)
+    _assert_no_empty_ready_partial(list(labels.values()))
+
+
+def test_pass2_zero_out_falls_through_to_filename_closure():
+    handlers = _fta_q1_q3_handlers(
+        **{
+            "page_start BETWEEN 45 AND 50": [{"chunk_id": "chunk_cite001"}],
+            "classification.doc_relevance": [{"chunk_id": "chunk_file001"}],
+        }
+    )
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 7, 30))
+    q1 = _sample_intent(
+        "fta.opex.q1_financial_statements",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q3 = _sample_intent(
+        "fta.opex.q3_projected_financials",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q1_label = bootstrap.bootstrap([q1, q3])[0]
+
+    assert q1_label.gold_status == "partial"
+    assert q1_label.gold_method == "filename_closure"
+    assert q1_label.confidence == "medium"
+    assert q1_label.positive_chunk_ids == ["chunk_file001"]
+    negative_ids = set(q1_label.negative_chunk_ids or [])
+    assert "chunk_file001" not in negative_ids
+    _assert_no_empty_ready_partial([q1_label])
+
+
+def test_pass2_zero_out_fail_closed_when_no_fallback_survivors():
+    handlers = _fta_q1_q3_handlers(
+        **{
+            "page_start BETWEEN 45 AND 50": [{"chunk_id": "chunk_cite001"}],
+            "classification.doc_relevance": [{"chunk_id": "chunk_cite001"}],
+        }
+    )
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 7, 30))
+    q1 = _sample_intent(
+        "fta.opex.q1_financial_statements",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q3 = _sample_intent(
+        "fta.opex.q3_projected_financials",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q1_label = bootstrap.bootstrap([q1, q3])[0]
+
+    assert q1_label.gold_status == "bootstrap_failed"
+    assert q1_label.positive_chunk_ids == []
+    assert "Pass 2 zeroed all pass-1 citation_backfill positives" in (q1_label.notes or "")
+    _assert_no_empty_ready_partial([q1_label])
+
+
+def test_pass2_partial_strip_does_not_reengage_fallback():
+    """Surviving pass-1 positives must not trigger pass-2 fallback re-engagement."""
+    handlers = {
+        "COUNT(*) AS chunk_count": [{"chunk_count": 35104}],
+        "analysis.financial_trends": [
+            {
+                "citations": (
+                    '[{"document": "2024 Elder Care - CIM_vF.pdf", '
+                    '"location": "p. 49 Historical P&L Summary"}, '
+                    '{"document": "2024 Elder Care - CIM_vF.pdf", '
+                    '"location": "p. 50 EBITDA Adjustment"}]'
+                ),
+                "created_at": "2026-07-02T00:00:00Z",
+            }
+        ],
+        "page_start = 49": [{"chunk_id": "chunk_a"}],
+        "page_start = 50": [{"chunk_id": "chunk_b"}],
+        "section_header ILIKE '%Projection%'": [{"chunk_id": "chunk_a"}],
+        "section_header ILIKE '%Tax Return%'": [{"chunk_id": "chunk_tax001"}],
+    }
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 7, 30))
+    q1 = _sample_intent(
+        "fta.opex.q1_financial_statements",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q1_label = bootstrap.bootstrap([q1])[0]
+
+    assert q1_label.gold_status == "ready"
+    assert q1_label.gold_method == "citation_backfill"
+    assert q1_label.positive_chunk_ids == ["chunk_b"]
+    assert q1_label.notes is None
+    _assert_no_empty_ready_partial([q1_label])

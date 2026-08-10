@@ -67,6 +67,12 @@ CROSS_INTENT_NEGATIVE_PAIRS: dict[str, str] = {
     "fta.ebitda.q1_financial_statements": "fta.ebitda.q4_addback_schedule",
 }
 
+POSITIVE_FALLBACK_CHAIN: tuple[str, ...] = (
+    "citation_backfill",
+    "section_range",
+    "filename_closure",
+)
+
 AGENT_ANALYSIS_TABLE: dict[str, str] = {
     "kpi": "kpi",
     "cqa": "customer_quality",
@@ -249,29 +255,8 @@ class GoldLabelBootstrap:
         return labels
 
     def _bootstrap_pass1(self, intent: RetrievalIntent, snapshot: str) -> GoldLabel:
-        positives: list[str] = []
-        gold_method: str = "citation_backfill"
-        confidence: str = "high"
-
-        citation_ids = self._positives_from_citations(intent)
-        if citation_ids:
-            positives = citation_ids
-            gold_method = "citation_backfill"
-            confidence = "high"
-        else:
-            section_ids = self._positives_from_section_range(intent)
-            if section_ids:
-                positives = section_ids
-                gold_method = "section_range"
-                confidence = "high"
-            else:
-                closure_ids = self._positives_from_filename_closure(intent)
-                if closure_ids:
-                    positives = closure_ids
-                    gold_method = "filename_closure"
-                    confidence = "medium"
-
-        if not positives:
+        result = self._try_positive_methods(intent, POSITIVE_FALLBACK_CHAIN)
+        if result is None:
             return GoldLabel(
                 intent_id=intent.intent_id,
                 company_name=self.company_name,
@@ -284,6 +269,7 @@ class GoldLabelBootstrap:
                 notes="Pass 1 found zero positives",
             )
 
+        positives, gold_method, confidence = result
         gold_status = "partial" if gold_method == "filename_closure" else "ready"
         return GoldLabel(
             intent_id=intent.intent_id,
@@ -295,6 +281,42 @@ class GoldLabelBootstrap:
             ingestion_snapshot=snapshot,
             confidence=confidence,
         )
+
+    def _fallback_methods_after(self, method: str) -> tuple[str, ...]:
+        try:
+            index = POSITIVE_FALLBACK_CHAIN.index(method)
+        except ValueError:
+            return ()
+        return POSITIVE_FALLBACK_CHAIN[index + 1 :]
+
+    def _positives_for_method(
+        self, intent: RetrievalIntent, method: str
+    ) -> list[str]:
+        if method == "citation_backfill":
+            return self._positives_from_citations(intent)
+        if method == "section_range":
+            return self._positives_from_section_range(intent)
+        if method == "filename_closure":
+            return self._positives_from_filename_closure(intent)
+        raise ValueError(f"Unknown positive method: {method!r}")
+
+    def _try_positive_methods(
+        self,
+        intent: RetrievalIntent,
+        methods: Sequence[str],
+        *,
+        negative_ids: frozenset[str] | None = None,
+    ) -> tuple[list[str], str, str] | None:
+        excluded = negative_ids or frozenset()
+        for method in methods:
+            candidates = self._positives_for_method(intent, method)
+            survivors = [
+                chunk_id for chunk_id in candidates if chunk_id not in excluded
+            ]
+            if survivors:
+                confidence = "medium" if method == "filename_closure" else "high"
+                return survivors, method, confidence
+        return None
 
     def _bootstrap_pass2(
         self,
@@ -345,20 +367,64 @@ class GoldLabelBootstrap:
                 )
                 negative_confidence = "high"
 
+        negative_set = set(negatives)
         positives = [
             chunk_id
             for chunk_id in base.positive_chunk_ids
-            if chunk_id not in set(negatives)
+            if chunk_id not in negative_set
         ]
-        return base.model_copy(
-            update={
-                "positive_chunk_ids": positives,
-                "negative_chunk_ids": negatives or None,
-                "negative_method": negative_method,
-                "negative_rule": negative_rule,
-                "negative_confidence": negative_confidence,
-            }
-        )
+
+        updates: dict[str, Any] = {
+            "positive_chunk_ids": positives,
+            "negative_chunk_ids": negatives or None,
+            "negative_method": negative_method,
+            "negative_rule": negative_rule,
+            "negative_confidence": negative_confidence,
+        }
+
+        if not positives:
+            fallback_methods = self._fallback_methods_after(base.gold_method)
+            fallback = self._try_positive_methods(
+                intent,
+                fallback_methods,
+                negative_ids=frozenset(negative_set),
+            )
+            if fallback is not None:
+                fb_positives, fb_method, fb_confidence = fallback
+                updates.update(
+                    {
+                        "positive_chunk_ids": fb_positives,
+                        "gold_method": fb_method,
+                        "gold_status": (
+                            "partial" if fb_method == "filename_closure" else "ready"
+                        ),
+                        "confidence": fb_confidence,
+                        "notes": (
+                            f"Pass 1 {base.gold_method} zeroed by pass-2 negatives; "
+                            f"fallback {fb_method} engaged"
+                        ),
+                    }
+                )
+            else:
+                updates.update(
+                    {
+                        "positive_chunk_ids": [],
+                        "gold_status": "bootstrap_failed",
+                        "confidence": "low",
+                        "notes": (
+                            f"Pass 2 zeroed all pass-1 {base.gold_method} positives; "
+                            "no fallback survivors"
+                        ),
+                    }
+                )
+
+        label = base.model_copy(update=updates)
+        if label.gold_status in {"ready", "partial"} and not label.positive_chunk_ids:
+            raise PreconditionError(
+                f"Bootstrap invariant violated for {intent.intent_id}: "
+                f"{label.gold_status!r} with empty positive_chunk_ids"
+            )
+        return label
 
     def _positives_from_citations(self, intent: RetrievalIntent) -> list[str]:
         refs = self._citation_refs_for_agent(intent.agent_id)
