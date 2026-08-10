@@ -58,7 +58,7 @@ if "mlflow" not in sys.modules:
     sys.modules["mlflow.deployments"] = _deployments_mod
 
 import download_upload as du  # noqa: E402
-import ingestion_parser as ip  # noqa: E402
+import parse_manifest as pm  # noqa: E402
 import run_ingestion_pipeline as rip  # noqa: E402
 
 
@@ -91,24 +91,73 @@ def test_apply_file_whitelist_unknown_name_yields_empty():
 
 
 # ---------------------------------------------------------------------------
-# ingestion_parser.build_file_whitelist_filter
+# parse_manifest.build_file_whitelist_filter
+#
+# The clause moved from ingestion_parser to parse_manifest when the M0 manifest
+# took ownership of the doc_relevance read (Ale's M0-M4 merge). It now takes a
+# list, not a JSON string — ingestion_parser.main() decodes the param.
 # ---------------------------------------------------------------------------
 
 def test_build_file_whitelist_filter_no_regression_when_empty():
-    clause, label = ip.build_file_whitelist_filter("[]")
-    assert clause == ""
-    assert label == "no whitelist"
+    for empty in ([], None):
+        clause, label = pm.build_file_whitelist_filter(empty)
+        assert clause == ""
+        assert label == "no whitelist"
 
 
 def test_build_file_whitelist_filter_builds_sql_in_clause():
-    clause, label = ip.build_file_whitelist_filter(json.dumps(["2024 Elder Care - CIM_vF.pdf"]))
+    clause, label = pm.build_file_whitelist_filter(["2024 Elder Care - CIM_vF.pdf"])
     assert clause == "AND filename IN ('2024 Elder Care - CIM_vF.pdf')"
     assert "1 file" in label
 
 
 def test_build_file_whitelist_filter_escapes_single_quotes():
-    clause, _ = ip.build_file_whitelist_filter(json.dumps(["Bob's CIM.pdf"]))
+    clause, _ = pm.build_file_whitelist_filter(["Bob's CIM.pdf"])
     assert "Bob''s CIM.pdf" in clause
+
+
+# ---------------------------------------------------------------------------
+# ParseManifest._read_doc_relevance — the clause must actually reach the SQL.
+#
+# This is the integration point the M0-M4 merge moved; without these two the
+# whitelist could be silently dropped and the CIM-only preview would quietly
+# ingest the whole data room.
+# ---------------------------------------------------------------------------
+
+def _capture_manifest_sql(file_whitelist, tiers):
+    """Return the doc_relevance SQL ParseManifest issues for *file_whitelist*."""
+    captured: list[str] = []
+
+    class _Spark:
+        def sql(self, query):
+            captured.append(query)
+            return SimpleNamespace(collect=lambda: [])
+
+    manifest = pm.ParseManifest(
+        _Spark(), "uc13_preview", "ingestion", "Elder Care", file_whitelist=file_whitelist
+    )
+    manifest._read_doc_relevance(tiers)
+    return captured[0]
+
+
+def test_parse_manifest_read_applies_whitelist_clause():
+    sql = _capture_manifest_sql(["2024 Elder Care - CIM_vF.pdf"], [1, 2])
+    assert "AND filename IN ('2024 Elder Care - CIM_vF.pdf')" in sql
+
+
+def test_parse_manifest_read_no_whitelist_clause_by_default():
+    sql = _capture_manifest_sql(None, [1, 2])
+    assert "filename IN" not in sql
+
+
+def test_parse_manifest_coverage_subpass_read_is_also_scoped():
+    """The coverage sub-pass re-reads doc_relevance with tiers=None to fill
+    uncovered workstreams. It must honor the whitelist too, or a CIM-only
+    preview would pull in non-CIM files behind the operator's back.
+    """
+    sql = _capture_manifest_sql(["cim.pdf"], None)
+    assert "AND filename IN ('cim.pdf')" in sql
+    assert "priority_tier IN" not in sql
 
 
 # ---------------------------------------------------------------------------

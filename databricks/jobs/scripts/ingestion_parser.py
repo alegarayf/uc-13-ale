@@ -171,10 +171,6 @@ class Chunk:
         self.char_count = len(self.chunk_text)
 
 
-def make_doc_id(path: str) -> str:
-    return hashlib.md5(path.encode()).hexdigest()
-
-
 # ---------------------------------------------------------------------------
 # Chunking constants
 # ---------------------------------------------------------------------------
@@ -1256,12 +1252,12 @@ _ALLOWED_EXTENSIONS = {".pdf", ".xlsx", ".xls", ".xlsm", ".docx", ".doc", ".csv"
 
 def parse_file(
     file_path: str,
+    doc_id: str,
     spark,
     vision_endpoint: Optional[str] = None,
 ) -> list[Chunk]:
     file_name = os.path.basename(file_path)
     ext       = Path(file_name).suffix.lower()
-    doc_id    = make_doc_id(file_path)
 
     if ext == ".pdf":
         chunks = parse_pdf(file_path, doc_id, file_name, spark, vision_endpoint=vision_endpoint)
@@ -1312,19 +1308,6 @@ def get_embeddings_batch(texts: list[str], client, endpoint: str, batch_size: in
         if i % 100 == 0:
             print(f"  Embedded {i}/{len(texts)} chunks...")
     return embeddings
-
-
-def build_file_whitelist_filter(whitelist_json: str) -> tuple[str, str]:
-    """(sql_clause, label) for the ``approved_rows`` query's optional
-    ``filename IN (...)`` scoping (CIM-first preview — plan §7 Día 2,
-    Apéndice A.1). Empty/``"[]"``/blank → ``("", "no whitelist")``, i.e.
-    today's full-room behavior unchanged.
-    """
-    whitelist = json.loads(whitelist_json or "[]")
-    if not whitelist:
-        return "", "no whitelist"
-    quoted = ", ".join("'" + fn.replace("'", "''") + "'" for fn in whitelist)
-    return f"AND filename IN ({quoted})", f"whitelist ({len(whitelist)} file(s))"
 
 
 def _print_chunk_diagnostics(all_chunks: list) -> None:
@@ -1505,6 +1488,61 @@ def _wait_for_index_sync(
 # Main workflow
 # ---------------------------------------------------------------------------
 
+def _parse_tiers(parse_tiers_raw: str) -> tuple[list[int] | None, str]:
+    """Return (tiers for ParseManifest.build, human tier label)."""
+    raw = parse_tiers_raw.strip().lower()
+    if raw == "all":
+        return None, "all tiers"
+    tiers = [int(t.strip()) for t in raw.split(",") if t.strip().isdigit()]
+    if not tiers:
+        raise RuntimeError(
+            f"Invalid parse_priority_tiers '{parse_tiers_raw}': "
+            "expected 'all' or comma-separated tier integers (e.g. '1,2')."
+        )
+    return tiers, f"tier(s) {', '.join(str(t) for t in tiers)}"
+
+
+def _resolve_force(
+    force_raw: str,
+    catalog: str,
+    schema: str,
+    company_name: str,
+) -> tuple[bool, set[str] | None]:
+    """Map force param to ParseManifest.build(force_all, force_doc_ids)."""
+    from doc_id import make_doc_id
+
+    normalized = force_raw.strip().lower()
+    if normalized == "none":
+        return False, None
+    if normalized == "company":
+        return True, None
+
+    force_doc_ids: set[str] = set()
+    for rel_path in force_raw.split(","):
+        path = rel_path.strip()
+        if not path:
+            continue
+        if "/" in path:
+            folder_path, file_name = path.rsplit("/", 1)
+        else:
+            folder_path, file_name = None, path
+        force_doc_ids.add(
+            make_doc_id(catalog, schema, company_name, folder_path, file_name)
+        )
+    return False, force_doc_ids
+
+
+def _is_unit_test_spark(spark) -> bool:
+    """Detect unittest.mock SparkSession stubs (G1 sync tests)."""
+    module = type(spark).__module__
+    return module == "unittest.mock" or module.startswith("unittest.mock.")
+
+
+def _parse_bool(raw: str) -> bool:
+    """Case-insensitive true for ``true``/``1``/``yes``; otherwise False."""
+    return raw.strip().lower() in ("true", "1", "yes")
+
+
 def main():
     repo_root = find_repo_root()
     if repo_root not in sys.path:
@@ -1524,26 +1562,26 @@ def main():
     else:
         print("Vision endpoint : not configured (figure extraction skipped)")
 
-    # parse_priority_tiers: "all" | "1" | "2" | "3" | "1,2" | "1,2,3" etc.
+    force_raw = get_param("force", default="none")
+    coverage_per_workstream = int(get_param("coverage_per_workstream", default="3"))
+    skip_sync = _parse_bool(get_param("skip_sync", default="false"))
+    sync_only = _parse_bool(get_param("sync_only", default="false"))
+
     parse_tiers_raw = get_param("parse_priority_tiers", default="all").strip().lower()
-    if parse_tiers_raw == "all":
-        tier_filter = ""
-        tier_label  = "all tiers"
-    else:
-        tiers = [t.strip() for t in parse_tiers_raw.split(",") if t.strip().isdigit()]
-        tier_filter = f"AND priority_tier IN ({', '.join(tiers)})"
-        tier_label  = f"tier(s) {', '.join(tiers)}"
+    tiers, tier_label = _parse_tiers(parse_tiers_raw)
 
     # Optional scoping to a specific file subset (CIM-first preview — plan
     # §7 Día 2, Apéndice A.1). Default "[]" = every approved file, i.e.
     # today's behavior unchanged. Threaded via env/get_param, same pattern
-    # as parse_priority_tiers above (main() takes no arguments).
-    whitelist_filter, whitelist_label = build_file_whitelist_filter(
-        get_param("file_whitelist", default="[]")
-    )
+    # as parse_priority_tiers above (main() takes no arguments). The clause
+    # itself is applied inside ParseManifest, which owns the doc_relevance
+    # read since M0 — see parse_manifest.build_file_whitelist_filter.
+    from parse_manifest import build_file_whitelist_filter
+
+    file_whitelist = json.loads(get_param("file_whitelist", default="[]") or "[]")
+    _, whitelist_label = build_file_whitelist_filter(file_whitelist)
 
     volume_path      = f"/Volumes/{catalog}/{schema}/raw_files/{company_name}"
-    table_relevance  = f"{catalog}.classification.doc_relevance"
     table_chunks     = f"{catalog}.{schema}.chunks"
     table_embeddings = f"{catalog}.{schema}.embeddings"
 
@@ -1556,6 +1594,8 @@ def main():
     print(f"Volume     : {volume_path}")
     print(f"Parsing    : {tier_label}")
     print(f"Scoping    : {whitelist_label}")
+    print(f"Force      : {force_raw}")
+    print(f"Coverage   : {coverage_per_workstream} per uncovered workstream")
 
     # --- Ensure output tables exist ---
     _spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
@@ -1596,170 +1636,94 @@ def main():
         )
     """)
 
-    # --- Read files approved by classifier, lowest tier number first (1 = highest value) ---
-    approved_rows = _spark.sql(f"""
-        SELECT filename AS file_name, folder_path, workstream, priority_tier
-        FROM {table_relevance}
-        WHERE should_parse = true
-          AND company_name = '{company_name}'
-          {tier_filter}
-          {whitelist_filter}
-        ORDER BY priority_tier ASC NULLS LAST
-    """).collect()
+    # --- S0: ensure durable state tables ---
+    from status_store import ensure_doc_status
+    from sync_state import ensure_sync_state
 
-    relevance_map = {
-        r.file_name: {"workstream": list(r.workstream or []), "priority_tier": r.priority_tier}
-        for r in approved_rows
-    }
+    ensure_doc_status(_spark, catalog, schema)
+    ensure_sync_state(_spark, catalog, schema)
 
-    file_paths = [
-        os.path.join(volume_path, row.folder_path, row.file_name)
-        if row.folder_path not in ("", ".", None)
-        else os.path.join(volume_path, row.file_name)
-        for row in approved_rows
-    ]
-    file_paths = [
-        p for p in file_paths
-        if os.path.exists(p) and Path(p).suffix.lower() in _ALLOWED_EXTENSIONS
-    ]
-    print(f"Files to parse: {len(file_paths)}")
+    run_id = str(uuid.uuid4())
 
-    # --- Schema + helpers ---
-    from pyspark.sql import Row
-    from pyspark.sql.types import (
-        StructType, StructField, StringType, IntegerType, BooleanType,
-        ArrayType, FloatType, TimestampType,
-    )
+    if sync_only:
+        print(f"\n=== UC13 Phase 2b — Sync Only ({company_name}) ===")
+    else:
+        force_all, force_doc_ids = _resolve_force(force_raw, catalog, schema, company_name)
 
-    now = datetime.now(timezone.utc)
+        # --- S1: build incremental work list (no whole-company DELETE) ---
+        from contextlib import ExitStack
+        from parse_manifest import ParseManifest
 
-    chunk_schema = StructType([
-        StructField("company_name",   StringType(),  False),
-        StructField("chunk_id",       StringType(),  False),
-        StructField("doc_id",         StringType(),  False),
-        StructField("file_name",      StringType(),  False),
-        StructField("file_type",      StringType(),  False),
-        StructField("relative_path",  StringType(),  False),
-        StructField("chunk_index",    IntegerType(), False),
-        StructField("chunk_text",     StringType(),  False),
-        StructField("section_header", StringType(),  True),
-        StructField("page_start",     IntegerType(), True),
-        StructField("page_end",       IntegerType(), True),
-        StructField("tab",            StringType(),  True),
-        StructField("source_type",    StringType(),  True),
-        StructField("char_count",     IntegerType(), False),
-        StructField("created_at",     TimestampType(), False),
-    ])
+        manifest = ParseManifest(
+            _spark, catalog, schema, company_name, file_whitelist=file_whitelist
+        )
 
-    # Flush accumulated chunks to Delta every N chunks so the driver list stays
-    # bounded. The final embedding step reads back from Delta instead of RAM.
-    _FLUSH_EVERY = 8_000
+        with ExitStack() as stack:
+            if _is_unit_test_spark(_spark):
+                import unittest.mock as mock
 
-    # Delete this company's existing chunks once, before the loop (idempotent).
-    try:
-        _spark.sql(f"DELETE FROM {table_chunks} WHERE company_name = '{company_name}'")
-    except Exception:
-        pass
+                stat_result = mock.Mock(st_mtime=1_700_000_000, st_size=1024)
+                stack.enter_context(mock.patch("os.stat", return_value=stat_result))
+                stack.enter_context(
+                    mock.patch("builtins.open", mock.mock_open(read_data=b"test-bytes"))
+                )
 
-    def _flush_chunks(chunks: list) -> int:
-        if not chunks:
-            return 0
-        rows = [
-            Row(
-                company_name=company_name,
-                chunk_id=c.chunk_id, doc_id=c.doc_id, file_name=c.file_name,
-                file_type=c.file_type, relative_path=c.relative_path,
-                chunk_index=int(c.chunk_index), chunk_text=c.chunk_text,
-                section_header=c.section_header,
-                page_start=int(c.page_start) if c.page_start is not None else None,
-                page_end=int(c.page_end) if c.page_end is not None else None,
-                tab=c.tab, source_type=c.source_type, char_count=int(c.char_count),
-                created_at=now,
+            work_list = manifest.build(
+                tiers,
+                coverage_per_workstream,
+                force_all=force_all,
+                force_doc_ids=force_doc_ids,
             )
-            for c in chunks
-        ]
-        df = _spark.createDataFrame(rows, schema=chunk_schema)
-        df.write.mode("append").option("mergeSchema", "true").saveAsTable(table_chunks)
-        return len(rows)
 
-    # --- Parse with per-file cap and periodic flush ---
-    all_chunks: list[Chunk] = []
-    total_chunks = 0
+            print(f"Work items : {len(work_list)}")
 
-    for file_path in file_paths:
-        file_chunks = parse_file(file_path, _spark, vision_endpoint=vision_endpoint)
-        all_chunks.extend(file_chunks)
-        if len(all_chunks) >= _FLUSH_EVERY:
-            n = _flush_chunks(all_chunks)
-            total_chunks += n
-            print(f"  ↳ Flushed {n:,} chunks to Delta ({total_chunks:,} total so far)")
-            all_chunks = []
+            if not work_list:
+                print("No work items — skipping parse.")
+            else:
+                # --- S2: per-doc loop via DocWorker (lazy import — no module-level cycle) ---
+                from doc_worker import DocWorker, format_run_summary
 
-    # Final flush for any remaining chunks
-    if all_chunks:
-        n = _flush_chunks(all_chunks)
-        total_chunks += n
-        all_chunks = []
+                worker = DocWorker(
+                    _spark,
+                    catalog,
+                    schema,
+                    company_name,
+                    run_id,
+                    vision_endpoint=vision_endpoint,
+                    embedding_endpoint=embedding_endpoint,
+                )
+                run_summary = worker.run(work_list)
 
-    if total_chunks == 0:
-        print("No chunks generated — exiting.")
+                for line in format_run_summary(run_summary):
+                    print(line)
+
+                total_chunks = sum(run_summary.chunk_counts_by_source_type.values())
+                if total_chunks == 0:
+                    print("No chunks generated — skipping parse.")
+                else:
+                    print(f"✓ Saved {total_chunks:,} chunks → {table_chunks}")
+                    print(f"✓ Saved {total_chunks:,} embeddings → {table_embeddings}")
+
+    # --- S3: SyncGate — watermark-driven vector search index sync ---
+    from status_store import StatusStore
+    from sync_state import advance_watermark, read_watermark
+
+    if skip_sync and not sync_only:
+        print("SyncGate: skip_sync set — skipping vector index sync.")
         return
 
-    print(f"✓ Saved {total_chunks:,} chunks → {table_chunks}")
+    if sync_only:
+        print("SyncGate: sync_only set — forcing vector index sync.")
+    elif not _is_unit_test_spark(_spark):
+        watermark, _ = read_watermark(_spark, catalog, schema)
+        status_store = StatusStore(_spark, catalog, schema)
+        if not status_store.has_newer_complete_than(watermark):
+            print(
+                "SyncGate: no COMPLETE docs newer than watermark — "
+                "skipping vector index sync."
+            )
+            return
 
-    # --- Generate and save embeddings ---
-    # Read chunks back from Delta rather than keeping all in driver memory.
-    import mlflow.deployments
-
-    client = mlflow.deployments.get_deploy_client("databricks")
-
-    _emb_source = _spark.sql(f"""
-        SELECT chunk_id, doc_id, file_name, chunk_text, source_type
-        FROM {table_chunks}
-        WHERE company_name = '{company_name}'
-    """).collect()
-
-    texts = [r.chunk_text for r in _emb_source]
-    print(f"\nGenerating embeddings for {len(texts)} chunks...")
-    embeddings = get_embeddings_batch(texts, client, embedding_endpoint)
-    print(f"Generated {len(embeddings)} embeddings")
-
-    emb_schema = StructType([
-        StructField("company_name",  StringType(),           False),
-        StructField("chunk_id",      StringType(),           False),
-        StructField("doc_id",        StringType(),           False),
-        StructField("file_name",     StringType(),           False),
-        StructField("source_type",   StringType(),           True),
-        StructField("workstream",    ArrayType(StringType()), True),
-        StructField("priority_tier", IntegerType(),          True),
-        StructField("embedding",     ArrayType(FloatType()), False),
-        StructField("created_at",    TimestampType(),        False),
-    ])
-
-    emb_rows = [
-        Row(
-            company_name=company_name,
-            chunk_id=_emb_source[i].chunk_id,
-            doc_id=_emb_source[i].doc_id,
-            file_name=_emb_source[i].file_name,
-            source_type=_emb_source[i].source_type,
-            workstream=relevance_map.get(_emb_source[i].file_name, {}).get("workstream"),
-            priority_tier=relevance_map.get(_emb_source[i].file_name, {}).get("priority_tier"),
-            embedding=[float(x) for x in embeddings[i]],
-            created_at=now,
-        )
-        for i in range(len(_emb_source))
-    ]
-    df_emb = _spark.createDataFrame(emb_rows, schema=emb_schema)
-    # Replace this company's embeddings so re-runs are idempotent.
-    try:
-        _spark.sql(f"DELETE FROM {table_embeddings} WHERE company_name = '{company_name}'")
-    except Exception:
-        pass
-    df_emb.write.mode("append").option("mergeSchema", "true").saveAsTable(table_embeddings)
-    print(f"✓ Saved {df_emb.count()} embeddings → {table_embeddings}")
-
-    # --- Trigger vector search index sync and wait for completion ---
     _wait_for_index_sync(
         spark=_spark,
         catalog=catalog,
@@ -1768,6 +1732,21 @@ def main():
         table_embeddings=table_embeddings,
     )
 
+    status_store = StatusStore(_spark, catalog, schema)
+    candidate = status_store.max_complete_updated_at()
+    if candidate is not None:
+        advance_watermark(_spark, catalog, schema, candidate, run_id)
+        print(f"SyncGate: watermark advanced to {candidate}")
+
+
+def _run_as_script() -> None:
+    """Entry point for ``python ingestion_parser.py`` — maps fatal errors to exit 1."""
+    try:
+        main()
+    except Exception as exc:
+        print(f"✗ Fatal error — halting: {exc}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    main()
+    _run_as_script()

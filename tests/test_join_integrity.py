@@ -5,13 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from agents.shared.retrieval import _hydrate_chunks_sql
+from agents.shared.retrieval import _hydrate_chunks_sql, _keyword_fallback_sql
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _BOOTSTRAP = _REPO_ROOT / "eval" / "retrieval" / "gold" / "bootstrap.py"
 
 _EXPECTED_JOIN_ON = "c.file_name = r.filename"
 _EXPECTED_JOIN_AND = "c.company_name = r.company_name"
+_EXPECTED_DOC_ID_JOIN = "c.doc_id = r.doc_id"
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,17 @@ class ChunkRow:
 class DocRelevanceRow:
     filename: str
     company_name: str
+
+
+@dataclass(frozen=True)
+class ChunkRowByDocId:
+    chunk_id: str
+    doc_id: str
+
+
+@dataclass(frozen=True)
+class DocRelevanceRowByDocId:
+    doc_id: str
 
 
 def _joined_chunk_ids(
@@ -48,6 +60,27 @@ def _orphan_chunk_ids(
     return {chunk.chunk_id for chunk in chunks} - joined
 
 
+def _joined_chunk_ids_by_doc_id(
+    chunks: list[ChunkRowByDocId],
+    relevance: list[DocRelevanceRowByDocId],
+) -> set[str]:
+    """Inner-join semantics matching _hydrate_chunks_sql after M3 doc_id migration."""
+    relevance_doc_ids = {row.doc_id for row in relevance}
+    return {
+        chunk.chunk_id
+        for chunk in chunks
+        if chunk.doc_id in relevance_doc_ids
+    }
+
+
+def _orphan_chunk_ids_by_doc_id(
+    chunks: list[ChunkRowByDocId],
+    relevance: list[DocRelevanceRowByDocId],
+) -> set[str]:
+    joined = _joined_chunk_ids_by_doc_id(chunks, relevance)
+    return {chunk.chunk_id for chunk in chunks} - joined
+
+
 def detect_join_integrity_violations(
     chunks: list[ChunkRow],
     relevance: list[DocRelevanceRow],
@@ -65,8 +98,16 @@ def detect_join_integrity_violations(
 
 def test_hydrate_sql_join_predicate_unchanged() -> None:
     sql = _hydrate_chunks_sql(["probe-id"], "Elder Care", "uc13_ale")
-    assert _EXPECTED_JOIN_ON in sql
-    assert _EXPECTED_JOIN_AND in sql
+    assert _EXPECTED_DOC_ID_JOIN in sql
+    assert _EXPECTED_JOIN_ON not in sql
+    assert _EXPECTED_JOIN_AND not in sql
+
+
+def test_keyword_fallback_sql_join_predicate_migrated() -> None:
+    sql = _keyword_fallback_sql(["revenue"], "Elder Care", 10, "uc13_ale")
+    assert _EXPECTED_DOC_ID_JOIN in sql
+    assert _EXPECTED_JOIN_ON not in sql
+    assert _EXPECTED_JOIN_AND not in sql
 
 
 def test_bootstrap_join_predicate_unchanged() -> None:
@@ -92,6 +133,21 @@ def test_orphan_chunks_detected_not_silently_dropped() -> None:
         "orphan-missing-file",
         "orphan-wrong-company",
     }
+
+
+def test_orphan_chunks_detected_by_doc_id_key() -> None:
+    shared_doc_id = "uc13_ale.ingestion.Elder Care.folder/report.pdf"
+    chunks = [
+        ChunkRowByDocId("matched-a", shared_doc_id),
+        ChunkRowByDocId("matched-b", shared_doc_id),
+        ChunkRowByDocId("orphan-unknown-doc", "uc13_ale.ingestion.Elder Care.folder/missing.pdf"),
+        ChunkRowByDocId("orphan-null-doc", ""),
+    ]
+    relevance = [DocRelevanceRowByDocId(shared_doc_id)]
+
+    orphans = sorted(_orphan_chunk_ids_by_doc_id(chunks, relevance))
+
+    assert orphans == ["orphan-null-doc", "orphan-unknown-doc"]
 
 
 def test_non_orphan_chunks_join_successfully() -> None:

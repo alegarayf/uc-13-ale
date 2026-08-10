@@ -377,6 +377,121 @@ def deduplicate(results: list[dict]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# doc_relevance row construction + doc_id backfill (M3)
+# ---------------------------------------------------------------------------
+
+def _build_classification_record(
+    company_name: str,
+    catalog: str,
+    schema: str,
+    filename: str,
+    folder_path: str,
+    workstream: list[str],
+    priority_tier: int | None,
+    priority_reason: str | None,
+    should_parse: bool,
+    extraction_confidence: str,
+    mod_date: str | None,
+    format_: str,
+    hash_catalog: str | None = None,
+) -> dict:
+    """Build one doc_relevance row dict including canonical doc_id.
+
+    `hash_catalog` (M3/T5): the catalog make_doc_id hashes against. Defaults
+    to `catalog` (pre-T5 behavior). Pass explicitly only when the table's
+    catalog differs from the catalog used to hash the corresponding
+    chunks.doc_id at ingestion time (see databricks/CLAUDE.md "Catalog
+    convention") — a mismatch here silently orphans the resulting doc_id
+    against retrieval.py's JOIN.
+    """
+    from doc_id import make_doc_id
+
+    effective_hash_catalog = hash_catalog if hash_catalog is not None else catalog
+
+    return {
+        "company_name":          company_name,
+        "document_id":           str(uuid.uuid4()),
+        "filename":              filename,
+        "folder_path":           folder_path,
+        "workstream":            workstream,
+        "priority_tier":         priority_tier,
+        "priority_reason":       priority_reason,
+        "should_parse":          should_parse,
+        "extraction_confidence": extraction_confidence,
+        "mod_date":              mod_date,
+        "format":                format_,
+        "doc_id": make_doc_id(effective_hash_catalog, schema, company_name, folder_path, filename),
+    }
+
+
+def _backfill_missing_doc_ids(
+    spark,
+    catalog: str,
+    schema: str,
+    table_relevance: str,
+    hash_catalog: str | None = None,
+) -> int:
+    """Populate doc_id on existing doc_relevance rows where it is NULL.
+
+    `hash_catalog` (M3/T5): see `_build_classification_record`'s docstring.
+    Defaults to `catalog` (pre-T5 behavior).
+    """
+    from delta.tables import DeltaTable
+    from doc_id import make_doc_id
+    from pyspark.sql import Row
+    from pyspark.sql.types import StringType, StructField, StructType
+
+    effective_hash_catalog = hash_catalog if hash_catalog is not None else catalog
+    if effective_hash_catalog != catalog:
+        print(
+            f"⚠ Hashing doc_id against catalog '{effective_hash_catalog}' "
+            f"(differs from table catalog '{catalog}')"
+        )
+
+    pending = spark.sql(f"""
+        SELECT company_name, filename, folder_path
+        FROM {table_relevance}
+        WHERE doc_id IS NULL
+    """).collect()
+
+    if not pending:
+        return 0
+
+    updates = [
+        {
+            "company_name": row.company_name,
+            "filename":     row.filename,
+            "folder_path":  row.folder_path,
+            "doc_id": make_doc_id(
+                effective_hash_catalog, schema, row.company_name, row.folder_path, row.filename,
+            ),
+        }
+        for row in pending
+    ]
+
+    update_schema = StructType([
+        StructField("company_name", StringType(), False),
+        StructField("filename",     StringType(), False),
+        StructField("folder_path",  StringType(), True),
+        StructField("doc_id",       StringType(), False),
+    ])
+    update_df = spark.createDataFrame([Row(**r) for r in updates], schema=update_schema)
+
+    merge_predicate = (
+        "t.company_name = s.company_name AND t.filename = s.filename "
+        "AND coalesce(t.folder_path, '') = coalesce(s.folder_path, '')"
+    )
+    (
+        DeltaTable.forName(spark, table_relevance)
+        .alias("t")
+        .merge(update_df.alias("s"), merge_predicate)
+        .whenMatchedUpdate(set={"doc_id": "s.doc_id"})
+        .execute()
+    )
+    return len(updates)
+
+
+# ---------------------------------------------------------------------------
 # Main workflow
 # ---------------------------------------------------------------------------
 
@@ -389,6 +504,7 @@ def main():
     company_name = get_param("sp_company_name")
     catalog      = get_param("catalog",  default="uc13")
     schema       = get_param("schema",   default="ingestion")
+    doc_id_hash_catalog = get_param("doc_id_hash_catalog", default="") or None
 
     volume_path    = f"/Volumes/{catalog}/{schema}/raw_files/{company_name}"
     table_log      = f"{catalog}.{schema}.upload_log"
@@ -475,19 +591,20 @@ def main():
         if result and len(result) == len(batch):
             for f, r in zip(batch, result):
                 sig = upload_signals.get(f["file_name"], {})
-                all_results.append({
-                    "company_name":         company_name,
-                    "document_id":          str(uuid.uuid4()),
-                    "filename":             f["file_name"],
-                    "folder_path":          f["folder_path"],
-                    "workstream":           r["workstream"],
-                    "priority_tier":        r["priority_tier"],
-                    "priority_reason":      r.get("priority_reason") or sig.get("priority_reason"),
-                    "should_parse":         bool(r.get("should_parse", False)),
-                    "extraction_confidence": r["extraction_confidence"],
-                    "mod_date":             sig.get("mod_date"),
-                    "format":               sig.get("format", "other"),
-                })
+                all_results.append(_build_classification_record(
+                    company_name=company_name,
+                    catalog=catalog,
+                    schema=schema,
+                    filename=f["file_name"],
+                    folder_path=f["folder_path"],
+                    workstream=r["workstream"],
+                    priority_tier=r["priority_tier"],
+                    priority_reason=r.get("priority_reason") or sig.get("priority_reason"),
+                    should_parse=bool(r.get("should_parse", False)),
+                    extraction_confidence=r["extraction_confidence"],
+                    mod_date=sig.get("mod_date"),
+                    format_=sig.get("format", "other"),
+                ))
             print(f"  Batch {batch_num}/{total_batches}: {len(batch)} files ✓")
         else:
             # Fall back to individual classification.
@@ -497,33 +614,35 @@ def main():
                 sig    = upload_signals.get(single_file["file_name"], {})
                 if single and len(single) == 1:
                     r = single[0]
-                    all_results.append({
-                        "company_name":         company_name,
-                        "document_id":          str(uuid.uuid4()),
-                        "filename":             single_file["file_name"],
-                        "folder_path":          single_file["folder_path"],
-                        "workstream":           r["workstream"],
-                        "priority_tier":        r["priority_tier"],
-                        "priority_reason":      r.get("priority_reason") or sig.get("priority_reason"),
-                        "should_parse":         bool(r.get("should_parse", False)),
-                        "extraction_confidence": r["extraction_confidence"],
-                        "mod_date":             sig.get("mod_date"),
-                        "format":               sig.get("format", "other"),
-                    })
+                    all_results.append(_build_classification_record(
+                        company_name=company_name,
+                        catalog=catalog,
+                        schema=schema,
+                        filename=single_file["file_name"],
+                        folder_path=single_file["folder_path"],
+                        workstream=r["workstream"],
+                        priority_tier=r["priority_tier"],
+                        priority_reason=r.get("priority_reason") or sig.get("priority_reason"),
+                        should_parse=bool(r.get("should_parse", False)),
+                        extraction_confidence=r["extraction_confidence"],
+                        mod_date=sig.get("mod_date"),
+                        format_=sig.get("format", "other"),
+                    ))
                 else:
-                    all_results.append({
-                        "company_name":         company_name,
-                        "document_id":          str(uuid.uuid4()),
-                        "filename":             single_file["file_name"],
-                        "folder_path":          single_file["folder_path"],
-                        "workstream":           ["BACKGROUND"],
-                        "priority_tier":        None,
-                        "priority_reason":      None,
-                        "should_parse":         False,
-                        "extraction_confidence": "low",
-                        "mod_date":             sig.get("mod_date"),
-                        "format":               sig.get("format", "other"),
-                    })
+                    all_results.append(_build_classification_record(
+                        company_name=company_name,
+                        catalog=catalog,
+                        schema=schema,
+                        filename=single_file["file_name"],
+                        folder_path=single_file["folder_path"],
+                        workstream=["BACKGROUND"],
+                        priority_tier=None,
+                        priority_reason=None,
+                        should_parse=False,
+                        extraction_confidence="low",
+                        mod_date=sig.get("mod_date"),
+                        format_=sig.get("format", "other"),
+                    ))
 
     # --- Deduplication ---
     final_results = deduplicate(all_results)
@@ -551,6 +670,7 @@ def main():
         StructField("extraction_confidence", StringType(),           True),
         StructField("mod_date",              StringType(),           True),
         StructField("format",               StringType(),           True),
+        StructField("doc_id",               StringType(),           True),
     ])
 
     rows = [Row(**r) for r in final_results]
@@ -574,6 +694,12 @@ def main():
     )
 
     print(f"✓ Saved {len(final_results)} classifications → {table_relevance}")
+
+    n_backfilled = _backfill_missing_doc_ids(
+        _spark, catalog, schema, table_relevance, hash_catalog=doc_id_hash_catalog,
+    )
+    print(f"✓ Backfilled doc_id for {n_backfilled} existing doc_relevance rows")
+
     print(f"\n  Tier 1 (highest value): {sum(1 for r in final_results if r['priority_tier'] == 1)}")
     print(f"  Tier 2 (high value)   : {sum(1 for r in final_results if r['priority_tier'] == 2)}")
     print(f"  Tier 3 (useful)       : {sum(1 for r in final_results if r['priority_tier'] == 3)}")

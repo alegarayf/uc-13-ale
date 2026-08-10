@@ -164,9 +164,8 @@ def get_coverage_report(
           - total_approved, total_ingested, total_missing
           - by_workstream: {ws: {approved, ingested, missing}} (lists of filenames)
     """
-    schema           = "ingestion"
-    table_relevance  = f"{catalog}.classification.doc_relevance"
-    table_embeddings = f"{catalog}.{schema}.embeddings"
+    schema          = "ingestion"
+    table_relevance = f"{catalog}.classification.doc_relevance"
 
     tier_sql = (
         f"AND priority_tier IN ({', '.join(str(t) for t in tiers)})"
@@ -183,14 +182,19 @@ def get_coverage_report(
     """).collect()
 
     try:
-        ingested_rows = spark.sql(f"""
-            SELECT DISTINCT file_name
-            FROM   {table_embeddings}
-            WHERE  company_name = '{company_name}'
-        """).collect()
-        ingested_names: set[str] = {r.file_name for r in ingested_rows}
-    except Exception:
-        ingested_names = set()
+        from status_store import COMPLETE, StatusStore
+    except ImportError:
+        scripts_dir = str(Path(__file__).parent)
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from status_store import COMPLETE, StatusStore
+
+    status_map = StatusStore(spark, catalog, schema).read_status_map(company_name)
+    ingested_names: set[str] = {
+        row.file_name
+        for row in status_map.values()
+        if row.status == COMPLETE
+    }
 
     by_ws: dict[str, dict] = {}
     approved_all: set[str] = set()
@@ -388,8 +392,16 @@ def ingest_missing(
 
     # ── Resolve file paths and skip non-existent / unsupported ───────────────
     relevance_map: dict[str, dict] = {}
-    file_paths: list[str] = []
+    file_entries: list[dict] = []
     skipped = 0
+
+    try:
+        from doc_id import make_doc_id
+    except ImportError:
+        scripts_dir = str(Path(__file__).parent)
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from doc_id import make_doc_id
 
     for f in missing:
         fname  = f["file_name"]
@@ -411,20 +423,27 @@ def ingest_missing(
             "workstream":    f["workstream"],
             "priority_tier": f["priority_tier"],
         }
-        file_paths.append(fpath)
+        file_entries.append({
+            "fpath": fpath,
+            "doc_id": make_doc_id(catalog, schema, company_name, folder, fname),
+            "fname": fname,
+        })
 
-    print(f"  Resolvable files : {len(file_paths)}  (skipped={skipped})")
+    print(f"  Resolvable files : {len(file_entries)}  (skipped={skipped})")
 
-    if not file_paths:
+    if not file_entries:
         print("No resolvable files — exiting.")
         return {"files_processed": 0, "chunks_written": 0, "embeddings_written": 0, "skipped": skipped}
 
     # ── Parse ─────────────────────────────────────────────────────────────────
     all_chunks = []
-    for fpath in file_paths:
-        chunks = parse_file(fpath, spark, vision_endpoint=vision_endpoint)
+    for entry in file_entries:
+        fpath = entry["fpath"]
+        fname = entry["fname"]
+        chunks = parse_file(
+            fpath, entry["doc_id"], spark, vision_endpoint=vision_endpoint
+        )
         all_chunks.extend(chunks)
-        fname = os.path.basename(fpath)
         print(f"  Parsed  {fname[:60]}: {len(chunks)} chunks")
 
     print_diagnostics(all_chunks)
