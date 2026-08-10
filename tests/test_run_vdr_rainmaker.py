@@ -138,6 +138,9 @@ def test_cim_found_runs_scoped_route_2_and_renders_pdf(monkeypatch, _common_patc
     assert ingestion_kwargs["catalog"] == "uc13_preview"
     assert ingestion_kwargs["file_whitelist"] == cim_files
     assert ingestion_kwargs["parse_priority_tiers"] == "all"
+    # Since Ale's M0-M4 merge, ParseManifest skips docs already COMPLETE in
+    # doc_status. Without force, re-previewing the same CIM is a silent no-op.
+    assert ingestion_kwargs["force"] == "company"
 
     pipeline_mock.assert_called_once()
     _, pipeline_kwargs = pipeline_mock.call_args
