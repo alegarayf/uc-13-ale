@@ -95,7 +95,12 @@ def test_cim_found_runs_scoped_route_2_and_renders_pdf(monkeypatch, _common_patc
     cim_files = ["2024 Elder Care - CIM_vF.pdf"]
     monkeypatch.setattr(rvr, "_detect_cim_files", lambda _company, _folder: cim_files)
 
-    ingestion_mock = MagicMock(return_value={"summary": {"SUCCESS": 4}})
+    ingestion_mock = MagicMock(
+        return_value={
+            "summary": {"SUCCESS": 4},
+            "phases": {"ingestion_parser": {"status": "SUCCESS", "error": None}},
+        }
+    )
     monkeypatch.setattr(
         "run_ingestion_pipeline.run_ingestion_pipeline", ingestion_mock, raising=False
     )
@@ -141,6 +146,9 @@ def test_cim_found_runs_scoped_route_2_and_renders_pdf(monkeypatch, _common_patc
     # Since Ale's M0-M4 merge, ParseManifest skips docs already COMPLETE in
     # doc_status. Without force, re-previewing the same CIM is a silent no-op.
     assert ingestion_kwargs["force"] == "company"
+    # Since Ale's M0-M4 merge, ParseManifest skips docs already COMPLETE in
+    # doc_status. Without force, re-previewing the same CIM is a silent no-op.
+    assert ingestion_kwargs["force"] == "company"
 
     pipeline_mock.assert_called_once()
     _, pipeline_kwargs = pipeline_mock.call_args
@@ -181,6 +189,51 @@ def test_exception_during_route_2_marks_record_as_error(monkeypatch, _common_pat
     assert updates[-1]["processing_status"] == "error"
     assert updates[-1]["completion_status"] == "failure"
     assert "ingestion boom" in updates[-1]["error_message"]
+
+
+def test_failed_parse_phase_aborts_instead_of_building_on_stale_chunks(
+    monkeypatch, _common_patches
+):
+    """`run_ingestion_pipeline` reports phase failures in its return value rather
+    than raising — only its CLI `main()` maps failure to a non-zero exit. Called
+    programmatically, a failed parse used to pass silently: the agents would run
+    against whatever chunks the catalog already held and the job reported SUCCESS
+    on a PDF built from stale data (observed on run 572985817765568).
+    """
+    monkeypatch.setattr(
+        rvr, "_detect_cim_files", lambda _company, _folder: ["2024 Elder Care - CIM_vF.pdf"]
+    )
+    monkeypatch.setattr(
+        "run_ingestion_pipeline.run_ingestion_pipeline",
+        MagicMock(
+            return_value={
+                "summary": {"SUCCESS": 2, "FAILED": 1},
+                "phases": {
+                    "download_upload": {"status": "SUCCESS", "error": None},
+                    "document_classifier": {"status": "SUCCESS", "error": None},
+                    "ingestion_parser": {
+                        "status": "FAILED",
+                        "error": "WRONG_COLUMN_DEFAULTS_FOR_DELTA_FEATURE_NOT_ENABLED",
+                    },
+                },
+            }
+        ),
+        raising=False,
+    )
+    pipeline_mock = MagicMock()
+    monkeypatch.setattr("agents.orchestration.pipeline.run_pipeline", pipeline_mock)
+
+    with pytest.raises(RuntimeError, match="refusing to build a preview"):
+        rvr.run_vdr_rainmaker("some.table", 1)
+
+    # The agents must never have been reached.
+    pipeline_mock.assert_not_called()
+
+    updates = _common_patches["updates"]
+    assert updates[-1]["processing_status"] == "error"
+    assert updates[-1]["completion_status"] == "failure"
+    # The operator needs the underlying cause, not just "it failed".
+    assert "ingestion_parser=FAILED" in updates[-1]["error_message"]
 
 
 def test_no_regression_run_vdr_pipeline_module_untouched():

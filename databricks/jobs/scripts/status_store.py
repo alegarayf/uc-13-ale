@@ -86,6 +86,7 @@ def ensure_doc_status(spark: SparkSession, catalog: str, schema: str) -> None:
             error              STRING,
             updated_at         TIMESTAMP NOT NULL
         ) USING DELTA
+        TBLPROPERTIES ('delta.feature.allowColumnDefaults' = 'supported')
     """)
 
 

@@ -180,7 +180,7 @@ def run_vdr_rainmaker(
         # after a template or agent change, with the same CIM. force is
         # per-doc (not a company-wide wipe), and this catalog only ever holds
         # whitelisted CIM docs, so the blast radius is exactly those files.
-        run_ingestion_pipeline(
+        ingestion = run_ingestion_pipeline(
             company_name=company_name,
             catalog=PREVIEW_CATALOG,
             vision_endpoint=vision_endpoint,
@@ -188,6 +188,28 @@ def run_vdr_rainmaker(
             file_whitelist=cim_files,
             force="company",
         )
+
+        # run_ingestion_pipeline reports per-phase status in its return value and
+        # does NOT raise — only its CLI main() maps failure to a non-zero exit.
+        # Called programmatically, a failed parse therefore used to pass silently:
+        # the agents below would run against whatever chunks the catalog already
+        # held, and the job reported SUCCESS on a PDF built from stale data. That
+        # really happened (run 572985817765568: the parse failed on
+        # WRONG_COLUMN_DEFAULTS_FOR_DELTA_FEATURE_NOT_ENABLED, the agents scored
+        # 3-day-old chunks, and record 47 flipped to done/success). Fail loudly
+        # instead — a preview built on unknown-age chunks is worse than no
+        # preview, because nothing downstream reveals which one it was.
+        parse_phase = ingestion["phases"].get("ingestion_parser", {})
+        if parse_phase.get("status") != "SUCCESS":
+            raise RuntimeError(
+                "Scoped ingestion did not complete — refusing to build a preview "
+                "on stale chunks. Phase statuses: "
+                + ", ".join(
+                    f"{name}={info.get('status')}"
+                    + (f" ({info['error']})" if info.get("error") else "")
+                    for name, info in ingestion["phases"].items()
+                )
+            )
 
         # Ruta 2: the same 7 workstream agents + Cross-Analysis, scoped to
         # the CIM's chunks by virtue of the preview catalog's index only
