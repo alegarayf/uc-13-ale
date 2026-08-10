@@ -172,12 +172,21 @@ def run_vdr_rainmaker(
 
         # Scoped ingestion: only the CIM (or special_folder files), in the
         # isolated preview catalog — never `uc13` (plan §11.2/Apéndice A.5).
+        #
+        # force="company": since Ale's M0-M4 merge, ParseManifest skips docs
+        # already COMPLETE in doc_status, so the default force="none" would
+        # make a re-preview of the same CIM a no-op ("No work items"). A
+        # preview must be re-runnable on demand — an operator re-triggers it
+        # after a template or agent change, with the same CIM. force is
+        # per-doc (not a company-wide wipe), and this catalog only ever holds
+        # whitelisted CIM docs, so the blast radius is exactly those files.
         run_ingestion_pipeline(
             company_name=company_name,
             catalog=PREVIEW_CATALOG,
             vision_endpoint=vision_endpoint,
             parse_priority_tiers="all",
             file_whitelist=cim_files,
+            force="company",
         )
 
         # Ruta 2: the same 7 workstream agents + Cross-Analysis, scoped to

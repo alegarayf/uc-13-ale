@@ -532,7 +532,8 @@ def main():
             should_parse         BOOLEAN,
             extraction_confidence STRING,
             mod_date             STRING,
-            format               STRING
+            format               STRING,
+            doc_id               STRING
         ) USING DELTA
     """)
 
