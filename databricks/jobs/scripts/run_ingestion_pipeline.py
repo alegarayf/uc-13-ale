@@ -99,6 +99,10 @@ def run_ingestion_pipeline(
     parse_priority_tiers: str = "1,2",
     skip_download: bool = False,
     file_whitelist: list[str] | None = None,
+    force: str = "none",
+    coverage_per_workstream: int = 3,
+    skip_sync: bool = False,
+    sync_only: bool = False,
 ) -> dict:
     """Run Phase 1-2 in dependency order and return a step-by-step summary.
 
@@ -136,6 +140,10 @@ def run_ingestion_pipeline(
     os.environ["vision_endpoint"]      = vision_endpoint
     os.environ["parse_priority_tiers"] = parse_priority_tiers
     os.environ["file_whitelist"]       = json.dumps(file_whitelist or [])
+    os.environ["force"]                = force
+    os.environ["coverage_per_workstream"] = str(coverage_per_workstream)
+    os.environ["skip_sync"]            = "true" if skip_sync else "false"
+    os.environ["sync_only"]            = "true" if sync_only else "false"
 
     scripts_dir = _find_scripts_dir()
     repo_root   = _find_repo_root(scripts_dir)
@@ -209,27 +217,6 @@ def run_ingestion_pipeline(
             "(no embeddings; profile fields will be null)."
         )
 
-    # ── Phase 2c: Coverage Backfill ──────────────────────────────────────
-    # Only runs when parse_priority_tiers is not "all" (i.e. we parsed a
-    # filtered subset). For each workstream with 0 ingested docs it picks
-    # the 1-2 best available files from remaining tiers and appends them.
-    if (
-        parse_priority_tiers.strip().lower() != "all"
-        and phases["ingestion_parser"]["status"] == "SUCCESS"
-    ):
-        phases["coverage_backfill"] = _run(
-            "Phase 2c: Coverage Backfill",
-            "ensure_coverage",
-            func_name="main_coverage_backfill",
-        )
-    else:
-        phases["coverage_backfill"] = _skip(
-            "Phase 2c: Coverage Backfill",
-            "parse_priority_tiers=all (full parse already covers all workstreams)"
-            if parse_priority_tiers.strip().lower() == "all"
-            else "ingestion_parser did not succeed",
-        )
-
     # ── Phase 2b: Company Profiler ────────────────────────────────────────
     phases["company_profiler"] = _run("Phase 2b: Company Profiler", "company_profiler")
 
@@ -260,12 +247,20 @@ def main():
             return argv[i]
         return os.environ.get(key, default)
 
+    def _bool_arg(i, key, default="false"):
+        raw = _arg(i, key, default)
+        return str(raw).strip().lower() in ("true", "1", "yes")
+
     company_name         = _arg(0, "sp_company_name")
     catalog              = _arg(1, "catalog",              "uc13")
     schema               = _arg(2, "schema",               "ingestion")
     embedding_endpoint   = _arg(3, "embedding_endpoint",   "databricks-bge-large-en")
     vision_endpoint      = _arg(4, "vision_endpoint",      "")
     parse_priority_tiers = _arg(5, "parse_priority_tiers", "1,2")
+    force                = _arg(6, "force", "none")
+    coverage_per_workstream = int(_arg(7, "coverage_per_workstream", "3"))
+    skip_sync            = _bool_arg(8, "skip_sync", "false")
+    sync_only            = _bool_arg(9, "sync_only", "false")
 
     if not company_name:
         raise RuntimeError(
@@ -278,6 +273,10 @@ def main():
     os.environ["embedding_endpoint"]   = embedding_endpoint
     os.environ["vision_endpoint"]      = vision_endpoint
     os.environ["parse_priority_tiers"] = parse_priority_tiers
+    os.environ["force"]                = force
+    os.environ["coverage_per_workstream"] = str(coverage_per_workstream)
+    os.environ["skip_sync"]            = "true" if skip_sync else "false"
+    os.environ["sync_only"]            = "true" if sync_only else "false"
 
     summary = run_ingestion_pipeline(
         company_name=company_name,
@@ -286,6 +285,10 @@ def main():
         embedding_endpoint=embedding_endpoint,
         vision_endpoint=vision_endpoint,
         parse_priority_tiers=parse_priority_tiers,
+        force=force,
+        coverage_per_workstream=coverage_per_workstream,
+        skip_sync=skip_sync,
+        sync_only=sync_only,
     )
 
     # Surface a hard failure to the Databricks job UI only if ALL steps that

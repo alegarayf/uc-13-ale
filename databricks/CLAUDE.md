@@ -219,8 +219,8 @@ Sequential chain — no parallelism (each step depends strictly on the previous)
 
 ### Ingestion — three modes, never mix them
 
-- **`ingestion_parser.py main()`**: DELETE all rows for the company → parse approved files (filtered by `parse_priority_tiers`) → APPEND fresh. Idempotent full rebuild. Use when extraction logic changes.
-- **`ensure_coverage.py main_coverage_backfill()`**: Automatic post-parse safety net, called by `run_ingestion_pipeline` (Phase 2c). Finds workstreams with 0 ingested docs, picks the 1-2 best available files per uncovered workstream from any tier, and appends them. APPEND only. Only runs when `parse_priority_tiers != "all"`.
+- **`ingestion_parser.py main()`**: DELETE all rows for the company → parse approved files (filtered by `parse_priority_tiers`) → APPEND fresh. Idempotent full rebuild. Use when extraction logic changes. **S3 (vector index sync)** is watermark-driven: skips sync when no `COMPLETE` doc is newer than `sync_state.last_successful_sync`; advances the watermark only after `✓ Index ready`. Operator recovery: `skip_sync` (force-skip sync after parse) and `sync_only` (run sync without S1/S2 parse) — job/task params on `uc13_ingestion_pipeline.yml`.
+- **`ensure_coverage.py main_coverage_backfill()`**: APPEND-only safety net for uncovered workstreams — finds workstreams with 0 ingested docs, picks the 1-2 best available files per uncovered workstream from any tier, and appends them. **No longer invoked automatically** by `run_ingestion_pipeline` (Phase 2c removed in M2); the M0 `ParseManifest` coverage sub-pass covers the same ground during the main per-doc loop. Still available for **manual** invocation when `parse_priority_tiers != "all"`.
 - **`ensure_coverage.py ingest_missing()`**: APPEND only, never deletes. Use manually when a workstream is missing files after the main parse. Always check with `get_coverage_report()` first (Cell 8c), then fill with `ingest_missing()` (Cell 8d). Accepts optional `file_names_whitelist: set[str]` to restrict to specific files.
 
 ### `source_type` column
