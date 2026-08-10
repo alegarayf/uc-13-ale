@@ -215,7 +215,7 @@ After the run, copy stdout into the job log or PR notes and update the matrix ce
 
 </details>
 
-**T2 gate:** OPEN — all three dimensions `pass`; T2 may implement `workstream` and `priority_tier` VS metadata filter pushdown.
+**T2 gate:** **DECIDED OFF** (M-PHV4 PG5 fail, 2026-07-15) — `vs_metadata_filters` default stays `False`. Attestation: `.dev/attestations/m-phv4-r02-vs-metadata-filters-ab-elder-care-2026-07-15.md`. Probe results below are **historical evidence** only; T2 VS metadata filter pushdown is not in scope.
 
 ### Pass/fail matrix
 
