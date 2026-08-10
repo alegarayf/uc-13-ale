@@ -386,6 +386,29 @@ If observed cluster behavior diverges from this runbook (missing stdout substrin
 
 ---
 
+## Eval harness cluster execution (spec §15.7 / item 11a)
+
+Local machines have no `pyspark`. Eval harness runs with `--store-backend delta` and cluster-side gold rebootstrap both require remote execution.
+
+### Upload-then-submit (one-off / eval scripts)
+
+Use the SDK **upload-then-submit** pattern — do not assume workspace files track git automatically:
+
+1. `load_dotenv()` from repo root; connect with explicit `WorkspaceClient(host=..., token=...)` (the SDK does not auto-discover `DATABRICKS_SERVER_HOSTNAME`).
+2. Upload the local script via `workspace.import_` (base64 content, `overwrite=True`) — see `import_text_file()` in `.dev/t2_databricks_submit.py`.
+3. Submit a serverless Python task with `jobs.submit()` + `SparkPythonTask(python_file=...)` — see `submit_python()` in the same helper.
+4. Poll `jobs.get_run()` until `TERMINATED`; fetch logs via `jobs.get_run_output()`.
+
+**Canonical helper:** `.dev/t2_databricks_submit.py` (also referenced from `.dev/agent-databricks-recipes.md`). **Live verification:** M1 T1 signoff `signoffs/T1-entry-11a.md` — run `834151860276843`, stdout `T2_PING_OK`.
+
+Typical eval commands submitted this way: `python -m eval.retrieval.harness_cli run --store-backend delta --run-type baseline --company-name "Elder Care" --catalog uc13_ale` (T4) and gold-bootstrap cluster runs (T2).
+
+### Standing jobs (VDR / workflow YAML)
+
+For jobs backed by a **Databricks Git folder** (e.g. VDR Diligence Pipeline `617196299594076`), code does **not** update from local upload. Ship changes by: **push to git**, then `databricks repos update <repo_id> --branch <branch>`. The job's `git_source` block is dead config — the Git folder checkout is the live code source (see VDR pipeline section above).
+
+---
+
 ## Databricks-specific constraints
 
 - **Volume paths** use `/Volumes/{catalog}/{schema}/raw_files/{company}/` — treat these as regular filesystem paths (they are FUSE-mounted). `os.path.exists()` and `open()` work.
