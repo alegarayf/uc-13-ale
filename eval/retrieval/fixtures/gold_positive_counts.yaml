@@ -1,5 +1,5 @@
 ingestion_snapshot: uc13_ale:35104:2026-07-30
-total_positive_chunk_ids: 23721
+total_positive_chunk_ids: 23730
 row_count: 57
 intents:
   bma.detect_cim_presence:
@@ -76,8 +76,8 @@ intents:
     positive_count: 10
   fta.ebitda.q1_financial_statements:
     gold_status: ready
-    gold_method: citation_backfill
-    positive_count: 0
+    gold_method: section_range
+    positive_count: 3
   fta.ebitda.q2_ebitda_and_margins:
     gold_status: ready
     gold_method: citation_backfill
@@ -92,8 +92,8 @@ intents:
     positive_count: 8
   fta.opex.q1_financial_statements:
     gold_status: ready
-    gold_method: citation_backfill
-    positive_count: 0
+    gold_method: section_range
+    positive_count: 3
   fta.opex.q2_working_capital:
     gold_status: ready
     gold_method: citation_backfill
@@ -104,8 +104,8 @@ intents:
     positive_count: 8
   fta.revenue.q1_financial_statements:
     gold_status: ready
-    gold_method: citation_backfill
-    positive_count: 0
+    gold_method: section_range
+    positive_count: 3
   fta.revenue.q2_revenue_by_segment:
     gold_status: ready
     gold_method: citation_backfill

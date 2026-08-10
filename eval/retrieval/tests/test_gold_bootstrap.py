@@ -304,6 +304,25 @@ def test_committed_gold_positive_counts_match_manifest():
         assert expected["positive_count"] == len(label.positive_chunk_ids)
 
 
+def test_fta_q1_intents_post_t7_section_range_positives():
+    """Post-T7: three FTA q1 intents carry section_range positives (T11 fallback path)."""
+    labels = {row.intent_id: row for row in load_gold_labels(GOLD_PATH)}
+    manifest = yaml.safe_load(GOLD_COUNTS_PATH.read_text(encoding="utf-8"))
+    q1_intents = (
+        "fta.ebitda.q1_financial_statements",
+        "fta.opex.q1_financial_statements",
+        "fta.revenue.q1_financial_statements",
+    )
+    for intent_id in q1_intents:
+        label = labels[intent_id]
+        expected = manifest["intents"][intent_id]
+        assert label.gold_status == "ready"
+        assert label.gold_method == "section_range"
+        assert len(label.positive_chunk_ids) == 3
+        assert expected["gold_method"] == "section_range"
+        assert expected["positive_count"] == 3
+
+
 def test_committed_elder_care_yaml_matches_fixture_shape():
     labels = load_gold_labels(GOLD_PATH)
     opex_q3 = next(
