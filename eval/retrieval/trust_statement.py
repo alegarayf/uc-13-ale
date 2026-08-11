@@ -1,8 +1,9 @@
-"""C6 trust-statement generator v0 — spec §8.2 / §8.4 / §12.2 / §17 item 10."""
+"""C6 trust-statement generator v1 — spec §8.2 / §8.4 / §12.2 / §17 item 10 / §15.3."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from dataclasses import dataclass, field
@@ -17,7 +18,10 @@ from eval.retrieval.errors import EvalError
 _DEFAULT_CATALOG = "uc13_ale"
 _DEFAULT_OUTPUT = Path(".dev/eval-program/trust_statement.md")
 _DEFAULT_REGISTRY = Path(".dev/eval-program/registry.yaml")
+_DEFAULT_BASELINE_REPORT = Path("eval/retrieval/reports/baseline_acf58bcc4968.json")
 _UNNORMALIZABLE_SLUG = "__unnormalizable__"
+_GENERATOR_VERSION = "v1"
+_GOLD_READY_SUMMARY = "52 ready/partial + 5 annotated exclusions (no_citation_source)"
 
 LAYERS = (
     "ingest_completeness",
@@ -56,6 +60,14 @@ class CompanyDomainRow:
     company: str
     catalog: str
     display_name: str | None = None
+
+
+@dataclass(frozen=True)
+class TrustEpochContext:
+    baseline_id: str
+    ingestion_snapshot: str
+    gold_ready_summary: str
+    refresh_event_refs: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -270,6 +282,61 @@ def _ingest_row_from_probe(
     )
 
 
+def load_epoch_context_from_baseline_report(
+    report_path: Path,
+    *,
+    gold_ready_summary: str = _GOLD_READY_SUMMARY,
+    refresh_event_refs: list[str] | None = None,
+) -> TrustEpochContext:
+    if not report_path.is_file():
+        raise TrustStatementGenerationError(f"baseline report not found: {report_path}")
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    manifest = payload.get("manifest") if isinstance(payload, dict) else None
+    if not isinstance(manifest, dict):
+        raise TrustStatementGenerationError(
+            f"baseline report missing manifest block: {report_path}"
+        )
+    baseline_id = str(manifest.get("run_id") or "").strip()
+    ingestion_snapshot = str(manifest.get("ingestion_snapshot") or "").strip()
+    if not baseline_id or not ingestion_snapshot:
+        raise TrustStatementGenerationError(
+            f"baseline report manifest missing run_id or ingestion_snapshot: {report_path}"
+        )
+    if ":35104:" in ingestion_snapshot:
+        raise TrustStatementGenerationError(
+            f"baseline report cites stale 35104-epoch snapshot: {ingestion_snapshot!r}"
+        )
+    refs = refresh_event_refs or [
+        "signoffs/T4-refresh.md",
+        "signoffs/T5-baseline.md",
+        str(report_path).replace("\\", "/"),
+    ]
+    return TrustEpochContext(
+        baseline_id=baseline_id,
+        ingestion_snapshot=ingestion_snapshot,
+        gold_ready_summary=gold_ready_summary,
+        refresh_event_refs=refs,
+    )
+
+
+def _retrieval_row_from_epoch(company: str, epoch: TrustEpochContext) -> TrustStatementRow:
+    return TrustStatementRow(
+        company=company,
+        layer="retrieval",
+        surface=None,
+        attestation="attested",
+        reason=None,
+        method=None,
+        rung=None,
+        evidence_refs=[
+            epoch.baseline_id,
+            epoch.ingestion_snapshot,
+            *epoch.refresh_event_refs,
+        ],
+        known_gaps=[f"Gold epoch: {epoch.gold_ready_summary} (@ {epoch.ingestion_snapshot})"],
+    )
+
+
 def _default_not_attested_row(company: str, layer: str, surface: str | None) -> TrustStatementRow:
     return TrustStatementRow(
         company=company,
@@ -308,6 +375,7 @@ def derive_rows_for_company(
     *,
     ingest_probe: IngestProbeResult | None,
     registry_gap_titles: list[str] | None = None,
+    epoch_context: TrustEpochContext | None = None,
 ) -> list[TrustStatementRow]:
     gap_titles = registry_gap_titles or []
     if domain.company == _UNNORMALIZABLE_SLUG:
@@ -323,6 +391,8 @@ def derive_rows_for_company(
                     registry_gap_titles=gap_titles,
                 )
             )
+        elif layer == "retrieval" and epoch_context is not None:
+            rows.append(_retrieval_row_from_epoch(domain.company, epoch_context))
         else:
             rows.append(_default_not_attested_row(domain.company, layer, surface))
     validate_rows(rows)
@@ -334,6 +404,7 @@ def derive_rows(
     *,
     ingest_probes: dict[str, IngestProbeResult | None],
     registry_gap_titles_by_company: dict[str, list[str]] | None = None,
+    epoch_context: TrustEpochContext | None = None,
 ) -> list[TrustStatementRow]:
     gap_map = registry_gap_titles_by_company or {}
     rows: list[TrustStatementRow] = []
@@ -343,6 +414,7 @@ def derive_rows(
                 entry,
                 ingest_probe=ingest_probes.get(entry.company),
                 registry_gap_titles=gap_map.get(entry.company, []),
+                epoch_context=epoch_context,
             )
         )
     validate_rows(rows)
@@ -505,19 +577,32 @@ def render_trust_statement_markdown(
     *,
     catalog: str,
     generated_at: datetime | None = None,
+    epoch_context: TrustEpochContext | None = None,
+    generator_version: str = _GENERATOR_VERSION,
 ) -> str:
     when = generated_at or datetime.now(timezone.utc)
     payload = [row.as_dict() for row in rows]
     yaml_block = yaml.safe_dump(payload, sort_keys=False, allow_unicode=True)
     companies = sorted({row.company for row in rows})
-    return "\n".join(
+    lines = [
+        "# Trust statement (generated — do not edit)",
+        "",
+        f"Generated: {when.isoformat()}",
+        f"Generator: {generator_version}",
+        f"Catalog: {catalog}",
+        f"Companies: {', '.join(companies)}",
+        f"Row count: {len(rows)}",
+    ]
+    if epoch_context is not None:
+        lines.extend(
+            [
+                f"Comparison epoch baseline: {epoch_context.baseline_id}",
+                f"Ingestion snapshot: {epoch_context.ingestion_snapshot}",
+                f"Gold ready summary: {epoch_context.gold_ready_summary}",
+            ]
+        )
+    lines.extend(
         [
-            "# Trust statement (generated — do not edit)",
-            "",
-            f"Generated: {when.isoformat()}",
-            f"Catalog: {catalog}",
-            f"Companies: {', '.join(companies)}",
-            f"Row count: {len(rows)}",
             "",
             "## Rows",
             "",
@@ -527,6 +612,7 @@ def render_trust_statement_markdown(
             "",
         ]
     )
+    return "\n".join(lines)
 
 
 def generate_trust_statement(
@@ -534,8 +620,10 @@ def generate_trust_statement(
     execute_sql: SqlExecutor,
     catalog: str,
     registry_path: Path,
-) -> list[TrustStatementRow]:
+    baseline_report_path: Path = _DEFAULT_BASELINE_REPORT,
+) -> tuple[list[TrustStatementRow], TrustEpochContext]:
     registry = load_registry(registry_path)
+    epoch_context = load_epoch_context_from_baseline_report(baseline_report_path)
     domain_rows = execute_sql(fetch_company_domain_sql(catalog))
     domain = parse_company_domain(domain_rows, catalog)
     if not domain:
@@ -560,9 +648,14 @@ def generate_trust_statement(
             company_display=display,
         )
 
-    rows = derive_rows(domain, ingest_probes=probes, registry_gap_titles_by_company=gap_titles)
+    rows = derive_rows(
+        domain,
+        ingest_probes=probes,
+        registry_gap_titles_by_company=gap_titles,
+        epoch_context=epoch_context,
+    )
     assert_row_set_total(rows, [entry.company for entry in domain])
-    return rows
+    return rows, epoch_context
 
 
 def write_trust_statement(
@@ -570,10 +663,15 @@ def write_trust_statement(
     rows: list[TrustStatementRow],
     *,
     catalog: str,
+    epoch_context: TrustEpochContext | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        render_trust_statement_markdown(rows, catalog=catalog),
+        render_trust_statement_markdown(
+            rows,
+            catalog=catalog,
+            epoch_context=epoch_context,
+        ),
         encoding="utf-8",
     )
 
@@ -631,6 +729,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=_DEFAULT_REGISTRY,
         help=f"Registry YAML read path (default: {_DEFAULT_REGISTRY})",
     )
+    generate.add_argument(
+        "--baseline-report",
+        type=Path,
+        default=_DEFAULT_BASELINE_REPORT,
+        help=f"M1 baseline JSON for epoch context (default: {_DEFAULT_BASELINE_REPORT})",
+    )
     return parser
 
 
@@ -638,12 +742,18 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "generate":
         execute = databricks_sql_executor(args.catalog)
-        rows = generate_trust_statement(
+        rows, epoch_context = generate_trust_statement(
             execute_sql=execute,
             catalog=args.catalog,
             registry_path=args.registry,
+            baseline_report_path=args.baseline_report,
         )
-        write_trust_statement(args.output, rows, catalog=args.catalog)
+        write_trust_statement(
+            args.output,
+            rows,
+            catalog=args.catalog,
+            epoch_context=epoch_context,
+        )
         print(
             f"trust_statement: wrote {len(rows)} rows for "
             f"{len({r.company for r in rows})} companies -> {args.output}"

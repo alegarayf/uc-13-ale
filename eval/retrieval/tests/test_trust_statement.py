@@ -7,12 +7,15 @@ import pytest
 from eval.retrieval.trust_statement import (
     CompanyDomainRow,
     IngestProbeResult,
+    TrustEpochContext,
     TrustStatementGenerationError,
     TrustStatementRow,
+    _GOLD_READY_SUMMARY,
     _rows_per_company,
     assert_row_set_total,
     derive_rows,
     derive_rows_for_company,
+    load_epoch_context_from_baseline_report,
     registry_gap_titles_for_company,
     render_trust_statement_markdown,
     run_ingest_probe,
@@ -244,3 +247,52 @@ def test_assert_row_set_total_fails_when_layer_row_missing() -> None:
     truncated = [row for row in rows if row.layer != "e2e"]
     with pytest.raises(TrustStatementGenerationError, match="row set non-total"):
         assert_row_set_total(truncated, ["elder_care"])
+
+
+def test_v1_retrieval_row_attested_with_epoch_context() -> None:
+    epoch = TrustEpochContext(
+        baseline_id="baseline_acf58bcc4968",
+        ingestion_snapshot="uc13_ale:55812:2026-08-11",
+        gold_ready_summary=_GOLD_READY_SUMMARY,
+        refresh_event_refs=["signoffs/T5-baseline.md"],
+    )
+    rows = derive_rows_for_company(
+        _ELDER,
+        ingest_probe=_probe_measured(completeness=1.0, denominator=10),
+        epoch_context=epoch,
+    )
+    retrieval = next(r for r in rows if r.layer == "retrieval")
+    assert retrieval.attestation == "attested"
+    assert retrieval.reason is None
+    assert "baseline_acf58bcc4968" in retrieval.evidence_refs
+    assert "uc13_ale:55812:2026-08-11" in retrieval.evidence_refs
+    assert _GOLD_READY_SUMMARY in retrieval.known_gaps[0]
+    assert "35104" not in " ".join(retrieval.evidence_refs)
+
+
+def test_load_epoch_context_rejects_stale_snapshot(tmp_path) -> None:
+    report = tmp_path / "stale.json"
+    report.write_text(
+        '{"manifest": {"run_id": "baseline_old", "ingestion_snapshot": "uc13_ale:35104:2026-07-30"}}',
+        encoding="utf-8",
+    )
+    with pytest.raises(TrustStatementGenerationError, match="35104-epoch"):
+        load_epoch_context_from_baseline_report(report)
+
+
+def test_render_markdown_v1_includes_epoch_header() -> None:
+    epoch = TrustEpochContext(
+        baseline_id="baseline_acf58bcc4968",
+        ingestion_snapshot="uc13_ale:55812:2026-08-11",
+        gold_ready_summary=_GOLD_READY_SUMMARY,
+    )
+    rows = derive_rows_for_company(
+        _ELDER,
+        ingest_probe=_probe_measured(completeness=1.0, denominator=10),
+        epoch_context=epoch,
+    )
+    text = render_trust_statement_markdown(rows, catalog="uc13_ale", epoch_context=epoch)
+    assert "Generator: v1" in text
+    assert "baseline_acf58bcc4968" in text
+    assert _GOLD_READY_SUMMARY in text
+    assert "35104" not in text
