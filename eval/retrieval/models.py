@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 
 ABLATION_ARMS: tuple[str, ...] = (
@@ -17,6 +17,8 @@ ABLATION_ARMS: tuple[str, ...] = (
 
 # Valid arm names for resolve_ablation_arm (includes conditional T2 arm).
 VALID_ABLATION_ARMS: tuple[str, ...] = (*ABLATION_ARMS, "vs_filter_pushdown")
+
+EXCLUDE_REASON_VOCABULARY: frozenset[str] = frozenset({"no_citation_source"})
 
 
 class RetrievalIntent(BaseModel):
@@ -77,6 +79,16 @@ class GoldLabel(BaseModel):
     confidence: Literal["high", "medium", "low"]
     negative_confidence: Literal["high", "medium", "low"] | None = None
     notes: str | None = None
+    aggregate_exclude: bool = False
+    exclude_reason: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_aggregate_exclude_coupling(self) -> GoldLabel:
+        if self.aggregate_exclude != bool(self.exclude_reason):
+            raise ValueError(
+                "aggregate_exclude and exclude_reason must both be set or both absent"
+            )
+        return self
 
 
 class FixtureChunk(BaseModel):

@@ -19,7 +19,7 @@ from typing import Any, Protocol
 import yaml
 
 from eval.retrieval.errors import PreconditionError
-from eval.retrieval.models import GoldLabel, RetrievalIntent
+from eval.retrieval.models import EXCLUDE_REASON_VOCABULARY, GoldLabel, RetrievalIntent
 
 DEFAULT_COMPANY_NAME = "Elder Care"
 DEFAULT_CATALOG = "uc13_ale"
@@ -104,6 +104,7 @@ KPI_ITEM12_INTENT_IDS: frozenset[str] = frozenset(
 )
 
 KPI_CLAIM_INTENT_MAP_PATH = Path(__file__).resolve().parent / "kpi_claim_intent_map.yaml"
+GOLD_EXCLUSIONS_PATH = Path(__file__).resolve().parent / "gold_exclusions.yaml"
 
 CitationRef = tuple[str, str | None, str | None]
 
@@ -263,6 +264,52 @@ def load_kpi_claim_intent_map(
     return claim_map, intent_block
 
 
+def load_gold_exclusions(
+    path: Path = GOLD_EXCLUSIONS_PATH,
+) -> dict[str, str]:
+    """Load aggregate-exclusion population (Contract T3-b): intent_id → exclude_reason."""
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise PreconditionError(
+            f"Gold exclusions artifact must be a mapping at {path}"
+        )
+    excluded = payload.get("excluded")
+    if not isinstance(excluded, list):
+        raise PreconditionError(
+            f"Gold exclusions artifact missing excluded list at {path}"
+        )
+    mapping: dict[str, str] = {}
+    for index, entry in enumerate(excluded):
+        if not isinstance(entry, dict):
+            raise PreconditionError(
+                f"Gold exclusions entry {index} must be a mapping at {path}"
+            )
+        intent_id = entry.get("intent_id")
+        exclude_reason = entry.get("exclude_reason")
+        if not intent_id or not exclude_reason:
+            raise PreconditionError(
+                f"Gold exclusions entry {index} missing intent_id or exclude_reason "
+                f"at {path}"
+            )
+        intent_key = str(intent_id)
+        if intent_key in mapping:
+            raise PreconditionError(
+                f"Duplicate gold exclusion for intent {intent_key!r} at {path}"
+            )
+        mapping[intent_key] = str(exclude_reason)
+    return mapping
+
+
+def _validate_exclude_reason_membership(label: GoldLabel) -> None:
+    if label.exclude_reason is None:
+        return
+    if label.exclude_reason not in EXCLUDE_REASON_VOCABULARY:
+        raise PreconditionError(
+            f"exclude_reason {label.exclude_reason!r} for {label.intent_id} "
+            f"is not in closed vocabulary {sorted(EXCLUDE_REASON_VOCABULARY)}"
+        )
+
+
 def _walk_json_for_source_refs(value: Any, refs: list[CitationRef]) -> None:
     if isinstance(value, dict):
         doc = value.get("source_doc") or value.get("document")
@@ -310,6 +357,7 @@ class GoldLabelBootstrap:
         self._ingestion_snapshot: str | None = None
         self._analysis_row_cache: dict[str, dict[str, Any] | None] = {}
         self._kpi_claim_map_cache: tuple[dict[str, str], dict[str, Any]] | None = None
+        self._gold_exclusions_cache: dict[str, str] | None = None
         self._last_excel_citation_notes: dict[str, str] = {}
 
     def compute_ingestion_snapshot(self) -> str:
@@ -356,6 +404,25 @@ class GoldLabelBootstrap:
 
     def _bootstrap_pass1(self, intent: RetrievalIntent, snapshot: str) -> GoldLabel:
         self._last_excel_citation_notes.pop(intent.intent_id, None)
+        exclude_reason = self._gold_exclusions().get(intent.intent_id)
+        if exclude_reason is not None:
+            return GoldLabel(
+                intent_id=intent.intent_id,
+                company_name=self.company_name,
+                catalog=self.catalog,
+                gold_status="bootstrap_failed",
+                positive_chunk_ids=[],
+                gold_method="citation_backfill",
+                ingestion_snapshot=snapshot,
+                confidence="low",
+                aggregate_exclude=True,
+                exclude_reason=exclude_reason,
+                notes=(
+                    f"aggregate_exclude: {exclude_reason} "
+                    f"(gold_exclusions.yaml; no citation source)"
+                ),
+            )
+
         result = self._try_positive_methods(intent, POSITIVE_FALLBACK_CHAIN)
         if result is None:
             return GoldLabel(
@@ -533,6 +600,11 @@ class GoldLabelBootstrap:
         if self._kpi_claim_map_cache is None:
             self._kpi_claim_map_cache = load_kpi_claim_intent_map()
         return self._kpi_claim_map_cache
+
+    def _gold_exclusions(self) -> dict[str, str]:
+        if self._gold_exclusions_cache is None:
+            self._gold_exclusions_cache = load_gold_exclusions()
+        return self._gold_exclusions_cache
 
     def _validate_kpi_citation_refs(self, refs: Sequence[CitationRef]) -> None:
         claim_map, _intent_block = self._kpi_claim_intent_map()
@@ -849,6 +921,8 @@ def write_gold_labels(path: Path, labels: Sequence[GoldLabel]) -> None:
         )
     if any(not label.ingestion_snapshot for label in labels):
         raise PreconditionError("Refusing to write gold row missing ingestion_snapshot")
+    for label in labels:
+        _validate_exclude_reason_membership(label)
     payload = [label.model_dump(mode="json", exclude_none=True) for label in labels]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
