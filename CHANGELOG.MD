@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-consolidation-m1-metric-guardrail-hardening — 2026-08-11
+
+- T2 (Excel citation branch + fail-closed claim→intent mapping): Implemented Tier-3 D4 Excel branch in `eval/retrieval/gold/bootstrap.py` — KPI-only claim gate on claim-carrying citation refs, sheet-grained chunk resolution (Data Rows exact tab + comma-prefix tab resolution), fail-closed `PreconditionError` on unmapped/missing claims and zero/ambiguous tab pools; committed live-derived `eval/retrieval/gold/kpi_claim_intent_map.yaml` (20 raw claim keys → 2 item-12 KPI intents). Rationale: closes the citation-extraction gap that blocked item-12 without writing gold (T4 owns refresh). Decision log: `.dev/plans/eval-consolidation-m1-metric-guardrail-hardening/decision-logs/T2.md`. + `eval/retrieval/tests/test_gold_excel_branch.py` (13 tests). Adversarial gap deferred: duplicate-ref SQL telemetry when citations JSON is walked twice — recorded in decision log; dedupe prevents functional drift today.
+
 ## uc13-ingestion-parser / M4 — Audit remediation (§7 amendments A1–A5) — 2026-08-07
 
 First Phase 4 audit of M4 (`.dev/audits/2026-08-07-uc13-ingestion-parser-M4.md`, Revision 1) returned **`fail`** — 4 major, 7 minor, 1 observation. **No production code defect**; the full suite was green at HEAD and `git diff 593d224..HEAD -- databricks/jobs/scripts/` was empty, so M4's non-goals held completely. All four majors were evidence-integrity or coverage gaps in the *gate evidence*, not the gate. Amendments A1–A5 (plan §7) close F1–F7, F9, F10. Zero bytes changed under `databricks/jobs/scripts/`.

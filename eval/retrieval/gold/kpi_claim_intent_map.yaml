@@ -1,0 +1,44 @@
+# Fail-closed claim→intent mapping for analysis.kpi Excel citations (Contract T2-a).
+# Raw claim keys from uc13_ale.analysis.kpi Elder Care row (2026-07-28); exact match only.
+claims:
+  healthcare_kpis.caregiver_headcount: kpi.retrieve_healthcare_ops
+  healthcare_kpis.census_or_patient_panel: kpi.retrieve_healthcare_ops
+  healthcare_kpis.census_or_patient_panel (by market): kpi.retrieve_healthcare_ops
+  healthcare_kpis.compliance_incidents[0] — 2023 NYSDOH survey citation: kpi.retrieve_healthcare_ops
+  healthcare_kpis.compliance_incidents[1] — HCR remediation: kpi.retrieve_healthcare_ops
+  healthcare_kpis.compliance_incidents[2] — open diligence item re excluded persons: kpi.retrieve_healthcare_ops
+  healthcare_kpis.credentialing_status_note — CNA/HHA requirement: kpi.retrieve_healthcare_ops
+  healthcare_kpis.credentialing_status_note — W-2 status: kpi.retrieve_healthcare_ops
+  healthcare_kpis.revenue_per_client_dollars — Long Island: kpi.retrieve_healthcare_revenue_per_unit
+  healthcare_kpis.revenue_per_client_dollars — Massachusetts: kpi.retrieve_healthcare_revenue_per_unit
+  healthcare_kpis.revenue_per_client_dollars — New Jersey: kpi.retrieve_healthcare_revenue_per_unit
+  healthcare_kpis.revenue_per_client_dollars — New York: kpi.retrieve_healthcare_revenue_per_unit
+  healthcare_kpis.revenue_per_client_dollars — Westchester: kpi.retrieve_healthcare_revenue_per_unit
+  healthcare_kpis.revenue_per_hour_dollars: kpi.retrieve_healthcare_revenue_per_unit
+  healthcare_kpis.site_level_visibility_note — DPS complaints/incidents: kpi.retrieve_healthcare_ops
+  healthcare_kpis.site_level_visibility_note — caregiver new hires by market: kpi.retrieve_healthcare_ops
+  healthcare_kpis.site_level_visibility_note — on-call and missed clock-in: kpi.retrieve_healthcare_ops
+  healthcare_kpis.utilization_or_productivity_note (% not utilized 2 months after hire): kpi.retrieve_healthcare_ops
+  healthcare_kpis.utilization_or_productivity_note (not used in 3 months): kpi.retrieve_healthcare_ops
+  healthcare_kpis.utilization_or_productivity_note (nurse % not utilized): kpi.retrieve_healthcare_ops
+
+intents:
+  kpi.retrieve_bench_and_capacity:
+    role: unmappable
+    reason: no_live_claims
+  kpi.retrieve_bill_rates_and_margins:
+    role: unmappable
+    reason: no_live_claims
+  kpi.retrieve_headcount_attrition:
+    role: unmappable
+    reason: no_live_claims
+  kpi.retrieve_healthcare_labor_market:
+    role: unmappable
+    reason: no_live_claims
+  kpi.retrieve_healthcare_ops:
+    role: claim_target
+  kpi.retrieve_healthcare_revenue_per_unit:
+    role: claim_target
+  kpi.retrieve_pipeline_backlog:
+    role: unmappable
+    reason: no_live_claims
