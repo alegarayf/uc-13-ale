@@ -12,6 +12,56 @@ from eval.retrieval.models import HarnessRun
 from eval.retrieval.store import DeltaEvalStore, EvalStore, SqliteEvalStore
 
 
+def _e2e_linkage_table(catalog: str) -> str:
+    return f"{catalog}.ops.e2e_linkage"
+
+
+def _backfill_e2e_linkage_sql(catalog: str) -> str:
+    """Idempotent INSERT … SELECT from run history (warehouse-executed)."""
+    runs = f"{catalog}.ops.retrieval_harness_runs"
+    linkage = _e2e_linkage_table(catalog)
+    return f"""
+        INSERT INTO {linkage} (
+            run_id,
+            e2e_agent_id,
+            e2e_snapshot_table,
+            e2e_checklist_score,
+            e2e_checklist_total,
+            linked_at
+        )
+        SELECT
+            r.run_id,
+            r.e2e_agent_id,
+            r.e2e_snapshot_table,
+            r.e2e_checklist_score,
+            r.e2e_checklist_total,
+            COALESCE(r.completed_at, r.created_at) AS linked_at
+        FROM {runs} r
+        WHERE r.e2e_agent_id IS NOT NULL
+          AND r.e2e_snapshot_table IS NOT NULL
+          AND r.e2e_checklist_score IS NOT NULL
+          AND r.e2e_checklist_total IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1
+              FROM {linkage} e
+              WHERE e.run_id = r.run_id
+                AND e.e2e_agent_id = r.e2e_agent_id
+          )
+    """
+
+
+def backfill_e2e_linkage(store: DeltaEvalStore) -> int:
+    """Backfill append-only linkage rows from ``retrieval_harness_runs`` history."""
+    before = store.spark.sql(
+        f"SELECT COUNT(*) AS n FROM {_e2e_linkage_table(store.catalog)}"
+    ).collect()[0]["n"]
+    store.spark.sql(_backfill_e2e_linkage_sql(store.catalog))
+    after = store.spark.sql(
+        f"SELECT COUNT(*) AS n FROM {_e2e_linkage_table(store.catalog)}"
+    ).collect()[0]["n"]
+    return int(after) - int(before)
+
+
 def _apply_e2e_linkage(
     store: EvalStore,
     run_id: str,
@@ -56,6 +106,33 @@ def _apply_e2e_linkage(
                 e2e_checklist_score = :e2e_checklist_score,
                 e2e_checklist_total = :e2e_checklist_total
             WHERE run_id = :run_id
+            """,
+            args={
+                "run_id": run_id,
+                "e2e_agent_id": e2e_agent_id,
+                "e2e_snapshot_table": e2e_snapshot_table,
+                "e2e_checklist_score": e2e_checklist_score,
+                "e2e_checklist_total": e2e_checklist_total,
+            },
+        )
+        store.spark.sql(
+            f"""
+            INSERT INTO {_e2e_linkage_table(store.catalog)} (
+                run_id,
+                e2e_agent_id,
+                e2e_snapshot_table,
+                e2e_checklist_score,
+                e2e_checklist_total,
+                linked_at
+            )
+            VALUES (
+                :run_id,
+                :e2e_agent_id,
+                :e2e_snapshot_table,
+                :e2e_checklist_score,
+                :e2e_checklist_total,
+                current_timestamp()
+            )
             """,
             args={
                 "run_id": run_id,

@@ -146,6 +146,18 @@ def test_record_e2e_profiler_worked_example_uses_total_7() -> None:
     assert "uc13_ale.classification.company_profile" in section
 
 
+def test_record_e2e_documents_ops_e2e_linkage_history_table() -> None:
+    section = _phv_section()
+    assert "uc13_ale.ops.e2e_linkage" in section
+    assert "linked_at" in section
+    assert "sqlite" in section.lower()
+
+
+def test_record_e2e_documents_golden_five_gate_query() -> None:
+    section = _phv_section()
+    assert "WHERE e2e_agent_id IN ('bma', 'cqa', 'kpi', 'qoe', 'profiler')" in section
+
+
 def test_record_e2e_does_not_invent_cli_flags() -> None:
     """Falsifier: undocumented flag strings in worked examples."""
     section = _phv_section()

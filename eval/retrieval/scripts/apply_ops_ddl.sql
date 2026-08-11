@@ -134,3 +134,12 @@ SELECT DISTINCT
   {catalog}.ops.canonical_company_slug(company_name) AS company,
   catalog
 FROM {catalog}.ops.retrieval_harness_latest_baseline;
+
+CREATE TABLE IF NOT EXISTS {catalog}.ops.e2e_linkage (
+    run_id STRING NOT NULL,
+    e2e_agent_id STRING NOT NULL,
+    e2e_snapshot_table STRING NOT NULL,
+    e2e_checklist_score INT NOT NULL,
+    e2e_checklist_total INT NOT NULL,
+    linked_at TIMESTAMP NOT NULL
+) USING DELTA;
