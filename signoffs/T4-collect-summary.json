@@ -1,0 +1,152 @@
+{
+  "snapshot": "uc13_ale:55812:2026-08-11",
+  "staged_volume_path": "/Volumes/uc13_ale/analysis/reports/eval_staging/elder_care_full57_t4.yaml",
+  "staged_local": "C:\\Users\\AlejandroGaray\\Documents\\Repos\\uc-13-ale\\signoffs\\T4-staged-elder_care-full57.yaml",
+  "item12_diffs": [
+    {
+      "intent_id": "kpi.retrieve_bench_and_capacity",
+      "before_count": 2842,
+      "before_method": "filename_closure",
+      "before_status": "partial",
+      "after_count": 2925,
+      "after_method": "filename_closure",
+      "after_status": "partial",
+      "method_changed": false,
+      "status_changed": false,
+      "aggregate_exclude": false,
+      "exclude_reason": null
+    },
+    {
+      "intent_id": "kpi.retrieve_healthcare_labor_market",
+      "before_count": 2842,
+      "before_method": "filename_closure",
+      "before_status": "partial",
+      "after_count": 0,
+      "after_method": "citation_backfill",
+      "after_status": "bootstrap_failed",
+      "method_changed": true,
+      "status_changed": true,
+      "aggregate_exclude": true,
+      "exclude_reason": "no_citation_source"
+    },
+    {
+      "intent_id": "kpi.retrieve_bill_rates_and_margins",
+      "before_count": 2829,
+      "before_method": "filename_closure",
+      "before_status": "partial",
+      "after_count": 0,
+      "after_method": "citation_backfill",
+      "after_status": "bootstrap_failed",
+      "method_changed": true,
+      "status_changed": true,
+      "aggregate_exclude": true,
+      "exclude_reason": "no_citation_source"
+    },
+    {
+      "intent_id": "kpi.retrieve_headcount_attrition",
+      "before_count": 2829,
+      "before_method": "filename_closure",
+      "before_status": "partial",
+      "after_count": 0,
+      "after_method": "citation_backfill",
+      "after_status": "bootstrap_failed",
+      "method_changed": true,
+      "status_changed": true,
+      "aggregate_exclude": true,
+      "exclude_reason": "no_citation_source"
+    },
+    {
+      "intent_id": "kpi.retrieve_healthcare_ops",
+      "before_count": 2829,
+      "before_method": "filename_closure",
+      "before_status": "partial",
+      "after_count": 20,
+      "after_method": "citation_backfill",
+      "after_status": "ready",
+      "method_changed": true,
+      "status_changed": true,
+      "aggregate_exclude": false,
+      "exclude_reason": null
+    },
+    {
+      "intent_id": "kpi.retrieve_healthcare_revenue_per_unit",
+      "before_count": 2829,
+      "before_method": "filename_closure",
+      "before_status": "partial",
+      "after_count": 53,
+      "after_method": "citation_backfill",
+      "after_status": "ready",
+      "method_changed": true,
+      "status_changed": true,
+      "aggregate_exclude": false,
+      "exclude_reason": null
+    },
+    {
+      "intent_id": "kpi.retrieve_pipeline_backlog",
+      "before_count": 2829,
+      "before_method": "filename_closure",
+      "before_status": "partial",
+      "after_count": 0,
+      "after_method": "citation_backfill",
+      "after_status": "bootstrap_failed",
+      "method_changed": true,
+      "status_changed": true,
+      "aggregate_exclude": true,
+      "exclude_reason": "no_citation_source"
+    },
+    {
+      "intent_id": "profiler.company_size_indicators",
+      "before_count": 2827,
+      "before_method": "filename_closure",
+      "before_status": "partial",
+      "after_count": 0,
+      "after_method": "citation_backfill",
+      "after_status": "bootstrap_failed",
+      "method_changed": true,
+      "status_changed": true,
+      "aggregate_exclude": true,
+      "exclude_reason": "no_citation_source"
+    }
+  ],
+  "non_item12_stats": {
+    "intent_count": 49,
+    "method_change_count": 0,
+    "method_changes": [],
+    "status_change_count": 0,
+    "status_changes": [],
+    "count_delta_min": -9,
+    "count_delta_max": 19,
+    "count_delta_mean": 0.35,
+    "count_delta_median": -1
+  },
+  "exclusion_population": [
+    {
+      "intent_id": "kpi.retrieve_bill_rates_and_margins",
+      "exclude_reason": "no_citation_source"
+    },
+    {
+      "intent_id": "kpi.retrieve_headcount_attrition",
+      "exclude_reason": "no_citation_source"
+    },
+    {
+      "intent_id": "kpi.retrieve_healthcare_labor_market",
+      "exclude_reason": "no_citation_source"
+    },
+    {
+      "intent_id": "kpi.retrieve_pipeline_backlog",
+      "exclude_reason": "no_citation_source"
+    },
+    {
+      "intent_id": "profiler.company_size_indicators",
+      "exclude_reason": "no_citation_source"
+    }
+  ],
+  "resolution": {
+    "total": 3004,
+    "resolved": 3004,
+    "unresolved": [],
+    "rate_pct": 100.0
+  },
+  "ready_partial_count": 52,
+  "excluded_count": 5
+}
