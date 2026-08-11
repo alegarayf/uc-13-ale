@@ -1,0 +1,13 @@
+# Aggregate-exclusion population (Contract T3-b) — machinery only; gold refresh is T4.
+# Launch population: profiler (no analysis table) + 4 zero-claim KPI intents (§5.2 item 3).
+excluded:
+  - intent_id: profiler.company_size_indicators
+    exclude_reason: no_citation_source
+  - intent_id: kpi.retrieve_healthcare_labor_market
+    exclude_reason: no_citation_source
+  - intent_id: kpi.retrieve_bill_rates_and_margins
+    exclude_reason: no_citation_source
+  - intent_id: kpi.retrieve_headcount_attrition
+    exclude_reason: no_citation_source
+  - intent_id: kpi.retrieve_pipeline_backlog
+    exclude_reason: no_citation_source

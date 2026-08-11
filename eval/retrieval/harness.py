@@ -250,7 +250,11 @@ def compute_metrics(
     route_result: Any,
 ) -> HarnessResult:
     """Metric math per spec §5.8."""
-    if gold.gold_status == "bootstrap_failed" or not gold.positive_chunk_ids:
+    if (
+        gold.aggregate_exclude
+        or gold.gold_status == "bootstrap_failed"
+        or not gold.positive_chunk_ids
+    ):
         return HarnessResult(
             intent_id=intent.intent_id,
             eval_status="skipped_bootstrap_failed",
@@ -762,7 +766,11 @@ class EvalHarness:
             intent = registry_map[intent_id]
             gold = gold_map[intent_id]
             result_ablation_arm = resolved_ablation_arm if run_type == "ablation" else None
-            if gold.gold_status == "bootstrap_failed" or not gold.positive_chunk_ids:
+            if (
+                gold.aggregate_exclude
+                or gold.gold_status == "bootstrap_failed"
+                or not gold.positive_chunk_ids
+            ):
                 result_count = 0
                 if not skip_retrieval:
                     route_result = self._retrieval_dispatch(
