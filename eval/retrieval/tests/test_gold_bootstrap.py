@@ -14,17 +14,21 @@ from eval.retrieval.gold.bootstrap import (
     BASIS_NEGATIVE_SECTION_PATTERNS,
     GoldLabelBootstrap,
     format_ingestion_snapshot,
+    load_gold_exclusions,
     load_gold_labels,
     load_registry,
     validate_ingestion_snapshot_consistency,
     write_gold_labels,
 )
-from eval.retrieval.models import GoldLabel, RetrievalIntent
+from eval.retrieval.models import EXCLUDE_REASON_VOCABULARY, GoldLabel, RetrievalIntent
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REGISTRY_PATH = REPO_ROOT / "eval" / "retrieval" / "intent_registry.yaml"
 GOLD_PATH = REPO_ROOT / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
 GOLD_COUNTS_PATH = REPO_ROOT / "eval" / "retrieval" / "fixtures" / "gold_positive_counts.yaml"
+GOLD_EXCLUSIONS_PATH = REPO_ROOT / "eval" / "retrieval" / "gold" / "gold_exclusions.yaml"
+EXPECTED_READY_PARTIAL_COUNT = 52
+EXPECTED_AGGREGATE_EXCLUDE_COUNT = 5
 INGESTION_SNAPSHOT = "uc13_ale:55812:2026-08-11"
 SNAPSHOT_INGESTION_DATE = date(2026, 8, 11)
 SNAPSHOT_CHUNK_COUNT = 55812
@@ -295,15 +299,51 @@ def test_committed_gold_positive_counts_match_manifest():
     assert GOLD_COUNTS_PATH.exists(), "gold_positive_counts.yaml manifest required"
     labels = load_gold_labels(GOLD_PATH)
     manifest = yaml.safe_load(GOLD_COUNTS_PATH.read_text(encoding="utf-8"))
-    assert manifest["ingestion_snapshot"] == INGESTION_SNAPSHOT
-    assert manifest["row_count"] == len(labels)
-    actual_total = sum(len(label.positive_chunk_ids) for label in labels)
-    assert manifest["total_positive_chunk_ids"] == actual_total
-    for label in labels:
-        expected = manifest["intents"][label.intent_id]
-        assert expected["gold_status"] == label.gold_status
-        assert expected["gold_method"] == label.gold_method
-        assert expected["positive_count"] == len(label.positive_chunk_ids)
+    _assert_manifest_matches_gold(labels, manifest)
+
+
+def test_committed_gold_ready_partial_have_nonempty_positives():
+    """Item 16 — ready/partial rows must carry non-empty positive_chunk_ids."""
+    labels = load_gold_labels(GOLD_PATH)
+    ready_partial = [
+        label for label in labels if label.gold_status in {"ready", "partial"}
+    ]
+    assert len(ready_partial) == EXPECTED_READY_PARTIAL_COUNT
+    _assert_no_empty_ready_partial(labels)
+
+
+def test_committed_gold_excluded_rows_match_t3c_shape():
+    """Item 16 — excluded rows match T3-c: annotated bootstrap_failed + empty positives."""
+    labels = load_gold_labels(GOLD_PATH)
+    exclusions = load_gold_exclusions(GOLD_EXCLUSIONS_PATH)
+    assert len(exclusions) == EXPECTED_AGGREGATE_EXCLUDE_COUNT
+    _assert_excluded_rows_match_t3c_shape(labels, exclusions)
+
+
+def test_manifest_guard_fails_on_mutated_positive_count():
+    """Mutation falsifier — flipped manifest count must fail the manifest guard."""
+    labels = load_gold_labels(GOLD_PATH)
+    manifest = yaml.safe_load(GOLD_COUNTS_PATH.read_text(encoding="utf-8"))
+    first_intent_id = next(iter(manifest["intents"]))
+    manifest["intents"][first_intent_id]["positive_count"] += 1
+    with pytest.raises(AssertionError):
+        _assert_manifest_matches_gold(labels, manifest)
+
+
+def test_ready_partial_guard_fails_on_empty_positives():
+    """Mutation falsifier — ready row with empty positives must fail the guard."""
+    label = GoldLabel(
+        intent_id="fta.opex.q1_financial_statements",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        gold_status="ready",
+        positive_chunk_ids=[],
+        gold_method="section_range",
+        ingestion_snapshot=INGESTION_SNAPSHOT,
+        confidence="high",
+    )
+    with pytest.raises(AssertionError, match="empty positives"):
+        _assert_no_empty_ready_partial([label])
 
 
 def test_fta_q1_intents_post_t7_section_range_positives():
@@ -405,6 +445,33 @@ def _assert_no_empty_ready_partial(labels: list[GoldLabel]) -> None:
             assert label.positive_chunk_ids, (
                 f"{label.intent_id} emitted {label.gold_status!r} with empty positives"
             )
+
+
+def _assert_manifest_matches_gold(labels: list[GoldLabel], manifest: dict) -> None:
+    assert manifest["ingestion_snapshot"] == INGESTION_SNAPSHOT
+    assert manifest["row_count"] == len(labels)
+    actual_total = sum(len(label.positive_chunk_ids) for label in labels)
+    assert manifest["total_positive_chunk_ids"] == actual_total
+    for label in labels:
+        expected = manifest["intents"][label.intent_id]
+        assert expected["gold_status"] == label.gold_status
+        assert expected["gold_method"] == label.gold_method
+        assert expected["positive_count"] == len(label.positive_chunk_ids)
+
+
+def _assert_excluded_rows_match_t3c_shape(
+    labels: list[GoldLabel],
+    exclusions: dict[str, str],
+) -> None:
+    excluded_labels = [label for label in labels if label.aggregate_exclude]
+    assert len(excluded_labels) == len(exclusions)
+    for label in excluded_labels:
+        assert label.intent_id in exclusions
+        assert label.gold_status == "bootstrap_failed"
+        assert label.positive_chunk_ids == []
+        assert label.exclude_reason == exclusions[label.intent_id]
+        assert label.exclude_reason in EXCLUDE_REASON_VOCABULARY
+        assert "aggregate_exclude" in (label.notes or "")
 
 
 def test_pass2_zero_out_reengages_section_range_fallback():
