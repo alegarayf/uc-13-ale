@@ -16,20 +16,32 @@ The client spec is in `Guidelines/Austin_email_guidelines.txt`. Business-type ov
 databricks/
   jobs/
     scripts/            # All production scripts — each has a main() callable from notebook or job
-      ingestion_parser.py     # Phase 2b: PDF/Excel/Word/CSV → chunks + embeddings
-      ensure_coverage.py      # Phase 2c: incremental APPEND-only gap filler (never deletes)
-      document_classifier.py  # Phase 2a: LLM assigns workstream tags + priority tier
-      download_upload.py      # Phase 1:  SharePoint → UC Volume
+      ingestion_parser.py     # Phase 2b: PDF/Excel/Word/CSV → chunks + embeddings (per-doc via DocWorker since M1)
+      ensure_coverage.py      # APPEND-only gap filler (never deletes) — MANUAL only since M2 (Phase 2c removed)
+      document_classifier.py  # Phase 2a: LLM assigns workstream tags + priority tier; writes doc_id
+      download_upload.py      # Phase 1:  SharePoint → UC Volume (honors file_whitelist)
       company_profiler.py     # Phase 2b: structured company profile (overlay detection)
       setup_vector_search.py  # One-time: creates VS endpoint + index
       md_to_word.py               # Converts PE diligence markdown reports to styled .docx (python-docx)
-      run_ingestion_pipeline.py   # Phase 1-2 runner: download → classify → parse (tiers 1&2) → coverage_backfill → profile (sequential)
+      # --- M0-M4 incremental-ingestion state layer (Ale's program, PR #4) ---
+      doc_id.py               # make_doc_id(): THE canonical doc identity — md5 of the full volume path
+      status_store.py         # doc_status DDL + StatusStore hub + status vocabulary (PENDING→COMPLETE/FAILED)
+      sync_state.py           # sync_state DDL + watermark read/advance for the SyncGate
+      parse_manifest.py       # Read-only ParseManifest: incremental work list + coverage sub-pass + whitelist scoping
+      doc_worker.py           # Per-doc claim → clean → parse → chunk → embed → COMPLETE transition
+      manifest_dry_run.py     # M0 checkpoint harness: builds the manifest read-only, no status transitions
+      # --- entry points ---
+      run_ingestion_pipeline.py   # Phase 1-2 runner: download → classify → parse → profile (sequential; NO Phase 2c)
       run_diligence_pipeline.py   # Phase 3-5 runner: delegates to PipelineOrchestrator DAG
       run_full_pipeline.py        # Phase 1-5 end-to-end runner: calls run_ingestion_pipeline() then run_pipeline()
       run_vdr_pipeline.py         # VDR wrapper: reads companies_vdr_history row → run_full_pipeline() → copies docx to VDR volume → updates record
+      # --- CIM-first Rainmaker preview (separate flow, uc13_preview) ---
+      cim_detection.py            # detect_cim(): name/path match + Teaser/IOI/NDA exclusion on the FILE's own name
+      run_vdr_rainmaker.py        # CIM preview runner: scoped ingestion → 7 agents → bundle → Rainmaker PDF
     notebooks/
       test_pipeline.ipynb           # End-to-end test notebook — adapt when scripts change
-      run_vdr_job.py                # notebook_task entry for the VDR job: reads table_name/record_id widgets → run_vdr_pipeline()
+      run_vdr_job.py                # notebook_task entry for the full VDR pipeline → run_vdr_pipeline()
+      run_vdr_rainmaker_job.py      # notebook_task entry for the CIM preview → run_vdr_rainmaker()
       00_setup_vector_search.ipynb  # One-time VS endpoint + index setup
       01_document_classifier.ipynb  # Phase 2a: classify + tag documents
       02_ingestion_parser.ipynb     # Phase 2b: parse → chunks + embeddings
@@ -56,6 +68,10 @@ databricks/
       pipeline.py                   # PipelineOrchestrator: Phase 3→5 DAG, parallelism, retry, failure isolation, run manifest; to_result_card()
       orchestrator_agent.py         # Phase 5: assembles final diligence memo (.md + .docx)
     exec_summary/                   # (Ale) Bundle/report layer: BundleBuilder, tldr_compress, Rev3 one-pager; build_exec_summary() is the VDR bridge
+      rainmaker_view.py             # Pure/deterministic bundle→template projection (financials, stat tiles, severity). No LLM.
+      rainmaker_narrative.py        # LLM narrative layer for the Rainmaker one-pager
+      renderers.py                  # render_rainmaker(): HTML→PDF (WeasyPrint primary, PyMuPDF Story fallback)
+      templates/rainmaker_opportunity_summary.html.j2   # The Rainmaker visual one-pager template
     subagents/
       workstream/
         financial/        # Parallel sub-agents for FinancialTrendsAgent (see section below)
@@ -73,6 +89,7 @@ databricks/
     uc13_diligence_pipeline.yml  # Phase 3-5 job (single task → PipelineOrchestrator DAG)
     uc13_full_pipeline.yml       # Phase 1-5 end-to-end job (2 tasks: ingestion → diligence)
     vdr_pipeline.yml             # UI-triggered VDR job (notebook_task, no params; reads companies_vdr_history)
+    vdr_rainmaker_poc.yml        # CIM-first Rainmaker preview job (notebook_task, serverless; uc13_preview)
   Guidelines/             # Client spec (Austin email, business type guidelines) + build spec PDF
   context_docs/
     architecture/         # UC13 pipeline architecture docs (HTML + Markdown)
@@ -143,8 +160,10 @@ Unity Catalog: **`uc13`**
 |---|---|---|
 | `uc13.ingestion.upload_log` | `download_upload.py` | Files downloaded from SharePoint |
 | `uc13.classification.doc_relevance` | `document_classifier.py` | Workstream tags, priority tier, should_parse flag |
-| `uc13.ingestion.chunks` | `ingestion_parser.py` | Text chunks with section_header, page_start, source_type |
-| `uc13.ingestion.embeddings` | `ingestion_parser.py` | BGE vectors + workstream + priority_tier + source_type |
+| `uc13.ingestion.chunks` | `ingestion_parser.py` | Text chunks with section_header, page_start, source_type, `doc_id` |
+| `uc13.ingestion.embeddings` | `ingestion_parser.py` | BGE vectors + workstream + priority_tier + source_type + `doc_id` |
+| `uc13.ingestion.doc_status` | `status_store.py` (via `doc_worker.py`) | **M0 state layer** — per-doc ingestion state (`PENDING`/`PARSING`/`EMBEDDING`/`COMPLETE`/`FAILED`/`ZERO_CHUNKS`), chunk_count, source mtime/size, parser_version, run_id. This is what makes ingestion incremental: an already-`COMPLETE` doc is skipped instead of re-parsed. |
+| `uc13.ingestion.sync_state` | `sync_state.py` | **M0 SyncGate watermark** — singleton row per catalog holding `last_successful_sync`; the vector-index sync is skipped when no `COMPLETE` doc is newer. |
 | `uc13.classification.company_profile` | `company_profiler.py` | Industry overlay, revenue model, deal type |
 | `uc13.analysis.business_model` | `business_model_agent.py` | Structured business model output |
 | `uc13.analysis.financial_trends` | `financial_trends_agent.py` | Revenue/margin/EBITDA trends |
@@ -175,6 +194,7 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 | `run_ingestion_pipeline.py` | 1-2 | New data room files added; re-run classification or parsing |
 | `run_diligence_pipeline.py` | 3-5 | Embeddings already populated; re-running or debugging diligence agents |
 | `run_full_pipeline.py` | 1-5 | New company (first-time run) or full refresh |
+| `run_vdr_rainmaker.py` | CIM-scoped 1-4 | Cheap CIM-only preview one-pager in `uc13_preview`. Skips Phase 5 (`run_orchestrator=False`) — one-pager only, no memo. Does not touch `uc13`. |
 
 ### Databricks jobs
 
@@ -184,6 +204,7 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 | `uc13_diligence_pipeline.yml` | 1 task (single-task) | `run_diligence_pipeline.py` |
 | `uc13_full_pipeline.yml` | 2 tasks: `ingestion_pipeline` → `diligence_pipeline` | `run_ingestion_pipeline.py` then `run_diligence_pipeline.py` |
 | `vdr_pipeline.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_job` → `run_vdr_pipeline.py` |
+| `vdr_rainmaker_poc.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_rainmaker_job` → `run_vdr_rainmaker.py` (CIM preview, `uc13_preview`) |
 
 `uc13_full_pipeline.yml` uses **two tasks** (not one) so each phase has independent visibility, timeouts, and retries in the Databricks job UI. If ingestion fails, the diligence task is automatically blocked.
 
@@ -191,7 +212,11 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 
 The **VDR Diligence Pipeline** job (`617196299594076` in the Rallyday workspace) is how the Project Lighthouse UI runs diligence. Key facts:
 
-- **Task = `notebook_task`** pointing at `jobs/notebooks/run_vdr_job` with **NO job/task parameters**. The UI triggers `run-now` passing **notebook params `table_name` + `record_id`** (note: `record_id`, not `id`), which arrive as widgets. Declaring fixed task parameters blocks the UI trigger — do not add them.
+> ⚠️ **Verified 2026-08-10: that job's task currently points at `jobs/notebooks/run_vdr_rainmaker_job`, not `run_vdr_job`.** So triggering it today produces a CIM Rainmaker one-pager in `uc13_preview` and writes to **no** `uc13` table. `run_vdr_job` still exists in the folder but nothing is wired to it. The job name is stale — **always check a job's notebook path before assuming what it runs.** The rest of this section describes `run_vdr_pipeline.py` (the real diligence path) as designed.
+>
+> ⚠️ **One Git folder feeds both VDR jobs.** `databricks repos update <id> --branch <b>` changes the code *both* jobs run on their next trigger, and it can swap code mid-run (serverless notebook tasks resolve workspace files as cells execute). Branch `prod-known-good-fc47a29` is pinned at the last commit before the M0–M4 merge if a rollback is needed.
+
+- **Task = `notebook_task`** pointing at a notebook entry with **NO job/task parameters**. The UI triggers `run-now` passing **notebook params `table_name` + `record_id`** (note: `record_id`, not `id`), which arrive as widgets. Declaring fixed task parameters blocks the UI trigger — do not add them.
 - The notebook reads the widgets and calls `run_vdr_pipeline(table_name, record_id)`, which reads a `rallyday_partners_llc.default.companies_vdr_history` row, runs `run_full_pipeline()` (Phase 1-5, catalog **hardcoded `uc13`**), copies `full_report.docx` (the orchestrator memo) + `executive_summary.docx` (the `agents/exec_summary` Rev3 one-pager bridge) to `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`, and flips the record `processing → done`/`error`.
 - **Code source = a Databricks Git folder** (`Rallyday`, under a user's `/Workspace/Users/…`) checked out to the working branch — NOT the job's `git_source` block (dead config). To ship code to the job: push, then `databricks repos update <id> --branch <b>`.
 - **Vision is ON by default in this path** (Haiku), overridable via the `vision_endpoint` widget (`""` disables). SharePoint folder is resolved from the `sp_folder_path` secret + `company_name` (`{folder}/Example Data Room/{company_name}`); the record's `source_data_location` is display-only and NOT used.
@@ -199,9 +224,22 @@ The **VDR Diligence Pipeline** job (`617196299594076` in the Rallyday workspace)
 ### Phase 1-2 runner (`run_ingestion_pipeline.py`)
 
 Sequential chain — no parallelism (each step depends strictly on the previous):
-`download_upload` → `document_classifier` → `ingestion_parser` → `coverage_backfill` → `company_profiler`.
+`download_upload` → `document_classifier` → `ingestion_parser` → `company_profiler`.
 
-`parse_priority_tiers` defaults to `"1,2"` — only Tier 1 and Tier 2 documents are parsed by `ingestion_parser`. After the parse, `coverage_backfill` (Phase 2c) calls `ensure_coverage.main_coverage_backfill()`: it checks which workstreams have zero ingested documents and appends up to 2 best-available files per uncovered workstream from any remaining tier (APPEND only, never deletes). If `parse_priority_tiers="all"`, the `coverage_backfill` step is automatically SKIPPED. Failure isolation: if `download_upload` or `document_classifier` fail, all downstream steps are SKIPPED. If `ingestion_parser` fails, `coverage_backfill` is SKIPPED and `company_profiler` runs degraded (no embeddings; profile fields will be null). The function is callable standalone or imported by `run_full_pipeline.py`.
+**Phase 2c (`coverage_backfill`) was removed in M2** — the M0 `ParseManifest` coverage sub-pass covers the same ground inside the main per-doc loop, gated on `tiers is not None` (i.e. it does not run when `parse_priority_tiers="all"`). Do not re-add it.
+
+Parameters: `parse_priority_tiers` defaults to `"1,2"` **on the runner** but `"all"` when `ingestion_parser.main()` is invoked standalone — check which entry point you're reading before assuming. Also threaded through: `force`, `coverage_per_workstream` (default 3), `skip_sync`, `sync_only` (operator recovery for the SyncGate), and `file_whitelist` (CIM-scoping — see below).
+
+Failure isolation: if `download_upload` or `document_classifier` fail, all downstream steps are SKIPPED. If `ingestion_parser` fails, `company_profiler` runs degraded (no embeddings; profile fields will be null).
+
+**`run_ingestion_pipeline()` does NOT raise on a failed phase** — see "Phase results are returned, not raised" under Key design rules. Callers must inspect the returned `phases` dict.
+
+### `file_whitelist` — CIM-scoped ingestion
+
+An optional list of file names that scopes a run to a subset of the data room; default (empty/`None`) is today's full-room behavior, unchanged. Threaded via `os.environ`/`get_param` because `download_upload.main()` and `ingestion_parser.main()` take no arguments. Two enforcement points:
+
+- `download_upload.apply_file_whitelist()` — only those files are downloaded/uploaded (so the classifier never even sees the rest).
+- `parse_manifest.build_file_whitelist_filter()` — applied inside `ParseManifest._read_doc_relevance()`, **not** in `build()`. That placement is deliberate: the coverage sub-pass re-reads `doc_relevance` with `tiers=None` to fill uncovered workstreams, so scoping only `build()` would let a CIM-only preview silently pull in non-CIM files. If you move this filter, keep it on the shared read path.
 
 ### Phase 3-5 DAG (`agents/orchestration/pipeline.py`)
 
@@ -219,9 +257,18 @@ Sequential chain — no parallelism (each step depends strictly on the previous)
 
 ### Ingestion — three modes, never mix them
 
-- **`ingestion_parser.py main()`**: DELETE all rows for the company → parse approved files (filtered by `parse_priority_tiers`) → APPEND fresh. Idempotent full rebuild. Use when extraction logic changes. **S3 (vector index sync)** is watermark-driven: skips sync when no `COMPLETE` doc is newer than `sync_state.last_successful_sync`; advances the watermark only after `✓ Index ready`. Operator recovery: `skip_sync` (force-skip sync after parse) and `sync_only` (run sync without S1/S2 parse) — job/task params on `uc13_ingestion_pipeline.yml`.
+- **`ingestion_parser.py main()`**: **incremental per-doc, NOT a whole-company rebuild** (changed in M1 — the old "DELETE all rows for the company → re-parse → APPEND fresh" behavior is gone). `ParseManifest` builds a work list from `doc_relevance` × `doc_status`, then `DocWorker` processes each doc independently (claim → clean that doc's rows → parse → chunk → embed → `COMPLETE`). An already-`COMPLETE` doc whose source mtime/size are unchanged is skipped — so re-running is cheap and **a re-run after an extraction-logic change is a no-op unless you pass `force`**. `force="company"` re-does every doc for the company (still a per-doc delete, not a company-wide wipe); `force="<rel/path.pdf>,<other.pdf>"` re-does named docs. **S3 (vector index sync)** is watermark-driven: skips sync when no `COMPLETE` doc is newer than `sync_state.last_successful_sync`; advances the watermark only after `✓ Index ready`. Operator recovery: `skip_sync` (force-skip sync after parse) and `sync_only` (run sync without S1/S2 parse) — job/task params on `uc13_ingestion_pipeline.yml`.
 - **`ensure_coverage.py main_coverage_backfill()`**: APPEND-only safety net for uncovered workstreams — finds workstreams with 0 ingested docs, picks the 1-2 best available files per uncovered workstream from any tier, and appends them. **No longer invoked automatically** by `run_ingestion_pipeline` (Phase 2c removed in M2); the M0 `ParseManifest` coverage sub-pass covers the same ground during the main per-doc loop. Still available for **manual** invocation when `parse_priority_tiers != "all"`.
 - **`ensure_coverage.py ingest_missing()`**: APPEND only, never deletes. Use manually when a workstream is missing files after the main parse. Always check with `get_coverage_report()` first (Cell 8c), then fill with `ingest_missing()` (Cell 8d). Accepts optional `file_names_whitelist: set[str]` to restrict to specific files.
+
+### `doc_id` — the join key, and what it hashes
+
+`doc_id.make_doc_id(catalog, schema, company, folder_path, file_name)` is the single source of truth for document identity: it builds the canonical volume path `/Volumes/{catalog}/{schema}/raw_files/{company}/[folder_path/]file_name` and returns its md5. Consequences that matter:
+
+- **The catalog name is part of the hash.** The same physical file has a *different* `doc_id` in `uc13` vs `uc13_ale` vs `uc13_preview`. Data does not migrate across catalogs; a first run on a new catalog is a fresh ingest by design.
+- **It is byte-compatible with the pre-M3 `make_doc_id(path)`** (the old md5-of-path helper that lived in `ingestion_parser.py`). Verified against live data on three companies. So the M3 migration did **not** orphan pre-existing chunks — do not plan a wipe without checking first (compare computed vs. stored `doc_id` on a sample).
+- **`retrieval.py` joins `chunks` to `doc_relevance` on `doc_id`** (migrated from `file_name` + `company_name` in M3). Both tables must have the column populated or the JOIN silently returns nothing — or fails outright if the column is absent. `document_classifier._backfill_missing_doc_ids()` fills existing `doc_relevance` rows, but it does `SELECT … WHERE doc_id IS NULL`, so **the column must exist first**; on a catalog predating M3 that needs a one-time `ALTER TABLE … ADD COLUMN doc_id STRING`.
+- Measure the damage with `eval/retrieval/measure_join_orphan_rate.py` (pass `catalog=` — it defaults to `uc13_ale`).
 
 ### `source_type` column
 
@@ -262,9 +309,36 @@ Several analysis tables persist `flags` as a **`STRING`** column (JSON), while `
 
 Each Phase 3 agent's `main()` contains an `_EXPECTED_COLS` guard that auto-detects schema drift and drops + recreates the table before writing. **Do not add a separate migration cell to the notebook** — the guard in `main()` is the single source of truth. Always keep `_EXPECTED_COLS` in the agent synchronized with the actual `StructType` schema used for the write.
 
-### `mergeSchema=True` on all Delta writes
+### `mergeSchema=True` on all Delta writes — and why it does NOT cover MERGE
 
 All `df.write` calls in `ingestion_parser.py` and `ensure_coverage.py` use `.option("mergeSchema", "true")`. This allows adding new columns (like `source_type`) to existing tables without a manual `ALTER TABLE`. Do not remove this option.
+
+**The `mergeSchema` write option does not apply to a Delta `MERGE`.** `DeltaTable.merge(...).whenNotMatchedInsertAll()` needs the session config `spark.databricks.delta.schema.autoMerge.enabled`, which is **not set anywhere in this repo**. So when a source DataFrame carries a column the target table lacks, the MERGE fails rather than evolving the schema. This bit `document_classifier.py`: its `doc_relevance` CREATE TABLE omitted `doc_id` while the MERGE below it inserted one. Fixed by declaring `doc_id` in the DDL. **Rule: any column you write through a MERGE must be in that table's CREATE TABLE.**
+
+### `DEFAULT` in a CREATE TABLE requires an explicit opt-in
+
+Delta rejects a column default unless the table declares the feature:
+
+```
+[WRONG_COLUMN_DEFAULTS_FOR_DELTA_FEATURE_NOT_ENABLED] Failed to execute CREATE TABLE
+command because it assigned a column DEFAULT value, but the corresponding table
+feature was not enabled.
+```
+
+`status_store.ensure_doc_status()` uses `coverage_injected BOOLEAN NOT NULL DEFAULT FALSE`, so its CREATE TABLE carries `TBLPROPERTIES ('delta.feature.allowColumnDefaults' = 'supported')`. Do not remove that. **This only fails on cold start** — on a catalog where the table already exists, `CREATE TABLE IF NOT EXISTS` is a no-op and the bug is invisible, which is exactly why it shipped. Any new `DEFAULT` clause needs the same TBLPROPERTIES.
+
+Note that the unit-test suite cannot catch this class of bug: the tests run against a stubbed Spark that never executes real DDL. Verify new DDL against the SQL warehouse.
+
+### Phase results are returned, not raised — the "hollow success" trap
+
+`run_ingestion_pipeline()` records per-phase status in its **return value** (`{"phases": {...}, "summary": {...}}`) and does **not** raise. Only its CLI `main()` maps failure to a non-zero exit. A programmatic caller that ignores the return value therefore continues happily after a failed parse — and because the catalog still holds the *previous* run's chunks, the downstream agents produce a complete, plausible, silently-stale deliverable and the job reports SUCCESS.
+
+This actually happened (2026-08-10): a failed parse let the 7 agents score 3-day-old chunks and a PDF rendered from them, with the VDR record flipped to `done/success`. Nothing downstream revealed it.
+
+- `run_full_pipeline.py` guards this via `parser_ok` — but note it accepts `"SKIPPED"` as well as `"SUCCESS"`, so a cascade of SKIPs still passes.
+- `run_vdr_rainmaker.py` guards it strictly: any `ingestion_parser` status other than `SUCCESS` raises with the full phase breakdown.
+
+**Rule: every caller of `run_ingestion_pipeline()` must inspect `phases["ingestion_parser"]["status"]`.** When validating a run, check the data (chunk `created_at`, `doc_status.updated_at`), not just the job's result state.
 
 ### `get_param()` / `get_secret()` pattern
 
@@ -272,12 +346,17 @@ All scripts use a dual-source helper: tries `dbutils.widgets.get()` first, falls
 
 ## Catalog convention
 
-Two Unity Catalog names appear across the pipeline; they are **not** interchangeable:
+Three Unity Catalog names appear across the pipeline; they are **not** interchangeable:
 
 | Catalog | Role |
 |---|---|
 | **`uc13`** | Production catalog — all `main()` entry points in `databricks/jobs/scripts/` and `databricks/agents/workstreams/` must default to this via `get_param("catalog", default="uc13")`. |
 | **`uc13_ale`** | Eval / harness / PHV-validation catalog — used by `test_pipeline.ipynb` Cell 1 (`dbutils.widgets.text("catalog", "uc13_ale")`), workflow YAML parameter defaults, and eval/QA instrumentation. |
+| **`uc13_preview`** | CIM-first Rainmaker preview sandbox — `run_vdr_rainmaker.PREVIEW_CATALOG`, a single hardcoded constant. Isolated on purpose so a CIM-scoped ingestion never overwrites a company's full-room data. Disposable. |
+
+**Watch the defaults when running the M0-M4 tooling by hand** — several scripts point somewhere other than where you probably mean: `manifest_dry_run.py` defaults to `uc13`, while `measure_join_orphan_rate.py` and `measure_attestation.py` default to `uc13_ale`. Pass `catalog=` explicitly.
+
+**`uc13` is not yet prepared for the M0-M4 schema** (as of 2026-08-10, deliberately deferred): it has no `doc_id` column on `classification.doc_relevance` and no `ingestion.doc_status` / `ingestion.sync_state`. The DDL creates the latter two automatically; the column needs the one-time `ALTER TABLE` described under "`doc_id` — the join key" above.
 
 **Resolution path:** every production script reads the active catalog through `get_param("catalog", default="uc13")`, which tries the Databricks widget first and falls back to `os.environ["catalog"]`. The notebook's Cell 1 must mirror the widget value into `os.environ` (see `get_param()` / `get_secret()` pattern above) so module imports resolve the same catalog the operator set in the UI.
 
@@ -306,7 +385,7 @@ Always run cells in this order after code changes:
 
 1. **Cell 0** — `%pip install` (once per cluster restart; includes `pymupdf>=1.24.0`)
 2. **Cell 1** — Config widgets + `os.environ` sync. Set `vision_endpoint` to `databricks-claude-haiku-4-5` if image-based P&L extraction is needed (CIM pages 45+). `llm_endpoint` defaults to `databricks-claude-sonnet-4-6`.
-3. **Cell 7** — Ingestion Parser (`s3.main()`) — full rebuild of chunks + embeddings. **Required after any change to `ingestion_parser.py`** (including the Excel merged-cell fix). Existing chunks do not update automatically.
+3. **Cell 7** — Ingestion Parser (`s3.main()`). **No longer a full rebuild** — since M1 this is incremental per-doc, so a doc already `COMPLETE` in `doc_status` with an unchanged source file is skipped. **After changing extraction logic in `ingestion_parser.py` you must set `force=company`**, otherwise the cell reports `No work items — skipping parse` and your change is never exercised.
 4. **Cell 8** — Verify chunk stats + `source_type` distribution + PDF coverage flags
 5. **Cell 8e** — Vision chunk spot-check (if `vision_endpoint` was set)
 6. **Cell 8c** — Coverage diagnostic (read-only): confirms all workstreams have ≥1 ingested file
