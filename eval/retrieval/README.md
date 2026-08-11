@@ -15,6 +15,36 @@ pytest eval/retrieval/tests/
 
 Frozen organic slice: `fixtures/elder_care_slice.json` (`EvalFixtureSlice`). Chunk rows are copied from `uc13_ale` at export time; pytest mocks VS/embed only — it does not invent corpus text.
 
+**Slice population (pinned):** three `citation_backfill` / `ready` intents — `fta.opex.q3_projected_financials`, `legal.contracts_vendors_platform`, `cqa.retrieve_customer_concentration`. The fixture tracks post-T4 gold (`uc13_ale:55812:2026-08-11`); do not embed `35104`-epoch ids or snapshot strings.
+
+## CI fixture refresh policy (spec item 19)
+
+**Trigger:** every gold/corpus change — i.e. each §15.3 re-baseline event (gold refresh, ingestion rebuild, or committed `elder_care.yaml` change that alters slice intent positives).
+
+**Procedure (operator-run — never CI):**
+
+1. Confirm upstream gold is committed and slice intents remain `citation_backfill` / `ready`.
+2. Regenerate from laptop (warehouse SQL via `databricks-sdk`):
+
+```bash
+python -m eval.retrieval.scripts.refresh_elder_care_slice
+```
+
+Dry-run (validate resolution without writing):
+
+```bash
+python -m eval.retrieval.scripts.refresh_elder_care_slice --dry-run
+```
+
+3. Eyeball the diff — chunk ids, `ingestion_snapshot`, and `mock_vs_scores` keys should move with gold; chunk previews should be organic text, not placeholders.
+4. Commit the refreshed `fixtures/elder_care_slice.json` and record evidence in `signoffs/T9-slice-refresh.md` (or the active plan signoff path).
+
+**Guard:** `eval/retrieval/tests/test_elder_care_slice_fixture.py` — especially `test_elder_care_slice_ready_intents_match_committed_gold` — is the CI falsifier. A red fixture test after gold change means run the refresh script; do not hand-edit ids.
+
+**M1 mandatory regen (2026-08-11):** T9 unconditional refresh after T4/T5 gold epoch — the prior `35104`-epoch fixture dangled ~98% of ids with the 2026-08-05 corpus rebuild. Future regenerations follow the drift-conditional policy above unless a plan explicitly mandates unconditional regen.
+
+**Out of scope:** `company_slug_vectors.yaml` — re-pinned at ESC-T2-1; verify parity only, do not regenerate blindly.
+
 ## Cluster baseline runbook (Elder Care / `uc13_ale`)
 
 Run once per Cell 7 ingestion rebuild or retrieval code change. Charter exit gate G2 (VS `company_name` pushdown) is verified during setup.
@@ -1119,4 +1149,5 @@ If the numeric bar fails **or** sign-off is `fail`, record the diff and verdict 
 | `python -m eval.retrieval.harness_cli run ...` | Harness execution |
 | `python -m eval.retrieval.harness_cli validate-baseline ...` | Preflight baseline_ref checks |
 | `python -m eval.retrieval.scripts.sync_eval_store --run-id <id> --direction sqlite_to_delta` | SQLite → Delta promotion |
+| `python -m eval.retrieval.scripts.refresh_elder_care_slice` | Regenerate `fixtures/elder_care_slice.json` from committed gold + live chunks (operator-run) |
 | `python -m eval.retrieval.scripts.record_e2e_linkage --run-id <id> --e2e-agent-id fta --e2e-checklist-score <n> ...` | Link FTA E2E checklist to pipeline manifest |

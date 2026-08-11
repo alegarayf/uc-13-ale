@@ -1,322 +1,286 @@
 {
   "catalog": "uc13_ale",
   "company_name": "Elder Care",
-  "ingestion_snapshot": "uc13_ale:35104:2026-07-30",
+  "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
   "chunks": [
     {
-      "chunk_id": "6abc7d75-dfec-44d2-b937-2dc958fa1be7",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "027ec667-fb72-4eb6-b723-3d6a68e5789d",
+      "file_name": "2024 Elder Care - CIM_vF.pdf",
+      "section_header": "Pro Forma Income Statement & Projection",
+      "page_start": 47,
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Figure]  Five bla..."
     },
     {
-      "chunk_id": "4a562585-3506-4aea-a5fa-a5b007fd78bf",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "9a0697ee-f741-4bc8-a672-bfdbaf85f181",
+      "file_name": "2024 Elder Care - CIM_vF.pdf",
+      "section_header": "Pro Forma Income Statement & Projection",
+      "page_start": 47,
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Figure]  A styliz..."
     },
     {
-      "chunk_id": "5c2a1065-ccb1-45c4-a735-e679799c5a9a",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "3d95d7bf-bc70-41b4-85fb-6a8accc0a559",
+      "file_name": "2024 Elder Care - CIM_vF.pdf",
+      "section_header": "Pro Forma Income Statement & Projection",
+      "page_start": 47,
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Figure]  A radial..."
     },
     {
-      "chunk_id": "72564410-1d50-4750-8715-e19d1f764811",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "cd9773ea-0a3c-460d-869a-bc963a15cd1f",
+      "file_name": "2024 Elder Care - CIM_vF.pdf",
+      "section_header": "Pro Forma Income Statement & Projection",
+      "page_start": 47,
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Page: 47] [Source..."
     },
     {
-      "chunk_id": "f4edd68a-f226-4f93-8671-bd3b0624ffc0",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "0d820bf2-0624-489c-a931-3059ce0861b2",
+      "file_name": "2024 Elder Care - CIM_vF.pdf",
+      "section_header": "EBITDA Adjustment Detail",
+      "page_start": 50,
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: EBITDA Adjustment Detail] [Figure]  Five vertically-oriente..."
     },
     {
-      "chunk_id": "334eb3e2-9be4-46ad-abce-490cdc29e6e7",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "5fa7f39b-cef6-4674-b74c-6d9277e14602",
+      "file_name": "2024 Elder Care - CIM_vF.pdf",
+      "section_header": "EBITDA Adjustment Detail",
+      "page_start": 50,
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: EBITDA Adjustment Detail] [Page: 50] [Source: vision-extrac..."
     },
     {
-      "chunk_id": "d2e28adc-4139-4352-9b9b-84bdb4cbd705",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "54572acb-edbf-4c97-9ca3-567db58f4ea3",
+      "file_name": "Non-Compete-Non Solicitation Agreement Template.docx",
+      "section_header": "Document body",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Non-Compete-Non Solicitation Agreement Template] [Section: Document body]  THIS AGREEMENT is made this ___..."
     },
     {
-      "chunk_id": "d81dc8d6-0cf0-43f4-974f-206047e2a218",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "ed4829da-4163-419b-94ea-dec586959731",
+      "file_name": "Non-Compete-Non Solicitation Agreement Template.docx",
+      "section_header": "Document body",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Non-Compete-Non Solicitation Agreement Template] [Section: Document body]  provisions of this Agreement, t..."
     },
     {
-      "chunk_id": "a7b59e05-594c-423d-927e-8032ed4358af",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "636add34-ba4a-4aba-9a88-aefd9a2113e0",
+      "file_name": "7 Employee Non-Disclosure.docx",
+      "section_header": "Document body",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: 7 Employee Non-Disclosure] [Section: Document body]  GUIDED LIVING SENIOR HOME CARE, LLC EMPLOYEE NON-DISC..."
     },
     {
-      "chunk_id": "6712732a-bbe7-43bb-96c2-1ecce64be23d",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "7fb62b5a-eba0-4b1d-8bf0-7d6e08fb62ba",
+      "file_name": "Jotform BAA agreement.pdf",
+      "section_header": "2. Business Associate Obligations",
+      "page_start": 2,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Jotform BAA agreement] [Section: 2. Business Associate Obligations]  2.1. Permitted Uses and Disclosures. ..."
     },
     {
-      "chunk_id": "bce0d2c4-f33b-4943-8d9d-5c01c4c68657",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
+      "chunk_id": "5a9c5473-7b4a-4628-b584-f118bdb2aa44",
+      "file_name": "dropbox_hipaa_agreement.pdf",
+      "section_header": "Document body",
       "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: dropbox_hipaa_agreement] [Section: Document body] [Figure]  The image features a blue, symmetrical design ..."
     },
     {
-      "chunk_id": "383ac106-e856-459e-8481-86fa93b4bb3f",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
+      "chunk_id": "e9551128-a783-4cca-9890-a75662a9dfb7",
+      "file_name": "dropbox_hipaa_agreement.pdf",
+      "section_header": "Document body",
       "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "source_type": "table",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: dropbox_hipaa_agreement] [Section: Document body]  | Customer Entity | Elder Care Homecare Agency | |---|-..."
     },
     {
-      "chunk_id": "979c683b-6cca-4166-a3d6-af8441a313d8",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
+      "chunk_id": "a3074358-6ed6-4da2-8c9f-2d1f878ddf18",
+      "file_name": "dropbox_hipaa_agreement.pdf",
+      "section_header": "Document body",
       "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: dropbox_hipaa_agreement] [Section: Document body]  This Dropbox HIPAA Business Associate Addendum (the “HI..."
     },
     {
-      "chunk_id": "7782dd8e-7fcb-4ad0-913f-6e950d0a0532",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
+      "chunk_id": "05becf73-80cb-4575-9de5-9d6da76bc00e",
+      "file_name": "dropbox_hipaa_agreement.pdf",
+      "section_header": "Document body",
       "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: dropbox_hipaa_agreement] [Section: Document body] [Page: 1] [Source: vision-extracted figure]  Customer En..."
     },
     {
-      "chunk_id": "406e7c4e-44ef-4116-ae6e-30ba5c0e2e87",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "767bcf42-cc9a-4db5-8776-af5b0080784a",
+      "file_name": "dropbox_hipaa_agreement.pdf",
+      "section_header": "2. Use and Disclosure.",
+      "page_start": 2,
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: dropbox_hipaa_agreement] [Section: 2. Use and Disclosure.] [Figure]  A blue, diamond-shaped logo features ..."
     },
     {
-      "chunk_id": "47ee7001-7680-4b9d-88cd-c237f40169f4",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "ed5febd3-3860-4b3e-8a03-5703f13de1d9",
+      "file_name": "dropbox_hipaa_agreement.pdf",
+      "section_header": "2. Use and Disclosure.",
+      "page_start": 3,
+      "source_type": "vision",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: dropbox_hipaa_agreement] [Section: 2. Use and Disclosure.] [Figure]  A blue, diamond-shaped logo features ..."
     },
     {
-      "chunk_id": "a66e4ac0-fb5b-450a-9a6b-b9ace614e7f4",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
+      "chunk_id": "7149a62c-97d5-47a8-9759-33587fca35f8",
+      "file_name": "dropbox_hipaa_agreement.pdf",
+      "section_header": "2. Use and Disclosure.",
       "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: dropbox_hipaa_agreement] [Section: 2. Use and Disclosure.]  2.1. Permitted Use. Dropbox may use and disclo..."
     },
     {
-      "chunk_id": "0d6900e3-4d97-44fe-b74a-c7b1992e331a",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "a857b37c-5729-4463-80d0-850fb8a15fd1",
+      "file_name": "dropbox_hipaa_agreement.pdf",
+      "section_header": "7. Return or Destruction of PHI.",
+      "page_start": 3,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: dropbox_hipaa_agreement] [Section: 7. Return or Destruction of PHI.]  7.1. Following Termination of the BA..."
     },
     {
-      "chunk_id": "9d209bd5-a838-4e04-88a4-ec9c31687f2a",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "9be8778d-44ed-45a7-b1eb-6d72a0b1ae65",
+      "file_name": "Elder Care Homecare, Inc_CC-BAA Agreement_ October 2018.pdf",
+      "section_header": "Recitals",
+      "page_start": 2,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: BUSINESS ASSOCIATE AGREEMENT INTRODUCTION] [Section: Recitals]  A. Covered Entity has retained Clearcare t..."
     },
     {
-      "chunk_id": "dae2601c-988d-4f3e-bb65-43931212046d",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "d580e779-f6a7-41bb-b840-6abe81fd5a28",
+      "file_name": "Elder Care Homecare, Inc_CC-BAA Agreement_ October 2018.pdf",
+      "section_header": "Terms of Agreement",
+      "page_start": 2,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: BUSINESS ASSOCIATE AGREEMENT INTRODUCTION] [Section: Terms of Agreement]  1. Definitions. The parties agre..."
     },
     {
-      "chunk_id": "23703279-d702-4bfa-9cf6-9b2fc6beb1e9",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "e6b3ef0b-b691-4013-a688-08d56ee27522",
+      "file_name": "Elder Care Homecare, Inc_CC-BAA Agreement_ October 2018.pdf",
+      "section_header": "Terms of Agreement",
+      "page_start": 2,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: BUSINESS ASSOCIATE AGREEMENT INTRODUCTION] [Section: Terms of Agreement]  R. § 164.508, or as allowed by P..."
     },
     {
-      "chunk_id": "c423c2b9-f88f-4804-bdb5-b0a40b836e43",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "45e19d1c-b764-4446-953f-c03d305db309",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "37405da7-ffe9-43b9-a600-44fa1a0bb3ee",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "7fe97773-1db9-4f4c-895a-7458771708f6",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "d5767a9c-c9cf-4d37-8538-77bbcebee294",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "1e83730c-4ff0-4378-a296-216abeb6db5f",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "42b1d3c7-343b-4358-a7cd-c9ea83ac509e",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "Vendor_Agreements_Summary.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "c9440283-8eda-49f2-985b-834a807a8c2a",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "3ac9bf4f-2c52-4f95-9de5-f17f0e1c26c1",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "e8b780d6-3939-41a1-b02d-a60d65449b9b",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "ebe963a9-ef72-47ee-a927-4beb915c2c06",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "74bdf645-78f1-4551-82ff-c8a063877d84",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "3a43d920-bdd2-466b-ae93-e7e77a7cb310",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "28fc9f07-3c54-4a7f-b046-edd2a8fa3687",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "d3256738-cb92-4c9b-bb52-a9714648599a",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "e8b90615-cf78-49f9-ad28-7c12d0a8280e",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "ce5e0f2f-e15e-4644-87cb-812bd348946e",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "11aba086-ac47-4c23-9e37-9568c91a76ae",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     },
     {
-      "chunk_id": "abc7b241-429e-4735-9c1f-fe0fa054b05c",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
-    },
-    {
-      "chunk_id": "2c114987-ff5a-4fe8-91e3-2b3ee2f14687",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
-    },
-    {
-      "chunk_id": "3d395f33-1768-40b9-83de-5821659325a6",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
-    },
-    {
-      "chunk_id": "e8b3dbdd-e628-4312-8c00-25d647dfad05",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
-    },
-    {
-      "chunk_id": "2cfafcd8-1b4b-4b3e-9d97-e416e86b30b9",
-      "chunk_text_preview": "Placeholder preview for CI fixture chunk.",
-      "file_name": "CIM.pdf",
-      "page_start": 1,
-      "priority_tier": 1,
-      "section_header": "CI fixture",
-      "source_type": "text"
+      "chunk_id": "fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc",
+      "file_name": "Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx",
+      "section_header": "sheet1 — Summary",
+      "page_start": 0,
+      "source_type": "text",
+      "priority_tier": 2,
+      "chunk_text_preview": "[Document: Revenue 36 months Billing Amount Summary by Client 2024-01-08T2057.xlsx] [Sheet: sheet1] [Section: Summary..."
     }
   ],
   "intents": [
@@ -326,18 +290,23 @@
       "catalog": "uc13_ale",
       "gold_status": "ready",
       "positive_chunk_ids": [
-        "6abc7d75-dfec-44d2-b937-2dc958fa1be7",
-        "4a562585-3506-4aea-a5fa-a5b007fd78bf",
-        "5c2a1065-ccb1-45c4-a735-e679799c5a9a",
-        "72564410-1d50-4750-8715-e19d1f764811",
-        "f4edd68a-f226-4f93-8671-bd3b0624ffc0",
-        "334eb3e2-9be4-46ad-abce-490cdc29e6e7",
-        "d2e28adc-4139-4352-9b9b-84bdb4cbd705",
-        "d81dc8d6-0cf0-43f4-974f-206047e2a218"
+        "027ec667-fb72-4eb6-b723-3d6a68e5789d",
+        "9a0697ee-f741-4bc8-a672-bfdbaf85f181",
+        "3d95d7bf-bc70-41b4-85fb-6a8accc0a559",
+        "cd9773ea-0a3c-460d-869a-bc963a15cd1f",
+        "0d820bf2-0624-489c-a931-3059ce0861b2",
+        "5fa7f39b-cef6-4674-b74c-6d9277e14602"
       ],
+      "negative_chunk_ids": null,
+      "negative_rule": null,
+      "negative_method": null,
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:35104:2026-07-30",
-      "confidence": "high"
+      "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+      "confidence": "high",
+      "negative_confidence": null,
+      "notes": null,
+      "aggregate_exclude": false,
+      "exclude_reason": null
     },
     {
       "intent_id": "legal.contracts_vendors_platform",
@@ -345,27 +314,32 @@
       "catalog": "uc13_ale",
       "gold_status": "ready",
       "positive_chunk_ids": [
-        "a7b59e05-594c-423d-927e-8032ed4358af",
-        "6712732a-bbe7-43bb-96c2-1ecce64be23d",
-        "bce0d2c4-f33b-4943-8d9d-5c01c4c68657",
-        "383ac106-e856-459e-8481-86fa93b4bb3f",
-        "979c683b-6cca-4166-a3d6-af8441a313d8",
-        "7782dd8e-7fcb-4ad0-913f-6e950d0a0532",
-        "406e7c4e-44ef-4116-ae6e-30ba5c0e2e87",
-        "47ee7001-7680-4b9d-88cd-c237f40169f4",
-        "a66e4ac0-fb5b-450a-9a6b-b9ace614e7f4",
-        "0d6900e3-4d97-44fe-b74a-c7b1992e331a",
-        "9d209bd5-a838-4e04-88a4-ec9c31687f2a",
-        "dae2601c-988d-4f3e-bb65-43931212046d",
-        "23703279-d702-4bfa-9cf6-9b2fc6beb1e9",
-        "c423c2b9-f88f-4804-bdb5-b0a40b836e43",
-        "37405da7-ffe9-43b9-a600-44fa1a0bb3ee",
-        "d5767a9c-c9cf-4d37-8538-77bbcebee294",
-        "42b1d3c7-343b-4358-a7cd-c9ea83ac509e"
+        "54572acb-edbf-4c97-9ca3-567db58f4ea3",
+        "ed4829da-4163-419b-94ea-dec586959731",
+        "636add34-ba4a-4aba-9a88-aefd9a2113e0",
+        "7fb62b5a-eba0-4b1d-8bf0-7d6e08fb62ba",
+        "5a9c5473-7b4a-4628-b584-f118bdb2aa44",
+        "e9551128-a783-4cca-9890-a75662a9dfb7",
+        "a3074358-6ed6-4da2-8c9f-2d1f878ddf18",
+        "05becf73-80cb-4575-9de5-9d6da76bc00e",
+        "767bcf42-cc9a-4db5-8776-af5b0080784a",
+        "ed5febd3-3860-4b3e-8a03-5703f13de1d9",
+        "7149a62c-97d5-47a8-9759-33587fca35f8",
+        "a857b37c-5729-4463-80d0-850fb8a15fd1",
+        "9be8778d-44ed-45a7-b1eb-6d72a0b1ae65",
+        "d580e779-f6a7-41bb-b840-6abe81fd5a28",
+        "e6b3ef0b-b691-4013-a688-08d56ee27522"
       ],
+      "negative_chunk_ids": null,
+      "negative_rule": null,
+      "negative_method": null,
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:35104:2026-07-30",
-      "confidence": "high"
+      "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+      "confidence": "high",
+      "negative_confidence": null,
+      "notes": null,
+      "aggregate_exclude": false,
+      "exclude_reason": null
     },
     {
       "intent_id": "cqa.retrieve_customer_concentration",
@@ -373,36 +347,43 @@
       "catalog": "uc13_ale",
       "gold_status": "ready",
       "positive_chunk_ids": [
-        "3ac9bf4f-2c52-4f95-9de5-f17f0e1c26c1",
-        "ebe963a9-ef72-47ee-a927-4beb915c2c06",
-        "3a43d920-bdd2-466b-ae93-e7e77a7cb310",
-        "d3256738-cb92-4c9b-bb52-a9714648599a",
-        "ce5e0f2f-e15e-4644-87cb-812bd348946e",
-        "abc7b241-429e-4735-9c1f-fe0fa054b05c",
-        "2c114987-ff5a-4fe8-91e3-2b3ee2f14687",
-        "3d395f33-1768-40b9-83de-5821659325a6",
-        "e8b3dbdd-e628-4312-8c00-25d647dfad05",
-        "2cfafcd8-1b4b-4b3e-9d97-e416e86b30b9"
+        "45e19d1c-b764-4446-953f-c03d305db309",
+        "7fe97773-1db9-4f4c-895a-7458771708f6",
+        "1e83730c-4ff0-4378-a296-216abeb6db5f",
+        "c9440283-8eda-49f2-985b-834a807a8c2a",
+        "e8b780d6-3939-41a1-b02d-a60d65449b9b",
+        "74bdf645-78f1-4551-82ff-c8a063877d84",
+        "28fc9f07-3c54-4a7f-b046-edd2a8fa3687",
+        "e8b90615-cf78-49f9-ad28-7c12d0a8280e",
+        "11aba086-ac47-4c23-9e37-9568c91a76ae",
+        "fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc"
       ],
+      "negative_chunk_ids": null,
+      "negative_rule": null,
+      "negative_method": null,
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:35104:2026-07-30",
-      "confidence": "high"
+      "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+      "confidence": "high",
+      "negative_confidence": null,
+      "notes": null,
+      "aggregate_exclude": false,
+      "exclude_reason": null
     }
   ],
   "mock_vs_scores": {
     "fta.opex.q3_projected_financials": {
-      "bfbcfe31-e9b1-4017-acd7-97601be54c04": 0.92,
-      "c088efb9-8cf9-46a5-8aba-aed9eab703dc": 0.9,
-      "7cf789fd-dabd-47fa-8ee7-47a001d5fb68": 0.88,
-      "6abc7d75-dfec-44d2-b937-2dc958fa1be7": 0.86,
-      "4a562585-3506-4aea-a5fa-a5b007fd78bf": 0.84
+      "027ec667-fb72-4eb6-b723-3d6a68e5789d": 0.92,
+      "9a0697ee-f741-4bc8-a672-bfdbaf85f181": 0.9,
+      "3d95d7bf-bc70-41b4-85fb-6a8accc0a559": 0.88,
+      "cd9773ea-0a3c-460d-869a-bc963a15cd1f": 0.86,
+      "0d820bf2-0624-489c-a931-3059ce0861b2": 0.84
     },
     "legal.contracts_vendors_platform": {
-      "383ac106-e856-459e-8481-86fa93b4bb3f": 0.92,
-      "979c683b-6cca-4166-a3d6-af8441a313d8": 0.9,
-      "7782dd8e-7fcb-4ad0-913f-6e950d0a0532": 0.88,
-      "406e7c4e-44ef-4116-ae6e-30ba5c0e2e87": 0.86,
-      "47ee7001-7680-4b9d-88cd-c237f40169f4": 0.84
+      "54572acb-edbf-4c97-9ca3-567db58f4ea3": 0.92,
+      "ed4829da-4163-419b-94ea-dec586959731": 0.9,
+      "636add34-ba4a-4aba-9a88-aefd9a2113e0": 0.88,
+      "7fb62b5a-eba0-4b1d-8bf0-7d6e08fb62ba": 0.86,
+      "5a9c5473-7b4a-4628-b584-f118bdb2aa44": 0.84
     }
   }
 }
