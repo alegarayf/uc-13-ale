@@ -21,7 +21,23 @@ Run once per Cell 7 ingestion rebuild or retrieval code change. Charter exit gat
 
 **Workspace catalog:** Elder Care baseline uses **`uc13_ale` for everything** — corpus, VS index, gold labels, **and** ops tables (`uc13_ale.ops.*`). The program charter examples use `uc13.ops` for a shared merge target; keep ops in `uc13_ale` until you promote upstream.
 
-**Active baseline pin (2026-07-16):** `baseline_1aeb0ace584a` per `retrieval_harness_latest_baseline` (alternate stability twin: `baseline_813d0dd1b188`). Supersedes M-RE3 `baseline_299063e87806` after `legal.insurance` registry fix — do not cross-compare across registry versions (`RegistryHashMismatchError`).
+**Comparison epoch (M1 / 2026-08-11 — charter Amendment A2):** **`baseline_acf58bcc4968`** at `ingestion_snapshot=uc13_ale:55812:2026-08-11` (55,812 Elder Care chunks; gold refresh event §15.3). This opens a **new comparison epoch** — never cross-compare against `35104`-epoch baselines as a live premise (`compare()` / `validate_baseline_ref` raises `IngestionSnapshotMismatchError`). **Archival only:** `baseline_3831adf97292`, `baseline_544eb3f2a0e2`, and all pre-2026-08-05 pins.
+
+**Historical baseline pin (2026-07-16, superseded):** `baseline_1aeb0ace584a` per `retrieval_harness_latest_baseline` (alternate stability twin: `baseline_813d0dd1b188`). Supersedes M-RE3 `baseline_299063e87806` after `legal.insurance` registry fix — do not cross-compare across registry versions (`RegistryHashMismatchError`).
+
+### M1 gold refresh + re-baseline (§15.3 event record)
+
+| Field | Value |
+|---|---|
+| Event | Full-57 gold refresh (T4) + new harness baseline (T5) |
+| Date | 2026-08-11 |
+| `ingestion_snapshot` | `uc13_ale:55812:2026-08-11` |
+| Gold commit | `eval/retrieval/gold_labels/elder_care.yaml` (52 ready/partial + 5 annotated exclusions) |
+| New baseline id | `baseline_acf58bcc4968` |
+| Zero-drift smoke | Within-epoch enhancement re-run vs `baseline_acf58bcc4968` → `max_abs_delta=0` |
+| Cross-epoch guard | `validate_baseline_ref(..., baseline_3831adf97292)` → `IngestionSnapshotMismatchError` |
+
+**Epoch rule:** Baseline comparisons and enhancement/ablation `baseline_ref_run_id` pins must share the same `ingestion_snapshot` as the active gold. Operator promotion of `retrieval_harness_latest_baseline` to the new id is a separate step (not required for repo-pinned JSON baseline).
 
 ### 1. Upstream preconditions (§5.15)
 
