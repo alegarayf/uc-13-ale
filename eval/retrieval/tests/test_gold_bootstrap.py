@@ -25,7 +25,9 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 REGISTRY_PATH = REPO_ROOT / "eval" / "retrieval" / "intent_registry.yaml"
 GOLD_PATH = REPO_ROOT / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
 GOLD_COUNTS_PATH = REPO_ROOT / "eval" / "retrieval" / "fixtures" / "gold_positive_counts.yaml"
-INGESTION_SNAPSHOT = "uc13_ale:35104:2026-07-30"
+INGESTION_SNAPSHOT = "uc13_ale:55812:2026-08-11"
+SNAPSHOT_INGESTION_DATE = date(2026, 8, 11)
+SNAPSHOT_CHUNK_COUNT = 55812
 
 
 class MockSpark:
@@ -69,7 +71,7 @@ def _sample_intent(intent_id: str, **overrides) -> RetrievalIntent:
 @pytest.fixture
 def mock_spark_handlers() -> dict[str, list[dict]]:
     return {
-        "COUNT(*) AS chunk_count": [{"chunk_count": 35104}],
+        "COUNT(*) AS chunk_count": [{"chunk_count": SNAPSHOT_CHUNK_COUNT}],
         "analysis.financial_trends": [
             {
                 "citations": (
@@ -99,7 +101,7 @@ def mock_spark_handlers() -> dict[str, list[dict]]:
 
 def test_format_ingestion_snapshot_normative():
     assert (
-        format_ingestion_snapshot("uc13_ale", 35104, date(2026, 7, 30))
+        format_ingestion_snapshot("uc13_ale", SNAPSHOT_CHUNK_COUNT, SNAPSHOT_INGESTION_DATE)
         == INGESTION_SNAPSHOT
     )
 
@@ -108,7 +110,7 @@ def test_compute_ingestion_snapshot_single_value(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     assert bootstrap.compute_ingestion_snapshot() == INGESTION_SNAPSHOT
 
@@ -117,7 +119,7 @@ def test_bootstrap_pass1_citation_backfill(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     intent = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -137,7 +139,7 @@ def test_bootstrap_pass2_basis_rule(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     intent = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -168,7 +170,7 @@ def test_bootstrap_pass2_cross_intent_positive(mock_spark_handlers):
     spark = MockSpark(handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     q1 = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -207,7 +209,7 @@ def test_all_labels_share_single_ingestion_snapshot(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     intents = load_registry(REGISTRY_PATH)[:5]
     labels = bootstrap.bootstrap(intents)
@@ -376,7 +378,7 @@ def test_generate_skeleton_gold_yaml_from_registry(tmp_path):
 def _fta_q1_q3_handlers(**extra: list[dict]) -> dict[str, list[dict]]:
     """Handlers for q1 zero-out scenarios with cross-intent sibling pair."""
     handlers: dict[str, list[dict]] = {
-        "COUNT(*) AS chunk_count": [{"chunk_count": 35104}],
+        "COUNT(*) AS chunk_count": [{"chunk_count": SNAPSHOT_CHUNK_COUNT}],
         "analysis.financial_trends": [
             {
                 "citations": (
@@ -500,7 +502,7 @@ def test_pass2_zero_out_fail_closed_when_no_fallback_survivors():
 def test_pass2_partial_strip_does_not_reengage_fallback():
     """Surviving pass-1 positives must not trigger pass-2 fallback re-engagement."""
     handlers = {
-        "COUNT(*) AS chunk_count": [{"chunk_count": 35104}],
+        "COUNT(*) AS chunk_count": [{"chunk_count": SNAPSHOT_CHUNK_COUNT}],
         "analysis.financial_trends": [
             {
                 "citations": (
