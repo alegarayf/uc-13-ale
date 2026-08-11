@@ -854,6 +854,25 @@ FROM uc13_ale.ops.retrieval_harness_runs
 WHERE run_id = '<pipeline_agent_run_id>';
 ```
 
+**Append-only history (`uc13_ale.ops.e2e_linkage`).** Delta writes dual-record linkage: the manifest columns above stay on `retrieval_harness_runs` (G3 evidence reads them), and each linkage also appends a row to `ops.e2e_linkage` with the same score fields plus `linked_at`. Query the golden five (BMA, CQA, KPI, QoE, Profiler) via the history table:
+
+```sql
+SELECT e2e_agent_id, COUNT(*) AS linked_runs
+FROM uc13_ale.ops.e2e_linkage
+WHERE e2e_agent_id IN ('bma', 'cqa', 'kpi', 'qoe', 'profiler')
+GROUP BY e2e_agent_id
+ORDER BY e2e_agent_id;
+```
+
+Backfill existing history once (idempotent):
+
+```sql
+-- emitted by record_e2e_linkage.backfill_e2e_linkage on DeltaEvalStore
+-- or run the INSERT … SELECT from signoffs/T10-e2e-linkage.md
+```
+
+SQLite/local dev (`--store-backend sqlite`) updates manifests only — no `ops.e2e_linkage` row (documented exception).
+
 #### Promotion gate invocation (BMA, CQA, KPI, QoE, Profiler)
 
 For BMA, CQA, KPI, QoE, and Profiler, link golden-checklist scores via **`evaluate_promotion`** — a **Python library call** with **no CLI wrapper** (M3 Decision M3-B; this milestone does not add one). On promoting outcomes (`baseline_bootstrap`, `promoted`, `promotion_waived`), the gate calls `record_e2e_linkage` internally; FTA/Legal continue to call `record_e2e_linkage` directly (bash examples above).
