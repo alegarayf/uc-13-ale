@@ -1,5 +1,19 @@
 # Changelog
 
+## eval-consolidation-m3-s2-build — 2026-08-12
+
+- T2 (CHK-27 no-build disposition record): Added `CHK-27` to `.dev/eval-program/registry.yaml` with `status: descoped` and audit-trail rationale citing M2 audit rev 2 and calibration-disagreement audit ESC-T2-3 D1 (Option A, caveat-and-carry); captured M3-start spec SHA256 baseline at `.dev/audits/eval-consolidation/M3/m3-start-provenance.yaml`. Rationale: item 27 targets rung-2 surfaces only and CHK-26a records zero — registry must carry the disposition before T4 reads rung assignments. Adversarial gap deferred: no pytest — record-only subtask; falsifier is registry row presence + resolvable evidence_refs paths.
+
+## eval-consolidation-m2-s2-preplan-assessments — 2026-08-12
+
+- P2 (ESC-T2-3 record closure): Operator disposition Option A recorded; assumption 8 closed; M3 unblocked for planning. Rationale: Phase 2 record-only closure per audit §5 D1–D5 — M2 `human` assignments and CHK-26a metrics stand as evidence-of-record only; parallel-track remediation (WP-1–3) and post-M3 re-calibration gated per audit §6.3. Adversarial gap deferred: no pytest — record-only subtask; falsifier is cross-artifact consistency check (ESC-T2-3 §4 ↔ T10 signoff ↔ plan §8.4.1/§8.6 ↔ audit §5/§6.3).
+
+- WP-1 (FTA revenue-family label fix): Re-pointed `expected_span.chunk_id` on `fta.numeric.021`–`fta.numeric.030` (10 claims) from broken vision-extraction placeholder `027ec667-fb72-4eb6-b723-3d6a68e5789d` to correctly-extracted duplicate `cd9773ea-0a3c-460d-869a-bc963a15cd1f` for the Pro Forma Income Statement & Projection table; locator kind/value unchanged. Rationale: audit D2 confirmed the prior chunk had no numeric content, blocking calibration span agreement for the revenue/growth family. Adversarial gap deferred: no test asserts claim-id-scoped chunk_id edits — schema validator only; operator audit + corpus verify is the falsifier.
+
+- WP-3 (Locator kind page/section interchangeability): In `spans_agree()`, when `chunk_id` matches and both sides declare a locator, `kind: page` vs `kind: section` no longer blocks agreement (C4 calibration instrumentation per operator D4 / audit option b). Rationale: calibration probe showed span disagreement solely on kind mismatch for the same chunk. Adversarial gap deferred: no value-level canonical pairing between section header and page number — chunk_id match alone is the falsifier per audit disposition.
+
+- WP-2 (Remove 1200-char evidence truncation — audit D4): Dropped `SUBSTRING(chunk_text, 1, 1200)` from `fetch_chunk_metadata` and `retrieve_evidence` in `eval/content/calibration.py`; judge evidence now uses full `chunk_text`. Rationale: calibration-disagreement audit found numeric values past char 1200 in chunk `b1feca18…` (`fta.numeric.007`) were silently dropped, causing null judge extraction even with the correct chunk injected. + hermetic guard and mock falsifier in `test_calibration_locator.py`. Adversarial gap deferred: no test for LLM context overflow on very large chunks — warehouse chunk size distribution is the operational bound.
+
 ## eval-consolidation-m1-metric-guardrail-hardening — 2026-08-11
 
 - T14 (Forward-path ops.e2e_linkage idempotency — audit F-8): Guarded Delta forward INSERT in `record_e2e_linkage.py` with `NOT EXISTS` on `run_id` + `e2e_agent_id` (mirrors backfill); re-invocation test; README forward-path idempotency note. Rationale: duplicate linkage rows on re-invocation double-counted golden-five history. Adversarial gap deferred: no hermetic test for different `e2e_agent_id` on same `run_id` — backfill parity is the contract.
