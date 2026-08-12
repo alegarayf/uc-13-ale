@@ -12,7 +12,11 @@ generalizes across verticals (plan §Principios rectores, P2).
 
 from __future__ import annotations
 
-from agents.exec_summary.field_mapping import _fta_table_rows, _headline_from_fta
+from agents.exec_summary.field_mapping import (
+    _fta_table_rows,
+    _headline_from_fta,
+    _revenue_quality_from_agents,
+)
 
 
 def test_fta_table_rows_reads_real_field_names():
@@ -122,3 +126,92 @@ def test_headline_from_fta_empty_input_returns_blank_fields():
     assert headline["ltm_revenue"] == ""
     assert headline["ltm_ebitda"] == ""
     assert headline["revenue_cagr"] == ""
+
+
+# ---------------------------------------------------------------------------
+# _revenue_quality_from_agents — the mapping bug found reading the Elder Care
+# render (docs/plans/connect-all-vdr-er.md Part B, follow-up). CQA's report
+# yaml has always used "concentration_summary"/"customer_tenure"/"retention"
+# as key names, and this function checked "customer_concentration"/
+# "concentration" (neither ever existed) and hardcoded end_market_mix/
+# retention_notes to "" — so it always returned blank regardless of what CQA
+# actually extracted, even when the CIM's own data (e.g. a length-of-stay
+# distribution, a per-client billed-amount figure) was captured correctly
+# by the agent. absence_check.py's reclassification ("present but not
+# extracted") was papering over this — this fixes it at the source.
+# ---------------------------------------------------------------------------
+
+
+def test_revenue_quality_reads_concentration_summary_not_the_old_wrong_keys():
+    cqa_yaml = {
+        "concentration_summary": {"top1_pct": 12.0, "top3_pct": 28.0, "top5_pct": None, "top10_pct": None},
+    }
+    result = _revenue_quality_from_agents(None, cqa_yaml)
+    assert "Top 1: 12.0%" in result["concentration"]
+    assert "Top 3: 28.0%" in result["concentration"]
+    assert "Top 5" not in result["concentration"]  # null fields are omitted, not fabricated as 0%
+
+
+def test_revenue_quality_concentration_blank_when_agent_found_nothing():
+    """A genuine gap (every pct null) stays blank — absence_check is what
+    decides whether that blank is a real gap or a mapping miss, not this
+    function fabricating a placeholder."""
+    cqa_yaml = {"concentration_summary": {"top1_pct": None, "top3_pct": None, "top5_pct": None, "top10_pct": None}}
+    result = _revenue_quality_from_agents(None, cqa_yaml)
+    assert result["concentration"] == ""
+
+
+def test_revenue_quality_retention_notes_combines_tenure_and_retention():
+    """Real Elder Care shape: no SaaS-style NRR/GRR (private-pay home care
+    doesn't report that), but a length-of-stay distribution IS the agent's
+    retention signal for this vertical — both sources are read generically,
+    whichever the agent populated."""
+    cqa_yaml = {
+        "retention": {"nrr_pct": None, "grr_pct": None, "logo_churn_rate_annual_pct": None},
+        "customer_tenure": {
+            "average_tenure_years": None,
+            "tenure_distribution_note": "4+ Years 57%, 1-2 Months 8%.",
+        },
+    }
+    result = _revenue_quality_from_agents(None, cqa_yaml)
+    assert "4+ Years 57%" in result["retention_notes"]
+
+
+def test_revenue_quality_retention_notes_generalizes_to_saas_shaped_data():
+    """Anti-overfit: a subscription business reports NRR/GRR, not a
+    length-of-stay distribution — same function, no vertical-specific code
+    path, must read this shape too."""
+    cqa_yaml = {
+        "retention": {"nrr_pct": 112.0, "grr_pct": 94.0, "logo_churn_rate_annual_pct": 8.0},
+        "customer_tenure": {"average_tenure_years": None, "tenure_distribution_note": None},
+    }
+    result = _revenue_quality_from_agents(None, cqa_yaml)
+    assert "NRR 112.0%" in result["retention_notes"]
+    assert "GRR 94.0%" in result["retention_notes"]
+    assert "Annual logo churn 8.0%" in result["retention_notes"]
+
+
+def test_revenue_quality_end_market_mix_from_payor_mix():
+    cqa_yaml = {
+        "payor_mix": [
+            {"payor_category": "Medicare", "pct_of_revenue": 10.0},
+            {"payor_category": "Private Pay", "pct_of_revenue": 90.0},
+            {"payor_category": "Medicaid", "pct_of_revenue": None},  # omitted, not fabricated
+        ]
+    }
+    result = _revenue_quality_from_agents(None, cqa_yaml)
+    assert "Medicare: 10.0%" in result["end_market_mix"]
+    assert "Private Pay: 90.0%" in result["end_market_mix"]
+    assert "Medicaid" not in result["end_market_mix"]
+
+
+def test_revenue_quality_never_raises_on_missing_or_malformed_cqa_yaml():
+    assert _revenue_quality_from_agents(None, None) == {
+        "scale_narrative": "", "concentration": "", "end_market_mix": "", "retention_notes": "",
+    }
+    # Malformed shapes (wrong types) degrade to blank rather than raising.
+    malformed = {"concentration_summary": "not a dict", "retention": [], "customer_tenure": None, "payor_mix": {}}
+    result = _revenue_quality_from_agents(None, malformed)
+    assert result["concentration"] == "not a dict"
+    assert result["retention_notes"] == ""
+    assert result["end_market_mix"] == ""

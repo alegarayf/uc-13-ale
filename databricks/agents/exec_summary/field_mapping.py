@@ -355,24 +355,83 @@ def _company_framing_from_bma(bma_yaml: dict | None) -> dict[str, Any]:
     return framing
 
 
+def _concentration_note_from_cqa(cqa_yaml: dict) -> str:
+    """``customer_quality_agent`` writes its report as ``concentration_summary``
+    (top1_pct/top3_pct/top5_pct/top10_pct + source_doc) — not
+    ``customer_concentration``/``concentration``/``summary``/``top_customer_pct``,
+    which is what this used to look for and is why it always came back empty."""
+    conc = cqa_yaml.get("concentration_summary") or {}
+    if not isinstance(conc, dict):
+        return str(conc) if conc else ""
+    parts = []
+    for key, label in (
+        ("top1_pct", "Top 1"), ("top3_pct", "Top 3"), ("top5_pct", "Top 5"), ("top10_pct", "Top 10"),
+    ):
+        value = conc.get(key)
+        if value not in (None, ""):
+            parts.append(f"{label}: {value}%")
+    return ", ".join(parts) + " of revenue" if parts else ""
+
+
+def _retention_note_from_cqa(cqa_yaml: dict) -> str:
+    """Combines ``retention`` (nrr_pct/grr_pct/logo_churn_rate_annual_pct —
+    the SaaS-shaped fields) and ``customer_tenure`` (average_tenure_years /
+    tenure_distribution_note — what a non-subscription business like a home
+    care platform actually reports) into one note. Whichever the agent
+    populated for THIS company's data room is what shows up; nothing here is
+    vertical-specific."""
+    parts: list[str] = []
+    retention = cqa_yaml.get("retention") or {}
+    if isinstance(retention, dict):
+        if retention.get("nrr_pct") not in (None, ""):
+            parts.append(f"NRR {retention['nrr_pct']}%")
+        if retention.get("grr_pct") not in (None, ""):
+            parts.append(f"GRR {retention['grr_pct']}%")
+        if retention.get("logo_churn_rate_annual_pct") not in (None, ""):
+            parts.append(f"Annual logo churn {retention['logo_churn_rate_annual_pct']}%")
+    tenure = cqa_yaml.get("customer_tenure") or {}
+    if isinstance(tenure, dict):
+        if tenure.get("average_tenure_years") not in (None, ""):
+            parts.append(f"Average tenure {tenure['average_tenure_years']} years")
+        if tenure.get("tenure_distribution_note"):
+            parts.append(str(tenure["tenure_distribution_note"]))
+    return " ".join(parts)
+
+
+def _end_market_mix_note_from_cqa(cqa_yaml: dict) -> str:
+    """``payor_mix`` (who pays — Medicare/Medicaid/Commercial/private-pay/etc.)
+    is the closest end-market-style split CQA extracts today. Left blank when
+    the agent found nothing here — absence_check still covers a genuine gap;
+    this never fabricates a mix that wasn't extracted."""
+    payor_mix = cqa_yaml.get("payor_mix") or []
+    if not isinstance(payor_mix, list):
+        return ""
+    parts = [
+        f"{row.get('payor_category')}: {row['pct_of_revenue']}%"
+        for row in payor_mix
+        if isinstance(row, dict) and row.get("payor_category") and row.get("pct_of_revenue") not in (None, "")
+    ]
+    return ", ".join(parts)
+
+
 def _revenue_quality_from_agents(
     bma_yaml: dict | None, cqa_yaml: dict | None
 ) -> dict[str, str]:
     concentration = ""
+    retention_notes = ""
+    end_market_mix = ""
     if cqa_yaml:
-        conc = cqa_yaml.get("customer_concentration") or cqa_yaml.get("concentration") or {}
-        if isinstance(conc, dict):
-            concentration = str(conc.get("summary") or conc.get("top_customer_pct") or "")
-        elif conc:
-            concentration = str(conc)
+        concentration = _concentration_note_from_cqa(cqa_yaml)
+        retention_notes = _retention_note_from_cqa(cqa_yaml)
+        end_market_mix = _end_market_mix_note_from_cqa(cqa_yaml)
     scale = ""
     if bma_yaml and bma_yaml.get("executive_summary"):
         scale = str(bma_yaml["executive_summary"])[:500]
     return {
         "scale_narrative": scale,
         "concentration": concentration,
-        "end_market_mix": "",
-        "retention_notes": "",
+        "end_market_mix": end_market_mix,
+        "retention_notes": retention_notes,
     }
 
 
