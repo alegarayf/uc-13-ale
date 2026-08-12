@@ -334,11 +334,11 @@
       <h3 class="block-header">Priority Diligence Questions</h3>
       <ul class="bullets">
         {% if narrative and narrative.diligence_priorities %}
-        {% for q in narrative.diligence_priorities[:5] %}
+        {% for q in narrative.diligence_priorities[:6] %}
         <li>{{ q }}</li>
         {% endfor %}
         {% else %}
-        {% for q in (rainmaker.diligence_questions or [])[:5] %}
+        {% for q in (rainmaker.diligence_questions or [])[:6] %}
         <li><strong>{{ q.category | default('', true) | title }}:</strong> {{ q.question | default('', true) }}</li>
         {% else %}
         <li>Not yet assessed in this preview.</li>

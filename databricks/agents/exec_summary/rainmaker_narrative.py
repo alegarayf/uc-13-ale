@@ -167,7 +167,17 @@ _NON_FABRICATION_RULE = (
     "input. You do not have access to the original source documents, only this "
     "already-extracted digest. Never embed bracketed source citations or file/page "
     "references (e.g. '(file.pdf p.12)') inside your prose — write plain sentences; "
-    "source attribution is handled separately by the render layer."
+    "source attribution is handled separately by the render layer.\n\n"
+    "One field value may start with the literal tag '[DATA ROOM MATERIAL NOT YET "
+    "EXTRACTED]' — this means an automated check found matching material in the data "
+    "room for that topic, but it was not captured by the extraction that produced "
+    "this digest. Do NOT quote or repeat that bracketed tag verbatim. Instead, phrase "
+    "the point as: this appears to be covered in the data room but has not yet been "
+    "extracted into this analysis, so it should be pulled out and reviewed in the "
+    "next pass. Do not treat this differently from a normal missing value in every "
+    "other respect (still do not invent a figure) — the only difference is this "
+    "specific phrasing, which is more accurate than claiming the data room says "
+    "nothing on the topic."
 )
 
 _SYSTEM_PROMPT_FRAMING = f"""You are drafting the "Company & Investment Framing" section of a private-equity \
@@ -216,16 +226,28 @@ both sections tight — this is a first-pass screen, not the full workstream rep
 LENGTH DISCIPLINE (strict, do not exceed):
 - "commercial_revenue_quality": at most 5 bullets — the most decision-relevant revenue-quality/customer-base \
   signals only.
-- "diligence_priorities": EXACTLY 5 questions, one for each of these five topics, in this order: \
-  (1) EBITDA — validating the reported vs. adjusted EBITDA bridge; \
-  (2) gross margin — what drives it and whether it is durable; \
-  (3) cash flow — cash conversion, working capital, or collections behavior; \
-  (4) operations rollout — how the business scales/replicates operationally (new locations, new capacity, \
-  delivery model) as it grows; \
-  (5) source documents — the single most important missing or unverified document/schedule needed to \
-  confirm the numbers above. \
-  If the input genuinely has nothing to ground one of these five topics, still ask the most relevant general \
-  question for that topic rather than skipping it or inventing a company-specific fact.
+- "diligence_priorities": EXACTLY 6 questions, one for each of these six THESIS-TESTING archetypes, in this \
+  order. Each is a question about whether the business's OWN operating reality supports its OWN thesis — never \
+  a request for a document, schedule, or data room material. If the thesis-test genuinely cannot be answered \
+  without a specific missing document, still ask the operating question and add the missing document as a \
+  short trailing clause (e.g. "...; the data room does not yet include X to confirm this") rather than making \
+  the document itself the question. \
+  (1) growth-engine conversion — does the input this business invests in to grow (e.g. hiring, marketing \
+  spend, unit/location build-out — whatever this business's own growth engine is) actually convert into the \
+  revenue-bearing output (utilization, staffed capacity, activated accounts)? \
+  (2) demand durability — is this business's demand channel (referrals, renewals, a sales channel, key \
+  accounts — whatever applies here) institutional and diversified, or dependent on a handful of individuals \
+  or relationships that could walk? \
+  (3) unit economics vs. cost inflation — can this business's pricing keep outrunning its own dominant \
+  cost driver (labor, materials, cloud/compute, etc. — whatever applies here) going forward? \
+  (4) quality/consistency at scale — does the quality or consistency of what this business delivers hold up \
+  as volume or locations/markets grow? \
+  (5) replicability — do this business's newer or acquired units reach the unit economics of its mature \
+  units, and on what timeline? \
+  (6) earnings quality — how much of this business's reported earnings power is durable and recurring versus \
+  dependent on adjustments, pro forma addbacks, or one-time synergies? \
+  Instantiate each archetype using THIS business's own mechanism, terms, and nouns from the input — never a \
+  generic or another company's version of the question, and never invent a mechanism the input doesn't support.
 
 CRITICAL — diligence question relevance: the input includes "revenue_model" (how this specific business earns \
 revenue). Every diligence question you generate MUST be relevant to that revenue model. Do NOT ask questions \
@@ -237,7 +259,7 @@ revenue_model and revenue_quality signals.
 Respond with ONLY a JSON object, no markdown fences, with these exact keys:
 {{
   "commercial_revenue_quality": [{{"topic": "<short topic>", "detail": "<1 sentence>"}}, "..."],
-  "diligence_priorities": ["<EBITDA question>", "<gross margin question>", "<cash flow question>", "<operations rollout question>", "<source documents question>"]
+  "diligence_priorities": ["<growth-engine conversion question>", "<demand durability question>", "<unit economics vs. cost inflation question>", "<quality/consistency at scale question>", "<replicability question>", "<earnings quality question>"]
 }}"""
 
 _FRAMING_RESULT_KEYS = ("one_liner", "company_overview", "business_model", "investment_thesis", "recommendation")

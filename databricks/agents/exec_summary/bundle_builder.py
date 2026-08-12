@@ -88,14 +88,18 @@ Return ONLY valid JSON (no markdown fences) with optional top-level key "executi
     only — synthesize from assembled_bundle_sections.company_framing (including workforce/offshore context in
     workforce_notes when present) and acquisition/expansion facts visible in company_framing and financials;
     investment-thesis framing, not a restatement of preliminary_view.strengths; omit marginal themes
-  key_watchouts (string[], optional) — Key Watchouts bullets for the deal-screen reader: reframe toward
-    caregiver recruiting/retention, service quality at scale, referral concentration,
-    organic-vs-acquisition mix, market-level unit economics, and replicability — use
-    assembled_bundle_sections risks, kpi_gaps, financials, and revenue_quality; do NOT include
-    wage-inflation-vs-pricing (no wage/labor-cost data is mapped in the bundle — omit this theme
-    rather than inventing it)
+  key_watchouts (string[], optional) — Key Watchouts bullets for the deal-screen reader, at most 4.
+    Each watchout must name a specific claim in this business's own investment thesis (from
+    company_framing, financials, or revenue_quality) and state what would have to be true — or turn out
+    false — for that claim to hold, so a reader knows exactly what to go verify. Do NOT phrase a watchout
+    as "X data is missing" or "X was not provided" — a missing document is a data_room_gaps item, not a
+    watchout; if a gap is what blocks verifying a thesis claim, mention it only as a trailing clause on
+    the substantive watchout (e.g. "...; the data room does not yet show X to confirm this"). Ground every
+    watchout in assembled_bundle_sections risks, kpi_gaps, financials, and revenue_quality — never invent
+    a theme (e.g. wage inflation, key-person dependency, channel concentration) that has no supporting
+    signal in those sections for THIS company; omit a theme entirely rather than assuming it applies.
 When business_snapshot_narrative, preliminary_view.strengths, or thesis_bullets state a company-wide
-client or caregiver count, qualify it with source and period (e.g. "~595 clients per BMA's Q4-24E
+customer, client, or headcount count, qualify it with source and period (e.g. "~595 clients per BMA's Q4-24E
 projection" not "595 clients"). If assembled_bundle_sections or gap_context hold more than one figure
 for the same conceptual metric across agents or measurement bases, name the discrepancy explicitly —
 do not silently pick one canonical number.

@@ -285,8 +285,9 @@ def _extract_block(html: str, start_marker: str, end_marker: str = "</div>\n    
 def test_render_rainmaker_bullet_counts_stay_within_stakeholder_caps(monkeypatch, tmp_path):
     """Stakeholder feedback (round 1): Company Overview <=5, Product & Revenue
     Model exactly <=3, Investment Thesis/Key Watchouts <=4 each, Revenue
-    Quality/Diligence Questions <=5 each — regardless of how many bullets the
-    LLM or the bundle fallback would otherwise produce."""
+    Quality <=5, Diligence Questions <=6 (round 2, Part B/B3 — one question
+    per thesis-testing archetype, see rainmaker_narrative.py) — regardless of
+    how many bullets the LLM or the bundle fallback would otherwise produce."""
     _patch_volume(monkeypatch, tmp_path)
     bundle = _load("elder_care")
     narrative = {
@@ -315,7 +316,7 @@ def test_render_rainmaker_bullet_counts_stay_within_stakeholder_caps(monkeypatch
     assert revqual_block.count("Topic ") == 5
 
     diligence_block = _extract_block(html, "Priority Diligence Questions")
-    assert diligence_block.count("Question ") == 5
+    assert diligence_block.count("Question ") == 6
 
 
 def test_render_rainmaker_key_watchouts_capped_at_four(monkeypatch, tmp_path):

@@ -9,10 +9,12 @@ fixtures — periods/labels are generic so this generalizes across verticals
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
 from agents.exec_summary.rainmaker_narrative import (
+    _SYSTEM_PROMPT_REVQUAL_DILIGENCE,
     _build_narrative_digest,
     synthesize_rainmaker_narrative,
 )
@@ -189,3 +191,44 @@ def test_synthesize_never_raises_even_if_llm_client_constructor_fails(monkeypatc
     monkeypatch.setattr("agents.exec_summary.rainmaker_narrative._RainmakerNarrativeLlm", _boom)
     result = synthesize_rainmaker_narrative(_bundle(), llm_endpoint="fake-endpoint")
     assert result["synthesis_status"] == "degraded"
+
+
+# ---------------------------------------------------------------------------
+# Part B, B3 — diligence questions must test the thesis, not request
+# documents. Austin's feedback: "Watchouts should test the thesis rather
+# than simply identify missing documents." The five-topic list this replaced
+# ended in "source documents", which guaranteed a "please provide X"
+# question every time — see docs/plans/connect-all-vdr-er.md Part B.
+# ---------------------------------------------------------------------------
+
+_THESIS_TEST_ARCHETYPES = (
+    "growth-engine conversion",
+    "demand durability",
+    "unit economics vs. cost inflation",
+    "quality/consistency at scale",
+    "replicability",
+    "earnings quality",
+)
+
+
+def test_revqual_diligence_prompt_covers_all_six_thesis_test_archetypes():
+    for archetype in _THESIS_TEST_ARCHETYPES:
+        assert archetype in _SYSTEM_PROMPT_REVQUAL_DILIGENCE
+
+
+def test_revqual_diligence_prompt_requires_exactly_six_questions():
+    assert "EXACTLY 6 questions" in _SYSTEM_PROMPT_REVQUAL_DILIGENCE
+
+
+def test_revqual_diligence_prompt_bans_document_request_phrasing():
+    assert re.search(r"never\s+a request for a document", _SYSTEM_PROMPT_REVQUAL_DILIGENCE)
+    # The old prompt's own document-request example must be gone.
+    assert "source documents — the single most important missing" not in _SYSTEM_PROMPT_REVQUAL_DILIGENCE
+
+
+def test_revqual_diligence_prompt_instantiates_with_company_own_terms():
+    """Archetypes must be filled in with the specific business's own
+    mechanism, not left as generic templated questions — otherwise every
+    company gets the same six questions with different nouns swapped in
+    only superficially."""
+    assert "THIS business's own mechanism" in _SYSTEM_PROMPT_REVQUAL_DILIGENCE

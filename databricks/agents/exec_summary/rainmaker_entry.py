@@ -29,7 +29,14 @@ def build_rainmaker_summary(
     """Build the Rainmaker-format executive review from a completed agent run.
 
     Wraps, in order: ``BundleBuilder().build`` → ``validate_bundle`` →
-    ``synthesize_rainmaker_narrative`` → ``render_rainmaker``.
+    ``verify_bundle_claims`` → ``synthesize_rainmaker_narrative`` →
+    ``render_rainmaker``.
+
+    ``verify_bundle_claims`` (plan Part B, B2) runs between validation and
+    narrative synthesis: it checks a small set of narrative-feeding fields
+    that read as empty against the actual data room, and reclassifies a
+    false "nothing here" into "present but not extracted" before the
+    narrative LLM ever sees it — so both VDR branches get the fix for free.
 
     Catalog-agnostic on purpose: the CIM preview passes ``uc13_preview``, and
     the full-room flow also passes ``uc13_preview`` (both VDR modes share one
@@ -37,6 +44,7 @@ def build_rainmaker_summary(
     "pdf": path?, "synthesis_status": str}``. ``pdf`` is present only when a
     PDF engine succeeded (``render_rainmaker``'s own contract).
     """
+    from agents.exec_summary.absence_check import verify_bundle_claims
     from agents.exec_summary.bundle_builder import BundleBuilder
     from agents.exec_summary.rainmaker_narrative import synthesize_rainmaker_narrative
     from agents.exec_summary.renderers import render_rainmaker
@@ -45,9 +53,11 @@ def build_rainmaker_summary(
     bundle = BundleBuilder().build(company_name, catalog, spark, llm_endpoint)
     validate_bundle(bundle)
 
-    narrative = synthesize_rainmaker_narrative(bundle, llm_endpoint, spark)
+    checked_bundle = verify_bundle_claims(bundle, spark, catalog, company_name)
+
+    narrative = synthesize_rainmaker_narrative(checked_bundle, llm_endpoint, spark)
     print(f"  Rainmaker narrative synthesis: {narrative.get('synthesis_status')}")
 
-    rendered = render_rainmaker(bundle, catalog, company_name, narrative=narrative)
+    rendered = render_rainmaker(checked_bundle, catalog, company_name, narrative=narrative)
 
     return {**rendered, "synthesis_status": narrative.get("synthesis_status")}

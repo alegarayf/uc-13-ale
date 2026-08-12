@@ -386,3 +386,137 @@ def test_financial_table_populates_dollar_figures_on_diverse_overlay():
     assert metrics["EBITDA"] == ["$0.4", "$1.3", "$2.9"]
     assert view["cagr_circles"]  # both Revenue and EBITDA CAGR computable
     assert view["snapshot"]["has_data"] is True
+
+
+# ---------------------------------------------------------------------------
+# Part B, B4 — a stated % must never contradict the $ figures shown right
+# next to it. Regression case built from the real Elder Care render (see
+# docs/plans/connect-all-vdr-er.md Part B, B4): the rendered PDF said "36.6%
+# Gross Margin" next to $3,208/$35,136 (= 9.1%) and "19.9% EBITDA Margin"
+# next to $9,239/$35,136 (= 26.3%) — extracted independently, on different
+# bases, and never cross-checked.
+# ---------------------------------------------------------------------------
+
+
+def test_margin_reconciliation_overrides_a_contradicting_stated_percent():
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "TTM Aug-24",
+                    "revenue": "35136",
+                    "gross_profit": "3208",
+                    "gross_margin_pct": "36.6%",   # contradicts 3208/35136 = 9.1%
+                    "ebitda": "9239",
+                    "ebitda_margin_pct": "19.9%",  # contradicts 9239/35136 = 26.3%
+                },
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    metrics = {r["metric_name"]: r["cells"] for r in view["financials"]["rows"]}
+    assert metrics["Total Revenue"] == ["35136"]
+    assert metrics["Gross Profit"] == ["3208"]  # the $ figure is never touched
+    assert metrics["% Gross Margin"] == ["9.1%"]  # recomputed, not the stated 36.6%
+    assert metrics["EBITDA"] == ["9239"]
+    assert metrics["% EBITDA Margin"] == ["26.3%"]  # recomputed, not the stated 19.9%
+
+
+def test_margin_reconciliation_leaves_a_consistent_stated_percent_untouched():
+    """A % that already matches its own $ row is kept verbatim — this is a
+    consistency check, not a re-derivation of every cell."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "2024A",
+                    "revenue": "100",
+                    "gross_profit": "40",
+                    "gross_margin_pct": "40.0%",
+                    "ebitda": "20",
+                    "ebitda_margin_pct": "20%",
+                },
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    metrics = {r["metric_name"]: r["cells"] for r in view["financials"]["rows"]}
+    assert metrics["% Gross Margin"] == ["40.0%"]
+    assert metrics["% EBITDA Margin"] == ["20%"]
+
+
+def test_margin_reconciliation_fills_a_blank_percent_from_the_dollar_row():
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "2024A",
+                    "revenue": "200",
+                    "gross_profit": "80",
+                    "gross_margin_pct": "",
+                    "ebitda": "30",
+                    "ebitda_margin_pct": "",
+                },
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    metrics = {r["metric_name"]: r["cells"] for r in view["financials"]["rows"]}
+    assert metrics["% Gross Margin"] == ["40.0%"]
+    assert metrics["% EBITDA Margin"] == ["15.0%"]
+
+
+def test_margin_reconciliation_never_touches_a_percent_with_no_dollar_to_check_against():
+    """A blank/missing $ figure means there is nothing to verify against —
+    the agent's own stated % is left exactly as extracted, never dropped or
+    invented over (matches the existing no-fabrication contract)."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "2020A",
+                    "revenue": "",
+                    "gross_profit": "",
+                    "gross_margin_pct": "42.1%",
+                    "ebitda": "",
+                    "ebitda_margin_pct": "36.6%",
+                },
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    metrics = {r["metric_name"]: r["cells"] for r in view["financials"]["rows"]}
+    assert metrics["% Gross Margin"] == ["42.1%"]
+    assert metrics["% EBITDA Margin"] == ["36.6%"]
+
+
+def test_margin_reconciliation_flows_through_to_rule_of_x():
+    """The reconciled % must be what downstream Capa A projections (the
+    "Rule of N" tile) actually use — not the original contradicting stated
+    value — since they read the same `table` this function returns."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "2023A",
+                    "revenue": "28330",
+                    "gross_profit": "10820",
+                    "gross_margin_pct": "38.2%",
+                    "ebitda": "6677",
+                    "ebitda_margin_pct": "19.5%",
+                },
+                {
+                    "year": "TTM Aug-24",
+                    "revenue": "35136",
+                    "gross_profit": "3208",
+                    "gross_margin_pct": "36.6%",   # contradicts 3208/35136 = 9.1%
+                    "ebitda": "9239",
+                    "ebitda_margin_pct": "19.9%",  # contradicts 9239/35136 = 26.3%
+                },
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    assert view["rule_of_x"], "expected at least one Rule of N tile"
+    latest_tile = view["rule_of_x"][-1]
+    assert latest_tile["margin"] == "26.3%"  # the reconciled value, not the stated 19.9%

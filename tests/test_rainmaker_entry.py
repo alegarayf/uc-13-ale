@@ -28,9 +28,25 @@ from agents.exec_summary.rainmaker_entry import build_rainmaker_summary  # noqa:
 from agents.exec_summary.validate import BundleValidationError  # noqa: E402
 
 
+def _passthrough_verify_bundle_claims(monkeypatch, calls=None):
+    """Most of this file's tests care about the build->validate->narrative->
+    render chain, not the absence-check pass itself (that lives in
+    test_absence_check.py) — patch it to a transparent passthrough so those
+    tests aren't coupled to its internals or to a real (network) semantic
+    search call."""
+
+    def _verify(bundle, spark, catalog, company_name):
+        if calls is not None:
+            calls.append(("verify", bundle, spark, catalog, company_name))
+        return bundle
+
+    monkeypatch.setattr("agents.exec_summary.absence_check.verify_bundle_claims", _verify)
+
+
 def test_calls_in_order_and_forwards_narrative_to_render(monkeypatch):
     fake_bundle = {"meta": {"company_name": "Elder Care"}}
     calls = []
+    _passthrough_verify_bundle_claims(monkeypatch, calls)
 
     build_mock = MagicMock(return_value=fake_bundle)
     monkeypatch.setattr("agents.exec_summary.bundle_builder.BundleBuilder.build", build_mock)
@@ -59,12 +75,12 @@ def test_calls_in_order_and_forwards_narrative_to_render(monkeypatch):
     spark = MagicMock()
     result = build_rainmaker_summary("Elder Care", "uc13_preview", spark, "databricks-claude-sonnet-4-6")
 
-    # Call order: build -> validate -> synthesize -> render.
-    assert [c[0] for c in calls] == ["validate", "narrative", "render"]
+    # Call order: build -> validate -> verify_bundle_claims -> synthesize -> render.
+    assert [c[0] for c in calls] == ["validate", "verify", "narrative", "render"]
     build_mock.assert_called_once_with("Elder Care", "uc13_preview", spark, "databricks-claude-sonnet-4-6")
 
-    _, render_bundle, render_catalog, render_company, render_narrative = calls[2]
-    assert render_bundle is fake_bundle
+    _, render_bundle, render_catalog, render_company, render_narrative = calls[3]
+    assert render_bundle == fake_bundle
     assert render_catalog == "uc13_preview"
     assert render_company == "Elder Care"
     assert render_narrative == fake_narrative  # narrative forwarded to render_rainmaker
@@ -74,9 +90,50 @@ def test_calls_in_order_and_forwards_narrative_to_render(monkeypatch):
     assert result["synthesis_status"] == "success"
 
 
+def test_verify_bundle_claims_output_feeds_narrative_and_render(monkeypatch):
+    """The point of wiring in verify_bundle_claims (plan Part B, B2): its
+    output — not BundleBuilder's raw output — is what the narrative LLM and
+    the render layer actually see."""
+    raw_bundle = {"meta": {}, "revenue_quality": {"concentration": ""}}
+    checked_bundle = {"meta": {}, "revenue_quality": {"concentration": "[DATA ROOM MATERIAL NOT YET EXTRACTED] ..."}}
+
+    monkeypatch.setattr(
+        "agents.exec_summary.bundle_builder.BundleBuilder.build",
+        MagicMock(return_value=raw_bundle),
+    )
+    monkeypatch.setattr("agents.exec_summary.validate.validate_bundle", MagicMock())
+
+    verify_mock = MagicMock(return_value=checked_bundle)
+    monkeypatch.setattr("agents.exec_summary.absence_check.verify_bundle_claims", verify_mock)
+
+    seen = {}
+
+    def _synthesize(bundle, llm_endpoint, spark):
+        seen["narrative_bundle"] = bundle
+        return {"synthesis_status": "success"}
+
+    monkeypatch.setattr(
+        "agents.exec_summary.rainmaker_narrative.synthesize_rainmaker_narrative", _synthesize
+    )
+
+    def _render(bundle, catalog, company_name, narrative=None):
+        seen["render_bundle"] = bundle
+        return {"html": "/tmp/out.html"}
+
+    monkeypatch.setattr("agents.exec_summary.renderers.render_rainmaker", _render)
+
+    spark = MagicMock()
+    build_rainmaker_summary("Elder Care", "uc13_preview", spark, "databricks-claude-sonnet-4-6")
+
+    verify_mock.assert_called_once_with(raw_bundle, spark, "uc13_preview", "Elder Care")
+    assert seen["narrative_bundle"] == checked_bundle
+    assert seen["render_bundle"] == checked_bundle
+
+
 def test_catalog_passed_through_unchanged(monkeypatch):
     """Catalog-agnostic by construction — both VDR branches pass their own
     catalog straight through to every stage."""
+    _passthrough_verify_bundle_claims(monkeypatch)
     monkeypatch.setattr(
         "agents.exec_summary.bundle_builder.BundleBuilder.build",
         MagicMock(return_value={"meta": {}}),
@@ -106,6 +163,8 @@ def test_validate_bundle_failure_propagates(monkeypatch):
 
     monkeypatch.setattr("agents.exec_summary.validate.validate_bundle", _raise)
 
+    verify_mock = MagicMock(side_effect=AssertionError("must not verify after a validation failure"))
+    monkeypatch.setattr("agents.exec_summary.absence_check.verify_bundle_claims", verify_mock)
     narrative_mock = MagicMock(side_effect=AssertionError("must not synthesize after a validation failure"))
     monkeypatch.setattr(
         "agents.exec_summary.rainmaker_narrative.synthesize_rainmaker_narrative", narrative_mock
@@ -116,5 +175,6 @@ def test_validate_bundle_failure_propagates(monkeypatch):
     with pytest.raises(BundleValidationError, match="missing required field"):
         build_rainmaker_summary("Elder Care", "uc13_preview", MagicMock(), "databricks-claude-sonnet-4-6")
 
+    verify_mock.assert_not_called()
     narrative_mock.assert_not_called()
     render_mock.assert_not_called()

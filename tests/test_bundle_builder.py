@@ -765,7 +765,18 @@ def test_executive_llm_system_prompt_bucket_b_attribution_instruction() -> None:
     assert "do not silently pick one canonical number" in _EXECUTIVE_LLM_SYSTEM_PROMPT
 
 
-def test_executive_llm_system_prompt_omits_wage_inflation_theme() -> None:
-    """T4: key_watchouts prompt explicitly omits wage-inflation-vs-pricing (no data source)."""
-    assert "wage-inflation-vs-pricing" in _EXECUTIVE_LLM_SYSTEM_PROMPT
-    assert "omit this theme" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+def test_executive_llm_system_prompt_key_watchouts_is_company_agnostic() -> None:
+    """Part B, B3: the Stage 6 prompt's key_watchouts guidance used to hardcode
+    Elder Care's own vocabulary ("caregiver recruiting/retention", "referral
+    concentration") and a company-specific negative instruction ("do NOT
+    include wage-inflation-vs-pricing") straight into the prompt every company
+    runs through — so every rendered watchout leaned toward Elder Care's
+    business regardless of the actual deal. The instruction must instead be
+    generic: ground themes in the bundle's own sections and omit whatever
+    isn't supported, without naming any one company's themes."""
+    assert "caregiver" not in _EXECUTIVE_LLM_SYSTEM_PROMPT.lower()
+    assert "wage-inflation-vs-pricing" not in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "never invent" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    assert "omit a theme entirely rather than assuming it applies" in _EXECUTIVE_LLM_SYSTEM_PROMPT
+    # Each watchout must test the thesis, not just point at a missing document.
+    assert "a missing document is a data_room_gaps item, not a" in _EXECUTIVE_LLM_SYSTEM_PROMPT

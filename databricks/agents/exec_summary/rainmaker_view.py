@@ -299,7 +299,7 @@ def _enriched_risks(bundle: dict[str, Any]) -> list[dict[str, str]]:
     return rows
 
 
-_DILIGENCE_QUESTIONS_CAP = 5
+_DILIGENCE_QUESTIONS_CAP = 6  # matches the 6 thesis-testing archetypes in rainmaker_narrative.py (plan Part B, B3)
 
 
 def _deduped_diligence_questions(bundle: dict[str, Any]) -> list[dict[str, str]]:
@@ -345,6 +345,21 @@ _FINANCIAL_TABLE_ROW_SPECS: tuple[tuple[str, str | None, bool], ...] = (
     ("EBITDA", "ebitda", True),
     ("% EBITDA Margin", "ebitda_margin_pct", False),
 )
+
+# A $ row and its own % row, self-consistency-checked against the same
+# period's Total Revenue (plan Part B, B4). ``financial_trends_agent`` and
+# ``quality_of_earnings_agent`` extract the $ figure and the % figure as
+# independent LLM calls — sometimes against different bases (reported vs.
+# PF-adjusted) — so a stated % can silently contradict the $ shown right
+# next to it (confirmed on a real render: a stated "36.6% Gross Margin" next
+# to Gross Profit/Revenue figures that divide to 9.1%). Recomputing from the
+# two $ figures already in the same row guarantees the displayed % is at
+# least internally consistent with what the reader can verify by hand.
+_MARGIN_ROW_PAIRS: tuple[tuple[str, str], ...] = (
+    ("Gross Profit", "% Gross Margin"),
+    ("EBITDA", "% EBITDA Margin"),
+)
+_MARGIN_RECONCILE_TOLERANCE_PTS = 1.0
 
 
 def _parse_money(value: Any) -> float | None:
@@ -436,7 +451,67 @@ def _financial_table(bundle: dict[str, Any]) -> dict[str, Any]:
         # row.values %}` in the template.
         rows.append({"metric_name": label, "cells": values, "is_highlighted": highlighted})
 
+    _reconcile_margin_rows(rows, revenue_values, periods)
+
     return {"periods": periods, "rows": rows, "currency": "$", "unit": ""}
+
+
+def _reconcile_margin_rows(
+    rows: list[dict[str, Any]], revenue_values: list[float | None], periods: list[str]
+) -> None:
+    """Mutate ``rows`` in place so every % row is self-consistent with its own
+    $ row and Total Revenue for that period (plan Part B, B4).
+
+    ``financial_trends_agent``/``quality_of_earnings_agent`` extract a $
+    figure and its % in independent LLM calls, sometimes against different
+    bases — so a stated % can contradict the $ shown right next to it. This
+    never touches the $ cells (those are the agent's own extracted figures,
+    left untouched); it only ever overwrites a % cell, and only when the $
+    figures needed to check it are both present. A blank stays blank; a
+    genuinely unverifiable % (missing $ inputs) is left as the agent stated
+    it — this is a consistency check, not a re-extraction.
+    """
+    by_metric = {row["metric_name"]: row for row in rows}
+    for dollar_label, pct_label in _MARGIN_ROW_PAIRS:
+        dollar_row = by_metric.get(dollar_label)
+        pct_row = by_metric.get(pct_label)
+        if dollar_row is None or pct_row is None:
+            continue
+
+        new_cells: list[str | None] = []
+        for i, stated_cell in enumerate(pct_row["cells"]):
+            revenue = revenue_values[i] if i < len(revenue_values) else None
+            dollar_value = _parse_money(dollar_row["cells"][i]) if i < len(dollar_row["cells"]) else None
+
+            if revenue in (None, 0) or dollar_value is None:
+                # Nothing to check against — leave the agent's own figure
+                # (or blank) exactly as extracted.
+                new_cells.append(stated_cell)
+                continue
+
+            recomputed = dollar_value / revenue * 100
+            stated_pct = _parse_percent(stated_cell)
+
+            if stated_pct is not None and abs(recomputed - stated_pct) <= _MARGIN_RECONCILE_TOLERANCE_PTS:
+                new_cells.append(stated_cell)  # already consistent — keep the agent's own text
+                continue
+
+            period = periods[i] if i < len(periods) else f"period #{i}"
+            if stated_pct is None:
+                print(
+                    f"[rainmaker_view] {pct_label} ({period}): blank — filled from "
+                    f"{dollar_label}/Total Revenue = {recomputed:.1f}%"
+                )
+            else:
+                print(
+                    f"[rainmaker_view] {pct_label} ({period}): stated {stated_pct:.1f}% does not "
+                    f"reconcile with {dollar_label}/Total Revenue = {recomputed:.1f}% "
+                    f"(diff {abs(recomputed - stated_pct):.1f}pts > {_MARGIN_RECONCILE_TOLERANCE_PTS}pt "
+                    "tolerance) — using the recomputed value so the % never contradicts the $ shown."
+                )
+            new_cells.append(f"{recomputed:.1f}%")
+
+        pct_row["cells"] = new_cells
 
 
 def _rows_by_metric(table: dict[str, Any]) -> dict[str, list[Any]]:
