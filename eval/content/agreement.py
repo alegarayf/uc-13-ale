@@ -243,13 +243,17 @@ def evaluate_thresholds(
         rvf = figures.get("resolved_value_fraction", 0.0)
         rsf = figures.get("resolved_span_fraction", 0.0)
         if rvf <= 0:
-            reasons.append("value resolved population empty (HALT-11 floor)")
+            reasons.append(
+                "value resolved population empty (HALT-29 / §8.7 non-empty floor)"
+            )
         elif figures.get("value_agreement", 0.0) < value_threshold:
             reasons.append(
                 f"value_agreement {figures.get('value_agreement'):.4f} < {value_threshold}"
             )
         if rsf <= 0:
-            reasons.append("span resolved population empty (HALT-11 floor)")
+            reasons.append(
+                "span resolved population empty (HALT-29 / §8.7 non-empty floor)"
+            )
         elif figures.get("span_agreement", 0.0) < span_threshold:
             reasons.append(
                 f"span_agreement {figures.get('span_agreement'):.4f} < {span_threshold}"

@@ -228,6 +228,38 @@ def test_evaluate_thresholds_non_numeric_pass_and_fail() -> None:
     assert any("verdict_agreement" in r for r in reasons)
 
 
+def test_evaluate_thresholds_numeric_value_pass_and_fail() -> None:
+    """C5 pins value_threshold at 0.90 — bracket with literals, not imported defaults."""
+    figures = {
+        "resolved_value_fraction": 1.0,
+        "resolved_span_fraction": 1.0,
+        "value_agreement": 0.95,
+        "span_agreement": 1.0,
+    }
+    passed, _ = evaluate_thresholds("fta_numeric", figures)
+    assert passed
+    figures_fail = dict(figures, value_agreement=0.85)
+    failed, reasons = evaluate_thresholds("fta_numeric", figures_fail)
+    assert not failed
+    assert any("value_agreement" in r for r in reasons)
+
+
+def test_evaluate_thresholds_numeric_span_pass_and_fail() -> None:
+    """C5 pins span_threshold at 0.80 — bracket with literals, not imported defaults."""
+    figures = {
+        "resolved_value_fraction": 1.0,
+        "resolved_span_fraction": 1.0,
+        "value_agreement": 1.0,
+        "span_agreement": 0.85,
+    }
+    passed, _ = evaluate_thresholds("fta_numeric", figures)
+    assert passed
+    figures_fail = dict(figures, span_agreement=0.75)
+    failed, reasons = evaluate_thresholds("fta_numeric", figures_fail)
+    assert not failed
+    assert any("span_agreement" in r for r in reasons)
+
+
 def test_locator_labelled_fraction() -> None:
     sample = {
         "claims": [

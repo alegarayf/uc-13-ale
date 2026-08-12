@@ -8,7 +8,7 @@
 | **rung** | `human` (both surfaces per CHK-26a `rung_assignments`) |
 | **spec ref** | eval-consolidation-program §17 item 26 · §12.1 rung 3 · §8.8 logical field set |
 | **DG-19 record** | CHK-26a rationale (T5): item-23 no-go + item-26a threshold failure ⇒ rubric generalized to `fta_numeric` full claim set |
-| **claim manifests** | `eval/content/exec_summary_rubric_claims.json` · `eval/content/fta_numeric_rubric_claims.json` (regenerate via `python eval/content/extract_rubric_manifests.py`) |
+| **claim manifests** | `eval/content/exec_summary_rubric_claims.json` (operator-local: regenerate via `python .dev/plans/eval-consolidation-m2-s2-preplan-assessments/t6_generate_rubric.py`, requires gitignored `.dev/` calibration sample) · `eval/content/fta_numeric_rubric_claims.json` (regenerate via `python eval/content/extract_rubric_manifests.py`) |
 | **enumeration source fixture** | `eval/content/fixtures/exec_summary_enumeration_source.md` (pinned `created_at=2026-07-28T22:47:46.289Z`) |
 
 This rubric is the rung-3 human spot-check protocol M3 executes. A completed spot-check is a **whole-surface** run (HALT-15): every claim in the enumeration below receives a human verdict before the run closes.

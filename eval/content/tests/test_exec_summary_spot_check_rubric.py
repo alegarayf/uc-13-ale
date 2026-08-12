@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parents[3]
@@ -71,6 +72,11 @@ def test_manifest_and_rubric_exec_claim_tables_match() -> None:
 
 
 def test_calibration_sample_ids_001_028_match_rubric_verbatim() -> None:
+    if not SAMPLE.exists():
+        pytest.skip(
+            f"{SAMPLE} is operator-local (gitignored .dev/ per Option C) — "
+            "calibration sample cross-check requires a populated working tree"
+        )
     sample = yaml.safe_load(SAMPLE.read_text(encoding="utf-8"))
     rubric_rows = _parse_rubric_exec_rows()
     for row in sample["claims"]:

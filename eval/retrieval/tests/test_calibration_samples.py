@@ -434,7 +434,11 @@ def _minimal_numeric_sample(*, claim_id: str = "mut.claim.001") -> dict[str, Any
 
 @pytest.fixture(scope="module")
 def registry_doc() -> dict[str, Any]:
-    assert REGISTRY_PATH.exists(), "registry.yaml missing — T1 entry gate has not run"
+    if not REGISTRY_PATH.exists():
+        pytest.skip(
+            f"{REGISTRY_PATH} is operator-local (gitignored .dev/ per Option C) — "
+            "registry-backed presence half requires a populated working tree"
+        )
     return _load_yaml(REGISTRY_PATH)
 
 
