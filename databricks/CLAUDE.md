@@ -35,13 +35,13 @@ databricks/
       run_diligence_pipeline.py   # Phase 3-5 runner: delegates to PipelineOrchestrator DAG
       run_full_pipeline.py        # Phase 1-5 end-to-end runner: calls run_ingestion_pipeline() then run_pipeline()
       run_vdr_pipeline.py         # VDR wrapper: reads companies_vdr_history row → run_full_pipeline() → copies docx to VDR volume → updates record
-      # --- CIM-first Rainmaker preview (separate flow, uc13_preview) ---
+      # --- Unified VDR flow: CIM-scoped preview OR full-room, uc13_preview ---
       cim_detection.py            # detect_cim(): name/path match + Teaser/IOI/NDA exclusion on the FILE's own name
-      run_vdr_rainmaker.py        # CIM preview runner: scoped ingestion → 7 agents → bundle → Rainmaker PDF
+      run_vdr_rainmaker.py        # Unified runner: CIM found → scoped ingestion → 7 agents → Rainmaker ER; no CIM → full Phase 1-5 → same Rainmaker ER + full_report.docx
     notebooks/
       test_pipeline.ipynb           # End-to-end test notebook — adapt when scripts change
-      run_vdr_job.py                # notebook_task entry for the full VDR pipeline → run_vdr_pipeline()
-      run_vdr_rainmaker_job.py      # notebook_task entry for the CIM preview → run_vdr_rainmaker()
+      run_vdr_job.py                # notebook_task entry for the full VDR pipeline → run_vdr_pipeline() — NOT wired to the live job (see below)
+      run_vdr_rainmaker_job.py      # notebook_task entry for the unified VDR flow → run_vdr_rainmaker() — this IS what the live job runs
       00_setup_vector_search.ipynb  # One-time VS endpoint + index setup
       01_document_classifier.ipynb  # Phase 2a: classify + tag documents
       02_ingestion_parser.ipynb     # Phase 2b: parse → chunks + embeddings
@@ -70,6 +70,7 @@ databricks/
     exec_summary/                   # (Ale) Bundle/report layer: BundleBuilder, tldr_compress, Rev3 one-pager; build_exec_summary() is the VDR bridge
       rainmaker_view.py             # Pure/deterministic bundle→template projection (financials, stat tiles, severity). No LLM.
       rainmaker_narrative.py        # LLM narrative layer for the Rainmaker one-pager
+      rainmaker_entry.py            # build_rainmaker_summary(): bundle → narrative → render, shared by BOTH the CIM and full-room VDR branches
       renderers.py                  # render_rainmaker(): HTML→PDF (WeasyPrint primary, PyMuPDF Story fallback)
       templates/rainmaker_opportunity_summary.html.j2   # The Rainmaker visual one-pager template
     subagents/
@@ -194,7 +195,7 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 | `run_ingestion_pipeline.py` | 1-2 | New data room files added; re-run classification or parsing |
 | `run_diligence_pipeline.py` | 3-5 | Embeddings already populated; re-running or debugging diligence agents |
 | `run_full_pipeline.py` | 1-5 | New company (first-time run) or full refresh |
-| `run_vdr_rainmaker.py` | CIM-scoped 1-4 | Cheap CIM-only preview one-pager in `uc13_preview`. Skips Phase 5 (`run_orchestrator=False`) — one-pager only, no memo. Does not touch `uc13`. |
+| `run_vdr_rainmaker.py` | CIM-scoped 1-4, OR full 1-5 | **Unified VDR runner.** CIM found → scoped ingestion + 7 agents (Ruta 2, `run_orchestrator=False`) → Rainmaker executive review. No CIM found → full Phase 1-5 pipeline → the SAME Rainmaker executive review + `full_report.docx`. Both branches write to `uc13_preview`, never `uc13`. `no_cim_mode="noop"` restores the old message-only no-CIM behavior. |
 
 ### Databricks jobs
 
@@ -203,8 +204,8 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 | `uc13_ingestion_pipeline.yml` | 1 per script (multi-task, existing) | Individual Phase 1-2 scripts |
 | `uc13_diligence_pipeline.yml` | 1 task (single-task) | `run_diligence_pipeline.py` |
 | `uc13_full_pipeline.yml` | 2 tasks: `ingestion_pipeline` → `diligence_pipeline` | `run_ingestion_pipeline.py` then `run_diligence_pipeline.py` |
-| `vdr_pipeline.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_job` → `run_vdr_pipeline.py` |
-| `vdr_rainmaker_poc.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_rainmaker_job` → `run_vdr_rainmaker.py` (CIM preview, `uc13_preview`) |
+| `vdr_pipeline.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_job` → `run_vdr_pipeline.py` — **documents `run_vdr_job`'s shape only; the live job of this name does not run it, see below** |
+| `vdr_rainmaker_poc.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_rainmaker_job` → `run_vdr_rainmaker.py` (unified CIM/full-room flow, `uc13_preview`) — **this is what the live job runs** |
 
 `uc13_full_pipeline.yml` uses **two tasks** (not one) so each phase has independent visibility, timeouts, and retries in the Databricks job UI. If ingestion fails, the diligence task is automatically blocked.
 
@@ -212,12 +213,12 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 
 The **VDR Diligence Pipeline** job (`617196299594076` in the Rallyday workspace) is how the Project Lighthouse UI runs diligence. Key facts:
 
-> ⚠️ **Verified 2026-08-10: that job's task currently points at `jobs/notebooks/run_vdr_rainmaker_job`, not `run_vdr_job`.** So triggering it today produces a CIM Rainmaker one-pager in `uc13_preview` and writes to **no** `uc13` table. `run_vdr_job` still exists in the folder but nothing is wired to it. The job name is stale — **always check a job's notebook path before assuming what it runs.** The rest of this section describes `run_vdr_pipeline.py` (the real diligence path) as designed.
+> **As of the unified-flow work (docs/plans/connect-all-vdr-er.md): the job's task points at `jobs/notebooks/run_vdr_rainmaker_job`, which now genuinely covers both cases.** Triggering it produces, for a CIM-bearing data room, a CIM-scoped Rainmaker executive review in `uc13_preview`; for a data room with no CIM, the full Phase 1-5 pipeline over `uc13_preview` plus the same Rainmaker executive review and `full_report.docx`. Neither branch writes to `uc13` — that catalog stays frozen until a deliberate promotion step. `run_vdr_job` (→ `run_vdr_pipeline.py`, hardcoded to `uc13`) still exists in the folder but nothing is wired to it. The job name ("VDR Diligence Pipeline") no longer describes a mismatch, but it also doesn't name the Rainmaker format — **always check a job's notebook path before assuming what it runs, rather than trusting the name.**
 >
 > ⚠️ **One Git folder feeds both VDR jobs.** `databricks repos update <id> --branch <b>` changes the code *both* jobs run on their next trigger, and it can swap code mid-run (serverless notebook tasks resolve workspace files as cells execute). Branch `prod-known-good-fc47a29` is pinned at the last commit before the M0–M4 merge if a rollback is needed.
 
 - **Task = `notebook_task`** pointing at a notebook entry with **NO job/task parameters**. The UI triggers `run-now` passing **notebook params `table_name` + `record_id`** (note: `record_id`, not `id`), which arrive as widgets. Declaring fixed task parameters blocks the UI trigger — do not add them.
-- The notebook reads the widgets and calls `run_vdr_pipeline(table_name, record_id)`, which reads a `rallyday_partners_llc.default.companies_vdr_history` row, runs `run_full_pipeline()` (Phase 1-5, catalog **hardcoded `uc13`**), copies `full_report.docx` (the orchestrator memo) + `executive_summary.docx` (the `agents/exec_summary` Rev3 one-pager bridge) to `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`, and flips the record `processing → done`/`error`.
+- The notebook (`run_vdr_rainmaker_job`) reads the widgets and calls `run_vdr_rainmaker(table_name, record_id, special_folder, no_cim_mode)`, which reads a `rallyday_partners_llc.default.companies_vdr_history` row, detects a CIM, and either (a) runs the CIM-scoped Ruta 2 flow, or (b) runs `run_full_pipeline()` (Phase 1-5, catalog **`uc13_preview`**, not `uc13`) followed by the same Rainmaker render. Copies `executive_summary.pdf` + `rainmaker_opportunity_summary.html` (both branches) and `full_report.docx` (full-room branch only) to `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`, and flips the record `processing → done`/`error`. `run_vdr_pipeline.py` (catalog hardcoded `uc13`, copies `full_report.docx` + `executive_summary.docx`) is the legacy standalone entry this job does **not** call — see `run_vdr_job` above.
 - **Code source = a Databricks Git folder** (`Rallyday`, under a user's `/Workspace/Users/…`) checked out to the working branch — NOT the job's `git_source` block (dead config). To ship code to the job: push, then `databricks repos update <id> --branch <b>`.
 - **Vision is ON by default in this path** (Haiku), overridable via the `vision_endpoint` widget (`""` disables). SharePoint folder is resolved from the `sp_folder_path` secret + `company_name` (`{folder}/Example Data Room/{company_name}`); the record's `source_data_location` is display-only and NOT used.
 
@@ -352,7 +353,7 @@ Three Unity Catalog names appear across the pipeline; they are **not** interchan
 |---|---|
 | **`uc13`** | Production catalog — all `main()` entry points in `databricks/jobs/scripts/` and `databricks/agents/workstreams/` must default to this via `get_param("catalog", default="uc13")`. |
 | **`uc13_ale`** | Eval / harness / PHV-validation catalog — used by `test_pipeline.ipynb` Cell 1 (`dbutils.widgets.text("catalog", "uc13_ale")`), workflow YAML parameter defaults, and eval/QA instrumentation. |
-| **`uc13_preview`** | CIM-first Rainmaker preview sandbox — `run_vdr_rainmaker.PREVIEW_CATALOG`, a single hardcoded constant. Isolated on purpose so a CIM-scoped ingestion never overwrites a company's full-room data. Disposable. |
+| **`uc13_preview`** | **Working catalog for both VDR modes** (CIM-scoped preview AND full-room Phase 1-5) — `run_vdr_rainmaker.VDR_CATALOG`, a single hardcoded constant (renamed from `PREVIEW_CATALOG` — it is no longer preview-only). Isolated from production `uc13` on purpose; already prepared for the M0-M4 schema (`doc_id`, `doc_status`, `sync_state` all present) while `uc13` is not (see below). No longer "disposable" once a full data room lands in it via the no-CIM branch — that is accepted; `uc13` stays frozen until a deliberate promotion (see `docs/plans/connect-all-vdr-er.md` Appendix A). |
 
 **Watch the defaults when running the M0-M4 tooling by hand** — several scripts point somewhere other than where you probably mean: `manifest_dry_run.py` defaults to `uc13`, while `measure_join_orphan_rate.py` and `measure_attestation.py` default to `uc13_ale`. Pass `catalog=` explicitly.
 

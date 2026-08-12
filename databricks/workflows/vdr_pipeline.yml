@@ -13,6 +13,13 @@
 # The VDR UI submits records with processing_status='submitted'.  This job
 # transitions the record through 'processing' → 'done' (or 'error').
 #
+# STALE AS OF 2026-08 (see docs/plans/connect-all-vdr-er.md): the live job of
+# this name (617196299594076) currently points its task at
+# jobs/notebooks/run_vdr_rainmaker_job (the unified CIM/full-room runner —
+# see its own workflow YAML), NOT at jobs/notebooks/run_vdr_job described
+# below. This YAML documents run_vdr_job's shape but is not what is deployed
+# — check `databricks jobs get 617196299594076` before assuming what runs.
+#
 # Trigger (VDR UI or manual): pass run parameters as notebook params — they
 # arrive as the notebook widgets table_name / id. Example manual run:
 #   databricks jobs run-now <job_id> \

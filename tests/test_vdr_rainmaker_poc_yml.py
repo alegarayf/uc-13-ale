@@ -65,3 +65,11 @@ def test_no_git_source_block():
     """Code is served from the Databricks Git folder via WORKSPACE notebook
     path, not job-level git_source (dead config per vdr_pipeline.yml)."""
     assert "git_source" not in _JOB
+
+
+def test_timeout_covers_a_full_room_run():
+    """The unified runner's no-CIM branch runs the full Phase 1-5 pipeline,
+    which can take hours (docs/plans/connect-all-vdr-er.md §2) — the old
+    CIM-only-preview timeout (14400s) is no longer enough. Mirror the legacy
+    full-pipeline job's timeout (32400s)."""
+    assert _JOB["tasks"][0]["timeout_seconds"] >= 32400
