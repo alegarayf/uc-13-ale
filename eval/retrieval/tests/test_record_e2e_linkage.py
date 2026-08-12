@@ -331,3 +331,122 @@ def test_backfill_e2e_linkage_sql_is_idempotent_by_run_and_agent():
     assert "NOT EXISTS" in sql
     assert "e.run_id = r.run_id" in sql
     assert "e.e2e_agent_id = r.e2e_agent_id" in sql
+
+
+def test_apply_e2e_linkage_delta_forward_insert_idempotent_on_reinvoke(monkeypatch):
+    """Re-invocation for the same run_id must not duplicate ops.e2e_linkage rows (audit F-8)."""
+    calls: list[tuple[str, dict | None]] = []
+
+    class _Row:
+        def __init__(self, data: dict) -> None:
+            self._data = data
+
+        def asDict(self, recursive: bool = False) -> dict:
+            return dict(self._data)
+
+    class _FakeSpark:
+        def sql(self, statement: str, args: dict | None = None) -> "_FakeSpark":
+            calls.append((statement, args))
+            return self
+
+        def collect(self) -> list[_Row]:
+            return [
+                _Row(
+                    {
+                        "run_id": "pipeline_bma_001",
+                        "run_type": "pipeline",
+                        "pipeline_thread_id": "thread-abc",
+                        "company_name": "Elder Care",
+                        "catalog": "uc13_ale",
+                        "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+                        "registry_hash": "a" * 64,
+                        "gold_snapshot": "b" * 64,
+                        "affected_intents": ["bma.market_position"],
+                        "gated_intents": [],
+                        "store_backend": "delta",
+                        "harness_status": "complete",
+                        "intent_count": 1,
+                        "e2e_agent_id": "bma",
+                        "e2e_snapshot_table": "uc13_ale.analysis.business_model",
+                        "e2e_checklist_score": 7,
+                        "e2e_checklist_total": 7,
+                        "created_at": datetime(2026, 8, 11, 12, 0, tzinfo=timezone.utc),
+                        "completed_at": datetime(2026, 8, 11, 12, 5, tzinfo=timezone.utc),
+                    }
+                )
+            ]
+
+    manifest_row = {
+        "run_id": "pipeline_bma_001",
+        "run_type": "pipeline",
+        "pipeline_thread_id": "thread-abc",
+        "company_name": "Elder Care",
+        "catalog": "uc13_ale",
+        "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+        "registry_hash": "a" * 64,
+        "gold_snapshot": "b" * 64,
+        "affected_intents": ["bma.market_position"],
+        "gated_intents": [],
+        "store_backend": "delta",
+        "harness_status": "complete",
+        "intent_count": 1,
+        "e2e_agent_id": "bma",
+        "e2e_snapshot_table": "uc13_ale.analysis.business_model",
+        "e2e_checklist_score": 7,
+        "e2e_checklist_total": 7,
+        "created_at": datetime(2026, 8, 11, 12, 0, tzinfo=timezone.utc),
+        "completed_at": datetime(2026, 8, 11, 12, 5, tzinfo=timezone.utc),
+    }
+
+    fake_store = object.__new__(linkage_module.DeltaEvalStore)
+    fake_store.spark = _FakeSpark()
+    fake_store.catalog = "uc13_ale"
+    monkeypatch.setattr(fake_store, "get_run", lambda _run_id: None)
+    monkeypatch.setattr(
+        fake_store,
+        "_fetch_manifest_row",
+        lambda _run_id: dict(manifest_row),
+    )
+    monkeypatch.setattr(fake_store, "_table", lambda name: f"uc13_ale.ops.{name}")
+    monkeypatch.setattr(
+        linkage_module.DeltaEvalStore,
+        "_manifest_from_row",
+        lambda _self, row: HarnessRun(
+            run_id=row["run_id"],
+            run_type=row["run_type"],
+            pipeline_thread_id=row.get("pipeline_thread_id"),
+            company_name=row["company_name"],
+            catalog=row["catalog"],
+            ingestion_snapshot=row["ingestion_snapshot"],
+            registry_hash=row["registry_hash"],
+            gold_snapshot=row["gold_snapshot"],
+            affected_intents=list(row["affected_intents"]),
+            gated_intents=list(row.get("gated_intents") or []),
+            store_backend=row["store_backend"],
+            harness_status=row["harness_status"],
+            intent_count=int(row["intent_count"]),
+            e2e_agent_id=row.get("e2e_agent_id"),
+            e2e_snapshot_table=row.get("e2e_snapshot_table"),
+            e2e_checklist_score=row.get("e2e_checklist_score"),
+            e2e_checklist_total=row.get("e2e_checklist_total"),
+            created_at=row["created_at"],
+            completed_at=row.get("completed_at"),
+        ),
+    )
+
+    linkage_kwargs = {
+        "e2e_agent_id": "bma",
+        "e2e_checklist_score": 7,
+        "e2e_checklist_total": 7,
+        "e2e_snapshot_table": "uc13_ale.analysis.business_model",
+    }
+    linkage_module._apply_e2e_linkage(fake_store, "pipeline_bma_001", **linkage_kwargs)
+    linkage_module._apply_e2e_linkage(fake_store, "pipeline_bma_001", **linkage_kwargs)
+
+    assert len(calls) == 4
+    insert_sqls = [sql for sql, _ in calls if "INSERT INTO uc13_ale.ops.e2e_linkage" in sql]
+    assert len(insert_sqls) == 2
+    for insert_sql in insert_sqls:
+        assert "NOT EXISTS" in insert_sql
+        assert "e.run_id = :run_id" in insert_sql
+        assert "e.e2e_agent_id = :e2e_agent_id" in insert_sql

@@ -854,7 +854,7 @@ FROM uc13_ale.ops.retrieval_harness_runs
 WHERE run_id = '<pipeline_agent_run_id>';
 ```
 
-**Append-only history (`uc13_ale.ops.e2e_linkage`).** Delta writes dual-record linkage: the manifest columns above stay on `retrieval_harness_runs` (G3 evidence reads them), and each linkage also appends a row to `ops.e2e_linkage` with the same score fields plus `linked_at`. Query the golden five (BMA, CQA, KPI, QoE, Profiler) via the history table:
+**Append-only history (`uc13_ale.ops.e2e_linkage`).** Delta writes dual-record linkage: the manifest columns above stay on `retrieval_harness_runs` (G3 evidence reads them), and each first-time linkage appends a row to `ops.e2e_linkage` with the same score fields plus `linked_at` (idempotent per `run_id` + `e2e_agent_id` — re-invocation updates the manifest only). Query the golden five (BMA, CQA, KPI, QoE, Profiler) via the history table:
 
 ```sql
 SELECT e2e_agent_id, COUNT(*) AS linked_runs

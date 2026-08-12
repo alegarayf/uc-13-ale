@@ -115,9 +115,10 @@ def _apply_e2e_linkage(
                 "e2e_checklist_total": e2e_checklist_total,
             },
         )
+        linkage = _e2e_linkage_table(store.catalog)
         store.spark.sql(
             f"""
-            INSERT INTO {_e2e_linkage_table(store.catalog)} (
+            INSERT INTO {linkage} (
                 run_id,
                 e2e_agent_id,
                 e2e_snapshot_table,
@@ -125,13 +126,18 @@ def _apply_e2e_linkage(
                 e2e_checklist_total,
                 linked_at
             )
-            VALUES (
+            SELECT
                 :run_id,
                 :e2e_agent_id,
                 :e2e_snapshot_table,
                 :e2e_checklist_score,
                 :e2e_checklist_total,
                 current_timestamp()
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM {linkage} e
+                WHERE e.run_id = :run_id
+                  AND e.e2e_agent_id = :e2e_agent_id
             )
             """,
             args={
