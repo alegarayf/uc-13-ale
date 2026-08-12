@@ -15,7 +15,7 @@ import mlflow.deployments
 import yaml
 from dotenv import load_dotenv
 
-from eval.content.agreement import compute_metrics, evaluate_thresholds
+from eval.content.agreement import compute_metrics, evaluate_thresholds, normalize_unit_magnitude
 
 NUMERIC_SURFACES = frozenset({"fta_numeric"})
 NON_NUMERIC_SURFACES = frozenset({"exec_summary", "legal_register"})
@@ -260,11 +260,19 @@ def call_llm_with_retry(
     raise RuntimeError(f"LLM call failed after {retries} retries") from last_err
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
 def apply_three_branch_locator(
     chunk_meta: dict[str, Any] | None,
     locator: dict[str, Any] | None,
 ) -> dict[str, Any] | None:
-    """Normalize judge locator per HALT-33/34 when chunk metadata is known."""
+    """Operator C3 / HALT-33/34 authoring rule for expected_span.locator labels.
+
+    Used when authoring calibration samples (operator-side). Has no judge-side role:
+    judge locators are compared as emitted per plan §2 A-C4.
+    """
     if chunk_meta is None:
         return locator
     section = chunk_meta.get("section_header")
@@ -274,6 +282,47 @@ def apply_three_branch_locator(
     if page is not None:
         return {"kind": "page", "value": page}
     return None
+
+
+def _extracted_value_parseable(value: Any) -> bool:
+    if value is None:
+        return True
+    if not isinstance(value, dict):
+        return False
+    if isinstance(value.get("magnitude"), float):
+        return False
+    return normalize_unit_magnitude(value.get("magnitude"), value.get("unit")) is not None
+
+
+def parse_verdict_response(raw: str) -> dict[str, Any]:
+    """Parse non-numeric judge JSON; fail-closed per A-EE."""
+    try:
+        parsed = _parse_json_response(raw)
+    except json.JSONDecodeError:
+        return {"verdict": None, "parse_failure": True}
+    verdict = parsed.get("verdict")
+    if verdict not in CLAIM_VERDICTS:
+        return {"verdict": None, "parse_failure": True}
+    return {"verdict": verdict, "parse_failure": False}
+
+
+def parse_numeric_judge_response(raw: str) -> dict[str, Any]:
+    """Parse numeric judge JSON; fail-closed on malformed or unparseable extraction."""
+    try:
+        parsed = _parse_json_response(raw)
+    except json.JSONDecodeError:
+        return {"extracted_value": None, "cited_span": None, "parse_failure": True}
+    extracted = parsed.get("extracted_value")
+    if extracted is not None and not _extracted_value_parseable(extracted):
+        return {"extracted_value": None, "cited_span": None, "parse_failure": True}
+    cited = parsed.get("cited_span")
+    if cited is not None and not isinstance(cited, dict):
+        return {"extracted_value": None, "cited_span": None, "parse_failure": True}
+    return {
+        "extracted_value": extracted,
+        "cited_span": cited,
+        "parse_failure": False,
+    }
 
 
 def judge_claim(
@@ -294,17 +343,8 @@ def judge_claim(
                 evidence_json=json.dumps(evidence, indent=2),
             ),
         )
-        parsed = _parse_json_response(raw)
-        cited = parsed.get("cited_span")
-        if isinstance(cited, dict) and cited.get("chunk_id"):
-            meta = chunk_meta_by_id.get(cited["chunk_id"])
-            cited = dict(cited)
-            cited["locator"] = apply_three_branch_locator(meta, cited.get("locator"))
-        return {
-            "extracted_value": parsed.get("extracted_value"),
-            "cited_span": cited,
-            "raw_response": raw,
-        }
+        parsed = parse_numeric_judge_response(raw)
+        return {**parsed, "raw_response": raw}
 
     raw = call_llm_with_retry(
         endpoint=endpoint,
@@ -314,11 +354,8 @@ def judge_claim(
             evidence_json=json.dumps(evidence, indent=2),
         ),
     )
-    parsed = _parse_json_response(raw)
-    verdict = parsed.get("verdict")
-    if verdict not in CLAIM_VERDICTS:
-        verdict = "unsupported"
-    return {"verdict": verdict, "raw_response": raw}
+    parsed = parse_verdict_response(raw)
+    return {**parsed, "raw_response": raw}
 
 
 def run_calibration(
@@ -329,7 +366,7 @@ def run_calibration(
     catalog: str,
     endpoint: str,
 ) -> dict[str, Any]:
-    load_dotenv(Path.cwd() / ".env")
+    load_dotenv(_repo_root() / ".env")
     sample = load_sample(sample_path)
     if sample.get("surface") != surface:
         raise ValueError(
@@ -355,12 +392,14 @@ def run_calibration(
 
     judge_outputs: list[dict[str, Any]] = []
     per_claim: list[dict[str, Any]] = []
+    parse_failures = 0
     for idx, claim in enumerate(sample.get("claims") or [], start=1):
         query = claim.get("claim_text", "")
         print(f"[{surface}] claim {idx}/{len(sample.get('claims') or [])} {claim.get('claim_id')}", flush=True)
         evidence = retrieve_evidence(
             w, catalog=catalog, company=company, query=query, top_k=5
         )
+        retrieved_chunk_ids = [e["chunk_id"] for e in evidence]
         output = judge_claim(
             surface=surface,
             claim=claim,
@@ -368,14 +407,20 @@ def run_calibration(
             endpoint=endpoint,
             chunk_meta_by_id=chunk_meta_by_id,
         )
+        if output.get("parse_failure"):
+            parse_failures += 1
         judge_outputs.append(output)
         per_claim.append(
             {
                 "claim_id": claim.get("claim_id"),
                 "operator_verdict": claim.get("verdict"),
+                "retrieved_chunk_ids": retrieved_chunk_ids,
                 "judge_output": {
-                    k: v for k, v in output.items() if k != "raw_response"
+                    k: v
+                    for k, v in output.items()
+                    if k not in ("raw_response", "parse_failure")
                 },
+                "raw_response": output.get("raw_response", ""),
             }
         )
 
@@ -399,6 +444,7 @@ def run_calibration(
             if surface not in NUMERIC_SURFACES
             else None,
         },
+        "parse_failures": parse_failures,
         "per_claim": per_claim,
     }
 
@@ -413,7 +459,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args(argv)
 
-    load_dotenv(Path.cwd() / ".env")
+    load_dotenv(_repo_root() / ".env")
     result = run_calibration(
         surface=args.surface,
         sample_path=args.sample,
