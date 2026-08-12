@@ -220,6 +220,14 @@ def test_empty_resolved_value_population_fails_threshold() -> None:
     assert any("span resolved population empty" in r for r in reasons)
 
 
+def test_evaluate_thresholds_non_numeric_pass_and_fail() -> None:
+    passed, _ = evaluate_thresholds("exec_summary", {"verdict_agreement": 0.85})
+    assert passed
+    failed, reasons = evaluate_thresholds("exec_summary", {"verdict_agreement": 0.75})
+    assert not failed
+    assert any("verdict_agreement" in r for r in reasons)
+
+
 def test_locator_labelled_fraction() -> None:
     sample = {
         "claims": [

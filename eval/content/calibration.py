@@ -361,13 +361,6 @@ def run_calibration(
         evidence = retrieve_evidence(
             w, catalog=catalog, company=company, query=query, top_k=5
         )
-        if surface in NUMERIC_SURFACES:
-            span = claim.get("expected_span") or {}
-            cid = span.get("chunk_id")
-            if cid and cid in chunk_meta_by_id:
-                meta_chunk = chunk_meta_by_id[cid]
-                if not any(e.get("chunk_id") == cid for e in evidence):
-                    evidence.insert(0, meta_chunk)
         output = judge_claim(
             surface=surface,
             claim=claim,
