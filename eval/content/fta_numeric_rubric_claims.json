@@ -1,0 +1,1665 @@
+{
+  "schema_version": 1,
+  "surface": "fta_numeric",
+  "source_query": "SELECT * FROM uc13_ale.analysis.financial_trends WHERE company_name = 'Elder Care' ORDER BY created_at DESC LIMIT 1",
+  "probe_report": ".dev/plans/eval-consolidation-m2-s2-preplan-assessments/t2_fta_probe_report.json",
+  "claim_count": 276,
+  "claims": [
+    {
+      "claim_id": "fta.claim.001",
+      "claim_text": "revenue_stated: 8,955",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.002",
+      "claim_text": "revenue_stated: 14,176",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.003",
+      "claim_text": "yoy_growth_pct: 58.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.004",
+      "claim_text": "revenue_stated: 20,846",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.005",
+      "claim_text": "yoy_growth_pct: 47.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.006",
+      "claim_text": "revenue_stated: 33,700",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.007",
+      "claim_text": "yoy_growth_pct: 61.7%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.008",
+      "claim_text": "revenue_stated: 44,735",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.009",
+      "claim_text": "revenue_stated: 47,198",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.010",
+      "claim_text": "yoy_growth_pct: 30.2%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.011",
+      "claim_text": "revenue_stated: 8,955",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.012",
+      "claim_text": "revenue_stated: 14,176",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.013",
+      "claim_text": "yoy_growth_pct: 58.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.014",
+      "claim_text": "revenue_stated: 20,846",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.015",
+      "claim_text": "yoy_growth_pct: 47.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.016",
+      "claim_text": "revenue_stated: 34,160",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.017",
+      "claim_text": "yoy_growth_pct: 63.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.018",
+      "claim_text": "revenue_stated: 46,423",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.019",
+      "claim_text": "yoy_growth_pct: 35.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.020",
+      "claim_text": "revenue_stated: 28,330",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.021",
+      "claim_text": "gm_dollars_stated: 3,770",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.022",
+      "claim_text": "gm_pct_stated: 42.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.023",
+      "claim_text": "computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.024",
+      "claim_text": "gm_dollars_stated: 6,285",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.025",
+      "claim_text": "gm_pct_stated: 44.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.026",
+      "claim_text": "gm_dollars_stated: 9,176",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.027",
+      "claim_text": "gm_pct_stated: 44.0%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.028",
+      "claim_text": "gm_dollars_stated: 14,361",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.029",
+      "claim_text": "gm_pct_stated: 42.6%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.030",
+      "claim_text": "gm_dollars_stated: 18,529",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.031",
+      "claim_text": "gm_pct_stated: 41.4%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.032",
+      "claim_text": "gm_dollars_stated: 19,663",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.033",
+      "claim_text": "gm_pct_stated: 41.7%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.034",
+      "claim_text": "gm_dollars_stated: 3,770",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.035",
+      "claim_text": "gm_pct_stated: 42.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.036",
+      "claim_text": "computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.037",
+      "claim_text": "gm_dollars_stated: 6,285",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.038",
+      "claim_text": "gm_pct_stated: 44.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.039",
+      "claim_text": "gm_dollars_stated: 9,176",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.040",
+      "claim_text": "gm_pct_stated: 44.0%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.041",
+      "claim_text": "gm_dollars_stated: 14,910",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.042",
+      "claim_text": "gm_pct_stated: 43.6%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.043",
+      "claim_text": "gm_dollars_stated: 20,170",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.044",
+      "claim_text": "gm_pct_stated: 43.4%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.045",
+      "claim_text": "gm_dollars_stated: 91",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement \u2013 Connecticut, Page 54"
+    },
+    {
+      "claim_id": "fta.claim.046",
+      "claim_text": "gm_pct_stated: 45.6%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement \u2013 Connecticut, Page 54"
+    },
+    {
+      "claim_id": "fta.claim.047",
+      "claim_text": "computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement \u2013 Connecticut, Page 54"
+    },
+    {
+      "claim_id": "fta.claim.048",
+      "claim_text": "ebitda_dollars: (342)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.049",
+      "claim_text": "ebitda_margin_pct: -3.8%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.050",
+      "claim_text": "ebitda_dollars: 720",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.051",
+      "claim_text": "ebitda_margin_pct: 5.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.052",
+      "claim_text": "ebitda_dollars: 180",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.053",
+      "claim_text": "ebitda_margin_pct: 0.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.054",
+      "claim_text": "ebitda_dollars: (870)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.055",
+      "claim_text": "ebitda_margin_pct: -3.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.056",
+      "claim_text": "ebitda_dollars: 2,773",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.057",
+      "claim_text": "ebitda_margin_pct: 7.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.058",
+      "claim_text": "ebitda_dollars: 2,104",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.059",
+      "claim_text": "ebitda_margin_pct: 23.5%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.060",
+      "claim_text": "ebitda_dollars: 3,157",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.061",
+      "claim_text": "ebitda_margin_pct: 22.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.062",
+      "claim_text": "ebitda_dollars: 4,016",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.063",
+      "claim_text": "ebitda_margin_pct: 19.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.064",
+      "claim_text": "ebitda_dollars: 6,677",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.065",
+      "claim_text": "ebitda_margin_pct: 19.5%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.066",
+      "claim_text": "ebitda_dollars: 9,239",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.067",
+      "claim_text": "ebitda_margin_pct: 19.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.068",
+      "claim_text": "ebitda_dollars: 3,277",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.069",
+      "claim_text": "ebitda_margin_pct: 36.6%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.070",
+      "claim_text": "ebitda_dollars: 4,739",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.071",
+      "claim_text": "ebitda_margin_pct: 33.4%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.072",
+      "claim_text": "ebitda_dollars: 6,545",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.073",
+      "claim_text": "ebitda_margin_pct: 31.4%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.074",
+      "claim_text": "ebitda_dollars: 10,354",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.075",
+      "claim_text": "ebitda_margin_pct: 30.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.076",
+      "claim_text": "ebitda_dollars: 13,942",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.077",
+      "claim_text": "ebitda_margin_pct: 30.0%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.078",
+      "claim_text": "revenue_dollars: 1,525",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.079",
+      "claim_text": "revenue_dollars: 4,517",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.080",
+      "claim_text": "revenue_dollars: 10,496",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.081",
+      "claim_text": "revenue_dollars: 12,972",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.082",
+      "claim_text": "revenue_dollars: 13,588",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.083",
+      "claim_text": "revenue_dollars: 7,042",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.084",
+      "claim_text": "revenue_dollars: 7,990",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.085",
+      "claim_text": "revenue_dollars: 7,524",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.086",
+      "claim_text": "revenue_dollars: 8,200",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.087",
+      "claim_text": "revenue_dollars: 8,759",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.088",
+      "claim_text": "revenue_dollars: 229",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.089",
+      "claim_text": "revenue_dollars: 1,644",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.090",
+      "claim_text": "revenue_dollars: 2,815",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.091",
+      "claim_text": "revenue_dollars: 8,837",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.092",
+      "claim_text": "revenue_dollars: 11,644",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.093",
+      "claim_text": "revenue_dollars: 8,796",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.094",
+      "claim_text": "revenue_dollars: 14,151",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.095",
+      "claim_text": "revenue_dollars: 20,835",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.096",
+      "claim_text": "revenue_dollars: 30,009",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.097",
+      "claim_text": "revenue_dollars: 33,991",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.098",
+      "claim_text": "revenue_dollars: 200",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.099",
+      "claim_text": "revenue_dollars: 600",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.100",
+      "claim_text": "revenue_dollars: 2,523",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.101",
+      "claim_text": "revenue_dollars: 7,569",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.102",
+      "claim_text": "revenue_dollars: 1,417",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.103",
+      "claim_text": "revenue_dollars: 4,250",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.104",
+      "claim_text": "revenue_dollars: 160",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.105",
+      "claim_text": "revenue_dollars: 25",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.106",
+      "claim_text": "revenue_dollars: 10",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.107",
+      "claim_text": "revenue_dollars: 11",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.108",
+      "claim_text": "revenue_dollars: 13",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.109",
+      "claim_text": "amount_stated: (0)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.110",
+      "claim_text": "amount_stated: 182",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.111",
+      "claim_text": "amount_stated: 53",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.112",
+      "claim_text": "amount_stated: 665",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.113",
+      "claim_text": "amount_stated: (158)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.114",
+      "claim_text": "amount_stated: (33)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.115",
+      "claim_text": "amount_stated: 2,490",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.116",
+      "claim_text": "amount_stated: 94",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.117",
+      "claim_text": "amount_stated: 189",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.118",
+      "claim_text": "amount_stated: 377",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.119",
+      "claim_text": "amount_stated: 1,077",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.120",
+      "claim_text": "amount_stated: 0",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.121",
+      "claim_text": "amount_stated: 430",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.122",
+      "claim_text": "amount_stated: 909",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.123",
+      "claim_text": "amount_stated: 190",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.124",
+      "claim_text": "amount_stated: 4,251",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Corporate Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.125",
+      "claim_text": "amount_stated: 909",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Corporate Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.126",
+      "claim_text": "amount_stated: 688",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Corporate Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.127",
+      "claim_text": "amount_stated: 5,109",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Clinic-Level Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.128",
+      "claim_text": "amount_stated: 242 + 62 + 113 + 128 + 20 + 72 + 86 + 497 = multiple line items; see source",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Clinic-Level Operating Expenses Section and Corporate Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.129",
+      "claim_text": "[0].revenue_stated: 8,955",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.130",
+      "claim_text": "[1].revenue_stated: 14,176",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.131",
+      "claim_text": "[1].yoy_growth_pct: 58.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.132",
+      "claim_text": "[2].revenue_stated: 20,846",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.133",
+      "claim_text": "[2].yoy_growth_pct: 47.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.134",
+      "claim_text": "[3].revenue_stated: 33,700",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.135",
+      "claim_text": "[3].yoy_growth_pct: 61.7%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.136",
+      "claim_text": "[4].revenue_stated: 44,735",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.137",
+      "claim_text": "[5].revenue_stated: 47,198",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.138",
+      "claim_text": "[5].yoy_growth_pct: 30.2%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.139",
+      "claim_text": "[6].revenue_stated: 8,955",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.140",
+      "claim_text": "[7].revenue_stated: 14,176",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.141",
+      "claim_text": "[7].yoy_growth_pct: 58.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.142",
+      "claim_text": "[8].revenue_stated: 20,846",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.143",
+      "claim_text": "[8].yoy_growth_pct: 47.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.144",
+      "claim_text": "[9].revenue_stated: 34,160",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.145",
+      "claim_text": "[9].yoy_growth_pct: 63.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.146",
+      "claim_text": "[10].revenue_stated: 46,423",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.147",
+      "claim_text": "[10].yoy_growth_pct: 35.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.148",
+      "claim_text": "[11].revenue_stated: 28,330",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.149",
+      "claim_text": "[0].gm_dollars_stated: 3,770",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.150",
+      "claim_text": "[0].gm_pct_stated: 42.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.151",
+      "claim_text": "[0].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.152",
+      "claim_text": "[1].gm_dollars_stated: 6,285",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.153",
+      "claim_text": "[1].gm_pct_stated: 44.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.154",
+      "claim_text": "[1].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.155",
+      "claim_text": "[2].gm_dollars_stated: 9,176",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.156",
+      "claim_text": "[2].gm_pct_stated: 44.0%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.157",
+      "claim_text": "[2].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.158",
+      "claim_text": "[3].gm_dollars_stated: 14,361",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.159",
+      "claim_text": "[3].gm_pct_stated: 42.6%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.160",
+      "claim_text": "[3].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.161",
+      "claim_text": "[4].gm_dollars_stated: 18,529",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.162",
+      "claim_text": "[4].gm_pct_stated: 41.4%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.163",
+      "claim_text": "[4].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.164",
+      "claim_text": "[5].gm_dollars_stated: 19,663",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.165",
+      "claim_text": "[5].gm_pct_stated: 41.7%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.166",
+      "claim_text": "[5].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.167",
+      "claim_text": "[6].gm_dollars_stated: 3,770",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.168",
+      "claim_text": "[6].gm_pct_stated: 42.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.169",
+      "claim_text": "[6].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.170",
+      "claim_text": "[7].gm_dollars_stated: 6,285",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.171",
+      "claim_text": "[7].gm_pct_stated: 44.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.172",
+      "claim_text": "[7].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.173",
+      "claim_text": "[8].gm_dollars_stated: 9,176",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.174",
+      "claim_text": "[8].gm_pct_stated: 44.0%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.175",
+      "claim_text": "[8].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.176",
+      "claim_text": "[9].gm_dollars_stated: 14,910",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.177",
+      "claim_text": "[9].gm_pct_stated: 43.6%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.178",
+      "claim_text": "[9].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.179",
+      "claim_text": "[10].gm_dollars_stated: 20,170",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.180",
+      "claim_text": "[10].gm_pct_stated: 43.4%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.181",
+      "claim_text": "[10].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Page 49"
+    },
+    {
+      "claim_id": "fta.claim.182",
+      "claim_text": "[11].gm_dollars_stated: 91",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement \u2013 Connecticut, Page 54"
+    },
+    {
+      "claim_id": "fta.claim.183",
+      "claim_text": "[11].gm_pct_stated: 45.6%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement \u2013 Connecticut, Page 54"
+    },
+    {
+      "claim_id": "fta.claim.184",
+      "claim_text": "[11].computed_from_stated: False",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement \u2013 Connecticut, Page 54"
+    },
+    {
+      "claim_id": "fta.claim.185",
+      "claim_text": "[0].ebitda_dollars: (342)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.186",
+      "claim_text": "[0].ebitda_margin_pct: -3.8%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.187",
+      "claim_text": "[1].ebitda_dollars: 720",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.188",
+      "claim_text": "[1].ebitda_margin_pct: 5.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.189",
+      "claim_text": "[2].ebitda_dollars: 180",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.190",
+      "claim_text": "[2].ebitda_margin_pct: 0.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.191",
+      "claim_text": "[3].ebitda_dollars: (870)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.192",
+      "claim_text": "[3].ebitda_margin_pct: -3.1%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.193",
+      "claim_text": "[4].ebitda_dollars: 2,773",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.194",
+      "claim_text": "[4].ebitda_margin_pct: 7.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.195",
+      "claim_text": "[5].ebitda_dollars: 2,104",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.196",
+      "claim_text": "[5].ebitda_margin_pct: 23.5%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.197",
+      "claim_text": "[6].ebitda_dollars: 3,157",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.198",
+      "claim_text": "[6].ebitda_margin_pct: 22.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.199",
+      "claim_text": "[7].ebitda_dollars: 4,016",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.200",
+      "claim_text": "[7].ebitda_margin_pct: 19.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.201",
+      "claim_text": "[8].ebitda_dollars: 6,677",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.202",
+      "claim_text": "[8].ebitda_margin_pct: 19.5%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.203",
+      "claim_text": "[9].ebitda_dollars: 9,239",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.204",
+      "claim_text": "[9].ebitda_margin_pct: 19.9%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Diligence Adjusted Income Statement"
+    },
+    {
+      "claim_id": "fta.claim.205",
+      "claim_text": "[10].ebitda_dollars: 3,277",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.206",
+      "claim_text": "[10].ebitda_margin_pct: 36.6%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.207",
+      "claim_text": "[11].ebitda_dollars: 4,739",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.208",
+      "claim_text": "[11].ebitda_margin_pct: 33.4%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.209",
+      "claim_text": "[12].ebitda_dollars: 6,545",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.210",
+      "claim_text": "[12].ebitda_margin_pct: 31.4%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.211",
+      "claim_text": "[13].ebitda_dollars: 10,354",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.212",
+      "claim_text": "[13].ebitda_margin_pct: 30.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.213",
+      "claim_text": "[14].ebitda_dollars: 13,942",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.214",
+      "claim_text": "[14].ebitda_margin_pct: 30.0%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary"
+    },
+    {
+      "claim_id": "fta.claim.215",
+      "claim_text": "[0].revenue_dollars: 1,525",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.216",
+      "claim_text": "[1].revenue_dollars: 4,517",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.217",
+      "claim_text": "[2].revenue_dollars: 10,496",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.218",
+      "claim_text": "[3].revenue_dollars: 12,972",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.219",
+      "claim_text": "[4].revenue_dollars: 13,588",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.220",
+      "claim_text": "[5].revenue_dollars: 7,042",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.221",
+      "claim_text": "[6].revenue_dollars: 7,990",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.222",
+      "claim_text": "[7].revenue_dollars: 7,524",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.223",
+      "claim_text": "[8].revenue_dollars: 8,200",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.224",
+      "claim_text": "[9].revenue_dollars: 8,759",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.225",
+      "claim_text": "[10].revenue_dollars: 229",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.226",
+      "claim_text": "[11].revenue_dollars: 1,644",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.227",
+      "claim_text": "[12].revenue_dollars: 2,815",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.228",
+      "claim_text": "[13].revenue_dollars: 8,837",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.229",
+      "claim_text": "[14].revenue_dollars: 11,644",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.230",
+      "claim_text": "[15].revenue_dollars: 8,796",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.231",
+      "claim_text": "[16].revenue_dollars: 14,151",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.232",
+      "claim_text": "[17].revenue_dollars: 20,835",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.233",
+      "claim_text": "[18].revenue_dollars: 30,009",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.234",
+      "claim_text": "[19].revenue_dollars: 33,991",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.235",
+      "claim_text": "[20].revenue_dollars: 7,042",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.236",
+      "claim_text": "[21].revenue_dollars: 7,990",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.237",
+      "claim_text": "[22].revenue_dollars: 7,524",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.238",
+      "claim_text": "[23].revenue_dollars: 8,200",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.239",
+      "claim_text": "[24].revenue_dollars: 8,759",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.240",
+      "claim_text": "[25].revenue_dollars: 200",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.241",
+      "claim_text": "[26].revenue_dollars: 600",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.242",
+      "claim_text": "[27].revenue_dollars: 2,523",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.243",
+      "claim_text": "[28].revenue_dollars: 7,569",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.244",
+      "claim_text": "[29].revenue_dollars: 1,417",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.245",
+      "claim_text": "[30].revenue_dollars: 4,250",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.246",
+      "claim_text": "[31].revenue_dollars: 229",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.247",
+      "claim_text": "[32].revenue_dollars: 1,644",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.248",
+      "claim_text": "[33].revenue_dollars: 2,815",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.249",
+      "claim_text": "[34].revenue_dollars: 8,837",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.250",
+      "claim_text": "[35].revenue_dollars: 11,644",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.251",
+      "claim_text": "[36].revenue_dollars: 160",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.252",
+      "claim_text": "[37].revenue_dollars: 25",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.253",
+      "claim_text": "[38].revenue_dollars: 10",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.254",
+      "claim_text": "[39].revenue_dollars: 11",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.255",
+      "claim_text": "[40].revenue_dollars: 13",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": null
+    },
+    {
+      "claim_id": "fta.claim.256",
+      "claim_text": "[0].amount_stated: (0)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.257",
+      "claim_text": "[1].amount_stated: 182",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.258",
+      "claim_text": "[2].amount_stated: 53",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.259",
+      "claim_text": "[3].amount_stated: 665",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.260",
+      "claim_text": "[4].amount_stated: (158)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.261",
+      "claim_text": "[5].amount_stated: (33)",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.262",
+      "claim_text": "[6].amount_stated: 2,490",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.263",
+      "claim_text": "[7].amount_stated: 94",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.264",
+      "claim_text": "[8].amount_stated: 189",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.265",
+      "claim_text": "[9].amount_stated: 377",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.266",
+      "claim_text": "[10].amount_stated: 1,077",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.267",
+      "claim_text": "[11].amount_stated: 0",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.268",
+      "claim_text": "[12].amount_stated: 0",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.269",
+      "claim_text": "[13].amount_stated: 430",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.270",
+      "claim_text": "[14].amount_stated: 909",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.271",
+      "claim_text": "[15].amount_stated: 190",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "EBITDA Adjustment Detail"
+    },
+    {
+      "claim_id": "fta.claim.272",
+      "claim_text": "[0].amount_stated: 4,251",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Corporate Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.273",
+      "claim_text": "[1].amount_stated: 909",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Corporate Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.274",
+      "claim_text": "[2].amount_stated: 688",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Corporate Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.275",
+      "claim_text": "[3].amount_stated: 5,109",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Clinic-Level Operating Expenses Section"
+    },
+    {
+      "claim_id": "fta.claim.276",
+      "claim_text": "[4].amount_stated: 242 + 62 + 113 + 128 + 20 + 72 + 86 + 497 = multiple line items; see source",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Historical P&L Summary, Clinic-Level Operating Expenses Section and Corporate Operating Expenses Section"
+    }
+  ]
+}
