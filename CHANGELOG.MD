@@ -4,6 +4,8 @@
 
 - T2 (CHK-27 no-build disposition record): Added `CHK-27` to `.dev/eval-program/registry.yaml` with `status: descoped` and audit-trail rationale citing M2 audit rev 2 and calibration-disagreement audit ESC-T2-3 D1 (Option A, caveat-and-carry); captured M3-start spec SHA256 baseline at `.dev/audits/eval-consolidation/M3/m3-start-provenance.yaml`. Rationale: item 27 targets rung-2 surfaces only and CHK-26a records zero — registry must carry the disposition before T4 reads rung assignments. Adversarial gap deferred: no pytest — record-only subtask; falsifier is registry row presence + resolvable evidence_refs paths.
 
+- T1 (S2 storage foundation): Landed `uc13_ale.eval.s2_scores` Delta DDL, `eval/content/s2_writer.py` (`S2ScoreRow`, `S2Writer` with completion-marker guard), and hermetic unit tests. Rationale: M3 S2 machinery requires a shared append-only score store per spec §8.8/§9 before verifiers and spot-check writers land. Decision log: `.dev/plans/eval-consolidation-m3-s2-build/decision-logs/T1.md`. Adversarial gap deferred: no hermetic test for SQL-escape edge cases on company names containing quotes — guard/insert paths use escaping; live warehouse round-trip is T8 G6 evidence.
+
 ## eval-consolidation-m2-s2-preplan-assessments — 2026-08-12
 
 - P2 (ESC-T2-3 record closure): Operator disposition Option A recorded; assumption 8 closed; M3 unblocked for planning. Rationale: Phase 2 record-only closure per audit §5 D1–D5 — M2 `human` assignments and CHK-26a metrics stand as evidence-of-record only; parallel-track remediation (WP-1–3) and post-M3 re-calibration gated per audit §6.3. Adversarial gap deferred: no pytest — record-only subtask; falsifier is cross-artifact consistency check (ESC-T2-3 §4 ↔ T10 signoff ↔ plan §8.4.1/§8.6 ↔ audit §5/§6.3).
