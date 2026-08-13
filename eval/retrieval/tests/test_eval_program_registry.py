@@ -587,6 +587,31 @@ def test_production_default_registry_paths_resolve_to_tracked_files() -> None:
         assert resolved.is_file(), f"{label} must resolve to tracked file at {resolved}"
 
 
+_OFFLINE_SCRIPT_ALLOWLIST = frozenset(
+    {
+        "extract_rubric_manifests.py",
+    }
+)
+
+
+def test_production_modules_do_not_embed_gitignored_dev_runtime_paths() -> None:
+    """O-5 falsifier: S2 runtime modules must not reference gitignored .dev/ paths."""
+    violations: list[str] = []
+    for package_root in (REPO_ROOT / "eval" / "content", REPO_ROOT / "eval" / "retrieval"):
+        for path in package_root.rglob("*.py"):
+            rel = path.relative_to(package_root)
+            if rel.parts[0:1] == ("tests",) or path.name.startswith("test_"):
+                continue
+            if path.name in _OFFLINE_SCRIPT_ALLOWLIST:
+                continue
+            for line_no, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), start=1
+            ):
+                if ".dev/" in line and not line.strip().startswith("#"):
+                    violations.append(f"{path.relative_to(REPO_ROOT)}:{line_no}: {line.strip()}")
+    assert not violations, "gitignored .dev/ runtime dependencies:\n" + "\n".join(violations)
+
+
 def test_registry_mirror_byte_parity_when_canonical_present() -> None:
     """D8 parity guard — canonical and tracked mirror must be byte-identical."""
     if not CANONICAL_REGISTRY_PATH.is_file():

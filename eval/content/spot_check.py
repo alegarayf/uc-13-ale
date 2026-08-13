@@ -56,9 +56,6 @@ LOCATION_CHUNK_OVERRIDE: dict[str, str] = {
     "Pro Forma Income Statement & Projection": SIBLING_CHUNK_ID,
 }
 
-FTA_DRAFT_REL_PATH = ".dev/plans/eval-consolidation-m3-s2-build/t6/t6_draft_results.json"
-
-
 @dataclass(frozen=True)
 class SpotCheckConfig:
     """Typed configuration for rung-3 spot-check prepare/ingest."""
@@ -281,7 +278,7 @@ class ChunkIndex:
         elif len(candidates) == 1:
             rec = candidates[0]
         else:
-            rec = sorted(candidates, key=lambda r: (r.page_start or 0, r.chunk_id))[0]
+            return None
 
         return ChunkResolution(
             chunk_id=rec.chunk_id,
@@ -527,35 +524,12 @@ def exec_claim_source(
     return (None, None)
 
 
-def _load_fta_draft_by_id(config: SpotCheckConfig) -> dict[str, dict[str, Any]]:
-    draft_path = _repo_root(config) / FTA_DRAFT_REL_PATH
-    if not draft_path.is_file():
-        return {}
-    draft = json.loads(draft_path.read_text(encoding="utf-8"))
-    return {d["claim_id"]: d for d in draft}
-
-
 def _resolve_chunk_for_entry(
     *,
-    surface: str,
-    claim_id: str,
     chunk_index: ChunkIndex,
     source_doc: str | None,
     source_location: str | None,
-    fta_draft_by_id: dict[str, dict[str, Any]] | None,
 ) -> ChunkResolution | None:
-    if surface == "fta_numeric" and fta_draft_by_id:
-        draft = fta_draft_by_id.get(claim_id, {})
-        chunk_id = draft.get("chunk_id")
-        if chunk_id and chunk_index.exists(str(chunk_id)):
-            rec = chunk_index.record(str(chunk_id))
-            if rec is not None:
-                return ChunkResolution(
-                    chunk_id=rec.chunk_id,
-                    chunk_text=rec.chunk_text,
-                    page_start=rec.page_start,
-                    section_header=rec.section_header,
-                )
     if source_doc:
         return chunk_index.lookup(str(source_doc), source_location)
     return None
@@ -568,7 +542,6 @@ def _claim_from_manifest_entry(
     *,
     chunk_index: ChunkIndex | None = None,
     exec_analysis_cache: dict[str, Any] | None = None,
-    fta_draft_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> SpotCheckClaim:
     claim_id = entry["claim_id"]
     claim_text = entry["claim_text"]
@@ -595,12 +568,9 @@ def _claim_from_manifest_entry(
     cited_locator_value: str | None = None
     if chunk_index is not None:
         chunk = _resolve_chunk_for_entry(
-            surface=surface,
-            claim_id=claim_id,
             chunk_index=chunk_index,
             source_doc=source_doc,
             source_location=source_location,
-            fta_draft_by_id=fta_draft_by_id,
         )
         if chunk is not None:
             cited_chunk_id = chunk.chunk_id
@@ -631,7 +601,6 @@ def load_claim_enumeration(
     *,
     chunk_index: ChunkIndex | None = None,
     exec_analysis_cache: dict[str, Any] | None = None,
-    fta_draft_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[SpotCheckClaim, ...]:
     """Load the whole-surface claim set from the committed rubric manifest."""
     manifest_file = _manifest_path(config)
@@ -643,7 +612,6 @@ def load_claim_enumeration(
             entry,
             chunk_index=chunk_index,
             exec_analysis_cache=exec_analysis_cache,
-            fta_draft_by_id=fta_draft_by_id,
         )
         for entry in payload["claims"]
     ]
@@ -825,7 +793,6 @@ def write_spot_check_results(
     chunk_index: ChunkIndex | None = None,
     chunk_id_resolver: ChunkIdResolver | None = None,
     exec_analysis_cache: dict[str, Any] | None = None,
-    fta_draft_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> SpotCheckWriteResult:
     """Ingest operator verdicts and write claim rows + completion marker under one run_id."""
     _assert_human_spot_check_allowed(config.surface, config.registry_path)
@@ -848,14 +815,10 @@ def write_spot_check_results(
             company=config.company,
         )
 
-    if fta_draft_by_id is None and config.surface == "fta_numeric":
-        fta_draft_by_id = _load_fta_draft_by_id(config)
-
     claims = load_claim_enumeration(
         config,
         chunk_index=chunk_index,
         exec_analysis_cache=exec_analysis_cache,
-        fta_draft_by_id=fta_draft_by_id,
     )
     verdicts_by_id = _load_verdicts(config.verdicts_path)
     validated = _validate_verdict_ingestion(claims, verdicts_by_id)
