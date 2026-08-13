@@ -1,0 +1,316 @@
+schema_version: 1
+frozen_at: '2026-08-10'
+sources:
+- id: A-03
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Agent depth uneven (A-03)
+- id: A-07
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Excel cell-level citations (A-07)
+- id: A-09
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Clearsulting KPI overlay conflict (A-09)
+- id: ACC-e2e-runner-pytest
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#8.4
+  title: No pytest for the e2e runner — accepted orphan
+- id: ACC-python-docx-missing-on-serverless
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#8.4
+  title: python-docx missing on serverless (.md OK, .docx blocked)
+- id: EXT-1
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: 'Operating model: standing manual gate vs. CI automation (harness cluster path in CI, auto INDEX↔ops cross-check)'
+- id: EXT-2
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: Langfuse as judge-score/trace home
+- id: EXT-3
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: Product surface for trust evidence
+- id: EXT-4
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: Model/cost/latency eval; synthetic/adversarial sets
+- id: EXT-5
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: Per-company G1 floors / rubrics / CI fixtures
+- id: EXT-6
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: '`doc_status`-backed ingest preflight'
+- id: EXT-7
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: Sibling rationale file rename (`uc-13-ale-program-rationale.md` → ingestion-scoped name)
+- id: GAP-102-corpus-specific-gold-bootstrap-holes
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  title: Corpus-specific gold bootstrap holes — Clearsulting has **0 LEGAL-classified docs** → `legal.*` intents cannot bootstrap
+    meaningful positives (G1 Legal 0/11 is
+- id: GAP-102-per-company-g1-floors
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  title: Per-company G1 floors — `BASELINES` in `g1_score_all_agents.py` sets Clearsulting/GKF/SPG to `None` (T5 decision
+    log). `evaluate_promotion` skip
+- id: GAP-102-per-company-harness-baselines
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  title: 'Per-company harness baselines in ops — `DeltaEvalStore.get_latest_baseline(company_name, catalog)` exists; only
+    Elder Care has a promoted control row. Phase C '
+- id: GAP-102-profiler-not-in-chip-b-e2e
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  title: Profiler not in Chip B e2e — Operator-ratified exclusion (O-14.6). GKF/SPG `company_profile` rows predate Chip B
+    runs.
+- id: GAP-102-record-e2e-linkage-scope
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  title: '`record_e2e_linkage` scope — `eval/retrieval/scripts/record_e2e_linkage.py` wired for FTA/Legal only (`.dev/eval_framework_work.md`
+    §9). BMA/CQA/KPI/'
+- id: GAP-103-citation-fidelity-unwatched
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  title: 'Citation fidelity unwatched — pain_central A-07: Excel cell-level citations not systematic. Harness measures chunk
+    ID overlap, not whether extracted n'
+- id: GAP-103-g1-presence-only
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  title: G1 is presence-only — Scorer checks non-empty JSON fields (`pass` / `partial` / `gap-correct`), not values, citations,
+    or narrative. Documente
+- id: GAP-103-legal-score-variance-r-2
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  title: Legal score variance (R-2) — 7/11 accepted on Elder Care — LLM entity-resolution at dedupe, not retrieval miss. Dedupe
+    key lacks `source_doc` (backlo
+- id: GAP-103-no-content-correctness-eval
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  title: No content / correctness eval — No LLM-as-judge, human rubric, or golden Q&A set. Orchestrator memo and exec summary
+    have word-count + H1 checks only (`
+- id: GAP-103-recall-at-10-bloated-gold
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  title: Recall@10 on bloated gold sets — 8 KPI/profiler intents still use `filename_closure` with ~2,800 positives each.
+    Max recall@10 ≈ 10/2829 ≈ **0.35%** rega
+- id: GAP-104-no-enhancement-gate-hash-c
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.4
+  title: No enhancement gate on hash C post-Chip A — Ablation matrix (M-PHV4) pinned `baseline_1aeb0ace584a`. New registry
+    hash C has no re-run ablation attestation on `base
+- id: GAP-105-g1-scorer-pytest
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  title: 'No pytest for `g1_score_all_agents.py` — Chip B contract: live stdout is falsifier. Accepted gap (§8.4).'
+- id: GAP-105-harness-cluster-not-in-ci
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  title: Harness cluster path not in CI — `pytest eval/retrieval/tests/` mocks VS via `elder_care_slice.json`. Live `recall@10`
+    only on operator cluster submit.
+- id: GAP-105-no-ci-guard-gold-positives
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  title: 'No CI guard: gold positives non-empty — Chip A T4 gap: 8 new CQA/KPI intents not asserted to have `positive_chunk_ids
+    > 0` in pytest.'
+- id: GAP-105-no-cluster-gates-xfail-guard
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  title: No CLUSTER_GATES PASS ⇒ 0 xfail guard — Chip A T5 changelog open gap.
+- id: GAP-105-no-index-ops-cross-check
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  title: No INDEX ↔ ops manifest cross-check — M4-T8 accepted gap. `.dev/scorecards/INDEX.md` can diverge from `retrieval_harness_runs`.
+- id: GAP-105-no-per-company-gold-coverage-pytest
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  title: 'No per-company gold coverage pytest — `test_committed_elder_care_yaml_validates_and_covers_registry` exists for
+    EC only (handoff Phase C criterion C3: “not ye'
+- id: GAP-105-no-per-company-gold-positive-counts
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  title: No per-company `gold_positive_counts` manifest — Elder Care pins counts/methods in `fixtures/gold_positive_counts.yaml`;
+    no equivalent for Clearsulting/GKF/SPG.
+- id: GAP-105-no-unified-eval-cli
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  title: No unified eval CLI — Harness (`harness_cli`), G1 (`g1_score_all_agents.py`), e2e (`post_merge_closeout_submit.py`),
+    promotion (`evaluate_prom
+- id: GAP-106-cross-baseline-recall-compare
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  title: Cross-baseline recall compare — Cross-baseline recall compare
+- id: GAP-106-latency-cost-token-metrics
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  title: Latency / cost / token metrics in harness — Latency / cost / token metrics in harness
+- id: GAP-106-mphv4-items-28-30
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  title: M-PHV4 items 28/30 (shared context, `workstream_tags.py`) — M-PHV4 items 28/30 (shared context, `workstream_tags.py`)
+- id: GAP-106-synthetic-adversarial-eval-set
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  title: Synthetic / adversarial eval set — Synthetic / adversarial eval set
+- id: GAP-108-bootstrap-entry-hardcoded
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  title: Bootstrap entry point hardcoded — `GoldLabelBootstrap` accepts `company_name` / `catalog`, but `bootstrap.main()`
+    always writes `eval/retrieval/gold_label
+- id: GAP-108-disconnected-eval-idea-pending-md
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  title: Disconnected eval idea in `pending.md` — “Dataset / pre-training … minimal baseline from all companies” is not wired
+    to harness gold, ops baselines, or promotion
+- id: GAP-108-harness-cli-gold-path-resolution
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  title: Harness CLI gold-path resolution — `harness_cli run --company-name "GKF"` does **not** derive `--gold-path`; `EvalHarness`
+    defaults to `elder_care.yaml` un
+- id: GAP-108-mphv2-second-company-procedure
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  title: M-PHV2 second-company procedure ≠ Phase C — README second-company runbook minimum is parser + FTA (Decision 3), not
+    full gold bootstrap + harness baseline per compa
+- id: GAP-108-no-phase-c-plan-artifact
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  title: No Phase C plan artifact — Chip A (`chip-a-g6-gold-bootstrap`) and Chip B (`chip-b-4company-agent-validation`) have
+    closed orchestrator plans; Phas
+- id: GAP-108-operator-escalation-not-recorded
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  title: 'Operator escalation not recorded — M4 Decision 3 defers full second-company gold unless FTA fails badly. Phase C
+    requires an explicit go/no-go overturning '
+- id: GAP-108-slug-convention-split
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  title: 'Slug convention split — Gold files: `elder_care` (underscore). G1 scorecards / `BASELINES` keys: `elder-care` (hyphen).
+    No canonical `companies.'
+- id: GAP-108-stale-handoff-doc
+  source_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  title: Stale handoff doc — `GOLD_LABEL_BOOTSTRAP_HANDOFF.md` header still claims G6 OPEN / 49 labels / Chip B not run —
+    superseded by Chip A/B clos
+- id: M-02
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: M-02 Genie chatbot product fate
+- id: NEW-1
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: phv4 NEW-1
+- id: O-11
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: O-11 / GKF–SPG fallback re-verify
+- id: O-14.13
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: O-14.13
+- id: O-14.3
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: O-14.3 — 6 FTA `bootstrap_failed` rows
+- id: OI-agent-quality-backlog-clearsulting-stakeholder-narrative
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Clearsulting stakeholder narrative
+- id: OI-data-ingest-quality-cell-8c-never-in-smoke-path
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Cell 8c never in smoke path
+- id: OI-data-ingest-quality-elder-care-ingest-gap
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Elder Care ingest gap
+  _extra_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.2
+- id: OI-data-ingest-quality-incremental-parser-status-table
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Incremental parser / status table
+- id: OI-data-ingest-quality-indexsyncerror-job-exit-behavior
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: IndexSyncError job exit behavior
+- id: OI-data-ingest-quality-spg-ingest-borderline
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: SPG ingest borderline
+- id: OI-eval-harness-elder-care-slice-json-refresh-trigger
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: '`elder_care_slice.json` refresh trigger'
+  _extra_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.5
+- id: OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: '`evaluate_promotion` — Clearsulting / GKF / SPG'
+- id: OI-eval-harness-evaluate-promotion-elder-care-post-fix-full-refresh
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: '`evaluate_promotion` — Elder Care post-fix full refresh'
+  _extra_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.4
+- id: OI-eval-harness-fta-rubric-eval-fta
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: FTA rubric → `eval/FTA/`
+- id: OI-eval-harness-legal-litigation-chunk-id-diff-debug
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: '`legal.litigation` chunk_id diff debug'
+- id: OI-eval-harness-m-phv4-readme-t2-gate
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: M-PHV4 README T2 gate
+- id: OI-eval-harness-phase-c-multi-company-gold-yaml
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Phase C — multi-company gold YAML
+  _extra_ref: .dev/eval_state_of_affairs_2026-08-03.md#10.6
+- id: OI-eval-harness-profiler-re-run-clearsulting-gkf-spg
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Profiler re-run — Clearsulting / GKF / SPG
+- id: OI-housekeeping-do-today-chip-a-plan-status-auditor-handoff
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Chip A plan status + auditor handoff
+- id: OI-housekeeping-do-today-commit-gold-guardrails
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Commit gold guardrails
+- id: OI-housekeeping-do-today-doc-sync-stale-reality
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Doc sync (stale → reality)
+- id: OI-housekeeping-do-today-runbook-g6-sha
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Runbook G6 SHA
+- id: OI-housekeeping-do-today-t2-working-note-fix
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: T2 working note fix
+- id: OI-merge-gates-cqa-cosmetic
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: CQA cosmetic
+- id: OI-merge-gates-g2-g4-formal-sign-off
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: G2–G4 formal sign-off
+- id: OI-merge-gates-g6-gate-file-note-stale
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: G6 gate file note stale
+- id: OI-merge-gates-legal-dedupe-hardening
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Legal dedupe hardening
+- id: OI-orchestrator-charter-product-charter-m3-gate-condition-halt-1-pager-flow
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Charter M3 — gate/condition + halt → 1-pager flow
+- id: OI-orchestrator-charter-product-dataset-pre-training-exploration
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Dataset / pre-training exploration
+- id: OI-orchestrator-charter-product-exec-summary-experiments
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Exec-summary experiments
+- id: OI-orchestrator-charter-product-merge-scout-decisions-q1-q6
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: MERGE_SCOUT decisions Q1–Q6
+- id: OI-orchestrator-charter-product-route-chunks-cleanup
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: '`route_chunks` cleanup'
+- id: OI-runbook-program-milestones-cell-7-full-parser-rebuild
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Cell 7 full parser rebuild
+- id: OI-runbook-program-milestones-m-phv4-deferred
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: M-PHV4 deferred
+- id: OI-runbook-program-milestones-phase-7-data-room-completeness-scorecard
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Phase 7 — data room completeness scorecard
+- id: OI-runbook-program-milestones-phase-9-hector-merge
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Phase 9 — Hector merge
+- id: OI-runbook-program-milestones-t9-docx-on-serverless
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: T9 `.docx` on serverless
+- id: P-07
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: P-07 Workflow YAML Llama 70B vs notebook Sonnet
+- id: Q-E03
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Multi-company harness gold matrix (Q-E03)
+- id: Q-R03
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Q-R03 shared index topology
+- id: R-06
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: R-06 SQL bound parameters
+- id: R-07
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: R-07 driver-bound two-hop retrieval
+- id: R-08
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Join / hydration drift (R-08)
+- id: R-2
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: Legal R-2 (t4c variance)
+- id: S-05
+  source_ref: OPEN_ITEMS.md#open--half-open
+  title: S-05 / M-04 — Garden UI + prod auth
+- id: F-14-assessment-metrics-rung3
+  source_ref: .dev/audits/eval-consolidation/M3/2026-08-13-eval-consolidation-m3-audit.md#F-14
+  title: M3 assessment_metrics rung-3 rows waived (audit F-14, operator D5)
+- id: UGA-1
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: Upstream per-workstream grounding audit (Concern 1)
+- id: CID-STABLE-1
+  source_ref: .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R3.md
+  title: Stable legal-register claim_id scheme (F-25 deferral from R3)
+ratifications:
+- subject: No pytest for g1_score_all_agents.py
+  rides: GAP-105-g1-scorer-pytest
+- subject: Legal 7/11 on Elder Care (R-2 variance)
+  rides: GAP-103-legal-score-variance-r-2
+- subject: Clearsulting KPI 1/3 (overlay conflict A-09)
+  rides: GAP-102-corpus-specific-gold-bootstrap-holes
+- subject: Cross-baseline recall comparison blocked
+  rides: GAP-106-cross-baseline-recall-compare

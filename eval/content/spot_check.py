@@ -19,7 +19,7 @@ from eval.retrieval.companies import canonical_company_slug
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_REGISTRY_PATH = Path(".dev/eval-program/registry.yaml")
+DEFAULT_REGISTRY_PATH = Path("eval/program/registry.yaml")
 HUMAN_WRITER = "human_spot_check"
 MVP_SURFACES = frozenset({"exec_summary", "fta_numeric", "legal_register"})
 RUNG_ASSIGNMENT_ITEMS = ("CHK-23a", "CHK-26a")

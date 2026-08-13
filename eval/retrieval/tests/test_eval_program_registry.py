@@ -10,8 +10,8 @@ import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-REGISTRY_PATH = REPO_ROOT / ".dev" / "eval-program" / "registry.yaml"
-MANIFEST_PATH = REPO_ROOT / ".dev" / "eval-program" / "source_manifest.yaml"
+REGISTRY_PATH = REPO_ROOT / "eval" / "program" / "registry.yaml"
+MANIFEST_PATH = REPO_ROOT / "eval" / "program" / "source_manifest.yaml"
 MUTATION_MANIFEST_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "eval_program_registry_mutation_base.yaml"
 )
@@ -552,3 +552,17 @@ def test_assessment_metrics_trigger_requires_exactly_one_carrier_mutation_fails(
     manifest = {"schema_version": 1, "sources": [], "ratifications": [{}, {}, {}, {}]}
     errors = validate_registry_manifest(registry, manifest)
     assert any("exactly one row must carry assessment_metrics" in error for error in errors)
+
+
+def test_production_default_registry_paths_resolve_to_tracked_files() -> None:
+    """Falsifier: defaults must not depend on gitignored .dev/eval-program/."""
+    from eval.content.spot_check import DEFAULT_REGISTRY_PATH
+    from eval.retrieval.trust_statement import _DEFAULT_REGISTRY
+
+    for label, path in (
+        ("spot_check.DEFAULT_REGISTRY_PATH", DEFAULT_REGISTRY_PATH),
+        ("trust_statement._DEFAULT_REGISTRY", _DEFAULT_REGISTRY),
+    ):
+        assert ".dev" not in path.as_posix(), f"{label} must not reference gitignored .dev/"
+        resolved = (REPO_ROOT / path).resolve()
+        assert resolved.is_file(), f"{label} must resolve to tracked file at {resolved}"

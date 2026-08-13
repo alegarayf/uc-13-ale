@@ -12,7 +12,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SAMPLES_DIR = REPO_ROOT / ".dev" / "eval-program"
-REGISTRY_PATH = SAMPLES_DIR / "registry.yaml"
+REGISTRY_PATH = REPO_ROOT / "eval" / "program" / "registry.yaml"
 SAMPLE_GLOB = "calibration_sample_*.yaml"
 
 SURFACES = frozenset({"fta_numeric", "legal_register", "exec_summary"})
@@ -436,8 +436,8 @@ def _minimal_numeric_sample(*, claim_id: str = "mut.claim.001") -> dict[str, Any
 def registry_doc() -> dict[str, Any]:
     if not REGISTRY_PATH.exists():
         pytest.skip(
-            f"{REGISTRY_PATH} is operator-local (gitignored .dev/ per Option C) — "
-            "registry-backed presence half requires a populated working tree"
+            f"{REGISTRY_PATH} missing — registry-backed presence half requires "
+            "tracked eval/program/registry.yaml"
         )
     return _load_yaml(REGISTRY_PATH)
 

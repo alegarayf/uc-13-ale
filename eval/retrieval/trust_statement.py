@@ -22,8 +22,8 @@ from eval.retrieval.errors import EvalError
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CATALOG = "uc13_ale"
-_DEFAULT_OUTPUT = Path(".dev/eval-program/trust_statement.md")
-_DEFAULT_REGISTRY = Path(".dev/eval-program/registry.yaml")
+_DEFAULT_OUTPUT = Path("eval/program/trust_statement.md")
+_DEFAULT_REGISTRY = Path("eval/program/registry.yaml")
 _DEFAULT_BASELINE_REPORT = Path("eval/retrieval/reports/baseline_acf58bcc4968.json")
 _UNNORMALIZABLE_SLUG = "__unnormalizable__"
 _GENERATOR_VERSION = "v1"
@@ -987,7 +987,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     generate = subparsers.add_parser(
         "generate",
-        help="Regenerate .dev/eval-program/trust_statement.md from live ops + registry",
+        help="Regenerate eval/program/trust_statement.md from live ops + registry",
     )
     generate.add_argument(
         "--catalog",
