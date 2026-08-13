@@ -415,6 +415,51 @@ def _parse_decimal_field(value: str | None) -> Decimal | None:
     return Decimal(str(value))
 
 
+_S2_SCORE_ROW_COLUMNS = 17
+
+
+def _parse_sdk_run_ts(value: Any) -> datetime:
+    """Normalize warehouse ``run_ts`` from SDK string readback (§9.1).
+
+    Delta retains microsecond precision; Databricks SDK ``data_array`` default
+    serialization truncates fractional seconds to three digits. Normalize-and-
+    record: parse the returned string as-is — production readback cannot recover
+    sub-millisecond precision from the SDK path.
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    text = str(value).strip()
+    if not text:
+        raise ValueError("run_ts must be non-empty")
+    normalized = text.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(f"run_ts is not parseable ISO-8601: {value!r}") from exc
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _select_latest_marker(markers: Sequence[Any], *, surface: str) -> Any:
+    """Pick the temporally latest completion marker; fail closed on SDK ties."""
+    if not markers:
+        raise ValueError(f"no completion markers for surface {surface!r}")
+    latest_ts = max(marker.run_ts for marker in markers)
+    tied = [marker for marker in markers if marker.run_ts == latest_ts]
+    if len(tied) > 1:
+        run_ids = sorted(marker.run_id for marker in tied)
+        raise ValueError(
+            f"ambiguous latest marker for surface {surface!r}: "
+            f"{len(tied)} completion markers share run_ts {latest_ts.isoformat()} "
+            "(SDK readback truncates sub-millisecond precision); "
+            f"run_ids: {run_ids}"
+        )
+    return tied[0]
+
+
 def _latest_marker_runs_by_surface(
     rows: Sequence[Any],
     *,
@@ -432,7 +477,7 @@ def _latest_marker_runs_by_surface(
         markers = [row for row in surface_rows if row.row_type == "completion_marker"]
         if not markers:
             continue
-        marker = max(markers, key=lambda row: (row.run_ts, row.run_id))
+        marker = _select_latest_marker(markers, surface=surface)
         claims = [
             row
             for row in surface_rows
@@ -538,11 +583,12 @@ def fetch_s2_score_rows(
     raw_rows = _execute_warehouse_sql(client, sql)
     parsed: list[S2ScoreRow] = []
     for row in raw_rows:
-        if len(row) < 17:
-            continue
-        run_ts = row[3]
-        if isinstance(run_ts, str):
-            run_ts = datetime.fromisoformat(run_ts.replace("Z", "+00:00"))
+        if len(row) < _S2_SCORE_ROW_COLUMNS:
+            raise ValueError(
+                f"s2_scores row has {len(row)} columns; expected "
+                f"{_S2_SCORE_ROW_COLUMNS} from projection"
+            )
+        run_ts = _parse_sdk_run_ts(row[3])
         parsed.append(
             S2ScoreRow(
                 company=str(row[0]),
