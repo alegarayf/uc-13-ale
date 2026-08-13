@@ -2,17 +2,24 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from decimal import Decimal
+
 import pytest
 
+from eval.content.s2_writer import S2ScoreRow
 from eval.retrieval.trust_statement import (
+    ATTESTATION_WAIVED,
     CompanyDomainRow,
     IngestProbeResult,
+    LAYER_CONTENT_CORRECTNESS,
     TrustEpochContext,
     TrustStatementGenerationError,
     TrustStatementRow,
     _GOLD_READY_SUMMARY,
     _rows_per_company,
     assert_row_set_total,
+    derive_content_rows,
     derive_rows,
     derive_rows_for_company,
     load_epoch_context_from_baseline_report,
@@ -123,9 +130,14 @@ def test_non_ingest_layers_default_to_no_completed_run() -> None:
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
     )
     others = [r for r in rows if r.layer != "ingest_completeness"]
-    assert len(others) == 6
-    assert all(r.attestation == "not_attested" for r in others)
-    assert all(r.reason == "no_completed_run" for r in others)
+    content = [r for r in others if r.layer == LAYER_CONTENT_CORRECTNESS]
+    non_content = [r for r in others if r.layer != LAYER_CONTENT_CORRECTNESS]
+    assert len(content) == 3
+    assert all(r.attestation == ATTESTATION_WAIVED for r in content)
+    assert all(r.reason == "no_completed_run" for r in content)
+    assert len(non_content) == 3
+    assert all(r.attestation == "not_attested" for r in non_content)
+    assert all(r.reason == "no_completed_run" for r in non_content)
 
 
 def test_validate_row_rejects_reasonless_not_attested() -> None:
@@ -296,3 +308,188 @@ def test_render_markdown_v1_includes_epoch_header() -> None:
     assert "baseline_acf58bcc4968" in text
     assert _GOLD_READY_SUMMARY in text
     assert "35104" not in text
+
+
+def _run_ts() -> datetime:
+    return datetime(2026, 8, 13, 12, 49, 47, 123456, tzinfo=timezone.utc)
+
+
+def _claim_row(
+    *,
+    surface: str,
+    run_id: str,
+    claim_id: str,
+    verdict: str,
+) -> S2ScoreRow:
+    return S2ScoreRow(
+        company="elder_care",
+        surface=surface,
+        run_id=run_id,
+        run_ts=_run_ts(),
+        row_type="claim",
+        claim_id=claim_id,
+        verdict=verdict,
+    )
+
+
+def _marker_row(*, surface: str, run_id: str, writer: str) -> S2ScoreRow:
+    return S2ScoreRow.from_completion_marker(
+        company="elder_care",
+        surface=surface,
+        run_id=run_id,
+        run_ts=_run_ts(),
+        writer=writer,
+    )
+
+
+def test_derive_content_rows_waived_when_no_completed_run() -> None:
+    rows = derive_content_rows("elder_care", "uc13_ale", s2_rows=[])
+    assert len(rows) == 3
+    assert all(row.attestation == ATTESTATION_WAIVED for row in rows)
+    assert all(row.reason == "no_completed_run" for row in rows)
+    assert all(row.rung is None for row in rows)
+
+
+def test_derive_content_rows_rung_from_marker_writer() -> None:
+    rows = derive_content_rows(
+        "elder_care",
+        "uc13_ale",
+        s2_rows=[
+            _claim_row(
+                surface="legal_register",
+                run_id="20260813T120000Z-legal",
+                claim_id="legal.claim.001",
+                verdict="supported",
+            ),
+            _marker_row(
+                surface="legal_register",
+                run_id="20260813T120000Z-legal",
+                writer="deterministic_verifier",
+            ),
+        ],
+    )
+    legal = next(row for row in rows if row.content_surface == "legal_register")
+    assert legal.attestation == "attested"
+    assert legal.rung == "deterministic"
+
+
+def test_derive_content_rows_human_spot_check_maps_to_human_rung() -> None:
+    rows = derive_content_rows(
+        "elder_care",
+        "uc13_ale",
+        s2_rows=[
+            _claim_row(
+                surface="exec_summary",
+                run_id="20260813T124947Z-9a9e",
+                claim_id="exec.claim.001",
+                verdict="supported",
+            ),
+            _marker_row(
+                surface="exec_summary",
+                run_id="20260813T124947Z-9a9e",
+                writer="human_spot_check",
+            ),
+        ],
+    )
+    exec_row = next(row for row in rows if row.content_surface == "exec_summary")
+    assert exec_row.attestation == "attested"
+    assert exec_row.rung == "human"
+    assert exec_row.reason is None
+
+
+def test_derive_content_rows_partial_on_claim_failures() -> None:
+    rows = derive_content_rows(
+        "elder_care",
+        "uc13_ale",
+        s2_rows=[
+            _claim_row(
+                surface="exec_summary",
+                run_id="20260813T124947Z-9a9e",
+                claim_id="exec.claim.001",
+                verdict="contradicted",
+            ),
+            _marker_row(
+                surface="exec_summary",
+                run_id="20260813T124947Z-9a9e",
+                writer="human_spot_check",
+            ),
+        ],
+    )
+    exec_row = next(row for row in rows if row.content_surface == "exec_summary")
+    assert exec_row.attestation == "partial"
+    assert exec_row.reason == "claim_failures"
+    assert exec_row.rung == "human"
+
+
+def test_derive_content_rows_fail_closed_on_unknown_writer() -> None:
+    with pytest.raises(ValueError, match="marker writer"):
+        derive_content_rows(
+            "elder_care",
+            "uc13_ale",
+            s2_rows=[
+                _marker_row(
+                    surface="fta_numeric",
+                    run_id="20260813T151817Z-bad",
+                    writer="made_up_writer",
+                )
+            ],
+        )
+
+
+def test_derive_content_rows_zero_claim_run_is_not_attested() -> None:
+    rows = derive_content_rows(
+        "elder_care",
+        "uc13_ale",
+        s2_rows=[
+            _marker_row(
+                surface="fta_numeric",
+                run_id="20260813T151817Z-empty",
+                writer="human_spot_check",
+            )
+        ],
+    )
+    fta = next(row for row in rows if row.content_surface == "fta_numeric")
+    assert fta.attestation == "not_attested"
+    assert fta.reason == "zero_claim_run"
+    assert fta.rung is None
+
+
+def test_validate_row_rejects_content_surface_on_non_content_layer() -> None:
+    with pytest.raises(ValueError, match="content_surface must be null"):
+        TrustStatementRow(
+            company="elder_care",
+            layer="retrieval",
+            surface=None,
+            content_surface="exec_summary",
+            attestation="not_attested",
+            reason="no_completed_run",
+            method=None,
+            rung=None,
+        )
+
+
+def test_derive_rows_for_company_threads_content_surface_through_full_row_set() -> None:
+    rows = derive_rows_for_company(
+        _ELDER,
+        ingest_probe=_probe_measured(completeness=1.0, denominator=10),
+        s2_rows=[
+            _claim_row(
+                surface="legal_register",
+                run_id="20260813T120000Z-legal",
+                claim_id="legal.claim.001",
+                verdict="supported",
+            ),
+            _marker_row(
+                surface="legal_register",
+                run_id="20260813T120000Z-legal",
+                writer="deterministic_verifier",
+            ),
+        ],
+    )
+    legal = next(
+        row
+        for row in rows
+        if row.layer == LAYER_CONTENT_CORRECTNESS and row.content_surface == "legal_register"
+    )
+    assert legal.attestation == "attested"
+    assert legal.surface == "legal_register"

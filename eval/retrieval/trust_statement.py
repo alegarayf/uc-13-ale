@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
+import logging
 import os
 import sys
+import types
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +18,8 @@ from typing import Any, Literal, Protocol
 import yaml
 
 from eval.retrieval.errors import EvalError
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_CATALOG = "uc13_ale"
 _DEFAULT_OUTPUT = Path(".dev/eval-program/trust_statement.md")
@@ -31,7 +37,16 @@ LAYERS = (
     "content_correctness",
 )
 CONTENT_SURFACES = ("fta_numeric", "legal_register", "exec_summary")
-ATTESTATIONS = frozenset({"attested", "partial", "not_attested", "known_gap"})
+LAYER_CONTENT_CORRECTNESS = "content_correctness"
+ATTESTATION_WAIVED = "waived"
+ATTESTATIONS = frozenset(
+    {"attested", "partial", "not_attested", "known_gap", ATTESTATION_WAIVED}
+)
+WRITER_TO_RUNG = {
+    "deterministic_verifier": "deterministic",
+    "judge_harness": "judge",
+    "human_spot_check": "human",
+}
 REASONS = frozenset(
     {
         "no_completed_run",
@@ -93,6 +108,28 @@ class TrustStatementRow:
     evidence_refs: list[str] = field(default_factory=list)
     known_gaps: list[str] = field(default_factory=list)
     manual_check: str | None = None
+    content_surface: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.layer == LAYER_CONTENT_CORRECTNESS:
+            resolved = self.content_surface if self.content_surface is not None else self.surface
+            if resolved is None or resolved not in CONTENT_SURFACES:
+                raise ValueError(
+                    f"content_correctness row ({self.company!r}, {self.surface!r}): "
+                    "content_surface required and must be a §16 surface"
+                )
+            if self.surface is not None and self.surface != resolved:
+                raise ValueError(
+                    f"content_correctness row ({self.company!r}): "
+                    f"surface {self.surface!r} disagrees with content_surface {resolved!r}"
+                )
+            object.__setattr__(self, "content_surface", resolved)
+            object.__setattr__(self, "surface", resolved)
+        elif self.content_surface is not None:
+            raise ValueError(
+                f"row ({self.company}, {self.layer}): "
+                "content_surface must be null outside content_correctness"
+            )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -134,7 +171,10 @@ def validate_row(row: TrustStatementRow) -> None:
             f"row ({row.company}, {row.layer}, {row.surface}): out-of-vocabulary layer {row.layer!r}"
         )
     if row.layer == "content_correctness":
-        if row.surface not in CONTENT_SURFACES:
+        resolved_surface = (
+            row.content_surface if row.content_surface is not None else row.surface
+        )
+        if resolved_surface not in CONTENT_SURFACES:
             raise TrustStatementGenerationError(
                 f"row ({row.company}, {row.layer}, {row.surface}): "
                 "surface required for content_correctness"
@@ -186,6 +226,16 @@ def validate_row(row: TrustStatementRow) -> None:
         raise TrustStatementGenerationError(
             f"row ({row.company}, {row.layer}, {row.surface}): "
             f"rung must be null when attestation is {row.attestation!r}"
+        )
+    if row.layer == "content_correctness" and row.content_surface is None:
+        raise TrustStatementGenerationError(
+            f"row ({row.company}, {row.layer}, {row.surface}): "
+            "content_surface required for content_correctness"
+        )
+    if row.layer != "content_correctness" and row.content_surface is not None:
+        raise TrustStatementGenerationError(
+            f"row ({row.company}, {row.layer}, {row.surface}): "
+            "content_surface must be null outside content_correctness"
         )
 
 
@@ -349,6 +399,208 @@ def _default_not_attested_row(company: str, layer: str, surface: str | None) -> 
     )
 
 
+def _resolve_writer_module(writer_module: types.ModuleType | None) -> types.ModuleType:
+    if writer_module is not None:
+        return writer_module
+    return importlib.import_module("eval.content.s2_writer")
+
+
+def _writer_to_rung(writer: str | None) -> str:
+    if writer is None:
+        raise ValueError("completion marker missing writer")
+    rung = WRITER_TO_RUNG.get(writer)
+    if rung is None:
+        raise ValueError(f"marker writer {writer!r} not in §16 vocabulary")
+    return rung
+
+
+def _latest_marker_runs_by_surface(
+    rows: Sequence[Any],
+    *,
+    company: str,
+) -> dict[str, tuple[Any, list[Any]]]:
+    """Return latest marker-complete run per surface for ``company``."""
+    by_surface: dict[str, list[Any]] = {surface: [] for surface in CONTENT_SURFACES}
+    for row in rows:
+        if row.company != company or row.surface not in CONTENT_SURFACES:
+            continue
+        by_surface[row.surface].append(row)
+
+    latest: dict[str, tuple[Any, list[Any]]] = {}
+    for surface, surface_rows in by_surface.items():
+        markers = [row for row in surface_rows if row.row_type == "completion_marker"]
+        if not markers:
+            continue
+        marker = max(markers, key=lambda row: (row.run_ts, row.run_id))
+        claims = [
+            row
+            for row in surface_rows
+            if row.run_id == marker.run_id and row.row_type == "claim"
+        ]
+        latest[surface] = (marker, claims)
+    return latest
+
+
+def _content_row_from_run(
+    company: str,
+    surface: str,
+    *,
+    marker: Any,
+    claims: Sequence[Any],
+) -> TrustStatementRow:
+    rung = _writer_to_rung(marker.writer)
+    run_ref = f"s2_scores:{marker.run_id}"
+    if not claims:
+        return TrustStatementRow(
+            company=company,
+            layer=LAYER_CONTENT_CORRECTNESS,
+            surface=surface,
+            content_surface=surface,
+            attestation="not_attested",
+            reason="zero_claim_run",
+            method=None,
+            rung=None,
+            evidence_refs=[run_ref],
+        )
+
+    failures = [
+        claim
+        for claim in claims
+        if claim.verdict in {"contradicted", "unsupported"}
+    ]
+    if failures:
+        return TrustStatementRow(
+            company=company,
+            layer=LAYER_CONTENT_CORRECTNESS,
+            surface=surface,
+            content_surface=surface,
+            attestation="partial",
+            reason="claim_failures",
+            method=None,
+            rung=rung,
+            evidence_refs=[run_ref],
+            known_gaps=[
+                f"{len(failures)}/{len(claims)} claims failed on {surface}"
+            ],
+        )
+
+    return TrustStatementRow(
+        company=company,
+        layer=LAYER_CONTENT_CORRECTNESS,
+        surface=surface,
+        content_surface=surface,
+        attestation="attested",
+        reason=None,
+        method=None,
+        rung=rung,
+        evidence_refs=[run_ref],
+    )
+
+
+def _waived_content_row(company: str, surface: str) -> TrustStatementRow:
+    return TrustStatementRow(
+        company=company,
+        layer=LAYER_CONTENT_CORRECTNESS,
+        surface=surface,
+        content_surface=surface,
+        attestation=ATTESTATION_WAIVED,
+        reason="no_completed_run",
+        method=None,
+        rung=None,
+    )
+
+
+def fetch_s2_score_rows(
+    company: str,
+    catalog: str,
+    *,
+    client: Any,
+) -> list[Any]:
+    """Load ``s2_scores`` rows for one company via the warehouse client."""
+    from eval.content.s2_writer import S2ScoreRow, TABLE_SUFFIX
+
+    table = f"{catalog}.{TABLE_SUFFIX}"
+    sql = f"""
+        SELECT company, surface, run_id, run_ts, row_type, claim_id, verdict,
+               rationale, writer, asserted_magnitude, asserted_unit,
+               extracted_magnitude, extracted_unit, cited_chunk_id,
+               cited_locator_kind, cited_locator_value, judge_verdict_advisory
+        FROM {table}
+        WHERE company = '{_escape_sql_literal(company)}'
+    """
+    logger.info(
+        "fetch_s2_score_rows",
+        extra={
+            "event": "fetch_s2_score_rows",
+            "company": company,
+            "surface": "*",
+            "run_id": "",
+            "n_claims": 0,
+        },
+    )
+    raw_rows = client.execute_sql(sql)
+    parsed: list[S2ScoreRow] = []
+    for row in raw_rows:
+        if len(row) < 5:
+            continue
+        run_ts = row[3]
+        if isinstance(run_ts, str):
+            run_ts = datetime.fromisoformat(run_ts.replace("Z", "+00:00"))
+        parsed.append(
+            S2ScoreRow(
+                company=str(row[0]),
+                surface=str(row[1]),
+                run_id=str(row[2]),
+                run_ts=run_ts,
+                row_type=row[4],  # type: ignore[arg-type]
+                claim_id=row[5],
+                verdict=row[6],
+                rationale=row[7],
+                writer=row[8],
+                cited_chunk_id=row[13],
+                cited_locator_kind=row[14],
+                cited_locator_value=row[15],
+                judge_verdict_advisory=row[16],
+            )
+        )
+    return parsed
+
+
+def derive_content_rows(
+    company: str,
+    catalog: str,
+    *,
+    writer_module: types.ModuleType | None = None,
+    client: Any | None = None,
+    s2_rows: Iterable[Any] | None = None,
+) -> list[TrustStatementRow]:
+    """Derive content_correctness rows from latest marker-complete S2 runs."""
+    _resolve_writer_module(writer_module)
+
+    if s2_rows is None:
+        if client is None:
+            rows: list[Any] = []
+        else:
+            rows = fetch_s2_score_rows(company, catalog, client=client)
+    else:
+        rows = list(s2_rows)
+
+    latest = _latest_marker_runs_by_surface(rows, company=company)
+    content_rows: list[TrustStatementRow] = []
+    for surface in CONTENT_SURFACES:
+        run = latest.get(surface)
+        if run is None:
+            content_rows.append(_waived_content_row(company, surface))
+            continue
+        marker, claims = run
+        content_rows.append(
+            _content_row_from_run(company, surface, marker=marker, claims=claims)
+        )
+
+    validate_rows(content_rows)
+    return content_rows
+
+
 def _sentinel_rows(company: str) -> list[TrustStatementRow]:
     rows: list[TrustStatementRow] = []
     for layer, surface in _rows_per_company(company):
@@ -360,6 +612,7 @@ def _sentinel_rows(company: str) -> list[TrustStatementRow]:
                     company=company,
                     layer=layer,
                     surface=surface,
+                    content_surface=surface if layer == LAYER_CONTENT_CORRECTNESS else None,
                     attestation="not_attested",
                     reason="unnormalizable_company",
                     method=None,
@@ -376,10 +629,22 @@ def derive_rows_for_company(
     ingest_probe: IngestProbeResult | None,
     registry_gap_titles: list[str] | None = None,
     epoch_context: TrustEpochContext | None = None,
+    s2_rows: Iterable[Any] | None = None,
+    s2_client: Any | None = None,
 ) -> list[TrustStatementRow]:
     gap_titles = registry_gap_titles or []
     if domain.company == _UNNORMALIZABLE_SLUG:
         return _sentinel_rows(domain.company)
+
+    content_rows = {
+        row.content_surface: row
+        for row in derive_content_rows(
+            domain.company,
+            domain.catalog,
+            client=s2_client,
+            s2_rows=s2_rows,
+        )
+    }
 
     rows: list[TrustStatementRow] = []
     for layer, surface in _rows_per_company(domain.company):
@@ -393,6 +658,9 @@ def derive_rows_for_company(
             )
         elif layer == "retrieval" and epoch_context is not None:
             rows.append(_retrieval_row_from_epoch(domain.company, epoch_context))
+        elif layer == LAYER_CONTENT_CORRECTNESS:
+            assert surface is not None
+            rows.append(content_rows[surface])
         else:
             rows.append(_default_not_attested_row(domain.company, layer, surface))
     validate_rows(rows)
