@@ -158,12 +158,10 @@ def _parse_register_list(raw: Any, *, register_name: str) -> list[dict[str, Any]
             f"register {register_name!r} must be a JSON array, got {type(parsed).__name__}"
         )
     rows: list[dict[str, Any]] = []
-    for idx, item in enumerate(parsed):
+    for item in parsed:
         if not isinstance(item, dict):
-            raise ValueError(
-                f"register {register_name!r}[{idx}] must be an object, "
-                f"got {type(item).__name__}"
-            )
+            # e.g. ``unable_to_assess`` carries display-name strings, not traceable rows.
+            continue
         rows.append(item)
     return rows
 
@@ -196,6 +194,8 @@ def build_claim_rows(
                 f"register {register_name!r} must be a list, got {type(register_rows).__name__}"
             )
         for index, record in enumerate(register_rows):
+            if not isinstance(record, dict):
+                continue
             source_doc = str(record.get("source_doc") or "").strip()
             if not source_doc:
                 continue

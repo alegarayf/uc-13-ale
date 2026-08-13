@@ -135,6 +135,25 @@ def test_build_claim_rows_rejects_non_list_register_payload() -> None:
         )
 
 
+def test_build_claim_rows_skips_non_object_register_entries() -> None:
+    """``unable_to_assess`` stores display-name strings, not traceable row objects."""
+    rows = build_claim_rows(
+        "elder_care",
+        registers={
+            "unable_to_assess": [
+                "Customer contracts — termination for convenience",
+                "Change-of-control clauses",
+            ],
+            "contract_register": _sample_registers()["contract_register"],
+        },
+        run_id="20260914T120000Z-legal",
+        run_ts=_run_ts(),
+        resolve_chunk=lambda *_: None,
+    )
+    assert len(rows) == 1
+    assert rows[0].claim_id == "legal.contract_register.0000"
+
+
 def test_verify_legal_register_writes_claims_then_marker() -> None:
     recorder = RecordingSqlExecutor()
     legal_payload = {
