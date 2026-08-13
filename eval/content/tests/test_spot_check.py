@@ -394,3 +394,60 @@ def test_write_spot_check_results_without_sql_executor_raises_before_write(
 
     with pytest.raises(RuntimeError, match="sql_executor is required"):
         write_spot_check_results(cfg)
+
+
+def test_write_spot_check_results_committed_fta_manifest_276_claims(
+    tmp_path: Path,
+) -> None:
+    """N-1 falsifier: shipped producer against committed manifest, no fixture manifest."""
+    repo_root = Path(__file__).resolve().parents[3]
+    cfg = SpotCheckConfig(
+        company="Elder Care",
+        surface="fta_numeric",
+        source="uc13_ale.analysis.financial_trends",
+        output_dir=tmp_path / "out",
+        verdicts_path=tmp_path / "fta.verdicts.yaml",
+        operator_id="operator_a",
+        registry_path=repo_root / "eval/program/registry.yaml",
+        repo_root=repo_root,
+    )
+    claims = load_claim_enumeration(cfg)
+    assert len(claims) == 276
+    mag_no_unit = [
+        c for c in claims if c.asserted_magnitude is not None and c.asserted_unit is None
+    ]
+    assert len(mag_no_unit) == 84
+
+    verdict_payload = {
+        "schema_version": 1,
+        "surface": "fta_numeric",
+        "company": "Elder Care",
+        "operator_id": "operator_a",
+        "claims": [
+            {"claim_id": c.claim_id, "verdict": "supported", "rationale": "r9 probe"}
+            for c in claims
+        ],
+    }
+    cfg.verdicts_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg.verdicts_path.write_text(
+        yaml.safe_dump(verdict_payload, sort_keys=False), encoding="utf-8"
+    )
+
+    recorder = RecordingSqlExecutor()
+    writer = S2Writer(catalog="uc13_ale", sql_executor=recorder)
+    run_ts = datetime(2026, 8, 13, 17, 43, 0, 654321, tzinfo=timezone.utc)
+
+    result = write_spot_check_results(
+        cfg,
+        writer=writer,
+        run_id="20260813T174300Z-r9f",
+        run_ts=run_ts,
+    )
+
+    assert result.claim_count == 276
+    assert len(recorder.statements) == 4
+    assert recorder.statements[0].strip().upper().startswith("SELECT")
+    assert recorder.statements[1].strip().upper().startswith("INSERT")
+    assert recorder.statements[2].strip().upper().startswith("SELECT")
+    assert "human_spot_check" in recorder.statements[3]
+    assert "20260813T174300Z-r9f" in recorder.statements[1]
