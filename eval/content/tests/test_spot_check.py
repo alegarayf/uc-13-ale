@@ -17,7 +17,6 @@ from eval.content.spot_check import (
     SpotCheckConfig,
     SpotCheckIngestionError,
     load_claim_enumeration,
-    load_exec_analysis_cache,
     prepare_spot_check,
     write_spot_check_results,
 )
@@ -628,70 +627,3 @@ def test_fta_citation_set_reproducible_without_draft_artifact(
             claim.cited_locator_value,
         ) == expected_citations[claim.claim_id]
 
-
-def test_r10_citation_parity_with_r5_backfill(tmp_path: Path) -> None:
-    """KC3: ported producer must match R5 backfill citation assignment."""
-    pytest.skip(
-        "R16 no-match floor + draft removal stale R5 backfill expected citations — "
-        "R18 relocates KC3 parity after R17 re-ingest"
-    )
-    repo_root = Path(__file__).resolve().parents[3]
-    backfill_dir = repo_root / ".dev/eval-program/spot-check"
-    exec_backfill = backfill_dir / "exec_summary_elder_care_2026-08-13.backfill.yaml"
-    fta_backfill = backfill_dir / "fta_numeric_elder_care_2026-08-13.backfill.yaml"
-    if not exec_backfill.is_file() or not fta_backfill.is_file():
-        pytest.skip("R5 backfill artifacts absent on this worktree")
-
-    from eval.content.s2_writer import make_sdk_sql_executor
-
-    sql = make_sdk_sql_executor()
-    index = ChunkIndex.from_sql(
-        sql, catalog="uc13_ale", company="Elder Care"
-    )
-
-    for surface, backfill_path, source in (
-        (
-            "exec_summary",
-            exec_backfill,
-            "uc13_ale.analysis.diligence_report.executive_summary",
-        ),
-        ("fta_numeric", fta_backfill, "uc13_ale.analysis.financial_trends"),
-    ):
-        expected = {
-            c["claim_id"]: (
-                c.get("cited_chunk_id"),
-                c.get("cited_locator_kind"),
-                c.get("cited_locator_value"),
-            )
-            for c in yaml.safe_load(backfill_path.read_text(encoding="utf-8"))["claims"]
-        }
-        cfg = SpotCheckConfig(
-            company="Elder Care",
-            surface=surface,
-            source=source,
-            output_dir=tmp_path / surface,
-            verdicts_path=tmp_path / f"{surface}.yaml",
-            operator_id="operator_a",
-            registry_path=repo_root / "eval/program/registry.yaml",
-            repo_root=repo_root,
-        )
-        exec_cache = (
-            load_exec_analysis_cache(sql, catalog="uc13_ale", company="Elder Care")
-            if surface == "exec_summary"
-            else None
-        )
-
-        actual = {
-            c.claim_id: (c.cited_chunk_id, c.cited_locator_kind, c.cited_locator_value)
-            for c in load_claim_enumeration(
-                cfg,
-                chunk_index=index,
-                exec_analysis_cache=exec_cache,
-            )
-        }
-        mismatches = [
-            (cid, expected[cid], actual.get(cid))
-            for cid in sorted(expected)
-            if expected[cid] != actual.get(cid)
-        ]
-        assert not mismatches, f"{surface} citation drift: {mismatches[:5]}"
