@@ -25,8 +25,9 @@ def test_presentation_summary_tracked_paths_exist():
     """Falsifier: D2 contract artifacts must live under eval/LCA/, not .dev/legal_agent/."""
     for path in (_SUMMARY, _POC_DELTA):
         assert path.is_file(), f"tracked presentation fixture missing: {path}"
-        assert "eval" in path.parts and "LCA" in path.parts
-        assert ".dev" not in path.parts
+        rel = path.relative_to(_REPO_ROOT)
+        assert rel.parts[:2] == ("eval", "LCA")
+        assert not str(rel).startswith(".dev/")
 
 
 def _summary_text() -> str:

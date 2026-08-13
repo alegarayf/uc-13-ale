@@ -14,8 +14,9 @@ def _arch_text(name: str) -> str:
 
 def test_arch_path_resolves_under_eval_not_dev():
     """Falsifier: architecture docs must not depend on gitignored .dev/architecture/."""
-    assert "eval" in _ARCH.parts
-    assert ".dev" not in _ARCH.parts
+    rel = _ARCH.relative_to(_REPO_ROOT)
+    assert rel.parts[:2] == ("eval", "architecture")
+    assert not str(rel).startswith(".dev/")
     assert _ARCH.is_dir()
 
 
