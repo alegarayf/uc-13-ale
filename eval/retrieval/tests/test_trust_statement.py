@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
+import yaml
 
-from eval.content.s2_writer import S2ScoreRow
+from eval.content.s2_writer import S2ScoreRow, S2Writer
+from eval.content.spot_check import SpotCheckConfig, write_spot_check_results
 from eval.retrieval.trust_statement import (
     ATTESTATION_WAIVED,
     CompanyDomainRow,
@@ -22,6 +25,7 @@ from eval.retrieval.trust_statement import (
     derive_content_rows,
     derive_rows,
     derive_rows_for_company,
+    fetch_s2_score_rows,
     load_epoch_context_from_baseline_report,
     registry_gap_titles_for_company,
     render_trust_statement_markdown,
@@ -31,6 +35,13 @@ from eval.retrieval.trust_statement import (
 )
 
 _ELDER = CompanyDomainRow(company="elder_care", catalog="uc13_ale", display_name="Elder Care")
+_EMPTY_S2: list[S2ScoreRow] = []
+
+
+def _derive_company_rows(domain: CompanyDomainRow, **kwargs: object) -> list[TrustStatementRow]:
+    if "s2_rows" not in kwargs and "s2_client" not in kwargs:
+        kwargs["s2_rows"] = _EMPTY_S2
+    return derive_rows_for_company(domain, **kwargs)  # type: ignore[arg-type]
 
 
 def _probe_measured(*, completeness: float, denominator: int) -> IngestProbeResult:
@@ -52,8 +63,8 @@ def test_rows_per_company_is_total_over_layers_and_surfaces() -> None:
     assert sum(1 for layer, _ in keys if layer == "content_correctness") == 3
 
 
-def test_derive_rows_for_company_emits_seven_rows() -> None:
-    rows = derive_rows_for_company(
+def test_derive_company_rows_emits_seven_rows() -> None:
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=0.52, denominator=412),
         registry_gap_titles=[],
@@ -62,7 +73,7 @@ def test_derive_rows_for_company_emits_seven_rows() -> None:
 
 
 def test_measured_partial_maps_incomplete_corpus_with_method() -> None:
-    rows = derive_rows_for_company(
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=467 / 475, denominator=475),
         registry_gap_titles=["Elder Care ingest gap"],
@@ -77,7 +88,7 @@ def test_measured_partial_maps_incomplete_corpus_with_method() -> None:
 
 
 def test_measured_full_completeness_is_attested() -> None:
-    rows = derive_rows_for_company(
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=1.0, denominator=100),
     )
@@ -94,7 +105,7 @@ def test_probe_failed_maps_probe_unavailable_without_method() -> None:
         backend="sql_chunk_count",
         status="probe_failed",
     )
-    rows = derive_rows_for_company(_ELDER, ingest_probe=probe)
+    rows = _derive_company_rows(_ELDER, ingest_probe=probe)
     ingest = next(r for r in rows if r.layer == "ingest_completeness")
     assert ingest.attestation == "not_attested"
     assert ingest.reason == "probe_unavailable"
@@ -108,14 +119,14 @@ def test_denominator_undefined_maps_without_method() -> None:
         backend="sql_chunk_count",
         status="denominator_undefined",
     )
-    rows = derive_rows_for_company(_ELDER, ingest_probe=probe)
+    rows = _derive_company_rows(_ELDER, ingest_probe=probe)
     ingest = next(r for r in rows if r.layer == "ingest_completeness")
     assert ingest.reason == "denominator_undefined"
     assert ingest.method is None
 
 
 def test_sentinel_company_skips_probe_and_halts_all_layers() -> None:
-    rows = derive_rows_for_company(
+    rows = _derive_company_rows(
         CompanyDomainRow(company="__unnormalizable__", catalog="uc13_ale"),
         ingest_probe=None,
     )
@@ -125,7 +136,7 @@ def test_sentinel_company_skips_probe_and_halts_all_layers() -> None:
 
 
 def test_non_ingest_layers_default_to_no_completed_run() -> None:
-    rows = derive_rows_for_company(
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
     )
@@ -228,7 +239,7 @@ def test_registry_gap_titles_include_staged_ingest_gap() -> None:
 
 
 def test_render_markdown_contains_yaml_rows_block() -> None:
-    rows = derive_rows_for_company(
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
     )
@@ -247,12 +258,16 @@ def test_derive_rows_merges_multiple_companies() -> None:
         "elder_care": _probe_measured(completeness=1.0, denominator=10),
         "acme_corp": _probe_measured(completeness=1.0, denominator=5),
     }
-    rows = derive_rows(domain, ingest_probes=probes)
+    rows = derive_rows(
+        domain,
+        ingest_probes=probes,
+        s2_rows_by_company={"elder_care": [], "acme_corp": []},
+    )
     assert len(rows) == 14
 
 
 def test_assert_row_set_total_fails_when_layer_row_missing() -> None:
-    rows = derive_rows_for_company(
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
     )
@@ -268,7 +283,7 @@ def test_v1_retrieval_row_attested_with_epoch_context() -> None:
         gold_ready_summary=_GOLD_READY_SUMMARY,
         refresh_event_refs=["signoffs/T5-baseline.md"],
     )
-    rows = derive_rows_for_company(
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
         epoch_context=epoch,
@@ -298,7 +313,7 @@ def test_render_markdown_v1_includes_epoch_header() -> None:
         ingestion_snapshot="uc13_ale:55812:2026-08-11",
         gold_ready_summary=_GOLD_READY_SUMMARY,
     )
-    rows = derive_rows_for_company(
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
         epoch_context=epoch,
@@ -468,8 +483,8 @@ def test_validate_row_rejects_content_surface_on_non_content_layer() -> None:
         )
 
 
-def test_derive_rows_for_company_threads_content_surface_through_full_row_set() -> None:
-    rows = derive_rows_for_company(
+def test_derive_company_rows_threads_content_surface_through_full_row_set() -> None:
+    rows = _derive_company_rows(
         _ELDER,
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
         s2_rows=[
@@ -493,3 +508,188 @@ def test_derive_rows_for_company_threads_content_surface_through_full_row_set() 
     )
     assert legal.attestation == "attested"
     assert legal.surface == "legal_register"
+
+
+def test_derive_content_rows_fail_closed_without_s2_dependency() -> None:
+    with pytest.raises(ValueError, match="S2 dependency required"):
+        derive_content_rows("elder_care", "uc13_ale")
+
+
+def _warehouse_row_from_s2(row: S2ScoreRow) -> list[str | None]:
+    run_ts = row.run_ts.isoformat()
+    return [
+        row.company,
+        row.surface,
+        row.run_id,
+        run_ts,
+        row.row_type,
+        row.claim_id,
+        row.verdict,
+        row.rationale,
+        row.writer,
+        str(row.asserted_magnitude) if row.asserted_magnitude is not None else None,
+        row.asserted_unit,
+        str(row.extracted_magnitude) if row.extracted_magnitude is not None else None,
+        row.extracted_unit,
+        row.cited_chunk_id,
+        row.cited_locator_kind,
+        row.cited_locator_value,
+        row.judge_verdict_advisory,
+    ]
+
+
+def test_fetch_s2_score_rows_preserves_magnitude_unit_columns() -> None:
+    source = S2ScoreRow(
+        company="elder_care",
+        surface="fta_numeric",
+        run_id="20260813T151817Z-mag",
+        run_ts=_run_ts(),
+        row_type="claim",
+        claim_id="fta.claim.001",
+        verdict="supported",
+        asserted_magnitude=Decimal("58.3"),
+        asserted_unit="percent",
+        extracted_magnitude=Decimal("58.30"),
+        extracted_unit="percent",
+    )
+
+    class _Client:
+        def execute_sql(self, _sql: str) -> list[list[str | None]]:
+            return [_warehouse_row_from_s2(source)]
+
+    fetched = fetch_s2_score_rows("elder_care", "uc13_ale", client=_Client())
+    assert len(fetched) == 1
+    assert fetched[0].asserted_magnitude == Decimal("58.3")
+    assert fetched[0].asserted_unit == "percent"
+    assert fetched[0].extracted_magnitude == Decimal("58.30")
+    assert fetched[0].extracted_unit == "percent"
+
+
+def test_derive_rows_seam_threads_s2_client_to_content_rows() -> None:
+    s2_fixture = [
+        _claim_row(
+            surface="legal_register",
+            run_id="20260813T120000Z-legal",
+            claim_id="legal.claim.001",
+            verdict="supported",
+        ),
+        _marker_row(
+            surface="legal_register",
+            run_id="20260813T120000Z-legal",
+            writer="deterministic_verifier",
+        ),
+    ]
+
+    class _Client:
+        def execute_sql(self, sql: str) -> list[list[str | None]]:
+            if "eval.s2_scores" in sql:
+                return [_warehouse_row_from_s2(row) for row in s2_fixture]
+            return []
+
+    rows = derive_rows(
+        [_ELDER],
+        ingest_probes={
+            "elder_care": _probe_measured(completeness=1.0, denominator=10),
+        },
+        s2_client=_Client(),
+    )
+    legal = next(
+        row
+        for row in rows
+        if row.layer == LAYER_CONTENT_CORRECTNESS and row.content_surface == "legal_register"
+    )
+    assert legal.attestation == "attested"
+    assert legal.rung == "deterministic"
+
+
+def _spot_check_registry_yaml() -> str:
+    return yaml.safe_dump(
+        {
+            "schema_version": 1,
+            "items": [
+                {"id": "CHK-26a", "rung_assignments": {"exec_summary": "human"}},
+            ],
+        }
+    )
+
+
+def test_content_rows_compose_with_spot_check_writer_fixtures(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    (root / "eval/content").mkdir(parents=True)
+    (root / ".dev/eval-program").mkdir(parents=True)
+    (root / ".dev/eval-program/registry.yaml").write_text(
+        _spot_check_registry_yaml(), encoding="utf-8"
+    )
+    manifest = """{
+  "schema_version": 1,
+  "claim_count": 1,
+  "claims": [
+    {"section": "Overview", "claim_id": "exec.claim.001", "claim_text": "Example."}
+  ]
+}"""
+    (root / "eval/content/exec_summary_rubric_claims.json").write_text(manifest, encoding="utf-8")
+    verdicts = root / ".dev/eval-program/spot-check/verdicts.yaml"
+    verdicts.parent.mkdir(parents=True, exist_ok=True)
+    verdicts.write_text(
+        yaml.safe_dump(
+            {
+                "claims": [
+                    {
+                        "claim_id": "exec.claim.001",
+                        "verdict": "supported",
+                        "rationale": "confirmed",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    cfg = SpotCheckConfig(
+        company="Elder Care",
+        surface="exec_summary",
+        source="uc13_ale.analysis.diligence_report.executive_summary",
+        catalog="uc13_ale",
+        output_dir=root / ".dev/eval-program/spot-check",
+        verdicts_path=verdicts,
+        operator_id="operator_a",
+        registry_path=root / ".dev/eval-program/registry.yaml",
+        repo_root=root,
+    )
+
+    captured_claims: list[S2ScoreRow] = []
+    run_ts = datetime(2026, 8, 12, 18, 30, 45, 123456, tzinfo=timezone.utc)
+    writer = S2Writer(catalog="uc13_ale", sql_executor=lambda _sql: [])
+    original_write_claims = writer.write_claims
+
+    def _capture_claims(
+        company: str,
+        surface: str,
+        run_id: str,
+        ts: datetime,
+        rows: list[S2ScoreRow],
+        **write_kwargs: object,
+    ) -> None:
+        captured_claims.extend(rows)
+        original_write_claims(company, surface, run_id, ts, rows, **write_kwargs)
+
+    writer.write_claims = _capture_claims  # type: ignore[method-assign]
+
+    result = write_spot_check_results(
+        cfg,
+        writer=writer,
+        run_id="20260812T183045Z-ab12",
+        run_ts=run_ts,
+    )
+    s2_rows = captured_claims + [
+        S2ScoreRow.from_completion_marker(
+            company="elder_care",
+            surface="exec_summary",
+            run_id=result.run_id,
+            run_ts=result.run_ts,
+            writer="human_spot_check",
+        )
+    ]
+    content = derive_content_rows("elder_care", "uc13_ale", s2_rows=s2_rows)
+    exec_row = next(row for row in content if row.content_surface == "exec_summary")
+    assert exec_row.attestation == "attested"
+    assert exec_row.rung == "human"

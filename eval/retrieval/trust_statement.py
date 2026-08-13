@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 import logging
 import os
 import sys
-import types
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
 import yaml
 
+from eval.content.s2_writer import WRITERS
 from eval.retrieval.errors import EvalError
 
 logger = logging.getLogger(__name__)
@@ -42,11 +42,13 @@ ATTESTATION_WAIVED = "waived"
 ATTESTATIONS = frozenset(
     {"attested", "partial", "not_attested", "known_gap", ATTESTATION_WAIVED}
 )
-WRITER_TO_RUNG = {
+WRITER_TO_RUNG: dict[str, str] = {
     "deterministic_verifier": "deterministic",
     "judge_harness": "judge",
     "human_spot_check": "human",
 }
+if frozenset(WRITER_TO_RUNG) != WRITERS:
+    raise RuntimeError("WRITER_TO_RUNG keys must match eval.content.s2_writer.WRITERS")
 REASONS = frozenset(
     {
         "no_completed_run",
@@ -399,19 +401,21 @@ def _default_not_attested_row(company: str, layer: str, surface: str | None) -> 
     )
 
 
-def _resolve_writer_module(writer_module: types.ModuleType | None) -> types.ModuleType:
-    if writer_module is not None:
-        return writer_module
-    return importlib.import_module("eval.content.s2_writer")
-
-
 def _writer_to_rung(writer: str | None) -> str:
     if writer is None:
         raise ValueError("completion marker missing writer")
+    if writer not in WRITERS:
+        raise ValueError(f"marker writer {writer!r} not in §16 vocabulary")
     rung = WRITER_TO_RUNG.get(writer)
     if rung is None:
-        raise ValueError(f"marker writer {writer!r} not in §16 vocabulary")
+        raise ValueError(f"marker writer {writer!r} has no rung mapping")
     return rung
+
+
+def _parse_decimal_field(value: str | None) -> Decimal | None:
+    if value is None:
+        return None
+    return Decimal(str(value))
 
 
 def _latest_marker_runs_by_surface(
@@ -510,6 +514,15 @@ def _waived_content_row(company: str, surface: str) -> TrustStatementRow:
     )
 
 
+def _execute_warehouse_sql(client: Any, sql: str) -> list[list[str | None]]:
+    if callable(client) and not hasattr(client, "execute_sql"):
+        return client(sql)
+    execute = getattr(client, "execute_sql", None)
+    if not callable(execute):
+        raise TypeError("S2 client must be a SqlExecutor callable or expose execute_sql")
+    return execute(sql)
+
+
 def fetch_s2_score_rows(
     company: str,
     catalog: str,
@@ -538,10 +551,10 @@ def fetch_s2_score_rows(
             "n_claims": 0,
         },
     )
-    raw_rows = client.execute_sql(sql)
+    raw_rows = _execute_warehouse_sql(client, sql)
     parsed: list[S2ScoreRow] = []
     for row in raw_rows:
-        if len(row) < 5:
+        if len(row) < 17:
             continue
         run_ts = row[3]
         if isinstance(run_ts, str):
@@ -557,6 +570,10 @@ def fetch_s2_score_rows(
                 verdict=row[6],
                 rationale=row[7],
                 writer=row[8],
+                asserted_magnitude=_parse_decimal_field(row[9]),
+                asserted_unit=row[10],
+                extracted_magnitude=_parse_decimal_field(row[11]),
+                extracted_unit=row[12],
                 cited_chunk_id=row[13],
                 cited_locator_kind=row[14],
                 cited_locator_value=row[15],
@@ -570,18 +587,17 @@ def derive_content_rows(
     company: str,
     catalog: str,
     *,
-    writer_module: types.ModuleType | None = None,
     client: Any | None = None,
     s2_rows: Iterable[Any] | None = None,
 ) -> list[TrustStatementRow]:
     """Derive content_correctness rows from latest marker-complete S2 runs."""
-    _resolve_writer_module(writer_module)
-
     if s2_rows is None:
         if client is None:
-            rows: list[Any] = []
-        else:
-            rows = fetch_s2_score_rows(company, catalog, client=client)
+            raise ValueError(
+                f"content_correctness for {company!r}: "
+                "S2 dependency required — supply client or s2_rows"
+            )
+        rows = fetch_s2_score_rows(company, catalog, client=client)
     else:
         rows = list(s2_rows)
 
@@ -673,16 +689,22 @@ def derive_rows(
     ingest_probes: dict[str, IngestProbeResult | None],
     registry_gap_titles_by_company: dict[str, list[str]] | None = None,
     epoch_context: TrustEpochContext | None = None,
+    s2_client: Any | None = None,
+    s2_rows_by_company: dict[str, Iterable[Any]] | None = None,
 ) -> list[TrustStatementRow]:
     gap_map = registry_gap_titles_by_company or {}
+    s2_by_company = s2_rows_by_company or {}
     rows: list[TrustStatementRow] = []
     for entry in domain:
+        company_s2_rows = s2_by_company.get(entry.company)
         rows.extend(
             derive_rows_for_company(
                 entry,
                 ingest_probe=ingest_probes.get(entry.company),
                 registry_gap_titles=gap_map.get(entry.company, []),
                 epoch_context=epoch_context,
+                s2_client=s2_client,
+                s2_rows=company_s2_rows,
             )
         )
     validate_rows(rows)
@@ -921,6 +943,7 @@ def generate_trust_statement(
         ingest_probes=probes,
         registry_gap_titles_by_company=gap_titles,
         epoch_context=epoch_context,
+        s2_client=execute_sql,
     )
     assert_row_set_total(rows, [entry.company for entry in domain])
     return rows, epoch_context
