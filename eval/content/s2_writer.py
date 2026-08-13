@@ -32,6 +32,9 @@ class SqlExecutor(Protocol):
     def __call__(self, statement: str) -> list[list[Any]]: ...
 
 
+ChunkIdResolver = Callable[[frozenset[str]], frozenset[str]]
+
+
 @dataclass(frozen=True)
 class S2ScoreRow:
     """Logical §8.8 claim row; completion markers use ``from_completion_marker``."""
@@ -75,17 +78,20 @@ class S2ScoreRow:
 
 
 def _ensure_utc_microsecond(ts: datetime) -> datetime:
+    """Normalize to UTC and retain the full microsecond field (§9.1)."""
     if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
+        normalized = ts.replace(tzinfo=timezone.utc)
     else:
-        ts = ts.astimezone(timezone.utc)
-    if ts.microsecond == 0 and ts.strftime("%f") == "000000":
-        return ts
-    return ts.replace(microsecond=ts.microsecond)
+        normalized = ts.astimezone(timezone.utc)
+    fractional = normalized.strftime("%f")
+    if len(fractional) != 6 or not fractional.isdigit():
+        raise ValueError(f"run_ts must retain microsecond precision (got fractional {fractional!r})")
+    return normalized
 
 
 def _sql_str(value: str) -> str:
-    return value.replace("'", "''")
+    """Spark SQL string literal escaping: backslash then single-quote."""
+    return value.replace("\\", "\\\\").replace("'", "''")
 
 
 def _sql_literal(value: Any) -> str:
@@ -123,7 +129,7 @@ def _validate_magnitude_unit_pair(
         raise ValueError(f"{field_prefix} unit {unit!r} not in §16 numeric unit vocabulary")
 
 
-def _validate_claim_row(row: S2ScoreRow) -> None:
+def _validate_claim_row(row: S2ScoreRow, *, rationale_required: bool) -> None:
     if row.row_type != "claim":
         raise ValueError("expected claim row")
     if row.writer is not None:
@@ -132,6 +138,8 @@ def _validate_claim_row(row: S2ScoreRow) -> None:
         raise ValueError("claim rows require claim_id")
     if row.verdict not in CLAIM_VERDICTS:
         raise ValueError(f"claim verdict {row.verdict!r} not in §16 vocabulary")
+    if rationale_required and (row.rationale is None or not str(row.rationale).strip()):
+        raise ValueError(f"claim_id {row.claim_id!r} requires non-null rationale at rungs 2–3")
     _validate_magnitude_unit_pair(
         row.asserted_magnitude, row.asserted_unit, field_prefix="asserted"
     )
@@ -234,26 +242,55 @@ class S2Writer:
             raise RuntimeError("sql_executor is required for warehouse writes")
         return self._sql(statement)
 
-    def _guard_no_completion_marker(
+    def _guard_append_allowed(
         self,
         *,
         company: str,
         surface: str,
         run_id: str,
     ) -> None:
+        """Refuse append when a marker exists or claim rows exist without a marker."""
         statement = f"""
-            SELECT 1
+            SELECT row_type
             FROM {self._table}
             WHERE company = '{_sql_str(company)}'
               AND surface = '{_sql_str(surface)}'
               AND run_id = '{_sql_str(run_id)}'
-              AND row_type = 'completion_marker'
-            LIMIT 1
+              AND row_type IN ('claim', 'completion_marker')
         """
-        if self._execute(statement):
+        rows = self._execute(statement) or []
+        row_types = {str(row[0]) for row in rows if row}
+        if "completion_marker" in row_types:
             raise ValueError(
                 f"completion marker already exists for "
                 f"({company!r}, {surface!r}, {run_id!r})"
+            )
+        if "claim" in row_types:
+            raise ValueError(
+                f"claim rows already exist without completion marker for "
+                f"({company!r}, {surface!r}, {run_id!r}); refusing duplicate append"
+            )
+
+    def _assert_cited_chunks_resolve(
+        self,
+        rows: list[S2ScoreRow],
+        chunk_id_resolver: ChunkIdResolver | None,
+    ) -> None:
+        cited_ids = frozenset(
+            row.cited_chunk_id
+            for row in rows
+            if row.cited_chunk_id is not None and row.cited_chunk_id.strip()
+        )
+        if not cited_ids:
+            return
+        if chunk_id_resolver is None:
+            return
+        resolved = frozenset(chunk_id_resolver(cited_ids))
+        missing = cited_ids - resolved
+        if missing:
+            raise ValueError(
+                "cited_chunk_id must resolve to an existing corpus chunk (S-61); "
+                f"unresolved: {sorted(missing)}"
             )
 
     def _validate_run_header(
@@ -263,11 +300,11 @@ class S2Writer:
         surface: str,
         run_id: str,
         run_ts: datetime,
-    ) -> None:
+    ) -> datetime:
         if surface not in SURFACES:
             raise ValueError(f"surface {surface!r} not in §16 vocabulary")
         _validate_run_id(run_id)
-        _ensure_utc_microsecond(run_ts)
+        return _ensure_utc_microsecond(run_ts)
 
     def write_claims(
         self,
@@ -276,12 +313,15 @@ class S2Writer:
         run_id: str,
         run_ts: datetime,
         rows: list[S2ScoreRow],
+        *,
+        rationale_required: bool = False,
+        chunk_id_resolver: ChunkIdResolver | None = None,
     ) -> None:
         """Append claim rows after the completion-marker guard query."""
-        self._validate_run_header(
+        run_ts = self._validate_run_header(
             company=company, surface=surface, run_id=run_id, run_ts=run_ts
         )
-        self._guard_no_completion_marker(company=company, surface=surface, run_id=run_id)
+        self._guard_append_allowed(company=company, surface=surface, run_id=run_id)
 
         if not rows:
             logger.info(
@@ -304,7 +344,7 @@ class S2Writer:
                 or row.run_id != run_id
             ):
                 raise ValueError("claim row run header mismatch")
-            _validate_claim_row(row)
+            _validate_claim_row(row, rationale_required=rationale_required)
             normalized.append(
                 S2ScoreRow(
                     company=row.company,
@@ -326,6 +366,8 @@ class S2Writer:
                     judge_verdict_advisory=row.judge_verdict_advisory,
                 )
             )
+
+        self._assert_cited_chunks_resolve(normalized, chunk_id_resolver)
 
         values_sql = ",\n".join(_row_to_insert_values(r) for r in normalized)
         insert_sql = f"""
@@ -360,14 +402,14 @@ class S2Writer:
         writer: str,
     ) -> None:
         """Append the run's completion marker (written last per §9)."""
-        self._validate_run_header(
+        run_ts = self._validate_run_header(
             company=company, surface=surface, run_id=run_id, run_ts=run_ts
         )
         marker = S2ScoreRow.from_completion_marker(
             company=company,
             surface=surface,
             run_id=run_id,
-            run_ts=_ensure_utc_microsecond(run_ts),
+            run_ts=run_ts,
             writer=writer,
         )
         _validate_marker_row(marker)
@@ -381,7 +423,7 @@ class S2Writer:
               AND row_type = 'completion_marker'
             LIMIT 1
         """
-        if self._execute(dup_check):
+        if self._execute(dup_check) or []:
             raise ValueError(
                 f"completion marker already exists for "
                 f"({company!r}, {surface!r}, {run_id!r})"
@@ -456,6 +498,14 @@ def apply_s2_scores_ddl(*, catalog: str = "uc13_ale", sql_executor: SqlExecutor 
 
     for raw in re.split(r";\s*\r?\n", text):
         statement = raw.strip()
-        if not statement or statement.startswith("--"):
+        if not statement:
+            continue
+        lines = [
+            line
+            for line in statement.splitlines()
+            if line.strip() and not line.strip().startswith("--")
+        ]
+        statement = "\n".join(lines).strip()
+        if not statement:
             continue
         executor(statement)

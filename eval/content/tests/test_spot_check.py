@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -62,11 +63,17 @@ def _exec_manifest() -> str:
 def _fta_manifest() -> str:
     return """{
   "schema_version": 1,
-  "claim_count": 1,
+  "claim_count": 2,
   "claims": [
     {
       "claim_id": "fta.claim.001",
       "claim_text": "yoy_growth_pct: 58.3%",
+      "source_doc": "2024 Elder Care - CIM_vF.pdf",
+      "source_location": "Pro Forma Income Statement & Projection"
+    },
+    {
+      "claim_id": "fta.claim.002",
+      "claim_text": "revenue_2024: 4200000",
       "source_doc": "2024 Elder Care - CIM_vF.pdf",
       "source_location": "Pro Forma Income Statement & Projection"
     }
@@ -148,6 +155,7 @@ def test_prepare_spot_check_writes_yaml_packet(spot_check_tree: Path) -> None:
     assert payload["company_slug"] == "elder_care"
     assert payload["claims"][0]["claim_id"] == "exec.claim.001"
     assert payload["claims"][0]["verdict"] is None
+    assert payload["operator_id"] == "operator_a"
 
 
 def test_load_claim_enumeration_parses_fta_numeric_magnitude(
@@ -159,35 +167,75 @@ def test_load_claim_enumeration_parses_fta_numeric_magnitude(
         source="uc13_ale.analysis.financial_trends",
     )
     claims = load_claim_enumeration(cfg)
-    assert len(claims) == 1
+    assert len(claims) == 2
     assert claims[0].asserted_magnitude == Decimal("58.3")
     assert claims[0].asserted_unit == "percent"
     assert claims[0].cited_locator_kind == "section"
+    assert claims[1].asserted_magnitude == Decimal("4200000")
+    assert claims[1].asserted_unit is None
+
+
+def test_parse_fta_claim_text_digit_bearing_field_name(spot_check_tree: Path) -> None:
+    cfg = _config(
+        spot_check_tree,
+        surface="fta_numeric",
+        source="uc13_ale.analysis.financial_trends",
+    )
+    manifest_path = spot_check_tree / "eval/content/fta_numeric_rubric_claims.json"
+    payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    payload["claims"].append(
+        {
+            "claim_id": "fta.claim.003",
+            "claim_text": "line_item_2024: 12.5",
+            "source_doc": "2024 Elder Care - CIM_vF.pdf",
+            "source_location": "Pro Forma Income Statement & Projection",
+        }
+    )
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+    claims = load_claim_enumeration(cfg)
+    digit_claim = next(c for c in claims if c.claim_id == "fta.claim.003")
+    assert digit_claim.asserted_magnitude == Decimal("12.5")
+    assert digit_claim.asserted_unit is None
 
 
 class RecordingSqlExecutor:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        marker_exists: bool = False,
+        claims_without_marker: bool = False,
+    ) -> None:
         self.statements: list[str] = []
+        self._marker_exists = marker_exists
+        self._claims_without_marker = claims_without_marker
 
     def __call__(self, statement: str) -> list[list[str]]:
         self.statements.append(statement)
         normalized = " ".join(statement.split())
-        if (
-            "row_type = 'completion_marker'" in normalized
-            and normalized.startswith("SELECT")
-        ):
-            return []
+        if normalized.startswith("SELECT"):
+            if "row_type IN ('claim', 'completion_marker')" in normalized:
+                rows: list[list[str]] = []
+                if self._claims_without_marker:
+                    rows.append(["claim"])
+                if self._marker_exists:
+                    rows.append(["completion_marker"])
+                return rows
+            if "row_type = 'completion_marker'" in normalized:
+                return [["completion_marker"]] if self._marker_exists else []
         return []
 
 
 def _write_verdicts(path: Path, *, surface: str = "exec_summary") -> None:
     claims = (
         [
-            {"claim_id": "exec.claim.001", "verdict": "supported"},
+            {"claim_id": "exec.claim.001", "verdict": "supported", "rationale": "yes"},
             {"claim_id": "exec.claim.002", "verdict": "contradicted", "rationale": "no"},
         ]
         if surface == "exec_summary"
-        else [{"claim_id": "fta.claim.001", "verdict": "supported"}]
+        else [
+            {"claim_id": "fta.claim.001", "verdict": "supported", "rationale": "pct ok"},
+            {"claim_id": "fta.claim.002", "verdict": "supported", "rationale": "revenue ok"},
+        ]
     )
     payload = {
         "schema_version": 1,
@@ -227,14 +275,34 @@ def test_write_spot_check_results_claims_then_marker_same_run(
     assert "20260812T183045Z-ab12" in recorder.statements[3]
 
 
+def test_write_spot_check_results_rejects_missing_rationale(
+    spot_check_tree: Path,
+) -> None:
+    cfg = _config(spot_check_tree)
+    payload = {
+        "claims": [
+            {"claim_id": "exec.claim.001", "verdict": "supported", "rationale": "ok"},
+            {"claim_id": "exec.claim.002", "verdict": "supported"},
+        ]
+    }
+    cfg.verdicts_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg.verdicts_path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+
+    with pytest.raises(SpotCheckIngestionError, match="missing rationale"):
+        write_spot_check_results(
+            cfg,
+            writer=S2Writer(catalog="uc13_ale", sql_executor=RecordingSqlExecutor()),
+        )
+
+
 def test_write_spot_check_results_rejects_unknown_claim_id(
     spot_check_tree: Path,
 ) -> None:
     cfg = _config(spot_check_tree)
     payload = {
         "claims": [
-            {"claim_id": "exec.claim.001", "verdict": "supported"},
-            {"claim_id": "exec.claim.999", "verdict": "supported"},
+            {"claim_id": "exec.claim.001", "verdict": "supported", "rationale": "ok"},
+            {"claim_id": "exec.claim.999", "verdict": "supported", "rationale": "ok"},
         ]
     }
     cfg.verdicts_path.parent.mkdir(parents=True, exist_ok=True)
@@ -251,7 +319,7 @@ def test_write_spot_check_results_rejects_missing_verdict(
     spot_check_tree: Path,
 ) -> None:
     cfg = _config(spot_check_tree)
-    payload = {"claims": [{"claim_id": "exec.claim.001", "verdict": "supported"}]}
+    payload = {"claims": [{"claim_id": "exec.claim.001", "verdict": "supported", "rationale": "ok"}]}
     cfg.verdicts_path.parent.mkdir(parents=True, exist_ok=True)
     cfg.verdicts_path.write_text(yaml.safe_dump(payload), encoding="utf-8")
 
@@ -268,8 +336,8 @@ def test_write_spot_check_results_rejects_invalid_verdict_vocabulary(
     cfg = _config(spot_check_tree)
     payload = {
         "claims": [
-            {"claim_id": "exec.claim.001", "verdict": "maybe"},
-            {"claim_id": "exec.claim.002", "verdict": "supported"},
+            {"claim_id": "exec.claim.001", "verdict": "maybe", "rationale": "ok"},
+            {"claim_id": "exec.claim.002", "verdict": "supported", "rationale": "ok"},
         ]
     }
     cfg.verdicts_path.parent.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Protocol
 
-from eval.content.s2_writer import S2ScoreRow, S2Writer, SqlExecutor
+from eval.content.s2_writer import S2ScoreRow, S2Writer, SqlExecutor, _sql_str
 from eval.retrieval.companies import DEFAULT_COMPANY_DISPLAY, canonical_company_slug
 
 logger = logging.getLogger(__name__)
@@ -59,10 +59,6 @@ class LegalRowLoader(Protocol):
 
 def _utc_now_micro() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _sql_str(value: str) -> str:
-    return value.replace("'", "''")
 
 
 def _normalize_quote(text: str) -> str:

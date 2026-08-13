@@ -11,6 +11,9 @@ from eval.content.s2_writer import (
     S2ScoreRow,
     S2Writer,
     _row_to_insert_values,
+    _sql_literal,
+    _sql_str,
+    apply_s2_scores_ddl,
 )
 
 
@@ -43,18 +46,29 @@ def _claim_row(**overrides: object) -> S2ScoreRow:
 
 
 class RecordingSqlExecutor:
-    def __init__(self, *, marker_exists: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        marker_exists: bool = False,
+        claims_without_marker: bool = False,
+    ) -> None:
         self.statements: list[str] = []
         self._marker_exists = marker_exists
+        self._claims_without_marker = claims_without_marker
 
     def __call__(self, statement: str) -> list[list[str]]:
         self.statements.append(statement)
         normalized = " ".join(statement.split())
-        if (
-            "row_type = 'completion_marker'" in normalized
-            and normalized.startswith("SELECT")
-        ):
-            return [["1"]] if self._marker_exists else []
+        if normalized.startswith("SELECT"):
+            if "row_type IN ('claim', 'completion_marker')" in normalized:
+                rows: list[list[str]] = []
+                if self._claims_without_marker:
+                    rows.append(["claim"])
+                if self._marker_exists:
+                    rows.append(["completion_marker"])
+                return rows
+            if "row_type = 'completion_marker'" in normalized:
+                return [["completion_marker"]] if self._marker_exists else []
         return []
 
 
@@ -74,7 +88,7 @@ def test_write_claims_issues_guard_before_insert() -> None:
     assert len(recorder.statements) == 2
     guard = recorder.statements[0]
     insert = recorder.statements[1]
-    assert "row_type = 'completion_marker'" in guard
+    assert "row_type IN ('claim', 'completion_marker')" in guard
     assert guard.strip().upper().startswith("SELECT")
     assert insert.strip().upper().startswith("INSERT")
 
@@ -207,3 +221,107 @@ def test_write_completion_marker_rejects_duplicate() -> None:
     assert marker.writer == "judge_harness"
     assert marker.claim_id is None
     assert marker.verdict is None
+
+
+def test_write_claims_requires_rationale_when_flagged() -> None:
+    writer = S2Writer(catalog="uc13_ale", sql_executor=RecordingSqlExecutor())
+
+    with pytest.raises(ValueError, match="requires non-null rationale"):
+        writer.write_claims(
+            "elder_care",
+            "exec_summary",
+            "20260914T101133Z-a41",
+            _run_ts(),
+            [_claim_row(surface="exec_summary", rationale=None)],
+            rationale_required=True,
+        )
+
+
+def test_write_claims_s61_kills_unresolved_chunk_ids() -> None:
+    writer = S2Writer(catalog="uc13_ale", sql_executor=RecordingSqlExecutor())
+    row = _claim_row(cited_chunk_id="missing-chunk")
+
+    def resolver(ids: frozenset[str]) -> frozenset[str]:
+        return frozenset({"c817"} & ids)
+
+    with pytest.raises(ValueError, match="S-61"):
+        writer.write_claims(
+            "elder_care",
+            "legal_register",
+            "20260914T101133Z-a41",
+            _run_ts(),
+            [row],
+            chunk_id_resolver=resolver,
+        )
+
+
+def test_write_claims_s61_batches_chunk_resolution() -> None:
+    recorder = RecordingSqlExecutor()
+    writer = S2Writer(catalog="uc13_ale", sql_executor=recorder)
+    seen: list[frozenset[str]] = []
+
+    def resolver(ids: frozenset[str]) -> frozenset[str]:
+        seen.append(ids)
+        return ids
+
+    rows = [
+        _claim_row(claim_id="legal.a.001", cited_chunk_id="c817"),
+        _claim_row(claim_id="legal.a.002", cited_chunk_id="c818"),
+    ]
+    writer.write_claims(
+        "elder_care",
+        "legal_register",
+        "20260914T101133Z-a41",
+        _run_ts(),
+        rows,
+        chunk_id_resolver=resolver,
+    )
+    assert len(seen) == 1
+    assert seen[0] == frozenset({"c817", "c818"})
+
+
+def test_sql_str_escapes_backslash_and_quote() -> None:
+    assert _sql_str("O'Brien") == "O''Brien"
+    assert _sql_str(r"path\to\file") == r"path\\to\\file"
+    rendered = _row_to_insert_values(
+        _claim_row(
+            company=r"elder\_care",
+            cited_locator_value="it's a \\test",
+        )
+    )
+    assert r"elder\\_care" in rendered
+    assert "it''s a \\\\test" in rendered
+
+
+def test_run_ts_sql_literal_retains_six_fractional_digits() -> None:
+    ts = datetime(2026, 9, 14, 10, 11, 33, 481920, tzinfo=timezone.utc)
+    assert _sql_literal(ts) == "TIMESTAMP '2026-09-14 10:11:33.481920'"
+
+
+def test_write_claims_refuses_partial_run_retry() -> None:
+    recorder = RecordingSqlExecutor(claims_without_marker=True)
+    writer = S2Writer(catalog="uc13_ale", sql_executor=recorder)
+
+    with pytest.raises(ValueError, match="without completion marker"):
+        writer.write_claims(
+            "elder_care",
+            "legal_register",
+            "20260914T101133Z-a41",
+            _run_ts(),
+            [_claim_row()],
+        )
+
+    assert len(recorder.statements) == 1
+
+
+def test_apply_s2_scores_ddl_executes_comment_first_statements() -> None:
+    executed: list[str] = []
+
+    def executor(statement: str) -> list[list[str]]:
+        executed.append(statement)
+        return []
+
+    apply_s2_scores_ddl(catalog="uc13_test", sql_executor=executor)
+    assert any("CREATE SCHEMA" in stmt for stmt in executed)
+    assert any("CREATE TABLE" in stmt for stmt in executed)
+    assert len(executed) == 2
