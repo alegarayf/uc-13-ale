@@ -410,6 +410,7 @@ def write_spot_check_results(
         run_ts,
         rows,
         rationale_required=True,
+        rung=3,
     )
     s2_writer.write_completion_marker(
         company_slug,
