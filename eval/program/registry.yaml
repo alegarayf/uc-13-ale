@@ -1,0 +1,1653 @@
+schema_version: 1
+items:
+- id: A-03
+  title: Agent depth uneven (A-03)
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#agent-quality-backlog
+  source_id: A-03
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: A-07
+  title: Excel cell-level citations (A-07)
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#agent-quality-backlog
+  source_id: A-07
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: A-09
+  title: Clearsulting KPI overlay conflict (A-09)
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#agent-quality-backlog
+  source_id: A-09
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: ACC-e2e-runner-pytest
+  title: No pytest for the e2e runner — accepted orphan
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#8.4
+  source_id: ACC-e2e-runner-pytest
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: No pytest for the e2e runner — accepted orphan
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: ACC-python-docx-missing-on-serverless
+  title: python-docx missing on serverless (.md OK, .docx blocked)
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#8.4
+  source_id: ACC-python-docx-missing-on-serverless
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: python-docx missing on serverless (.md OK, .docx blocked)
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: EXT-1
+  title: 'Operating model: standing manual gate vs. CI automation (harness cluster path in CI, auto INDEX↔ops cross-check)'
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  source_id: EXT-1
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: 'Operator trigger per spec §18 for Operating model: standing manual gate vs. CI automation (harness cluster path
+    in CI, auto INDEX↔ops cross-check)'
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: EXT-2
+  title: Langfuse as judge-score/trace home
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  source_id: EXT-2
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Operator trigger per spec §18 for Langfuse as judge-score/trace home
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: EXT-3
+  title: Product surface for trust evidence
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  source_id: EXT-3
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Operator trigger per spec §18 for Product surface for trust evidence
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: EXT-4
+  title: Model/cost/latency eval; synthetic/adversarial sets
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  source_id: EXT-4
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Operator trigger per spec §18 for Model/cost/latency eval; synthetic/adversarial sets
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: EXT-5
+  title: Per-company G1 floors / rubrics / CI fixtures
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  source_id: EXT-5
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Operator trigger per spec §18 for Per-company G1 floors / rubrics / CI fixtures
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: EXT-6
+  title: '`doc_status`-backed ingest preflight'
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  source_id: EXT-6
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Operator trigger per spec §18 for `doc_status`-backed ingest preflight
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: EXT-7
+  title: Sibling rationale file rename (`uc-13-ale-program-rationale.md` → ingestion-scoped name)
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  source_id: EXT-7
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Operator trigger per spec §18 for Sibling rationale file rename (`uc-13-ale-program-rationale.md` → ingestion-scoped
+    name)
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-102-corpus-specific-gold-bootstrap-holes
+  title: Corpus-specific gold bootstrap holes — Clearsulting has **0 LEGAL-classified docs** → `legal.*` intents cannot bootstrap
+    meaningful positives (G1 Legal 0/11 is
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  source_id: GAP-102-corpus-specific-gold-bootstrap-holes
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: 'Operator-ratified acceptance (briefing §8.4): Clearsulting KPI 1/3 overlay conflict A-09 is a corpus/overlay
+    mismatch, not agent failure.'
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-102-per-company-g1-floors
+  title: Per-company G1 floors — `BASELINES` in `g1_score_all_agents.py` sets Clearsulting/GKF/SPG to `None` (T5 decision
+    log). `evaluate_promotion` skip
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  source_id: GAP-102-per-company-g1-floors
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-102-per-company-harness-baselines
+  title: 'Per-company harness baselines in ops — `DeltaEvalStore.get_latest_baseline(company_name, catalog)` exists; only
+    Elder Care has a promoted control row. Phase C '
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  source_id: GAP-102-per-company-harness-baselines
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-102-profiler-not-in-chip-b-e2e
+  title: Profiler not in Chip B e2e — Operator-ratified exclusion (O-14.6). GKF/SPG `company_profile` rows predate Chip B
+    runs.
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  source_id: GAP-102-profiler-not-in-chip-b-e2e
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-102-record-e2e-linkage-scope
+  title: '`record_e2e_linkage` scope — `eval/retrieval/scripts/record_e2e_linkage.py` wired for FTA/Legal only (`.dev/eval_framework_work.md`
+    §9). BMA/CQA/KPI/'
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  source_id: GAP-102-record-e2e-linkage-scope
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-103-citation-fidelity-unwatched
+  title: 'Citation fidelity unwatched — pain_central A-07: Excel cell-level citations not systematic. Harness measures chunk
+    ID overlap, not whether extracted n'
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  source_id: GAP-103-citation-fidelity-unwatched
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: 'A-07 ratified: Excel cell-level citations not systematic; harness measures chunk overlap only until S2 verifiers
+    land.'
+  tshirt: null
+  evidence_refs:
+  - signoffs/T11-closeout.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-103-g1-presence-only
+  title: G1 is presence-only — Scorer checks non-empty JSON fields (`pass` / `partial` / `gap-correct`), not values, citations,
+    or narrative. Documente
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  source_id: GAP-103-g1-presence-only
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: G1 scorer is presence-only by design at S1; content correctness deferred to S2.
+  tshirt: null
+  evidence_refs:
+  - signoffs/T11-closeout.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-103-legal-score-variance-r-2
+  title: Legal score variance (R-2) — 7/11 accepted on Elder Care — LLM entity-resolution at dedupe, not retrieval miss. Dedupe
+    key lacks `source_doc` (backlo
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  source_id: GAP-103-legal-score-variance-r-2
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: 'Operator-ratified accepted variance (briefing §8.4): Elder Care Legal 7/11 reflects R-2 LLM entity-resolution
+    at dedupe, not retrieval miss.'
+  tshirt: null
+  evidence_refs:
+  - signoffs/T11-closeout.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-103-no-content-correctness-eval
+  title: No content / correctness eval — No LLM-as-judge, human rubric, or golden Q&A set. Orchestrator memo and exec summary
+    have word-count + H1 checks only (`
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  source_id: GAP-103-no-content-correctness-eval
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: No LLM-as-judge or human rubric at S1; S2 content tier owns correctness eval.
+  tshirt: null
+  evidence_refs:
+  - signoffs/T11-closeout.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-103-recall-at-10-bloated-gold
+  title: Recall@10 on bloated gold sets — 8 KPI/profiler intents still use `filename_closure` with ~2,800 positives each.
+    Max recall@10 ≈ 10/2829 ≈ **0.35%** rega
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  source_id: GAP-103-recall-at-10-bloated-gold
+  disposition: staged
+  stage: S1
+  status: closed
+  trigger: null
+  rationale: 'Charter Amendment A2 full-57 gold refresh: 7 of 8 item-12 bloated intents resolved (2 KPI citation_backfill,
+    5 aggregate_exclude/no_citation_source); kpi.retrieve_bench_and_capacity retained as filename_closure/2,925 by operator
+    disposition (a) at G4 with recall@10 ≤ 0.34% accepted residual pending Tier-3 spec note (ESC-T12-1); mean recall
+    interpretable on uc13_ale:55812:2026-08-11 baseline for the resolved cohort, not bench per-intent.'
+  tshirt: null
+  evidence_refs:
+  - signoffs/T4-refresh.md
+  - signoffs/T4-eyeball-pack.json
+  - eval/retrieval/gold_labels/elder_care.yaml
+  - signoffs/T5-baseline.md
+  - baseline_acf58bcc4968
+  - signoffs/T12-bench-disposition.md
+  - .dev/plans/eval-consolidation-m1-metric-guardrail-hardening/escalations/ESC-T12-1-bench-spec-note.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-104-no-enhancement-gate-hash-c
+  title: No enhancement gate on hash C post-Chip A — Ablation matrix (M-PHV4) pinned `baseline_1aeb0ace584a`. New registry
+    hash C has no re-run ablation attestation on `base
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.4
+  source_id: GAP-104-no-enhancement-gate-hash-c
+  disposition: staged
+  stage: S0
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-105-g1-scorer-pytest
+  title: 'No pytest for `g1_score_all_agents.py` — Chip B contract: live stdout is falsifier. Accepted gap (§8.4).'
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: GAP-105-g1-scorer-pytest
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: 'Operator-ratified accepted gap (briefing §8.4): Chip B contract uses live stdout as falsifier for g1_score_all_agents.py;
+    T6 slug guard is additive only.'
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/tests/test_g1_scorer_semantics_guard.py
+  - signoffs/T11-closeout.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-105-harness-cluster-not-in-ci
+  title: Harness cluster path not in CI — `pytest eval/retrieval/tests/` mocks VS via `elder_care_slice.json`. Live `recall@10`
+    only on operator cluster submit.
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: GAP-105-harness-cluster-not-in-ci
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: Live recall@10 remains operator cluster path; CI uses elder_care_slice.json mock.
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/README.md
+  - signoffs/T9-slice-refresh.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-105-no-ci-guard-gold-positives
+  title: 'No CI guard: gold positives non-empty — Chip A T4 gap: 8 new CQA/KPI intents not asserted to have `positive_chunk_ids
+    > 0` in pytest.'
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: GAP-105-no-ci-guard-gold-positives
+  disposition: staged
+  stage: S1
+  status: closed
+  trigger: null
+  rationale: Item 16 gold guards landed in T7 — ready/partial non-empty + exclusion shape.
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/tests/test_gold_bootstrap.py
+  - eval/retrieval/tests/test_gold_exclusions.py
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-105-no-cluster-gates-xfail-guard
+  title: No CLUSTER_GATES PASS ⇒ 0 xfail guard — Chip A T5 changelog open gap.
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: GAP-105-no-cluster-gates-xfail-guard
+  disposition: staged
+  stage: S1
+  status: closed
+  trigger: null
+  rationale: Item 17 xfail guard landed in T7.
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/tests/test_gate_xfail_guard.py
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-105-no-index-ops-cross-check
+  title: No INDEX ↔ ops manifest cross-check — M4-T8 accepted gap. `.dev/scorecards/INDEX.md` can diverge from `retrieval_harness_runs`.
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: GAP-105-no-index-ops-cross-check
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: 'M4-T8 accepted gap: INDEX.md can diverge from retrieval_harness_runs.'
+  tshirt: null
+  evidence_refs:
+  - signoffs/T11-closeout.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-105-no-per-company-gold-coverage-pytest
+  title: 'No per-company gold coverage pytest — `test_committed_elder_care_yaml_validates_and_covers_registry` exists for
+    EC only (handoff Phase C criterion C3: “not ye'
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: GAP-105-no-per-company-gold-coverage-pytest
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: Elder Care coverage pytest exists; multi-company guard deferred to S3.
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/tests/test_gold_bootstrap.py
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-105-no-per-company-gold-positive-counts
+  title: No per-company `gold_positive_counts` manifest — Elder Care pins counts/methods in `fixtures/gold_positive_counts.yaml`;
+    no equivalent for Clearsulting/GKF/SPG.
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: GAP-105-no-per-company-gold-positive-counts
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: Elder Care pins gold_positive_counts.yaml; other companies deferred to S3.
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/fixtures/gold_positive_counts.yaml
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-105-no-unified-eval-cli
+  title: No unified eval CLI — Harness (`harness_cli`), G1 (`g1_score_all_agents.py`), e2e (`post_merge_closeout_submit.py`),
+    promotion (`evaluate_prom
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: GAP-105-no-unified-eval-cli
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: Per-surface CLIs remain at S1; unified CLI deferred per §18.
+  tshirt: null
+  evidence_refs:
+  - signoffs/T11-closeout.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-106-cross-baseline-recall-compare
+  title: Cross-baseline recall compare — Cross-baseline recall compare
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  source_id: GAP-106-cross-baseline-recall-compare
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Revisit per briefing §10.6 trigger column
+  rationale: 'Operator-ratified design boundary (briefing §8.4): cross-hash recall comparison blocked by RegistryHashMismatchError
+    by design.'
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-106-latency-cost-token-metrics
+  title: Latency / cost / token metrics in harness — Latency / cost / token metrics in harness
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  source_id: GAP-106-latency-cost-token-metrics
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Revisit per briefing §10.6 trigger column
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-106-mphv4-items-28-30
+  title: M-PHV4 items 28/30 (shared context, `workstream_tags.py`) — M-PHV4 items 28/30 (shared context, `workstream_tags.py`)
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  source_id: GAP-106-mphv4-items-28-30
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Revisit per briefing §10.6 trigger column
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-106-synthetic-adversarial-eval-set
+  title: Synthetic / adversarial eval set — Synthetic / adversarial eval set
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  source_id: GAP-106-synthetic-adversarial-eval-set
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Revisit per briefing §10.6 trigger column
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-108-bootstrap-entry-hardcoded
+  title: Bootstrap entry point hardcoded — `GoldLabelBootstrap` accepts `company_name` / `catalog`, but `bootstrap.main()`
+    always writes `eval/retrieval/gold_label
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  source_id: GAP-108-bootstrap-entry-hardcoded
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-108-disconnected-eval-idea-pending-md
+  title: Disconnected eval idea in `pending.md` — “Dataset / pre-training … minimal baseline from all companies” is not wired
+    to harness gold, ops baselines, or promotion
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  source_id: GAP-108-disconnected-eval-idea-pending-md
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-108-harness-cli-gold-path-resolution
+  title: Harness CLI gold-path resolution — `harness_cli run --company-name "GKF"` does **not** derive `--gold-path`; `EvalHarness`
+    defaults to `elder_care.yaml` un
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  source_id: GAP-108-harness-cli-gold-path-resolution
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-108-mphv2-second-company-procedure
+  title: M-PHV2 second-company procedure ≠ Phase C — README second-company runbook minimum is parser + FTA (Decision 3), not
+    full gold bootstrap + harness baseline per compa
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  source_id: GAP-108-mphv2-second-company-procedure
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-108-no-phase-c-plan-artifact
+  title: No Phase C plan artifact — Chip A (`chip-a-g6-gold-bootstrap`) and Chip B (`chip-b-4company-agent-validation`) have
+    closed orchestrator plans; Phas
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  source_id: GAP-108-no-phase-c-plan-artifact
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-108-operator-escalation-not-recorded
+  title: 'Operator escalation not recorded — M4 Decision 3 defers full second-company gold unless FTA fails badly. Phase C
+    requires an explicit go/no-go overturning '
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  source_id: GAP-108-operator-escalation-not-recorded
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-108-slug-convention-split
+  title: 'Slug convention split — Gold files: `elder_care` (underscore). G1 scorecards / `BASELINES` keys: `elder-care` (hyphen).
+    No canonical `companies.'
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  source_id: GAP-108-slug-convention-split
+  disposition: staged
+  stage: S3
+  status: in_progress
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - signoffs/S-50-evidence.md
+  - signoffs/fold-vectors.md
+  - .dev/eval-program/company_slug_vectors.yaml
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-108-stale-handoff-doc
+  title: Stale handoff doc — `GOLD_LABEL_BOOTSTRAP_HANDOFF.md` header still claims G6 OPEN / 49 labels / Chip B not run —
+    superseded by Chip A/B clos
+  source_refs:
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.8
+  source_id: GAP-108-stale-handoff-doc
+  disposition: staged
+  stage: S3
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - GOLD_LABEL_BOOTSTRAP_HANDOFF.md
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/stale-doc-sync.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: M-02
+  title: M-02 Genie chatbot product fate
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#orchestrator-charter-product
+  source_id: M-02
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: NEW-1
+  title: phv4 NEW-1
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#merge-gates
+  source_id: NEW-1
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: O-11
+  title: O-11 / GKF–SPG fallback re-verify
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.4
+  source_id: O-11
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/O-11-rescore.md
+  - baseline_3831adf97292
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: O-14.13
+  title: O-14.13
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#merge-gates
+  source_id: O-14.13
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: O-14.3
+  title: O-14.3 — 6 FTA `bootstrap_failed` rows
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  source_id: O-14.3
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/FTA-gold-fix.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-agent-quality-backlog-clearsulting-stakeholder-narrative
+  title: Clearsulting stakeholder narrative
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#agent-quality-backlog
+  source_id: OI-agent-quality-backlog-clearsulting-stakeholder-narrative
+  disposition: staged
+  stage: S2
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-data-ingest-quality-cell-8c-never-in-smoke-path
+  title: Cell 8c never in smoke path
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#data-ingest-quality
+  source_id: OI-data-ingest-quality-cell-8c-never-in-smoke-path
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-data-ingest-quality-elder-care-ingest-gap
+  title: Elder Care ingest gap
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#data-ingest-quality
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  source_id: OI-data-ingest-quality-elder-care-ingest-gap
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-data-ingest-quality-incremental-parser-status-table
+  title: Incremental parser / status table
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#data-ingest-quality
+  source_id: OI-data-ingest-quality-incremental-parser-status-table
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-data-ingest-quality-indexsyncerror-job-exit-behavior
+  title: IndexSyncError job exit behavior
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#data-ingest-quality
+  source_id: OI-data-ingest-quality-indexsyncerror-job-exit-behavior
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-data-ingest-quality-spg-ingest-borderline
+  title: SPG ingest borderline
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#data-ingest-quality
+  source_id: OI-data-ingest-quality-spg-ingest-borderline
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-elder-care-slice-json-refresh-trigger
+  title: '`elder_care_slice.json` refresh trigger'
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.5
+  source_id: OI-eval-harness-elder-care-slice-json-refresh-trigger
+  disposition: staged
+  stage: S1
+  status: closed
+  trigger: null
+  rationale: Item 19 slice refresh script + mandatory regen landed in T9.
+  tshirt: null
+  evidence_refs:
+  - signoffs/T9-slice-refresh.md
+  - eval/retrieval/scripts/refresh_elder_care_slice.py
+  - eval/retrieval/fixtures/elder_care_slice.json
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg
+  title: '`evaluate_promotion` — Clearsulting / GKF / SPG'
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  source_id: OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-evaluate-promotion-elder-care-post-fix-full-refresh
+  title: '`evaluate_promotion` — Elder Care post-fix full refresh'
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.4
+  source_id: OI-eval-harness-evaluate-promotion-elder-care-post-fix-full-refresh
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/promotion-index.md
+  - '594615618834522'
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-fta-rubric-eval-fta
+  title: FTA rubric → `eval/FTA/`
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.3
+  source_id: OI-eval-harness-fta-rubric-eval-fta
+  disposition: staged
+  stage: S1
+  status: closed
+  trigger: null
+  rationale: Item 18 canonical FTA golden checklist landed in T8.
+  tshirt: null
+  evidence_refs:
+  - eval/FTA/golden_checklist_elder_care.md
+  - tests/test_golden_checklist_fta.py
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-legal-litigation-chunk-id-diff-debug
+  title: '`legal.litigation` chunk_id diff debug'
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  source_id: OI-eval-harness-legal-litigation-chunk-id-diff-debug
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-m-phv4-readme-t2-gate
+  title: M-PHV4 README T2 gate
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  source_id: OI-eval-harness-m-phv4-readme-t2-gate
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/README.md
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/stale-doc-sync.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-phase-c-multi-company-gold-yaml
+  title: Phase C — multi-company gold YAML
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.2
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.6
+  source_id: OI-eval-harness-phase-c-multi-company-gold-yaml
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-profiler-re-run-clearsulting-gkf-spg
+  title: Profiler re-run — Clearsulting / GKF / SPG
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  source_id: OI-eval-harness-profiler-re-run-clearsulting-gkf-spg
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-housekeeping-do-today-chip-a-plan-status-auditor-handoff
+  title: Chip A plan status + auditor handoff
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#housekeeping-do-today
+  source_id: OI-housekeeping-do-today-chip-a-plan-status-auditor-handoff
+  disposition: staged
+  stage: S0
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-housekeeping-do-today-commit-gold-guardrails
+  title: Commit gold guardrails
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#housekeeping-do-today
+  source_id: OI-housekeeping-do-today-commit-gold-guardrails
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/fixtures/gold_positive_counts.yaml
+  - eval/retrieval/tests/test_gold_bootstrap.py
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/G6-T7-baseline-note.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-housekeeping-do-today-doc-sync-stale-reality
+  title: Doc sync (stale → reality)
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#housekeeping-do-today
+  source_id: OI-housekeeping-do-today-doc-sync-stale-reality
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/stale-doc-sync.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-housekeeping-do-today-runbook-g6-sha
+  title: Runbook G6 SHA
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#housekeeping-do-today
+  source_id: OI-housekeeping-do-today-runbook-g6-sha
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/G6-T7-baseline-note.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-housekeeping-do-today-t2-working-note-fix
+  title: T2 working note fix
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#housekeeping-do-today
+  source_id: OI-housekeeping-do-today-t2-working-note-fix
+  disposition: staged
+  stage: S0
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-merge-gates-cqa-cosmetic
+  title: CQA cosmetic
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#merge-gates
+  source_id: OI-merge-gates-cqa-cosmetic
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-merge-gates-g2-g4-formal-sign-off
+  title: G2–G4 formal sign-off
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#merge-gates
+  - .dev/eval_state_of_affairs_2026-08-03.md#10.4
+  source_id: OI-merge-gates-g2-g4-formal-sign-off
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/G2-G4-signoff.md
+  - baseline_544eb3f2a0e2
+  - 2855aef9c0fb46e1b2252875d843ef3a
+  - 8ace6d49eacf4d51b86f5de16b262485
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-merge-gates-g6-gate-file-note-stale
+  title: G6 gate file note stale
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#merge-gates
+  source_id: OI-merge-gates-g6-gate-file-note-stale
+  disposition: staged
+  stage: S0
+  status: closed
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m0-canon-hygiene/signoffs/G6-T7-baseline-note.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-merge-gates-legal-dedupe-hardening
+  title: Legal dedupe hardening
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#merge-gates
+  source_id: OI-merge-gates-legal-dedupe-hardening
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-orchestrator-charter-product-charter-m3-gate-condition-halt-1-pager-flow
+  title: Charter M3 — gate/condition + halt → 1-pager flow
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#orchestrator-charter-product
+  source_id: OI-orchestrator-charter-product-charter-m3-gate-condition-halt-1-pager-flow
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-orchestrator-charter-product-dataset-pre-training-exploration
+  title: Dataset / pre-training exploration
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#orchestrator-charter-product
+  source_id: OI-orchestrator-charter-product-dataset-pre-training-exploration
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-orchestrator-charter-product-exec-summary-experiments
+  title: Exec-summary experiments
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#orchestrator-charter-product
+  source_id: OI-orchestrator-charter-product-exec-summary-experiments
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-orchestrator-charter-product-merge-scout-decisions-q1-q6
+  title: MERGE_SCOUT decisions Q1–Q6
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#orchestrator-charter-product
+  source_id: OI-orchestrator-charter-product-merge-scout-decisions-q1-q6
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-orchestrator-charter-product-route-chunks-cleanup
+  title: '`route_chunks` cleanup'
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#orchestrator-charter-product
+  source_id: OI-orchestrator-charter-product-route-chunks-cleanup
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-runbook-program-milestones-cell-7-full-parser-rebuild
+  title: Cell 7 full parser rebuild
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#runbook-program-milestones
+  source_id: OI-runbook-program-milestones-cell-7-full-parser-rebuild
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-runbook-program-milestones-m-phv4-deferred
+  title: M-PHV4 deferred
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#runbook-program-milestones
+  source_id: OI-runbook-program-milestones-m-phv4-deferred
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-runbook-program-milestones-phase-7-data-room-completeness-scorecard
+  title: Phase 7 — data room completeness scorecard
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#runbook-program-milestones
+  source_id: OI-runbook-program-milestones-phase-7-data-room-completeness-scorecard
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-runbook-program-milestones-phase-9-hector-merge
+  title: Phase 9 — Hector merge
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#runbook-program-milestones
+  source_id: OI-runbook-program-milestones-phase-9-hector-merge
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-runbook-program-milestones-t9-docx-on-serverless
+  title: T9 `.docx` on serverless
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#runbook-program-milestones
+  source_id: OI-runbook-program-milestones-t9-docx-on-serverless
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: P-07
+  title: P-07 Workflow YAML Llama 70B vs notebook Sonnet
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#orchestrator-charter-product
+  source_id: P-07
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: Q-E03
+  title: Multi-company harness gold matrix (Q-E03)
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#eval-harness
+  source_id: Q-E03
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: Q-R03
+  title: Q-R03 shared index topology
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#runbook-program-milestones
+  source_id: Q-R03
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: R-06
+  title: R-06 SQL bound parameters
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#runbook-program-milestones
+  source_id: R-06
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: R-07
+  title: R-07 driver-bound two-hop retrieval
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#runbook-program-milestones
+  source_id: R-07
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: R-08
+  title: Join / hydration drift (R-08)
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#data-ingest-quality
+  source_id: R-08
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: R-2
+  title: Legal R-2 (t4c variance)
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#merge-gates
+  source_id: R-2
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: S-05
+  title: S-05 / M-04 — Garden UI + prod auth
+  source_refs:
+  - OPEN_ITEMS.md#open--half-open
+  - OPEN_ITEMS.md#orchestrator-charter-product
+  source_id: S-05
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: null
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: CHK-23
+  title: FTA citation traceability assessment (§17 item 23)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: closed
+  trigger: null
+  rationale: 'No-go: FTA numeric claims cite PDF filename + prose section labels only (no chunk id,
+    no cell address). DG-26 resolution is one-to-many for 70.3% of claims (194/276); a deterministic
+    verifier cannot mechanically select the cited chunk at item-24 grain (A-07). Rung assignment deferred
+    to item 26a per §7.1 precedence.'
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T2-fta-assessment.md
+  - .dev/eval-program/calibration_sample_fta_numeric.yaml
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/t2_fta_probe_report.json
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: CHK-23a
+  title: Legal register traceability assessment (§17 item 23a)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: closed
+  trigger: null
+  rationale: 'Go: 23/26 register records carry enumerable source_doc + source_location + raw_quote
+    at filename/section grain resolvable against uc13_ale.ingestion.chunks; 0 within-register dedupe
+    collision groups (R-2 variance not triggered on canonical Elder Care population). Three rows without
+    source_doc are derived ancillary structures (restrictive_covenant_map, recommended_diligence), not
+    primary register entries item 25 verifies.'
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T3-legal-assessment.md
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/probe_legal_traceability.py
+  - eval/content/legal_register_verifier.py
+  - .dev/audits/eval-consolidation/M3/g6-closeout-evidence.md
+  rung_assignments:
+    legal_register: deterministic
+  assessment_metrics: {}
+- id: CHK-23b
+  title: Calibration sample validators (§17 item 23b)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: closed
+  trigger: null
+  rationale: 'Standing hermetic item-23b validator green on every §8.7 sample file present
+    after item 26a (plan §0.4.2 operational reading): calibration_sample_fta_numeric.yaml
+    (N=30) and calibration_sample_exec_summary.yaml (N=28); legal_register sample absent
+    (item 23a go path). Schema and presence halves both pass at G5 close-out.'
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/tests/test_calibration_samples.py
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T4-validator.md
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T7-g5-closeout.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: CHK-24
+  title: FTA numeric→cited-chunk deterministic verifier (§17 item 24)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: descoped
+  trigger: null
+  rationale: 'Descoped by item 23 no-go (§7.1 pre-plan-assessment trigger): citation traceability at
+    section-header grain over a PDF CIM does not support a rung-1 deterministic numeric→chunk verifier
+    for Elder Care FTA output.'
+  tshirt: null
+  evidence_refs: []
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: CHK-25
+  title: Legal register-row verifier (§17 item 25)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: closed
+  trigger: null
+  rationale: 'Go path (CHK-23a): deterministic legal register verifier built (eval/content/legal_register_verifier.py)
+    and executed for Elder Care — 23 claim rows + completion marker in run 20260813T153415Z-e14a
+    (8 supported, 6 contradicted, 9 unsupported); marker writer deterministic_verifier.'
+  tshirt: null
+  evidence_refs:
+  - eval/content/legal_register_verifier.py
+  - eval/content/tests/test_legal_register_verifier.py
+  - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/T3.md
+  - .dev/audits/eval-consolidation/M3/s2_scores_elder_care_dump.json
+  - .dev/audits/eval-consolidation/M3/g6-closeout-evidence.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: CHK-26
+  title: Exec-summary human spot-check protocol (§17 item 26)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: closed
+  trigger: null
+  rationale: 'Rung-3 human spot-check rubric authored after CHK-26a rung assignments (S-54).
+    exec_summary: 53-claim whole-surface enumeration (28 calibration-pinned + 25 source extensions;
+    manifest eval/content/exec_summary_rubric_claims.json) from uc13_ale.analysis.diligence_report.executive_summary.
+    fta_numeric: DG-19 generalization per CHK-26a — 276-claim enumeration from uc13_ale.analysis.financial_trends
+    (T2 probe record). legal_register out of scope (item 23a go path).'
+  tshirt: null
+  evidence_refs:
+  - eval/content/exec_summary_spot_check_rubric.md
+  - eval/content/exec_summary_rubric_claims.json
+  - eval/content/fta_numeric_rubric_claims.json
+  - eval/content/fixtures/exec_summary_enumeration_source.md
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T6-rubric.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: CHK-26a
+  title: Judge-capability pre-plan calibration (§17 item 26a)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: closed
+  trigger: null
+  rationale: 'Judge calibration completed 2026-08-12 against databricks-claude-sonnet-4-6 (Elder Care,
+    uc13_ale); re-run 2026-08-12 after removing numeric evidence injection (ground-truth leak fix).
+    exec_summary: verdict_agreement 0.393 < 0.80 threshold ⇒ human. fta_numeric (item-23 demoted
+    surface): value_agreement 0.500 < 0.90 and span_agreement 0.000 < 0.80 ⇒ human. DG-19: item 26
+    rubric to be generalized to fta_numeric full claim set (demoted-surface threshold failure).
+    F-6 provenance caveat (audit rev 1): span_agreement: 0.0 and locator_labelled_fraction: 1.0 were
+    recorded as judge-capability figures, but the BGE vector-retrieval leg (databricks-bge-large-en,
+    uc13_ale.ingestion.embeddings_index, top_k=5) was undeclared at measurement time and supplied the
+    judge''s only evidence — over a sample with 2 distinct chunk_ids, span_agreement: 0.0 is at least
+    as readily explained by retrieval never surfacing either chunk in top-5 as by judge locate failure.
+    The T5 run stripped raw_response, so the share of the 17 judge unsupported results that were parse
+    failures is unrecoverable; verdict_agreement: 0.393 may partly reflect parse-failure rate. Reuse
+    of these figures as judge-capability or upgrade evidence is governed by ESC-T2-3
+    (escalations/ESC-T2-3-measure-validity-c5-c8.md); the human assignments stand regardless.'
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration.md
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration-exec_summary.json
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration-fta_numeric.json
+  - .dev/eval-program/calibration_sample_exec_summary.yaml
+  - eval/content/spot_check.py
+  - .dev/eval-program/spot-check/exec_summary_elder_care_2026-08-12.verdicts.yaml
+  - .dev/eval-program/spot-check/fta_numeric_elder_care_2026-08-13.verdicts.yaml
+  - .dev/audits/eval-consolidation/M3/g6-closeout-evidence.md
+  - .dev/audits/eval-consolidation/M3/operator-attestation-rung3.md
+  rung_assignments:
+    exec_summary: human
+    fta_numeric: human
+  assessment_metrics:
+    exec_summary:
+      verdict_agreement: 0.39285714285714285
+    fta_numeric:
+      resolved_value_fraction: 1.0
+      resolved_span_fraction: 1.0
+      locator_labelled_fraction: 1.0
+      value_agreement: 0.5
+      span_agreement: 0.0
+- id: CHK-27
+  title: LLM-judge harness (§17 item 27)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: descoped
+  trigger: null
+  rationale: 'No-build disposition: zero surfaces assigned rung 2 at M3 start — CHK-26a
+    records rung_assignments {exec_summary: human, fta_numeric: human} and CHK-23a
+    records {legal_register: deterministic}; item 27 is scoped to every rung-2 surface
+    (spec §17 item 27, §12.1 rung 2) so the build population is empty. ESC-T2-3
+    closed Option A (caveat-and-carry, D1 2026-08-12): M2 human assignments stand as
+    final; M3 does not re-decide rungs. S2 score-table storage (§8.8/§9) is built
+    separately (T1); no judge-harness module or rung-2 production runs are in scope
+    this milestone. Audit trail: M2 audit rev 2 (2026-08-12-eval-consolidation-m2-audit.md);
+    calibration-disagreement audit §5 D1 (.dev/plans/eval-consolidation-m2-s2-preplan-assessments/audits/calibration-disagreement-audit-2026-08-12.md).'
+  tshirt: null
+  evidence_refs:
+  - .dev/audits/eval-consolidation/M2/2026-08-12-eval-consolidation-m2-audit.md
+  - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/audits/calibration-disagreement-audit-2026-08-12.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: CHK-28
+  title: Trust-statement content_correctness tier (§17 item 28)
+  source_refs: []
+  source_id: null
+  disposition: staged
+  stage: S2
+  status: closed
+  trigger: null
+  rationale: 'derive_content_rows in eval/retrieval/trust_statement.py (T7) populates one content_correctness
+    row per §16 surface from marker-complete s2_scores runs; Elder Care live derivation yields
+    attested fta_numeric (human rung) and partial legal_register/exec_summary (claim_failures)
+    at deterministic and human rungs respectively.'
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/trust_statement.py
+  - eval/retrieval/tests/test_trust_statement.py
+  - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/T7.md
+  - .dev/audits/eval-consolidation/M3/content_correctness_rows.json
+  - .dev/audits/eval-consolidation/M3/g6-closeout-evidence.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: F-14-assessment-metrics-rung3
+  title: M3 assessment_metrics rung-3 rows waived (audit F-14, operator D5)
+  source_refs:
+  - .dev/audits/eval-consolidation/M3/2026-08-13-eval-consolidation-m3-audit.md#F-14
+  - .dev/specs/eval-consolidation-program/eval_consolidation_program_milestone_charter.md
+  source_id: F-14-assessment-metrics-rung3
+  disposition: accepted
+  stage: S2
+  status: n/a
+  trigger: null
+  rationale: 'Named waiver (operator D5, 2026-08-13): M3 closes with assessment_metrics carrying
+    no rung-3 spot-check metric rows although the charter conditional fired (exec_summary and
+    fta_numeric human spot-checks executed). Residual risk: measure-validity claims remain on
+    the F-4/F-5/F-6 waivers until the parked Tier-2 ESC-T2-3 escalation lands — not a GREEN
+    clause.'
+  tshirt: null
+  evidence_refs:
+  - .dev/audits/eval-consolidation/M3/2026-08-13-eval-consolidation-m3-audit.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: UGA-1
+  title: Upstream per-workstream grounding audit (Concern 1)
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  - .dev/audits/eval-consolidation/M3/upstream-grounding-audit-prompt.md
+  source_id: UGA-1
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: M4 entry gate — operator executes the filed prompt before M4 S3 onboarding work proceeds
+  rationale: T5 exec_summary reconciliation verified bundle-fidelity only; agent-grounding against
+    VDR chunks is the missing layer. Filed from root standby prompt per operator D6 (2026-08-13).
+    Read-only diagnostic; R6 attestation acknowledges transitive-grounding residual risk.
+  tshirt: null
+  evidence_refs:
+  - .dev/audits/eval-consolidation/M3/upstream-grounding-audit-prompt.md
+  - .dev/eval-program/spot-check/exec_summary_elder_care_2026-08-12.verdicts.yaml
+  - .dev/eval-program/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: CID-STABLE-1
+  title: Stable legal-register claim_id scheme (F-25 deferral from R3)
+  source_refs:
+  - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R3.md
+  source_id: CID-STABLE-1
+  disposition: deferred
+  stage: S2
+  status: n/a
+  trigger: Post-M3 remediation follow-up — replace positional legal.{register}.{index} IDs with
+    content-stable scheme without breaking joinability to landed runs
+  rationale: R3 re-run retained positional claim IDs for v1↔post-R3 diffability; scheme change
+    deferred to avoid mid-remediation join breakage (R3 decision log Items deferred).
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R3.md
+  - .dev/audits/eval-consolidation/M3/r3-legal-register-rerun.md
+  rung_assignments: {}
+  assessment_metrics: {}
