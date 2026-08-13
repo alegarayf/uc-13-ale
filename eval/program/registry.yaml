@@ -1,3 +1,6 @@
+# Canonical eval-program registry (charter hub). After edits, sync the tracked mirror:
+#   python -c "from eval.retrieval.tests.test_eval_program_registry import sync_registry_mirror; sync_registry_mirror()"
+# See .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R12.md (D8).
 schema_version: 1
 items:
 - id: A-03
@@ -1649,5 +1652,24 @@ items:
   evidence_refs:
   - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R3.md
   - .dev/audits/eval-consolidation/M3/r3-legal-register-rerun.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: REG-CANON-1
+  title: Promote tracked eval/program/registry.yaml to sole canonical hub surface
+  source_refs:
+  - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R12.md
+  - .dev/plans/eval-consolidation-m3-s2-build/plan.md#7
+  source_id: null
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: M4 entry gate — charter Tier-2 amendment retires dual-location model (D8 mirror-not-move)
+    and promotes eval/program/registry.yaml to canonical; parity guard retired with promotion
+  rationale: N-6 (rev-2 audit) — M3 closes the dual-registry hole via enforced byte-parity mirror
+    and pytest guard without moving hub ownership; full canonical promotion is charter Tier-2
+    (operator routing §7.4) and belongs at M4 entry alongside UGA-1 and CID-STABLE-1.
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R12.md
   rung_assignments: {}
   assessment_metrics: {}
