@@ -30,7 +30,7 @@ MANIFEST_PATHS: dict[str, str] = {
 }
 
 _FTA_CLAIM_RE = re.compile(
-    r"^(?P<field>[a-z_]+):\s*(?P<value>.+?)(?P<pct>%)?$",
+    r"^(?P<field>[a-z_][a-z0-9_]*):\s*(?P<value>.+?)(?P<pct>%)?$",
     re.IGNORECASE,
 )
 
@@ -154,9 +154,7 @@ def _parse_fta_claim_text(claim_text: str) -> tuple[Decimal | None, str | None]:
         return None, None
     if match.group("pct") or field.endswith("_pct") or "pct" in field:
         return magnitude, "percent"
-    if field.startswith("revenue") or field.startswith("ebitda") or "usd" in field:
-        return magnitude, "USD_k"
-    return magnitude, "ratio"
+    return magnitude, None
 
 
 def _claim_from_manifest_entry(surface: str, source: str, entry: dict[str, Any]) -> SpotCheckClaim:
@@ -237,7 +235,7 @@ def prepare_spot_check(config: SpotCheckConfig) -> SpotCheckPrepareResult:
         "company": config.company,
         "company_slug": company_slug,
         "source": config.source,
-        "operator_id": None,
+        "operator_id": config.operator_id,
         "prepared_at": _utc_now().isoformat(),
         "claim_count": len(claims),
         "claims": [
@@ -325,6 +323,13 @@ def _validate_verdict_ingestion(
                 f"claim_id {claim.claim_id!r} verdict {verdict!r} not in §16 vocabulary"
             )
             continue
+        rationale = entry.get("rationale")
+        if rationale is None or (isinstance(rationale, str) and not rationale.strip()):
+            errors.append(f"missing rationale for claim_id {claim.claim_id!r}")
+            continue
+        if rationale is not None and not isinstance(rationale, str):
+            errors.append(f"claim_id {claim.claim_id!r} rationale must be a string")
+            continue
         validated[claim.claim_id] = entry
 
     if errors:
@@ -404,6 +409,7 @@ def write_spot_check_results(
         run_id,
         run_ts,
         rows,
+        rationale_required=True,
     )
     s2_writer.write_completion_marker(
         company_slug,
