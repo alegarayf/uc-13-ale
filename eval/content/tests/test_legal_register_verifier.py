@@ -225,6 +225,7 @@ def test_s2_writer_accepts_verifier_claim_row_shape() -> None:
         "20260914T120000Z-legal",
         _run_ts(),
         [row],
+        chunk_id_resolver=lambda ids: ids,
     )
     assert len(recorder.statements) == 2
 

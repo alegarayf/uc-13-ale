@@ -320,7 +320,9 @@ class S2Writer:
         if not cited_ids:
             return
         if chunk_id_resolver is None:
-            return
+            raise ValueError(
+                "chunk_id_resolver is required when claim rows carry cited_chunk_id (S-61)"
+            )
         resolved = frozenset(chunk_id_resolver(cited_ids))
         missing = cited_ids - resolved
         if missing:

@@ -14,7 +14,22 @@ from typing import Any
 
 import yaml
 
-from eval.content.s2_writer import CLAIM_VERDICTS, S2ScoreRow, S2Writer, SURFACES
+from eval.content.legal_register_verifier import (
+    ChunkResolution,
+    derive_locator,
+    make_warehouse_chunk_id_resolver,
+    parse_page_from_location,
+    section_value_from_location,
+)
+from eval.content.s2_writer import (
+    CLAIM_VERDICTS,
+    ChunkIdResolver,
+    S2ScoreRow,
+    S2Writer,
+    SqlExecutor,
+    SURFACES,
+    _sql_str,
+)
 from eval.retrieval.companies import canonical_company_slug
 
 logger = logging.getLogger(__name__)
@@ -33,6 +48,15 @@ _FTA_CLAIM_RE = re.compile(
     r"^(?P<field>[a-z_][a-z0-9_]*):\s*(?P<value>.+?)(?P<pct>%)?$",
     re.IGNORECASE,
 )
+
+# M2 audit D2 / m3_backlog #3: broken vision-extraction placeholder → sibling chunk.
+BROKEN_CHUNK_ID = "027ec667-fb72-4eb6-b723-3d6a68e5789d"
+SIBLING_CHUNK_ID = "cd9773ea-0a3c-460d-869a-bc963a15cd1f"
+LOCATION_CHUNK_OVERRIDE: dict[str, str] = {
+    "Pro Forma Income Statement & Projection": SIBLING_CHUNK_ID,
+}
+
+FTA_DRAFT_REL_PATH = ".dev/plans/eval-consolidation-m3-s2-build/t6/t6_draft_results.json"
 
 
 @dataclass(frozen=True)
@@ -157,12 +181,406 @@ def _parse_fta_claim_text(claim_text: str) -> tuple[Decimal | None, str | None]:
     return magnitude, None
 
 
-def _claim_from_manifest_entry(surface: str, source: str, entry: dict[str, Any]) -> SpotCheckClaim:
+@dataclass(frozen=True)
+class ChunkRecord:
+    chunk_id: str
+    file_name: str
+    section_header: str | None
+    page_start: int | None
+    chunk_text: str
+
+
+class ChunkIndex:
+    """In-memory index over ``ingestion.chunks`` for direct citation lookup."""
+
+    def __init__(self, records: list[ChunkRecord]) -> None:
+        self._by_id = {r.chunk_id: r for r in records}
+        self._by_file: dict[str, list[ChunkRecord]] = {}
+        for rec in records:
+            self._by_file.setdefault(rec.file_name, []).append(rec)
+
+    @classmethod
+    def from_sql(
+        cls,
+        sql_executor: SqlExecutor,
+        *,
+        catalog: str,
+        company: str,
+    ) -> ChunkIndex:
+        rows = sql_executor(
+            f"""
+            SELECT chunk_id, file_name, section_header, page_start,
+                   CAST(NULL AS STRING) AS chunk_text
+            FROM {catalog}.ingestion.chunks
+            WHERE company_name = '{_sql_str(company)}'
+            """
+        )
+        records = [
+            ChunkRecord(
+                chunk_id=str(row[0]),
+                file_name=str(row[1] or ""),
+                section_header=str(row[2]) if row[2] is not None else None,
+                page_start=int(row[3]) if row[3] is not None else None,
+                chunk_text=str(row[4] or ""),
+            )
+            for row in (rows or [])
+            if row and row[0]
+        ]
+        return cls(records)
+
+    def exists(self, chunk_id: str) -> bool:
+        return chunk_id in self._by_id
+
+    def resolve_ids(self, chunk_ids: frozenset[str]) -> frozenset[str]:
+        return frozenset(cid for cid in chunk_ids if self.exists(cid))
+
+    def record(self, chunk_id: str) -> ChunkRecord | None:
+        return self._by_id.get(chunk_id)
+
+    def lookup(self, source_doc: str, source_location: str | None) -> ChunkResolution | None:
+        if not source_doc:
+            return None
+
+        override_id = None
+        if source_location and source_location in LOCATION_CHUNK_OVERRIDE:
+            override_id = LOCATION_CHUNK_OVERRIDE[source_location]
+
+        if override_id and override_id in self._by_id:
+            rec = self._by_id[override_id]
+            return ChunkResolution(
+                chunk_id=rec.chunk_id,
+                chunk_text=rec.chunk_text,
+                page_start=rec.page_start,
+                section_header=rec.section_header,
+            )
+
+        candidates = self._candidates_for_doc(source_doc)
+        if not candidates:
+            return None
+
+        page = parse_page_from_location(source_location)
+        section_pattern = section_value_from_location(source_location)
+
+        scored: list[tuple[int, ChunkRecord]] = []
+        for rec in candidates:
+            score = 0
+            if page is not None and rec.page_start == page:
+                score += 2
+            if section_pattern and rec.section_header:
+                if section_pattern.lower() in rec.section_header.lower():
+                    score += 3
+            if source_location and rec.section_header:
+                if source_location.lower() in rec.section_header.lower():
+                    score += 2
+            if score > 0:
+                scored.append((score, rec))
+
+        if scored:
+            scored.sort(key=lambda t: (-t[0], t[1].page_start or 0, t[1].chunk_id))
+            rec = scored[0][1]
+        elif len(candidates) == 1:
+            rec = candidates[0]
+        else:
+            rec = sorted(candidates, key=lambda r: (r.page_start or 0, r.chunk_id))[0]
+
+        return ChunkResolution(
+            chunk_id=rec.chunk_id,
+            chunk_text=rec.chunk_text,
+            page_start=rec.page_start,
+            section_header=rec.section_header,
+        )
+
+    def _candidates_for_doc(self, source_doc: str) -> list[ChunkRecord]:
+        if source_doc in self._by_file:
+            return list(self._by_file[source_doc])
+        suffix = source_doc[-40:] if len(source_doc) > 40 else source_doc
+        out: list[ChunkRecord] = []
+        for fname, recs in self._by_file.items():
+            if fname.endswith(suffix) or suffix in fname:
+                out.extend(recs)
+        return out
+
+
+def load_exec_analysis_cache(
+    sql_executor: SqlExecutor,
+    *,
+    catalog: str,
+    company: str,
+) -> dict[str, Any]:
+    """Fetch latest analysis rows used for exec_summary citation resolution."""
+
+    def _json_col(table: str, column: str) -> Any:
+        rows = sql_executor(
+            f"""
+            SELECT CAST({column} AS STRING)
+            FROM {catalog}.analysis.{table}
+            WHERE company_name = '{_sql_str(company)}'
+            ORDER BY created_at DESC LIMIT 1
+            """
+        )
+        if not rows or rows[0][0] is None:
+            return None
+        return json.loads(rows[0][0])
+
+    def _scalar_col(table: str, column: str) -> Any:
+        rows = sql_executor(
+            f"""
+            SELECT CAST({column} AS STRING)
+            FROM {catalog}.analysis.{table}
+            WHERE company_name = '{_sql_str(company)}'
+            ORDER BY created_at DESC LIMIT 1
+            """
+        )
+        return rows[0][0] if rows else None
+
+    return {
+        "revenue_trend_json": _json_col("financial_trends", "revenue_trend_json") or [],
+        "ebitda_json": _json_col("financial_trends", "ebitda_json") or [],
+        "addback_pct_of_ebitda": _scalar_col("financial_trends", "addback_pct_of_ebitda"),
+        "addback_ledger_json": _json_col("quality_of_earnings", "addback_ledger_json") or [],
+        "tier4_addback_count": _scalar_col("quality_of_earnings", "tier4_addback_count"),
+        "ebitda_scenarios_json": _json_col("quality_of_earnings", "ebitda_scenarios_json") or {},
+        "qofe_report_present": _scalar_col("quality_of_earnings", "qofe_report_present"),
+        "healthcare_kpis_json": _json_col("kpi", "healthcare_kpis_json") or {},
+        "compliance_incidents": _json_col("kpi", "healthcare_kpis_json"),
+        "customer_operational_metrics_json": _json_col(
+            "business_model", "customer_operational_metrics_json"
+        )
+        or {},
+        "top_10_issues_json": _json_col("diligence_report", "top_10_issues_json") or [],
+        "reconciliation_summary_json": _json_col(
+            "diligence_report", "reconciliation_summary_json"
+        )
+        or {},
+        "section_ratings_json": _json_col("diligence_report", "section_ratings_json") or {},
+        "section_confidence_json": _json_col(
+            "diligence_report", "section_confidence_json"
+        )
+        or {},
+        "forecast_assumptions_json": _json_col("forecast", "forecast_assumptions_json") or {},
+        "credibility_summary_json": _json_col("forecast", "credibility_summary_json") or {},
+    }
+
+
+def _fta_row_source(
+    rows: list[dict[str, Any]], *, location_contains: str
+) -> tuple[str | None, str | None]:
+    for row in rows:
+        loc = str(row.get("source_location") or "")
+        if location_contains.lower() in loc.lower():
+            return str(row.get("source_doc") or "") or None, loc or None
+    return None, None
+
+
+def _qoe_item_source(
+    ledger: list[dict[str, Any]], letter: str
+) -> tuple[str | None, str | None]:
+    tag = f"[{letter.upper()}]"
+    for row in ledger:
+        desc = str(row.get("description") or "")
+        if desc.startswith(tag) or f" {tag}" in desc:
+            doc = str(row.get("source_doc") or "") or None
+            loc = str(row.get("source_location") or "") or None
+            if doc:
+                return doc, loc
+    return None, None
+
+
+def _first_source(
+    *pairs: tuple[str | None, str | None],
+) -> tuple[str | None, str | None]:
+    for doc, loc in pairs:
+        if doc:
+            return doc, loc
+    return None, None
+
+
+def _top10_source(
+    issues: list[dict[str, Any]], rank: int
+) -> tuple[str | None, str | None]:
+    for issue in issues:
+        if int(issue.get("rank") or 0) == rank:
+            citations = issue.get("citations") or []
+            if citations:
+                return str(citations[0]), None
+    return None, None
+
+
+def exec_claim_source(
+    claim_id: str, cache: dict[str, Any]
+) -> tuple[str | None, str | None]:
+    """Map exec_summary claim_id → (source_doc, source_location) from analysis artifacts."""
+
+    static: dict[str, tuple[str, str | None]] = {
+        "exec.claim.001": ("2024 Elder Care - CIM_vF.pdf", "Elder Care by the Numbers"),
+        "exec.claim.002": ("GL_0125-0325.xlsx", None),
+        "exec.claim.003": ("Company KPI Dashboard SAMPLE.xlsx", "Census or Patient Panel"),
+        "exec.claim.004": ("Company KPI Dashboard SAMPLE.xlsx", "Caregiver Headcount"),
+        "exec.claim.005": ("2024 Elder Care - CIM_vF.pdf", "Corporate Functions"),
+        "exec.claim.006": ("2024 Elder Care - CIM_vF.pdf", "Key Entity Metrics"),
+        "exec.claim.011": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+        "exec.claim.013": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+        "exec.claim.031": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+        "exec.claim.034": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+        "exec.claim.020": (
+            "Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx",
+            "Q&A",
+        ),
+        "exec.claim.023": (
+            "April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf",
+            None,
+        ),
+        "exec.claim.024": ("Manhattan_Lease_0424.pdf", "Section 11"),
+        "exec.claim.028": (
+            "Project Orange Engagement Letter - May 1, 2025.pdf",
+            None,
+        ),
+        "exec.claim.029": ("2024 Elder Care - CIM_vF.pdf", "Services Overview"),
+        "exec.claim.030": ("2024 Elder Care - CIM_vF.pdf", "MD&A"),
+        "exec.claim.037": ("2024 Elder Care - CIM_vF.pdf", "Growth Strategy"),
+    }
+    if claim_id in static:
+        return static[claim_id]
+
+    revenue = cache.get("revenue_trend_json") or []
+    ledger = cache.get("addback_ledger_json") or []
+    top10 = cache.get("top_10_issues_json") or []
+
+    if claim_id in {
+        "exec.claim.007",
+        "exec.claim.008",
+        "exec.claim.009",
+        "exec.claim.010",
+        "exec.claim.012",
+    }:
+        return _fta_row_source(revenue, location_contains="Historical P&L Summary")
+    if claim_id in {"exec.claim.011", "exec.claim.013", "exec.claim.031", "exec.claim.034"}:
+        return _first_source(
+            ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+            _top10_source(top10, 1),
+        )
+    if claim_id == "exec.claim.014":
+        return _qoe_item_source(ledger, "G")
+    if claim_id == "exec.claim.015":
+        return _qoe_item_source(ledger, "K")
+    if claim_id == "exec.claim.016":
+        return _qoe_item_source(ledger, "O")
+    if claim_id == "exec.claim.017":
+        return ("2024 Elder Care - CIM_vF.pdf", "Historical P&L Summary, Page 49")
+    if claim_id == "exec.claim.018":
+        return ("Elder Care Projection Model_vUPLOAD.xlsx", "Forecast Assumptions")
+    if claim_id in {
+        "exec.claim.019",
+        "exec.claim.046",
+        "exec.claim.047",
+        "exec.claim.026",
+        "exec.claim.025",
+    }:
+        return ("2024 Elder Care - CIM_vF.pdf", "Executive Summary")
+    if claim_id == "exec.claim.032":
+        return _qoe_item_source(ledger, "D")
+    if claim_id == "exec.claim.033":
+        return _qoe_item_source(ledger, "N")
+    if claim_id in {
+        "exec.claim.021",
+        "exec.claim.022",
+        "exec.claim.035",
+        "exec.claim.036",
+        "exec.claim.038",
+        "exec.claim.039",
+        "exec.claim.040",
+        "exec.claim.041",
+        "exec.claim.042",
+        "exec.claim.043",
+        "exec.claim.044",
+        "exec.claim.045",
+        "exec.claim.048",
+        "exec.claim.049",
+        "exec.claim.050",
+        "exec.claim.051",
+        "exec.claim.052",
+        "exec.claim.053",
+    }:
+        rank_map = {
+            "exec.claim.021": 3,
+            "exec.claim.022": 4,
+            "exec.claim.035": 2,
+            "exec.claim.036": 5,
+            "exec.claim.038": 1,
+            "exec.claim.039": 3,
+            "exec.claim.040": 4,
+            "exec.claim.041": 1,
+            "exec.claim.042": 6,
+            "exec.claim.043": 7,
+            "exec.claim.044": 8,
+            "exec.claim.045": 10,
+            "exec.claim.048": 1,
+            "exec.claim.049": 3,
+            "exec.claim.050": 6,
+            "exec.claim.051": 7,
+            "exec.claim.052": 9,
+            "exec.claim.053": 10,
+        }
+        return _top10_source(top10, rank_map[claim_id])
+    if claim_id == "exec.claim.027":
+        return (None, None)
+    return (None, None)
+
+
+def _load_fta_draft_by_id(config: SpotCheckConfig) -> dict[str, dict[str, Any]]:
+    draft_path = _repo_root(config) / FTA_DRAFT_REL_PATH
+    if not draft_path.is_file():
+        return {}
+    draft = json.loads(draft_path.read_text(encoding="utf-8"))
+    return {d["claim_id"]: d for d in draft}
+
+
+def _resolve_chunk_for_entry(
+    *,
+    surface: str,
+    claim_id: str,
+    chunk_index: ChunkIndex,
+    source_doc: str | None,
+    source_location: str | None,
+    fta_draft_by_id: dict[str, dict[str, Any]] | None,
+) -> ChunkResolution | None:
+    if surface == "fta_numeric" and fta_draft_by_id:
+        draft = fta_draft_by_id.get(claim_id, {})
+        chunk_id = draft.get("chunk_id")
+        if chunk_id and chunk_index.exists(str(chunk_id)):
+            rec = chunk_index.record(str(chunk_id))
+            if rec is not None:
+                return ChunkResolution(
+                    chunk_id=rec.chunk_id,
+                    chunk_text=rec.chunk_text,
+                    page_start=rec.page_start,
+                    section_header=rec.section_header,
+                )
+    if source_doc:
+        return chunk_index.lookup(str(source_doc), source_location)
+    return None
+
+
+def _claim_from_manifest_entry(
+    surface: str,
+    source: str,
+    entry: dict[str, Any],
+    *,
+    chunk_index: ChunkIndex | None = None,
+    exec_analysis_cache: dict[str, Any] | None = None,
+    fta_draft_by_id: dict[str, dict[str, Any]] | None = None,
+) -> SpotCheckClaim:
     claim_id = entry["claim_id"]
     claim_text = entry["claim_text"]
     section = entry.get("section")
     source_doc = entry.get("source_doc")
     source_location = entry.get("source_location")
+
+    if surface == "exec_summary" and exec_analysis_cache is not None:
+        derived_doc, derived_loc = exec_claim_source(claim_id, exec_analysis_cache)
+        if derived_doc:
+            source_doc = derived_doc
+            source_location = derived_loc
 
     source_ref: str | None
     if source_doc and source_location:
@@ -172,8 +590,21 @@ def _claim_from_manifest_entry(surface: str, source: str, entry: dict[str, Any])
     else:
         source_ref = f"source://{source}"
 
-    locator_kind = "section" if source_location else None
-    locator_value = source_location
+    cited_chunk_id: str | None = None
+    cited_locator_kind: str | None = None
+    cited_locator_value: str | None = None
+    if chunk_index is not None:
+        chunk = _resolve_chunk_for_entry(
+            surface=surface,
+            claim_id=claim_id,
+            chunk_index=chunk_index,
+            source_doc=source_doc,
+            source_location=source_location,
+            fta_draft_by_id=fta_draft_by_id,
+        )
+        if chunk is not None:
+            cited_chunk_id = chunk.chunk_id
+            cited_locator_kind, cited_locator_value = derive_locator(chunk=chunk)
 
     asserted_magnitude: Decimal | None = None
     asserted_unit: str | None = None
@@ -187,19 +618,33 @@ def _claim_from_manifest_entry(surface: str, source: str, entry: dict[str, Any])
         source_ref=source_ref,
         source_doc=source_doc,
         source_location=source_location,
-        cited_locator_kind=locator_kind,
-        cited_locator_value=locator_value,
+        cited_chunk_id=cited_chunk_id,
+        cited_locator_kind=cited_locator_kind,
+        cited_locator_value=cited_locator_value,
         asserted_magnitude=asserted_magnitude,
         asserted_unit=asserted_unit,
     )
 
 
-def load_claim_enumeration(config: SpotCheckConfig) -> tuple[SpotCheckClaim, ...]:
+def load_claim_enumeration(
+    config: SpotCheckConfig,
+    *,
+    chunk_index: ChunkIndex | None = None,
+    exec_analysis_cache: dict[str, Any] | None = None,
+    fta_draft_by_id: dict[str, dict[str, Any]] | None = None,
+) -> tuple[SpotCheckClaim, ...]:
     """Load the whole-surface claim set from the committed rubric manifest."""
     manifest_file = _manifest_path(config)
     payload = json.loads(manifest_file.read_text(encoding="utf-8"))
     claims = [
-        _claim_from_manifest_entry(config.surface, config.source, entry)
+        _claim_from_manifest_entry(
+            config.surface,
+            config.source,
+            entry,
+            chunk_index=chunk_index,
+            exec_analysis_cache=exec_analysis_cache,
+            fta_draft_by_id=fta_draft_by_id,
+        )
         for entry in payload["claims"]
     ]
     if not claims:
@@ -377,11 +822,41 @@ def write_spot_check_results(
     writer: S2Writer | None = None,
     run_id: str | None = None,
     run_ts: datetime | None = None,
+    chunk_index: ChunkIndex | None = None,
+    chunk_id_resolver: ChunkIdResolver | None = None,
+    exec_analysis_cache: dict[str, Any] | None = None,
+    fta_draft_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> SpotCheckWriteResult:
     """Ingest operator verdicts and write claim rows + completion marker under one run_id."""
     _assert_human_spot_check_allowed(config.surface, config.registry_path)
     company_slug = canonical_company_slug(config.company)
-    claims = load_claim_enumeration(config)
+
+    s2_writer = writer or S2Writer(catalog=config.catalog)
+    sql_executor = getattr(s2_writer, "_sql", None)
+
+    if chunk_index is None and sql_executor is not None:
+        chunk_index = ChunkIndex.from_sql(
+            sql_executor,
+            catalog=config.catalog,
+            company=config.company,
+        )
+
+    if exec_analysis_cache is None and config.surface == "exec_summary" and sql_executor is not None:
+        exec_analysis_cache = load_exec_analysis_cache(
+            sql_executor,
+            catalog=config.catalog,
+            company=config.company,
+        )
+
+    if fta_draft_by_id is None and config.surface == "fta_numeric":
+        fta_draft_by_id = _load_fta_draft_by_id(config)
+
+    claims = load_claim_enumeration(
+        config,
+        chunk_index=chunk_index,
+        exec_analysis_cache=exec_analysis_cache,
+        fta_draft_by_id=fta_draft_by_id,
+    )
     verdicts_by_id = _load_verdicts(config.verdicts_path)
     validated = _validate_verdict_ingestion(claims, verdicts_by_id)
 
@@ -402,7 +877,12 @@ def write_spot_check_results(
         for claim in claims
     ]
 
-    s2_writer = writer or S2Writer(catalog=config.catalog)
+    if chunk_id_resolver is None and sql_executor is not None:
+        chunk_id_resolver = make_warehouse_chunk_id_resolver(
+            catalog=config.catalog,
+            sql_executor=sql_executor,
+        )
+
     s2_writer.write_claims(
         company_slug,
         config.surface,
@@ -411,6 +891,7 @@ def write_spot_check_results(
         rows,
         rationale_required=True,
         rung=3,
+        chunk_id_resolver=chunk_id_resolver,
     )
     s2_writer.write_completion_marker(
         company_slug,
