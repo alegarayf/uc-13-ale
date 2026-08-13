@@ -84,6 +84,7 @@ def test_write_claims_issues_guard_before_insert() -> None:
         "20260914T101133Z-a41",
         _run_ts(),
         rows,
+        chunk_id_resolver=lambda ids: ids,
     )
 
     assert len(recorder.statements) == 2
@@ -154,6 +155,7 @@ def test_write_claims_accepts_magnitude_without_unit_at_rung_3() -> None:
             )
         ],
         rung=3,
+        chunk_id_resolver=lambda ids: ids,
     )
 
     assert len(recorder.statements) == 2
@@ -297,6 +299,35 @@ def test_write_claims_requires_rationale_when_flagged() -> None:
             [_claim_row(surface="exec_summary", rationale=None)],
             rationale_required=True,
         )
+
+
+def test_write_claims_s61_requires_resolver_when_cited() -> None:
+    writer = S2Writer(catalog="uc13_ale", sql_executor=RecordingSqlExecutor())
+    row = _claim_row(cited_chunk_id="chunk-abc")
+
+    with pytest.raises(ValueError, match="chunk_id_resolver is required"):
+        writer.write_claims(
+            "elder_care",
+            "legal_register",
+            "20260914T101133Z-a41",
+            _run_ts(),
+            [row],
+        )
+
+
+def test_write_claims_s61_allows_no_resolver_when_uncited() -> None:
+    recorder = RecordingSqlExecutor()
+    writer = S2Writer(catalog="uc13_ale", sql_executor=recorder)
+
+    writer.write_claims(
+        "elder_care",
+        "legal_register",
+        "20260914T101133Z-a41",
+        _run_ts(),
+        [_claim_row(cited_chunk_id=None, cited_locator_kind=None, cited_locator_value=None)],
+    )
+
+    assert len(recorder.statements) == 2
 
 
 def test_write_claims_s61_kills_unresolved_chunk_ids() -> None:

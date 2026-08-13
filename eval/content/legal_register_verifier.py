@@ -90,7 +90,7 @@ def _quote_prefix_anchor_in_chunk(quote: str, chunk_text: str) -> bool:
     return anchor in normalized_chunk and normalized_quote not in normalized_chunk
 
 
-def _parse_page_from_location(location: str | None) -> int | None:
+def parse_page_from_location(location: str | None) -> int | None:
     if not location:
         return None
     match = _PAGE_RE.search(location)
@@ -99,7 +99,7 @@ def _parse_page_from_location(location: str | None) -> int | None:
     return None
 
 
-def _section_value_from_location(location: str | None) -> str | None:
+def section_value_from_location(location: str | None) -> str | None:
     if not location:
         return None
     text = location.strip()
@@ -111,13 +111,18 @@ def _section_value_from_location(location: str | None) -> str | None:
     return text or None
 
 
-def _derive_locator(*, chunk: ChunkResolution) -> tuple[str | None, str | None]:
+def derive_locator(*, chunk: ChunkResolution) -> tuple[str | None, str | None]:
     """§8.8 HALT-31: locator derived from the cited chunk only (section > page > null)."""
     if chunk.section_header:
         return "section", chunk.section_header
     if chunk.page_start is not None:
         return "page", str(chunk.page_start)
     return None, None
+
+
+_derive_locator = derive_locator
+_parse_page_from_location = parse_page_from_location
+_section_value_from_location = section_value_from_location
 
 
 def _claim_id(register_name: str, index: int) -> str:
@@ -231,7 +236,7 @@ def build_claim_rows(
             cited_locator_value: str | None = None
             if cited_chunk is not None:
                 cited_chunk_id = cited_chunk.chunk_id
-                cited_locator_kind, cited_locator_value = _derive_locator(
+                cited_locator_kind, cited_locator_value = derive_locator(
                     chunk=cited_chunk,
                 )
 
@@ -280,8 +285,8 @@ def make_warehouse_chunk_resolver(
         doc_lit = f"'{_sql_str(source_doc)}'"
         doc_suffix = source_doc[-40:] if len(source_doc) > 40 else source_doc
         suffix_lit = f"'{_sql_str('%' + doc_suffix + '%')}'"
-        page = _parse_page_from_location(source_location)
-        section_pattern = _section_value_from_location(source_location)
+        page = parse_page_from_location(source_location)
+        section_pattern = section_value_from_location(source_location)
         page_clause = f"AND c.page_start = {page}" if page is not None else ""
         section_clause = ""
         if section_pattern:

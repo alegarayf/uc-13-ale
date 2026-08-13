@@ -12,9 +12,12 @@ import yaml
 
 from eval.content.s2_writer import S2Writer
 from eval.content.spot_check import (
+    ChunkIndex,
+    ChunkRecord,
     SpotCheckConfig,
     SpotCheckIngestionError,
     load_claim_enumeration,
+    load_exec_analysis_cache,
     prepare_spot_check,
     write_spot_check_results,
 )
@@ -170,7 +173,7 @@ def test_load_claim_enumeration_parses_fta_numeric_magnitude(
     assert len(claims) == 2
     assert claims[0].asserted_magnitude == Decimal("58.3")
     assert claims[0].asserted_unit == "percent"
-    assert claims[0].cited_locator_kind == "section"
+    assert claims[0].cited_locator_kind is None
     assert claims[1].asserted_magnitude == Decimal("4200000")
     assert claims[1].asserted_unit is None
 
@@ -262,6 +265,9 @@ def test_write_spot_check_results_claims_then_marker_same_run(
         writer=writer,
         run_id="20260812T183045Z-ab12",
         run_ts=run_ts,
+        chunk_index=ChunkIndex([]),
+        chunk_id_resolver=lambda ids: frozenset(),
+        exec_analysis_cache={},
     )
 
     assert result.run_id == "20260812T183045Z-ab12"
@@ -442,6 +448,8 @@ def test_write_spot_check_results_committed_fta_manifest_276_claims(
         writer=writer,
         run_id="20260813T174300Z-r9f",
         run_ts=run_ts,
+        chunk_index=ChunkIndex([]),
+        chunk_id_resolver=lambda ids: frozenset(),
     )
 
     assert result.claim_count == 276
@@ -451,3 +459,170 @@ def test_write_spot_check_results_committed_fta_manifest_276_claims(
     assert recorder.statements[2].strip().upper().startswith("SELECT")
     assert "human_spot_check" in recorder.statements[3]
     assert "20260813T174300Z-r9f" in recorder.statements[1]
+
+
+def _mock_chunk_index() -> ChunkIndex:
+    records = [
+        ChunkRecord(
+            chunk_id="cd9773ea-0a3c-460d-869a-bc963a15cd1f",
+            file_name="2024 Elder Care - CIM_vF.pdf",
+            section_header="Pro Forma Income Statement & Projection",
+            page_start=49,
+            chunk_text="table body",
+        ),
+        ChunkRecord(
+            chunk_id="chunk-no-locator",
+            file_name="orphan.pdf",
+            section_header=None,
+            page_start=None,
+            chunk_text="",
+        ),
+    ]
+    return ChunkIndex(records)
+
+
+def test_write_spot_check_results_supplies_chunk_id_resolver(
+    spot_check_tree: Path,
+) -> None:
+    cfg = _config(
+        spot_check_tree,
+        surface="fta_numeric",
+        source="uc13_ale.analysis.financial_trends",
+        verdicts_path=spot_check_tree / ".dev/eval-program/spot-check/fta.verdicts.yaml",
+    )
+    _write_verdicts(cfg.verdicts_path, surface="fta_numeric")
+    recorder = RecordingSqlExecutor()
+    index = _mock_chunk_index()
+    resolver_calls: list[frozenset[str]] = []
+
+    def tracking_resolver(ids: frozenset[str]) -> frozenset[str]:
+        resolver_calls.append(ids)
+        return index.resolve_ids(ids)
+
+    write_spot_check_results(
+        cfg,
+        writer=S2Writer(catalog="uc13_ale", sql_executor=recorder),
+        run_id="20260813T180000Z-r10a",
+        run_ts=datetime(2026, 8, 13, 18, 0, 0, tzinfo=timezone.utc),
+        chunk_index=index,
+        chunk_id_resolver=tracking_resolver,
+    )
+
+    assert len(resolver_calls) == 1
+    assert "cd9773ea-0a3c-460d-869a-bc963a15cd1f" in resolver_calls[0]
+
+
+def test_claim_locator_none_when_chunk_has_no_section_or_page(
+    spot_check_tree: Path,
+) -> None:
+    cfg = _config(
+        spot_check_tree,
+        surface="fta_numeric",
+        source="uc13_ale.analysis.financial_trends",
+    )
+    index = ChunkIndex(
+        [
+            ChunkRecord(
+                chunk_id="chunk-no-locator",
+                file_name="2024 Elder Care - CIM_vF.pdf",
+                section_header=None,
+                page_start=None,
+                chunk_text="",
+            )
+        ]
+    )
+    claims = load_claim_enumeration(cfg, chunk_index=index)
+    claim = next(c for c in claims if c.claim_id == "fta.claim.001")
+    assert claim.cited_chunk_id == "chunk-no-locator"
+    assert claim.cited_locator_kind is None
+    assert claim.cited_locator_value is None
+
+
+def test_claim_null_citation_when_chunk_unresolvable(spot_check_tree: Path) -> None:
+    cfg = _config(
+        spot_check_tree,
+        surface="fta_numeric",
+        source="uc13_ale.analysis.financial_trends",
+    )
+    claims = load_claim_enumeration(cfg, chunk_index=ChunkIndex([]))
+    claim = next(c for c in claims if c.claim_id == "fta.claim.001")
+    assert claim.cited_chunk_id is None
+    assert claim.cited_locator_kind is None
+    assert claim.cited_locator_value is None
+
+
+def test_r10_citation_parity_with_r5_backfill(tmp_path: Path) -> None:
+    """KC3: ported producer must match R5 backfill citation assignment."""
+    repo_root = Path(__file__).resolve().parents[3]
+    backfill_dir = repo_root / ".dev/eval-program/spot-check"
+    exec_backfill = backfill_dir / "exec_summary_elder_care_2026-08-13.backfill.yaml"
+    fta_backfill = backfill_dir / "fta_numeric_elder_care_2026-08-13.backfill.yaml"
+    if not exec_backfill.is_file() or not fta_backfill.is_file():
+        pytest.skip("R5 backfill artifacts absent on this worktree")
+
+    from eval.content.s2_writer import make_sdk_sql_executor
+
+    sql = make_sdk_sql_executor()
+    index = ChunkIndex.from_sql(
+        sql, catalog="uc13_ale", company="Elder Care"
+    )
+
+    for surface, backfill_path, source in (
+        (
+            "exec_summary",
+            exec_backfill,
+            "uc13_ale.analysis.diligence_report.executive_summary",
+        ),
+        ("fta_numeric", fta_backfill, "uc13_ale.analysis.financial_trends"),
+    ):
+        expected = {
+            c["claim_id"]: (
+                c.get("cited_chunk_id"),
+                c.get("cited_locator_kind"),
+                c.get("cited_locator_value"),
+            )
+            for c in yaml.safe_load(backfill_path.read_text(encoding="utf-8"))["claims"]
+        }
+        cfg = SpotCheckConfig(
+            company="Elder Care",
+            surface=surface,
+            source=source,
+            output_dir=tmp_path / surface,
+            verdicts_path=tmp_path / f"{surface}.yaml",
+            operator_id="operator_a",
+            registry_path=repo_root / "eval/program/registry.yaml",
+            repo_root=repo_root,
+        )
+        exec_cache = (
+            load_exec_analysis_cache(sql, catalog="uc13_ale", company="Elder Care")
+            if surface == "exec_summary"
+            else None
+        )
+        fta_draft = None
+        if surface == "fta_numeric":
+            draft_path = (
+                repo_root
+                / ".dev/plans/eval-consolidation-m3-s2-build/t6/t6_draft_results.json"
+            )
+            if draft_path.is_file():
+                import json
+
+                fta_draft = {
+                    d["claim_id"]: d for d in json.loads(draft_path.read_text())
+                }
+
+        actual = {
+            c.claim_id: (c.cited_chunk_id, c.cited_locator_kind, c.cited_locator_value)
+            for c in load_claim_enumeration(
+                cfg,
+                chunk_index=index,
+                exec_analysis_cache=exec_cache,
+                fta_draft_by_id=fta_draft,
+            )
+        }
+        mismatches = [
+            (cid, expected[cid], actual.get(cid))
+            for cid in sorted(expected)
+            if expected[cid] != actual.get(cid)
+        ]
+        assert not mismatches, f"{surface} citation drift: {mismatches[:5]}"
