@@ -1,4 +1,4 @@
-"""Static contract tests for M3 D2 presentation summary (T6)."""
+"""Static contract tests for M3 D2 presentation summary (T6 / E2 migration)."""
 
 from __future__ import annotations
 
@@ -9,22 +9,24 @@ import pytest
 import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_SUMMARY = _REPO_ROOT / ".dev" / "legal_agent" / "eval" / "presentation_summary_elder_care.md"
-_NORMATIVE = (
-    _REPO_ROOT / ".dev" / "legal_agent" / "baselines" / "_latest_Elder_Care_legal_report.yaml"
-)
-_POC_DELTA = _REPO_ROOT / ".dev" / "legal_agent" / "eval" / "poc_delta_elder_care.md"
+_LCA = _REPO_ROOT / "eval" / "LCA"
+_SUMMARY = _LCA / "presentation_summary_elder_care.md"
+_NORMATIVE = _LCA / "baselines" / "_latest_Elder_Care_legal_report.yaml"
+_POC_DELTA = _LCA / "poc_delta_elder_care.md"
 
-# .dev/ is gitignored repo-wide (Option C pin protocol) — these operator-produced
-# evidence artifacts are local, not tracked in git, and may legitimately be absent
-# on a fresh checkout or a different machine. Skip rather than fail when any is
-# missing so this module's contract still holds wherever the evidence exists.
-_MISSING = [p for p in (_SUMMARY, _NORMATIVE, _POC_DELTA) if not p.exists()]
-pytestmark = pytest.mark.skipif(
-    bool(_MISSING),
-    reason="gitignored evidence fixture(s) not present in this checkout: "
-    + ", ".join(str(p) for p in _MISSING),
+_NORMATIVE_MISSING = not _NORMATIVE.is_file()
+_skip_normative = pytest.mark.skipif(
+    _NORMATIVE_MISSING,
+    reason=f"tracked normative baseline fixture not present: {_NORMATIVE}",
 )
+
+
+def test_presentation_summary_tracked_paths_exist():
+    """Falsifier: D2 contract artifacts must live under eval/LCA/, not .dev/legal_agent/."""
+    for path in (_SUMMARY, _POC_DELTA):
+        assert path.is_file(), f"tracked presentation fixture missing: {path}"
+        assert "eval" in path.parts and "LCA" in path.parts
+        assert ".dev" not in path.parts
 
 
 def _summary_text() -> str:
@@ -47,6 +49,7 @@ def test_presentation_summary_exists_with_d2_field_headings():
         assert heading in text
 
 
+@_skip_normative
 def test_assessed_count_matches_normative_executive_summary():
     """Falsifier: D2 numerator must match T4 agent output, not a stale manual count."""
     text = _summary_text()
@@ -59,6 +62,7 @@ def test_assessed_count_matches_normative_executive_summary():
     assert f"**{assessed} of {total}**" in text
 
 
+@_skip_normative
 def test_section_confidence_and_flag_count_match_normative_yaml():
     text = _summary_text()
     doc = _normative_doc()

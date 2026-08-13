@@ -1,0 +1,688 @@
+# catalog: uc13_ale
+# company: Elder Care
+# timestamp: 2026-06-25T23:38:00.967848+00:00
+# source_volume: /Volumes/uc13_ale/analysis/reports/Elder_Care/legal_contracts_report.yaml
+# milestone: M0 — Corpus baseline & platform setup (T2 A1 legacy baseline)
+# a0_reconciliation: Ran legacy legal_contracts_agent.main() before T3 DDL migration. A0 corpus (T1) recorded 1,347 LEGAL embedding rows across 78 files; this baseline extracted 14 contract_register entries with lease/APA/BAA concentration — consistent with §3 filename decomposition (lease-heavy). Employment/litigation dry-run zeros in A0 align with sparse litigation_register output here (1 open collection matter).
+report:
+  agent: legal_contracts
+  company: Elder Care
+  generated_at: '2026-06-25T23:38:00.967848+00:00'
+executive_summary: 'Fourteen contracts were extracted across asset purchase agreements, lease agreements, BAAs, employment/non-compete
+  templates, and engagement letters. The most significant change-of-control exposure exists in the Manhattan lease (50% ownership
+  threshold triggers consent requirement) and the Westchester lease (majority stock transfer deemed an assignment), both requiring
+  prior written landlord consent; the Long Island lease contains an anti-assignment clause but no explicit CoC ownership threshold
+  was stated. One open litigation matter was identified: Elder Care Homecare, Inc. engaged outside collection counsel in April
+  2025 for collection of patient receivables, with counterclaims noted as handled by insurance or separate counsel.'
+contract_register:
+- contract_id: 1
+  counterparty_name: Guided Living (Seller)
+  contract_type: Other
+  contract_date: '2024-02-07'
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: true
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: null
+  source_doc: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  source_location: Section 4 Representations, Warranties, and Covenants
+  raw_quote: Seller has not experienced any Legal Proceeding, loss of Clients generating more than ten percent (10%) of Business
+    revenue in the past ninety (90) days.
+- contract_id: 2
+  counterparty_name: Consultant (unnamed)
+  contract_type: Other
+  contract_date: '2024-02-07'
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: 'true'
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: null
+  source_doc: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  source_location: Section 2 Performance of Services
+  raw_quote: Massachusetts is an 'Employment at Will State,' and Consultant will be deemed an 'at will' employee; Company
+    is free to fire Consultant at any time.
+- contract_id: 3
+  counterparty_name: Sunrise (covered entity)
+  contract_type: Other
+  contract_date: '2021-08-31'
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: true
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: PHI and related information created for or received from Sunrise remains property of Sunrise.
+    Business Associate acquires no ownership rights. Business Associate must indemnify Sunrise for HIPAA violations and BAA
+    breaches.
+  source_doc: Elder Home Care Temp Agreement - Fully Executed.pdf
+  source_location: EXHIBIT A, Section (c) Effect of Termination and Section 6 Indemnification
+  raw_quote: Business Associate agrees to indemnify, defend, and hold harmless Sunrise from all expenses, liabilities, damages,
+    claims arising from negligent or fraudulent act or HIPAA violation.
+- contract_id: 4
+  counterparty_name: Jewish Family Services (Covered Entity)
+  contract_type: Other
+  contract_date: null
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: true
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: Business Associate must return or destroy all PHI upon termination. Mutual indemnification for
+    breach, negligence, or wrongful acts. Obligations survive expiration or termination.
+  source_doc: Jewish Family Services Agreement.pdf
+  source_location: RECITALS, Section F Indemnification
+  raw_quote: Parties agree to indemnify, defend and hold harmless each other against all actual and direct losses suffered
+    and all liability to third parties arising from breach or negligence.
+- contract_id: 5
+  counterparty_name: 1025 II LLC (Landlord)
+  contract_type: Lease
+  contract_date: '2023-04-11'
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: 'true'
+    captures_coc: false
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: null
+  source_doc: Long Island_Lease_0423.pdf
+  source_location: Section Assignment and Subletting, Section 13.01
+  raw_quote: Without prior consent of Landlord, which consent shall not be unreasonably withheld, Tenant shall not sell, assign,
+    mortgage or otherwise transfer this Lease.
+- contract_id: 6
+  counterparty_name: Landlord (unnamed, Manhattan)
+  contract_type: Lease
+  contract_date: null
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: 'true'
+    consent_required: true
+    consent_standard: Prior written consent of Landlord, not to be unreasonably withheld, conditioned or delayed
+    ownership_threshold_pct: '50'
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: 'true'
+    captures_coc: true
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: null
+  source_doc: Manhattan_Lease_0424.pdf
+  source_location: Section 11. Assignment, Mortgage, Etc., subsection (a)
+  raw_quote: Tenant shall not sell, pledge, transfer or alienate more than either the controlling interest in, or fifty (50%)
+    percent of, the issued and outstanding capital stock of Tenant without prior written consent of Landlord.
+- contract_id: 7
+  counterparty_name: Landlord (unnamed, Westchester)
+  contract_type: Lease
+  contract_date: null
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: 'true'
+    consent_required: true
+    consent_standard: Prior written consent of owner in each instance
+    ownership_threshold_pct: '50'
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: 'true'
+    captures_coc: true
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: null
+  source_doc: Westchester_Lease_0121.pdf
+  source_location: Section Assignment, Mortgage, Etc., Clause 11
+  raw_quote: Transfer of the majority of the stock of a company Tenant or the majority interest in any partnership or other
+    legal entity which the Tenant shall be deemed an assignment.
+- contract_id: 8
+  counterparty_name: Care at Home (Seller's Owners)
+  contract_type: Other
+  contract_date: '2025-04-24'
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: 'true'
+    scope_note: 5-year non-compete post-closing; prohibits home care or care management business, consulting, financial, investing,
+      brokering, or franchising in Connecticut or Rhode Island. Suzanne Karp permitted to continue conservatorship business.
+  ip_data_obligations_note: null
+  source_doc: Care at Home Elder Care LOI - 04.24.25 - Execution Copy.pdf
+  source_location: Section 9. Non-Compete & Non-Disparagement
+  raw_quote: Non-competition agreement will remain in effect for five (5) years after Closing Date, precluding home care or
+    care management activity in Connecticut or Rhode Island.
+- contract_id: 9
+  counterparty_name: Employee (unnamed)
+  contract_type: Employment
+  contract_date: null
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: 'true'
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: 'true'
+    captures_coc: false
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: 'true'
+    scope_note: 12-month post-employment non-compete in New Jersey and geographic regions where employee worked; 12-month
+      non-solicitation of customers and employees. Employer may assign to successor.
+  ip_data_obligations_note: Employee may not disclose trade secrets or confidential information. Agreement supplements common
+    law trade secrets duties.
+  source_doc: Non-Compete-Non Solicitation Agreement Template.docx
+  source_location: Document body
+  raw_quote: Employee will not, directly or indirectly, provide to a Competitive Enterprise the same or similar services for
+    twelve consecutive months following conclusion of employment.
+- contract_id: 10
+  counterparty_name: Unicity Healthcare (Seller)
+  contract_type: Other
+  contract_date: 2024-08
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: 'true'
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: null
+  source_doc: Unicity_Asset Purchase Agreement_0824.pdf
+  source_location: Section 7.2 Attorney Fees / Section 7.15 Termination/Default
+  raw_quote: Agreement shall terminate upon written notice from non-breaching Party following material breach not cured within
+    seven (7) business days from notice thereof.
+- contract_id: 11
+  counterparty_name: Peter B. Ackerman Esq. (Counsel)
+  contract_type: Other
+  contract_date: '2025-04-30'
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: fixed
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: null
+  source_doc: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf
+  source_location: COLLACKT@GMAIL.COM section
+  raw_quote: Initial non-contingent fee of $500 per case, plus contingent fee of twenty percent (20%) of any sums collected
+    by reason of settlement, judgment, or otherwise.
+- contract_id: 12
+  counterparty_name: RA (unnamed advisory firm, Project Orange)
+  contract_type: Other
+  contract_date: '2025-05-01'
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: true
+    cap_amount_note: RA's total liability for all Claims shall not exceed aggregate amount equal to total fees paid by client
+      to RA for Services performed. No indirect, consequential, or punitive damages.
+    unusual_indemnity: false
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: null
+  source_doc: Project Orange Engagement Letter - May 1, 2025.pdf
+  source_location: THIS SECTION IDENTIFIES EXCLUSIONS AND LIMITATIONS OF LIABILITY PERTAINING TO THE SERVICES AND THIS AGREEMENT
+  raw_quote: RA's total liability for any and all Claims shall not exceed an aggregate amount equal to the total fees paid
+    by you to RA for the Services performed hereunder.
+- contract_id: 13
+  counterparty_name: CareCore / CC (unnamed covered entity)
+  contract_type: Other
+  contract_date: 2018-10
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: 'true'
+    captures_coc: false
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: Agreement not assignable by any party without prior written consent of other parties. PHI must
+    be returned or destroyed upon termination. Business Associate may use subcontractors subject to restrictions.
+  source_doc: Elder Care Homecare, Inc_CC-BAA Agreement_ October 2018.pdf
+  source_location: Terms of Agreement, Section 7.4 Successors and Assigns
+  raw_quote: This Agreement is not assignable by any party without the prior written consent of the other parties.
+- contract_id: 14
+  counterparty_name: Jotform Inc.
+  contract_type: Other
+  contract_date: null
+  revenue_pct: null
+  triggered_review: false
+  change_of_control:
+    clause_present: not_found
+    consent_required: null
+    consent_standard: null
+    ownership_threshold_pct: null
+  termination_for_convenience:
+    present: not_found
+    notice_days: null
+    penalty: null
+  anti_assignment:
+    present: not_found
+    captures_coc: null
+  auto_renewal:
+    present: not_found
+    notice_for_non_renewal_days: null
+  pricing_terms:
+    structure: null
+    customer_repricing_rights: null
+  liability_cap:
+    capped: null
+    cap_amount_note: null
+    unusual_indemnity: null
+  exclusivity_mfn_noncompete:
+    present: not_found
+    scope_note: null
+  ip_data_obligations_note: Jotform shall not use or disclose PHI in violation of HIPAA. PHI only managed via HIPAA Enabled
+    Account. Customer responsible for PHI after export from Jotform.
+  source_doc: Jotform BAA agreement.pdf
+  source_location: Section 2. Business Associate Obligations
+  raw_quote: Jotform shall not use or disclose Protected Health Information in any manner that would violate HIPAA. PHI only
+    managed using Customer's HIPAA Enabled Account.
+coc_consent_list:
+- contract_id: 6
+  counterparty_name: Landlord (unnamed, Manhattan)
+  revenue_pct: null
+  consent_standard_note: Prior written consent of Landlord, not to be unreasonably withheld, conditioned or delayed
+- contract_id: 7
+  counterparty_name: Landlord (unnamed, Westchester)
+  revenue_pct: null
+  consent_standard_note: Prior written consent of owner in each instance
+termination_exposure: []
+restrictive_covenant_map:
+- contract_id: 8
+  counterparty_name: Care at Home (Seller's Owners)
+  scope_note: 5-year non-compete post-closing; prohibits home care or care management business, consulting, financial, investing,
+    brokering, or franchising in Connecticut or Rhode Island. Suzanne Karp permitted to continue conservatorship business.
+- contract_id: 9
+  counterparty_name: Employee (unnamed)
+  scope_note: 12-month post-employment non-compete in New Jersey and geographic regions where employee worked; 12-month non-solicitation
+    of customers and employees. Employer may assign to successor.
+litigation_register:
+- matter_type: other
+  description: Elder Care Homecare, Inc. engaged outside collection counsel (Peter B. Ackerman Esq.) on April 30, 2025 for
+    collection of patient receivables, indicating open collection matters against patients/payors. Any counterclaims against
+    EHI noted as to be handled by insurance carrier or separate counsel.
+  counterparty: Patient receivables debtors (unnamed)
+  status: open
+  estimated_exposure: null
+  source_doc: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf
+  source_location: COLLACKT@GMAIL.COM section
+- matter_type: other
+  description: Guided Living APA Section 4 representation states Seller has not experienced any Legal Proceeding in the past
+    ninety (90) days prior to closing (February 7, 2024). No open legal proceedings disclosed as of that date.
+  counterparty: null
+  status: closed
+  estimated_exposure: null
+  source_doc: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  source_location: Section 4 Representations, Warranties, and Covenants
+triggered_reviews_loaded: 1
+flags:
+- metric: unusual_indemnity
+  value: Guided Living (Seller) — unusual_indemnity=true
+  threshold: Unusual indemnity scope
+  severity: Yellow
+  note: 'Unusual indemnity scope in Guided Living (Seller) contract. Refer to outside counsel for assessment. Source: Guided
+    Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed (1).pdf.'
+  source_doc: Guided Living - Asset Purchase Agreement - 02.07.24 - Execution Version with Exhibits, Lease, and BOS - signed
+    (1).pdf
+  confidence: medium
+- metric: unusual_indemnity
+  value: Sunrise (covered entity) — unusual_indemnity=true
+  threshold: Unusual indemnity scope
+  severity: Yellow
+  note: 'Unusual indemnity scope in Sunrise (covered entity) contract. Refer to outside counsel for assessment. Source: Elder
+    Home Care Temp Agreement - Fully Executed.pdf.'
+  source_doc: Elder Home Care Temp Agreement - Fully Executed.pdf
+  confidence: medium
+- metric: unusual_indemnity
+  value: Jewish Family Services (Covered Entity) — unusual_indemnity=true
+  threshold: Unusual indemnity scope
+  severity: Yellow
+  note: 'Unusual indemnity scope in Jewish Family Services (Covered Entity) contract. Refer to outside counsel for assessment.
+    Source: Jewish Family Services Agreement.pdf.'
+  source_doc: Jewish Family Services Agreement.pdf
+  confidence: medium
+- metric: restrictive_covenant
+  value: 'Care at Home (Seller''s Owners): 5-year non-compete post-closing; prohibits home care or care management business,
+    consulting, financial, investing, brokering, or franchising in Connecticut or Rhode Island. Suzanne Karp permitted to
+    continue conservatorship business.'
+  threshold: Any restrictive covenant (exclusivity/MFN/non-compete)
+  severity: Yellow
+  note: 'Restrictive covenant (5-year non-compete post-closing; prohibits home care or care management business, consulting,
+    financial, investing, brokering, or franchising in Connecticut or Rhode Island. Suzanne Karp permitted to continue conservatorship
+    business.) found in Care at Home (Seller''s Owners) contract. May limit add-on M&A options. Source: Care at Home Elder
+    Care LOI - 04.24.25 - Execution Copy.pdf.'
+  source_doc: Care at Home Elder Care LOI - 04.24.25 - Execution Copy.pdf
+  confidence: high
+- metric: restrictive_covenant
+  value: 'Employee (unnamed): 12-month post-employment non-compete in New Jersey and geographic regions where employee worked;
+    12-month non-solicitation of customers and employees. Employer may assign to successor.'
+  threshold: Any restrictive covenant (exclusivity/MFN/non-compete)
+  severity: Yellow
+  note: 'Restrictive covenant (12-month post-employment non-compete in New Jersey and geographic regions where employee worked;
+    12-month non-solicitation of customers and employees. Employer may assign to successor.) found in Employee (unnamed) contract.
+    May limit add-on M&A options. Source: Non-Compete-Non Solicitation Agreement Template.docx.'
+  source_doc: Non-Compete-Non Solicitation Agreement Template.docx
+  confidence: high
+- metric: open_legal_matter_other
+  value: 'other: Elder Care Homecare, Inc. engaged outside collection counsel (Peter B. Ackerman '
+  threshold: Any open legal matter
+  severity: Red
+  note: 'Open legal matter (other): Elder Care Homecare, Inc. engaged outside collection counsel (Peter B. Ackerman Esq.)
+    on April 30, 2025 for collection of patient receivables, indicating open collection matters against patients/payor. Source:
+    April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf.'
+  source_doc: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf
+  confidence: high
+data_room_gaps:
+- Contract not found for None (None% of revenue) — high-priority information request
+citations:
+- claim: change_of_control.ownership_threshold_pct (Manhattan Lease)
+  document: Manhattan_Lease_0424.pdf
+  location: Section 11. Assignment, Mortgage, Etc., subsection (a)
+  confidence: high
+  raw_text: sell, pledge, transfer or otherwise alienate more than either the controlling interest in, or fifty (50%) percent
+    of, the issued and outstanding capital stock of Tenant
+- claim: change_of_control.captures_coc (Westchester Lease)
+  document: Westchester_Lease_0121.pdf
+  location: Section Assignment, Mortgage, Etc., Clause 11
+  confidence: high
+  raw_text: Transfer of the majority of the stock of a company Tenant or the majority interest in any partnership or other
+    legal entity which the Tenant shall be deemed an assignment.
+- claim: anti_assignment.present (Long Island Lease)
+  document: Long Island_Lease_0423.pdf
+  location: Section Assignment and Subletting, Section 13.01
+  confidence: high
+  raw_text: Without the prior consent of Landlord, which consent shall not be unreasonably withheld, Tenant shall not sell,
+    assign, mortgage or otherwise transfer this Lease.
+- claim: exclusivity_mfn_noncompete (Care at Home LOI)
+  document: Care at Home Elder Care LOI - 04.24.25 - Execution Copy.pdf
+  location: Section 9. Non-Compete & Non-Disparagement
+  confidence: high
+  raw_text: non-competition agreement will remain in effect for five (5) years after the Closing Date, precluding home care
+    or care management activity in Connecticut or Rhode Island.
+- claim: termination_for_convenience (Unicity APA)
+  document: Unicity_Asset Purchase Agreement_0824.pdf
+  location: Section 7.15 Termination/Default
+  confidence: high
+  raw_text: terminate upon written notice from non-breaching Party following material breach not cured within seven (7) business
+    days from notice thereof.
+- claim: liability_cap (Project Orange Engagement Letter)
+  document: Project Orange Engagement Letter - May 1, 2025.pdf
+  location: THIS SECTION IDENTIFIES EXCLUSIONS AND LIMITATIONS OF LIABILITY PERTAINING TO THE SERVICES AND THIS AGREEMENT
+  confidence: high
+  raw_text: RA's total liability for any and all Claims shall not exceed an aggregate amount equal to the total fees paid
+    by you to RA.
+- claim: anti_assignment (CC BAA)
+  document: Elder Care Homecare, Inc_CC-BAA Agreement_ October 2018.pdf
+  location: Section 7.4 Successors and Assigns
+  confidence: high
+  raw_text: This Agreement is not assignable by any party without the prior written consent of the other parties.
+- claim: litigation_register (collection retainer)
+  document: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf
+  location: COLLACKT@GMAIL.COM section
+  confidence: high
+  raw_text: We propose to represent Eldercare Homecare, Inc. (EHI) regarding collection of patient receivables.
+- claim: ip_data_obligations_note (Sunrise BAA)
+  document: Elder Home Care Temp Agreement - Fully Executed.pdf
+  location: EXHIBIT A, Section 5 Ownership of Protected Health Information
+  confidence: high
+  raw_text: PHI and any related information created for or received from Sunrise is, and will remain, the property of Sunrise.
+    Business Associate acquires no ownership rights.
+- claim: exclusivity_mfn_noncompete (Non-Compete Template)
+  document: Non-Compete-Non Solicitation Agreement Template.docx
+  location: Document body
+  confidence: high
+  raw_text: Employee will not provide to a Competitive Enterprise the same or similar services for twelve consecutive months
+    following conclusion of Employee's employment.

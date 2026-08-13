@@ -1,4 +1,4 @@
-"""Tests for .dev/legal_agent/_compare_baselines.py path helpers (T4)."""
+"""Tests for eval/LCA/_compare_baselines.py path helpers (T4 / E2 migration)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,8 @@ import importlib.util
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
-_COMPARE_PATH = _ROOT / ".dev" / "legal_agent" / "_compare_baselines.py"
+_COMPARE_PATH = _ROOT / "eval" / "LCA" / "_compare_baselines.py"
+_LEGACY_DEV_PATH = _ROOT / ".dev" / "legal_agent" / "_compare_baselines.py"
 
 
 def _load_compare():
@@ -14,6 +15,15 @@ def _load_compare():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def test_compare_baselines_tracked_path_not_dev():
+    """Falsifier: module must load from eval/LCA/, not gitignored .dev/legal_agent/."""
+    assert _COMPARE_PATH.is_file()
+    assert "eval" in _COMPARE_PATH.parts and "LCA" in _COMPARE_PATH.parts
+    assert not str(_COMPARE_PATH).replace("\\", "/").endswith(".dev/legal_agent/_compare_baselines.py")
+    mod = _load_compare()
+    assert mod._PKG_DIR == _COMPARE_PATH.parent
 
 
 def test_volume_paths_default_catalog():
