@@ -49,6 +49,7 @@ class ChunkResolution:
 
 
 ChunkResolver = Callable[[str, str, str], ChunkResolution | None]
+DocumentChunkEnumerator = Callable[[str], list[ChunkResolution]]
 
 
 class LegalRowLoader(Protocol):
@@ -62,22 +63,31 @@ def _utc_now_micro() -> datetime:
 
 
 def _normalize_quote(text: str) -> str:
-    return re.sub(r"\s+", " ", str(text or "").casefold().strip())
+    """Whitespace fold, case fold, and hyphenation de-break for quote matching."""
+    folded = str(text or "").casefold()
+    folded = folded.replace("\u00ad", "")
+    folded = re.sub(r"(\w)-\s+(\w)", r"\1\2", folded)
+    return re.sub(r"\s+", " ", folded.strip())
 
 
 def _quote_supported_by_chunk(quote: str, chunk_text: str) -> bool:
-    """Deterministic substring check with whitespace normalization."""
+    """Deterministic full-quote containment after normalization."""
     normalized_quote = _normalize_quote(quote)
     normalized_chunk = _normalize_quote(chunk_text)
     if not normalized_quote or not normalized_chunk:
         return False
-    if normalized_quote in normalized_chunk:
-        return True
+    return normalized_quote in normalized_chunk
+
+
+def _quote_prefix_anchor_in_chunk(quote: str, chunk_text: str) -> bool:
+    """True when the opening six-word anchor matches but the full quote does not."""
+    normalized_quote = _normalize_quote(quote)
+    normalized_chunk = _normalize_quote(chunk_text)
     words = normalized_quote.split()
-    if len(words) <= 6:
+    if len(words) <= 6 or not normalized_chunk:
         return False
     anchor = " ".join(words[:6])
-    return anchor in normalized_chunk
+    return anchor in normalized_chunk and normalized_quote not in normalized_chunk
 
 
 def _parse_page_from_location(location: str | None) -> int | None:
@@ -101,19 +111,10 @@ def _section_value_from_location(location: str | None) -> str | None:
     return text or None
 
 
-def _derive_locator(
-    *,
-    source_location: str,
-    chunk: ChunkResolution,
-) -> tuple[str | None, str | None]:
-    """§16 three-branch locator derivation (section > page > null)."""
-    section_from_source = _section_value_from_location(source_location)
+def _derive_locator(*, chunk: ChunkResolution) -> tuple[str | None, str | None]:
+    """§8.8 HALT-31: locator derived from the cited chunk only (section > page > null)."""
     if chunk.section_header:
-        value = section_from_source or chunk.section_header
-        return "section", value
-    page = _parse_page_from_location(source_location)
-    if page is not None:
-        return "page", str(page)
+        return "section", chunk.section_header
     if chunk.page_start is not None:
         return "page", str(chunk.page_start)
     return None, None
@@ -123,16 +124,34 @@ def _claim_id(register_name: str, index: int) -> str:
     return f"legal.{register_name}.{index:04d}"
 
 
-def _verdict_for_row(
+def _verdict_and_citation(
     *,
-    chunk: ChunkResolution | None,
+    primary_chunk: ChunkResolution | None,
     raw_quote: str,
-) -> str:
-    if chunk is None:
-        return "unsupported"
-    if _quote_supported_by_chunk(raw_quote, chunk.chunk_text):
-        return "supported"
-    return "contradicted"
+    source_doc: str,
+    enumerate_document_chunks: DocumentChunkEnumerator | None,
+) -> tuple[str, ChunkResolution | None]:
+    """Map quote evidence to §16 verdict and the chunk that carries the citation."""
+    if primary_chunk is None:
+        return "unsupported", None
+
+    chunks: list[ChunkResolution] = [primary_chunk]
+    if enumerate_document_chunks is not None:
+        seen = {primary_chunk.chunk_id}
+        for candidate in enumerate_document_chunks(source_doc):
+            if candidate.chunk_id not in seen:
+                chunks.append(candidate)
+                seen.add(candidate.chunk_id)
+
+    for chunk in chunks:
+        if _quote_supported_by_chunk(raw_quote, chunk.chunk_text):
+            return "supported", chunk
+
+    for chunk in chunks:
+        if _quote_prefix_anchor_in_chunk(raw_quote, chunk.chunk_text):
+            return "contradicted", primary_chunk
+
+    return "unsupported", primary_chunk
 
 
 def _parse_register_list(raw: Any, *, register_name: str) -> list[dict[str, Any]]:
@@ -179,6 +198,7 @@ def build_claim_rows(
     run_id: str,
     run_ts: datetime,
     resolve_chunk: ChunkResolver,
+    enumerate_document_chunks: DocumentChunkEnumerator | None = None,
 ) -> list[S2ScoreRow]:
     """Translate verifiable register rows into §8.8 claim rows."""
     slug = canonical_company_slug(company) if " " in company else company
@@ -198,17 +218,21 @@ def build_claim_rows(
 
             source_location = str(record.get("source_location") or "").strip()
             raw_quote = str(record.get("raw_quote") or "").strip()
-            chunk = resolve_chunk(source_doc, source_location, raw_quote)
-            verdict = _verdict_for_row(chunk=chunk, raw_quote=raw_quote)
+            primary_chunk = resolve_chunk(source_doc, source_location, raw_quote)
+            verdict, cited_chunk = _verdict_and_citation(
+                primary_chunk=primary_chunk,
+                raw_quote=raw_quote,
+                source_doc=source_doc,
+                enumerate_document_chunks=enumerate_document_chunks,
+            )
 
             cited_chunk_id: str | None = None
             cited_locator_kind: str | None = None
             cited_locator_value: str | None = None
-            if chunk is not None:
-                cited_chunk_id = chunk.chunk_id
+            if cited_chunk is not None:
+                cited_chunk_id = cited_chunk.chunk_id
                 cited_locator_kind, cited_locator_value = _derive_locator(
-                    source_location=source_location,
-                    chunk=chunk,
+                    chunk=cited_chunk,
                 )
 
             rows.append(
@@ -278,18 +302,76 @@ def make_warehouse_chunk_resolver(
         if not result:
             return None
         row = result[0]
-        chunk_id = str(row[0]) if row[0] is not None else ""
-        if not chunk_id:
-            return None
-        chunk_text = str(row[1] or "")
-        page_start = int(row[2]) if row[2] is not None else None
-        section_header = str(row[3]) if row[3] is not None else None
-        return ChunkResolution(
-            chunk_id=chunk_id,
-            chunk_text=chunk_text,
-            page_start=page_start,
-            section_header=section_header or None,
-        )
+        return _chunk_row_to_resolution(row)
+
+    return resolve
+
+
+def _chunk_row_to_resolution(row: list[Any]) -> ChunkResolution | None:
+    chunk_id = str(row[0]) if row[0] is not None else ""
+    if not chunk_id:
+        return None
+    chunk_text = str(row[1] or "")
+    page_start = int(row[2]) if row[2] is not None else None
+    section_header = str(row[3]) if row[3] is not None else None
+    return ChunkResolution(
+        chunk_id=chunk_id,
+        chunk_text=chunk_text,
+        page_start=page_start,
+        section_header=section_header or None,
+    )
+
+
+def make_warehouse_document_chunks_enumerator(
+    *,
+    catalog: str,
+    company_display: str,
+    sql_executor: SqlExecutor,
+) -> DocumentChunkEnumerator:
+    """Return all corpus chunks for a register ``source_doc`` (sibling search)."""
+
+    company_lit = f"'{_sql_str(company_display)}'"
+
+    def enumerate(source_doc: str) -> list[ChunkResolution]:
+        doc_lit = f"'{_sql_str(source_doc)}'"
+        doc_suffix = source_doc[-40:] if len(source_doc) > 40 else source_doc
+        suffix_lit = f"'{_sql_str('%' + doc_suffix + '%')}'"
+        query = f"""
+            SELECT c.chunk_id, c.chunk_text, c.page_start, c.section_header
+            FROM {catalog}.ingestion.chunks c
+            WHERE c.company_name = {company_lit}
+              AND (c.file_name = {doc_lit} OR c.file_name ILIKE {suffix_lit})
+            ORDER BY c.page_start NULLS LAST, c.chunk_id
+        """
+        result = sql_executor(query)
+        chunks: list[ChunkResolution] = []
+        for row in result:
+            resolution = _chunk_row_to_resolution(row)
+            if resolution is not None:
+                chunks.append(resolution)
+        return chunks
+
+    return enumerate
+
+
+def make_warehouse_chunk_id_resolver(
+    *,
+    catalog: str,
+    sql_executor: SqlExecutor,
+) -> Callable[[frozenset[str]], frozenset[str]]:
+    """Batch-resolve cited chunk ids against ``ingestion.chunks`` (S-61 guard)."""
+
+    def resolve(chunk_ids: frozenset[str]) -> frozenset[str]:
+        if not chunk_ids:
+            return frozenset()
+        id_literals = ", ".join(f"'{_sql_str(cid)}'" for cid in sorted(chunk_ids))
+        query = f"""
+            SELECT chunk_id
+            FROM {catalog}.ingestion.chunks
+            WHERE chunk_id IN ({id_literals})
+        """
+        result = sql_executor(query)
+        return frozenset(str(row[0]) for row in result if row and row[0] is not None)
 
     return resolve
 
@@ -332,6 +414,7 @@ def verify_legal_register(
     sql_executor: SqlExecutor | None = None,
     legal_row_loader: LegalRowLoader | None = None,
     chunk_resolver: ChunkResolver | None = None,
+    document_chunks_enumerator: DocumentChunkEnumerator | None = None,
 ) -> int:
     """Run the whole-surface verifier: claim rows then completion marker."""
     if sql_executor is None and (legal_row_loader is None or chunk_resolver is None):
@@ -343,12 +426,18 @@ def verify_legal_register(
 
     loader = legal_row_loader
     resolver = chunk_resolver
+    enumerator = document_chunks_enumerator
     if loader is None or resolver is None:
         assert sql_executor is not None
         loader = loader or make_warehouse_legal_row_loader(
             catalog=catalog, sql_executor=sql_executor
         )
         resolver = resolver or make_warehouse_chunk_resolver(
+            catalog=catalog,
+            company_display=display,
+            sql_executor=sql_executor,
+        )
+        enumerator = enumerator or make_warehouse_document_chunks_enumerator(
             catalog=catalog,
             company_display=display,
             sql_executor=sql_executor,
@@ -362,10 +451,25 @@ def verify_legal_register(
         run_id=run_id,
         run_ts=ts,
         resolve_chunk=resolver,
+        enumerate_document_chunks=enumerator,
     )
 
+    chunk_id_resolver = None
+    if sql_executor is not None:
+        chunk_id_resolver = make_warehouse_chunk_id_resolver(
+            catalog=catalog,
+            sql_executor=sql_executor,
+        )
+
     writer = S2Writer(catalog=catalog, sql_executor=sql_executor)
-    writer.write_claims(slug, SURFACE, run_id, ts, claim_rows)
+    writer.write_claims(
+        slug,
+        SURFACE,
+        run_id,
+        ts,
+        claim_rows,
+        chunk_id_resolver=chunk_id_resolver,
+    )
     writer.write_completion_marker(slug, SURFACE, run_id, ts, WRITER)
 
     logger.info(

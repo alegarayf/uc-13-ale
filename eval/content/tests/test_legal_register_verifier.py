@@ -62,6 +62,8 @@ class RecordingSqlExecutor:
             "SELECT"
         ):
             return []
+        if "FROM uc13_ale.ingestion.chunks" in normalized and "chunk_id IN" in normalized:
+            return [["chunk-lease-001"]]
         return []
 
 
@@ -92,7 +94,7 @@ def test_build_claim_rows_supported_when_quote_in_chunk() -> None:
     assert rows[0].cited_locator_value == "H. Contractor Indemnification Agreement"
 
 
-def test_build_claim_rows_contradicted_when_quote_missing_from_chunk() -> None:
+def test_build_claim_rows_unsupported_when_quote_missing_from_primary_chunk() -> None:
     rows = build_claim_rows(
         "elder_care",
         registers=_sample_registers(),
@@ -105,7 +107,7 @@ def test_build_claim_rows_contradicted_when_quote_missing_from_chunk() -> None:
             section_header=None,
         ),
     )
-    assert rows[0].verdict == "contradicted"
+    assert rows[0].verdict == "unsupported"
     assert rows[0].cited_chunk_id == "chunk-lease-001"
     assert rows[0].cited_locator_kind == "page"
     assert rows[0].cited_locator_value == "3"
@@ -179,12 +181,13 @@ def test_verify_legal_register_writes_claims_then_marker() -> None:
     )
 
     assert n_claims == 1
-    assert len(recorder.statements) == 4
+    assert len(recorder.statements) == 5
     assert recorder.statements[0].strip().upper().startswith("SELECT")
-    assert "INSERT" in recorder.statements[1].upper()
-    assert recorder.statements[2].strip().upper().startswith("SELECT")
-    assert "completion_marker" in recorder.statements[3]
-    assert "deterministic_verifier" in recorder.statements[3]
+    assert "chunk_id IN" in recorder.statements[1]
+    assert "INSERT" in recorder.statements[2].upper()
+    assert recorder.statements[3].strip().upper().startswith("SELECT")
+    assert "completion_marker" in recorder.statements[4]
+    assert "deterministic_verifier" in recorder.statements[4]
 
 
 def test_verify_legal_register_propagates_invalid_json_as_value_error() -> None:
@@ -224,3 +227,127 @@ def test_s2_writer_accepts_verifier_claim_row_shape() -> None:
         [row],
     )
     assert len(recorder.statements) == 2
+
+
+def test_build_claim_rows_locator_null_when_chunk_carries_neither_grain() -> None:
+    """HALT-31 third branch: claim source_location must not fabricate a locator."""
+    rows = build_claim_rows(
+        "elder_care",
+        registers={
+            "contract_register": [
+                {
+                    "counterparty_name": "Landlord",
+                    "source_doc": "Manhattan_Lease_0424.pdf",
+                    "source_location": "page 7",
+                    "raw_quote": "some quoted clause text here",
+                }
+            ]
+        },
+        run_id="20260914T120000Z-legal",
+        run_ts=_run_ts(),
+        resolve_chunk=lambda *_: ChunkResolution(
+            chunk_id="chunk-no-grain",
+            chunk_text="some quoted clause text here",
+            page_start=None,
+            section_header=None,
+        ),
+    )
+    assert rows[0].verdict == "supported"
+    assert rows[0].cited_chunk_id == "chunk-no-grain"
+    assert rows[0].cited_locator_kind is None
+    assert rows[0].cited_locator_value is None
+
+
+def test_build_claim_rows_supported_when_quote_in_sibling_chunk() -> None:
+    quote = str(_sample_registers()["contract_register"][0]["raw_quote"])
+    primary = ChunkResolution(
+        chunk_id="chunk-primary",
+        chunk_text="Unrelated indemnity language only.",
+        page_start=3,
+        section_header=None,
+    )
+    sibling = ChunkResolution(
+        chunk_id="chunk-sibling",
+        chunk_text=f"Preamble. {quote} trailing text.",
+        page_start=4,
+        section_header="H. Contractor Indemnification Agreement",
+    )
+
+    rows = build_claim_rows(
+        "elder_care",
+        registers=_sample_registers(),
+        run_id="20260914T120000Z-legal",
+        run_ts=_run_ts(),
+        resolve_chunk=lambda *_: primary,
+        enumerate_document_chunks=lambda _doc: [primary, sibling],
+    )
+    assert rows[0].verdict == "supported"
+    assert rows[0].cited_chunk_id == "chunk-sibling"
+    assert rows[0].cited_locator_kind == "section"
+    assert rows[0].cited_locator_value == "H. Contractor Indemnification Agreement"
+
+
+def test_build_claim_rows_contradicted_when_prefix_matches_but_full_quote_does_not() -> None:
+    quote = (
+        "Contractor shall defend indemnify and hold harmless the property owner "
+        "from any liability loss or other claim arising from negligence"
+    )
+    rows = build_claim_rows(
+        "elder_care",
+        registers={
+            "contract_register": [
+                {
+                    "counterparty_name": "Landlord",
+                    "source_doc": "Manhattan_Lease_0424.pdf",
+                    "source_location": "Section: H",
+                    "raw_quote": quote,
+                }
+            ]
+        },
+        run_id="20260914T120000Z-legal",
+        run_ts=_run_ts(),
+        resolve_chunk=lambda *_: ChunkResolution(
+            chunk_id="chunk-prefix-only",
+            chunk_text=(
+                "Contractor shall defend indemnify and hold harmless the property owner "
+                "from a completely different obligation"
+            ),
+            page_start=12,
+            section_header="H",
+        ),
+        enumerate_document_chunks=lambda _doc: [],
+    )
+    assert rows[0].verdict == "contradicted"
+    assert rows[0].cited_chunk_id == "chunk-prefix-only"
+
+
+def test_build_claim_rows_requires_full_quote_not_prefix_anchor() -> None:
+    quote = (
+        "Contractor shall defend indemnify and hold harmless the property owner "
+        "property manager and their agents from any liability loss or other claim"
+    )
+    rows = build_claim_rows(
+        "elder_care",
+        registers={
+            "contract_register": [
+                {
+                    "counterparty_name": "Landlord",
+                    "source_doc": "Manhattan_Lease_0424.pdf",
+                    "source_location": "Section: H",
+                    "raw_quote": quote,
+                }
+            ]
+        },
+        run_id="20260914T120000Z-legal",
+        run_ts=_run_ts(),
+        resolve_chunk=lambda *_: ChunkResolution(
+            chunk_id="chunk-prefix-only",
+            chunk_text=(
+                "Contractor shall defend indemnify and hold harmless the property owner "
+                "property manager and their agents only"
+            ),
+            page_start=12,
+            section_header="H",
+        ),
+    )
+    assert rows[0].verdict == "contradicted"
