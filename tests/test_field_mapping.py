@@ -300,3 +300,137 @@ def test_revenue_quality_no_kpi_yaml_is_the_same_as_before():
     exactly as it did before this fallback was added."""
     cqa_yaml = {"concentration_summary": {"top1_pct": None, "top3_pct": None, "top5_pct": None, "top10_pct": None}}
     assert _revenue_quality_from_agents(None, cqa_yaml) == _revenue_quality_from_agents(None, cqa_yaml, None)
+
+
+# ---------------------------------------------------------------------------
+# _fta_table_rows — two bugs found reviewing a live Elder Care render
+# (docs/plans/connect-all-vdr-er.md Part B, follow-up):
+#
+# (1) a stray non-data record (e.g. a discrepancy note the extractor
+#     sometimes appends inline instead of using the dedicated
+#     discrepancy-flagging path) was rendering as an empty phantom column
+#     in the P&L table and the Financial Snapshot chart.
+# (2) gross_margin has no dedicated segment array (unlike revenue_by_segment),
+#     so a multi-location P&L sometimes appends each location's Gross Profit
+#     to the SAME array under a suffixed label ("Gross Profit (Westchester)")
+#     -- a naive last-record-wins pick silently replaced the company-wide
+#     figure with whichever location happened to be extracted last.
+#
+# Both fixes are structural (numeric-signal presence, label shape), never a
+# hardcoded sentinel string or city/segment name, so they generalize to any
+# company's data room.
+# ---------------------------------------------------------------------------
+
+
+def test_fta_table_rows_drops_a_non_data_period_like_discrepancy_flag():
+    """Real Elder Care shape: revenue_trend carried an inline discrepancy
+    note with period='DISCREPANCY_FLAG' and every numeric field null, with
+    no companion record in gross_margin/ebitda either -- must not become a
+    phantom empty column."""
+    fta_yaml = {
+        "revenue_trend": [
+            {"period": "2023A", "revenue_stated": "28,330"},
+            {"period": "TTM Aug-24", "revenue_stated": "35,136"},
+            {
+                "period": "DISCREPANCY_FLAG",
+                "label": "NOTE: figures differ between two CIM sections.",
+                "revenue_stated": None,
+                "yoy_growth_pct": None,
+            },
+        ],
+        "gross_margin": [
+            {"period": "2023A", "gm_dollars_stated": "14,910", "gm_pct_stated": "43.6%"},
+            {"period": "TTM Aug-24", "gm_dollars_stated": "20,170", "gm_pct_stated": "43.4%"},
+        ],
+        "ebitda": [
+            {"period": "2023A", "version": "pf_adjusted", "ebitda_dollars": "6,677", "ebitda_margin_pct": "19.5%"},
+            {"period": "TTM Aug-24", "version": "pf_adjusted", "ebitda_dollars": "9,239", "ebitda_margin_pct": "19.9%"},
+        ],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert [r["year"] for r in rows] == ["2023A", "TTM Aug-24"]
+    assert "DISCREPANCY_FLAG" not in [r["year"] for r in rows]
+
+
+def test_fta_table_rows_keeps_a_sparse_but_real_period():
+    """A period genuinely missing revenue but with real gross-margin/EBITDA
+    data must NOT be dropped -- the filter targets records with zero data
+    anywhere, not records merely missing one field."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2020A"}],
+        "gross_margin": [{"period": "2020A", "gm_pct_stated": "42.1%"}],
+        "ebitda": [{"period": "2020A", "ebitda_margin_pct": "36.6%"}],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert len(rows) == 1
+    assert rows[0]["year"] == "2020A"
+    assert rows[0]["revenue"] == ""
+    assert rows[0]["gross_margin_pct"] == "42.1%"
+
+
+def test_fta_table_rows_prefers_consolidated_gross_margin_over_a_location_breakdown():
+    """Real Elder Care shape: 'Gross Profit (New Jersey)' appears after the
+    consolidated 'Gross Profit' record for the same period. Order must not
+    matter -- the unqualified label always wins."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "TTM Aug-24", "revenue_stated": "35,136"}],
+        "gross_margin": [
+            {"period": "TTM Aug-24", "label": "Gross Profit", "gm_dollars_stated": "20,170", "gm_pct_stated": "43.4%"},
+            {"period": "TTM Aug-24", "label": "Gross Profit (Westchester)", "gm_dollars_stated": "3,208", "gm_pct_stated": "36.6%"},
+            {"period": "TTM Aug-24", "label": "Gross Profit (Long Island)", "gm_dollars_stated": "5,205", "gm_pct_stated": "44.7%"},
+            {"period": "TTM Aug-24", "label": "Gross Profit (New Jersey)", "gm_dollars_stated": "3,455", "gm_pct_stated": "45.6%"},
+        ],
+        "ebitda": [],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert rows[0]["gross_profit"] == "20,170"
+    assert rows[0]["gross_margin_pct"] == "43.4%"
+
+
+def test_fta_table_rows_consolidated_wins_regardless_of_array_order():
+    """Anti-overfit: the consolidated record can appear LAST too -- the
+    selection must key off label shape, not array position."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2023A", "revenue_stated": "10,000"}],
+        "gross_margin": [
+            {"period": "2023A", "label": "Gross Profit (Segment A)", "gm_dollars_stated": "500", "gm_pct_stated": "5%"},
+            {"period": "2023A", "label": "Gross Profit", "gm_dollars_stated": "4,000", "gm_pct_stated": "40%"},
+        ],
+        "ebitda": [],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert rows[0]["gross_profit"] == "4,000"
+    assert rows[0]["gross_margin_pct"] == "40%"
+
+
+def test_fta_table_rows_no_consolidated_label_falls_back_to_first_seen():
+    """When every record for a period is segment-qualified (no plain label
+    exists at all), there is no consolidated figure to prefer -- keep the
+    first one seen rather than raising or fabricating a total."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2023A", "revenue_stated": "10,000"}],
+        "gross_margin": [
+            {"period": "2023A", "label": "Gross Profit (Segment A)", "gm_dollars_stated": "500", "gm_pct_stated": "5%"},
+            {"period": "2023A", "label": "Gross Profit (Segment B)", "gm_dollars_stated": "600", "gm_pct_stated": "6%"},
+        ],
+        "ebitda": [],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert rows[0]["gross_profit"] == "500"
+
+
+def test_fta_table_rows_ebitda_also_filters_non_data_sentinel_records():
+    """Anti-overfit: the same class of stray inline note could appear in the
+    ebitda array too -- same generic filter applies there, not something
+    special-cased to revenue_trend."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2023A", "revenue_stated": "10,000"}],
+        "gross_margin": [],
+        "ebitda": [
+            {"period": "2023A", "version": "pf_adjusted", "ebitda_dollars": "2,000", "ebitda_margin_pct": "20%"},
+            {"period": "NOTE", "label": "some inline caveat", "ebitda_dollars": None, "ebitda_margin_pct": None},
+        ],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert rows[0]["ebitda"] == "2,000"
+    assert "NOTE" not in [r["year"] for r in rows]

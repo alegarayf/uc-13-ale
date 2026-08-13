@@ -167,6 +167,19 @@ def _flag_sort_key(flag: dict) -> tuple:
 _EBITDA_VERSION_PRIORITY = ("pf_adjusted", "clinic_level_adjusted", "reported")
 
 
+def _has_numeric_signal(record: dict, *field_names: str) -> bool:
+    """True when at least one of the named fields carries a real value.
+
+    General-purpose filter, not tied to any specific label or sentinel
+    string: the extraction sub-agents occasionally append a non-data record
+    to one of these arrays instead of using the dedicated
+    discrepancy-flagging path (e.g. a "period": "DISCREPANCY_FLAG" note with
+    every numeric field null) — this is what catches that, for any company,
+    without matching on the exact text of the note.
+    """
+    return any(record.get(f) not in (None, "", "null") for f in field_names)
+
+
 def _ebitda_version_rank(record: dict) -> int:
     version = str(record.get("version") or "").strip().lower()
     try:
@@ -183,6 +196,8 @@ def _canonical_ebitda_by_period(ebitda_rows: list) -> dict[str, dict]:
     for r in ebitda_rows:
         if not isinstance(r, dict):
             continue
+        if not _has_numeric_signal(r, "ebitda_dollars", "ebitda_margin_pct"):
+            continue
         period = str(r.get("period", r.get("label", "")))
         if not period:
             continue
@@ -192,6 +207,78 @@ def _canonical_ebitda_by_period(ebitda_rows: list) -> dict[str, dict]:
     return by_period
 
 
+def _is_segment_qualified_label(label: str) -> bool:
+    """True for a segment/location breakdown label like "Gross Profit
+    (Westchester)" as opposed to the plain company-wide "Gross Profit".
+    Keys off the label's SHAPE (a parenthetical qualifier), never a specific
+    city/segment name, so this generalizes to any company's geography or
+    service-line breakdown."""
+    return "(" in (label or "")
+
+
+def _canonical_gross_margin_by_period(gross_margin_rows: list) -> dict[str, dict]:
+    """One gross_margin record per period, preferring the plain company-wide
+    label over any segment/location-qualified one.
+
+    ``gross_margin`` has no dedicated segment array the way ``revenue_by_segment``
+    does, so a sub-agent extracting a multi-location P&L sometimes appends
+    each location's Gross Profit to this same array under a suffixed label
+    ("Gross Profit (Westchester)", "Gross Profit (Long Island)", ...). A plain
+    last-record-wins pick then silently replaces the consolidated company
+    figure with whichever location happens to be extracted last — confirmed
+    on a real run: Elder Care's rendered 2023A/TTM Aug-24 gross margin was
+    New Jersey's sub-total (45.6%), not the company's (43.6%/43.4%), because
+    "Gross Profit (New Jersey)" was the last entry for those periods.
+    """
+    by_period: dict[str, dict] = {}
+    for r in gross_margin_rows:
+        if not isinstance(r, dict):
+            continue
+        if not _has_numeric_signal(r, "gm_dollars_stated", "gm_pct_stated"):
+            continue
+        period = str(r.get("period") or "")
+        if not period:
+            continue
+        existing = by_period.get(period)
+        if existing is None:
+            by_period[period] = r
+            continue
+        existing_is_segment = _is_segment_qualified_label(str(existing.get("label") or ""))
+        candidate_is_segment = _is_segment_qualified_label(str(r.get("label") or ""))
+        if existing_is_segment and not candidate_is_segment:
+            # The consolidated (unqualified) label always wins over a
+            # segment/location breakdown, regardless of array order.
+            by_period[period] = r
+        # Otherwise keep the existing record: it's already unqualified (a
+        # segment breakdown must never overwrite it), or both share the same
+        # qualified/unqualified status (keep first-seen — stable, and matches
+        # revenue_trend's own "keep the first" duplicate-period rule below).
+    return by_period
+
+
+def _periods_with_real_data(
+    revenue_trend: list, gm_by_period: dict, ebitda_by_period: dict,
+) -> set[str]:
+    """Periods with at least one real numeric value in revenue, gross
+    margin, or EBITDA — a period sparse in one array but populated in
+    another (e.g. no revenue_stated but a real gm_pct_stated) is still real
+    and must not be dropped. ``gm_by_period``/``ebitda_by_period`` are
+    already filtered to real data by their own canonical-selection
+    functions, so their keys alone cover those two sources; only
+    ``revenue_trend`` needs an explicit check here.
+    """
+    valid: set[str] = set(gm_by_period) | set(ebitda_by_period)
+    for rev in revenue_trend:
+        if not isinstance(rev, dict):
+            continue
+        if not _has_numeric_signal(rev, "revenue_stated", "revenue", "value", "yoy_growth_pct"):
+            continue
+        period = str(rev.get("period") or rev.get("label") or "")
+        if period:
+            valid.add(period)
+    return valid
+
+
 def _fta_table_rows(fta_yaml: dict | None) -> list[dict[str, str]]:
     if not fta_yaml:
         return []
@@ -199,16 +286,22 @@ def _fta_table_rows(fta_yaml: dict | None) -> list[dict[str, str]]:
     ebitda_rows = fta_yaml.get("ebitda") or []
     gross_margin = fta_yaml.get("gross_margin") or []
     ebitda_by_period = _canonical_ebitda_by_period(ebitda_rows)
-    gm_by_period = {
-        str(r.get("period", "")): r for r in gross_margin if isinstance(r, dict)
-    }
+    gm_by_period = _canonical_gross_margin_by_period(gross_margin)
+    # A period with real data ANYWHERE across the three sources is genuine.
+    # Filters out a non-data record a sub-agent sometimes appends inline
+    # instead of using the dedicated discrepancy-flagging path (e.g. a
+    # "period": "DISCREPANCY_FLAG" note, every numeric field null, with no
+    # companion entry in gross_margin/ebitda either) — without this, it
+    # becomes a phantom empty column in both the P&L table and the
+    # Financial Snapshot chart.
+    real_periods = _periods_with_real_data(revenue_trend, gm_by_period, ebitda_by_period)
     rows: list[dict[str, str]] = []
     seen_periods: set[str] = set()
     for rev in revenue_trend:
         if not isinstance(rev, dict):
             continue
         period = str(rev.get("period") or rev.get("label") or "")
-        if not period or period in seen_periods:
+        if not period or period in seen_periods or period not in real_periods:
             # Fix B0 — revenue_trend can carry duplicate records for the same
             # period (e.g. from multiple source documents); keep the first.
             continue
