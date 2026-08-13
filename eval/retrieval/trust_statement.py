@@ -38,10 +38,7 @@ LAYERS = (
 )
 CONTENT_SURFACES = ("fta_numeric", "legal_register", "exec_summary")
 LAYER_CONTENT_CORRECTNESS = "content_correctness"
-ATTESTATION_WAIVED = "waived"
-ATTESTATIONS = frozenset(
-    {"attested", "partial", "not_attested", "known_gap", ATTESTATION_WAIVED}
-)
+ATTESTATIONS = frozenset({"attested", "partial", "not_attested", "known_gap"})
 WRITER_TO_RUNG: dict[str, str] = {
     "deterministic_verifier": "deterministic",
     "judge_harness": "judge",
@@ -501,19 +498,6 @@ def _content_row_from_run(
     )
 
 
-def _waived_content_row(company: str, surface: str) -> TrustStatementRow:
-    return TrustStatementRow(
-        company=company,
-        layer=LAYER_CONTENT_CORRECTNESS,
-        surface=surface,
-        content_surface=surface,
-        attestation=ATTESTATION_WAIVED,
-        reason="no_completed_run",
-        method=None,
-        rung=None,
-    )
-
-
 def _execute_warehouse_sql(client: Any, sql: str) -> list[list[str | None]]:
     if callable(client) and not hasattr(client, "execute_sql"):
         return client(sql)
@@ -606,7 +590,9 @@ def derive_content_rows(
     for surface in CONTENT_SURFACES:
         run = latest.get(surface)
         if run is None:
-            content_rows.append(_waived_content_row(company, surface))
+            content_rows.append(
+                _default_not_attested_row(company, LAYER_CONTENT_CORRECTNESS, surface)
+            )
             continue
         marker, claims = run
         content_rows.append(
