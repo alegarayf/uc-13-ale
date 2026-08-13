@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 TABLE_SUFFIX = "eval.s2_scores"
 
 SURFACES = frozenset({"fta_numeric", "legal_register", "exec_summary"})
+NUMERIC_SURFACES = frozenset({"fta_numeric"})
 ROW_TYPES = frozenset({"claim", "completion_marker"})
 CLAIM_VERDICTS = frozenset({"supported", "contradicted", "unsupported"})
 WRITERS = frozenset({"deterministic_verifier", "judge_harness", "human_spot_check"})
@@ -78,15 +79,16 @@ class S2ScoreRow:
 
 
 def _ensure_utc_microsecond(ts: datetime) -> datetime:
-    """Normalize to UTC and retain the full microsecond field (§9.1)."""
+    """Normalize ``run_ts`` to UTC on the write path (§9.1).
+
+    Sub-millisecond precision is not validated here — ``strftime('%f')`` is
+    always six zero-padded digits, so a write-side precision guard would be
+    tautological. SDK readback truncation is guarded in
+    ``trust_statement.fetch_s2_score_rows``.
+    """
     if ts.tzinfo is None:
-        normalized = ts.replace(tzinfo=timezone.utc)
-    else:
-        normalized = ts.astimezone(timezone.utc)
-    fractional = normalized.strftime("%f")
-    if len(fractional) != 6 or not fractional.isdigit():
-        raise ValueError(f"run_ts must retain microsecond precision (got fractional {fractional!r})")
-    return normalized
+        return ts.replace(tzinfo=timezone.utc)
+    return ts.astimezone(timezone.utc)
 
 
 def _sql_str(value: str) -> str:
@@ -129,7 +131,38 @@ def _validate_magnitude_unit_pair(
         raise ValueError(f"{field_prefix} unit {unit!r} not in §16 numeric unit vocabulary")
 
 
-def _validate_claim_row(row: S2ScoreRow, *, rationale_required: bool) -> None:
+def _validate_asserted_magnitude_unit_pair(
+    magnitude: Decimal | None,
+    unit: str | None,
+    *,
+    surface: str,
+    rung: int | None,
+) -> None:
+    """Asserted pairing per §8.8 ``N`` (D7 / R9): unit-without-magnitude invalid everywhere."""
+    if unit is not None and magnitude is None:
+        raise ValueError(
+            "asserted unit set without magnitude is invalid at every rung"
+        )
+    if magnitude is not None and unit is None:
+        in_n = surface in NUMERIC_SURFACES and (rung is None or rung == 2)
+        if in_n:
+            raise ValueError(
+                "asserted magnitude and unit must both be set or both null "
+                "for rung-2 numeric claim rows"
+            )
+    if unit is not None and unit not in NUMERIC_UNITS:
+        raise ValueError(
+            f"asserted unit {unit!r} not in §16 numeric unit vocabulary"
+        )
+
+
+def _validate_claim_row(
+    row: S2ScoreRow,
+    *,
+    rationale_required: bool,
+    rung: int | None,
+    surface: str,
+) -> None:
     if row.row_type != "claim":
         raise ValueError("expected claim row")
     if row.writer is not None:
@@ -140,8 +173,11 @@ def _validate_claim_row(row: S2ScoreRow, *, rationale_required: bool) -> None:
         raise ValueError(f"claim verdict {row.verdict!r} not in §16 vocabulary")
     if rationale_required and (row.rationale is None or not str(row.rationale).strip()):
         raise ValueError(f"claim_id {row.claim_id!r} requires non-null rationale at rungs 2–3")
-    _validate_magnitude_unit_pair(
-        row.asserted_magnitude, row.asserted_unit, field_prefix="asserted"
+    _validate_asserted_magnitude_unit_pair(
+        row.asserted_magnitude,
+        row.asserted_unit,
+        surface=surface,
+        rung=rung,
     )
     _validate_magnitude_unit_pair(
         row.extracted_magnitude, row.extracted_unit, field_prefix="extracted"
@@ -315,6 +351,7 @@ class S2Writer:
         rows: list[S2ScoreRow],
         *,
         rationale_required: bool = False,
+        rung: int | None = None,
         chunk_id_resolver: ChunkIdResolver | None = None,
     ) -> None:
         """Append claim rows after the completion-marker guard query."""
@@ -344,7 +381,12 @@ class S2Writer:
                 or row.run_id != run_id
             ):
                 raise ValueError("claim row run header mismatch")
-            _validate_claim_row(row, rationale_required=rationale_required)
+            _validate_claim_row(
+                row,
+                rationale_required=rationale_required,
+                rung=rung,
+                surface=surface,
+            )
             normalized.append(
                 S2ScoreRow(
                     company=row.company,

@@ -10,6 +10,7 @@ import pytest
 from eval.content.s2_writer import (
     S2ScoreRow,
     S2Writer,
+    _ensure_utc_microsecond,
     _row_to_insert_values,
     _sql_literal,
     _sql_str,
@@ -126,13 +127,74 @@ def test_write_claims_rejects_invalid_verdict() -> None:
 def test_write_claims_rejects_magnitude_unit_mismatch() -> None:
     writer = S2Writer(catalog="uc13_ale", sql_executor=RecordingSqlExecutor())
 
-    with pytest.raises(ValueError, match="magnitude and unit must both"):
+    with pytest.raises(ValueError, match="rung-2 numeric"):
         writer.write_claims(
             "elder_care",
             "fta_numeric",
             "20260914T101133Z-a41",
             _run_ts(),
             [_claim_row(surface="fta_numeric", asserted_magnitude=Decimal("4.2"))],
+        )
+
+
+def test_write_claims_accepts_magnitude_without_unit_at_rung_3() -> None:
+    recorder = RecordingSqlExecutor()
+    writer = S2Writer(catalog="uc13_ale", sql_executor=recorder)
+
+    writer.write_claims(
+        "elder_care",
+        "fta_numeric",
+        "20260914T101133Z-a41",
+        _run_ts(),
+        [
+            _claim_row(
+                surface="fta_numeric",
+                asserted_magnitude=Decimal("8955"),
+                asserted_unit=None,
+            )
+        ],
+        rung=3,
+    )
+
+    assert len(recorder.statements) == 2
+    assert "8955" in recorder.statements[1]
+
+
+def test_write_claims_rejects_unit_without_magnitude_at_rung_3() -> None:
+    writer = S2Writer(catalog="uc13_ale", sql_executor=RecordingSqlExecutor())
+
+    with pytest.raises(ValueError, match="unit set without magnitude"):
+        writer.write_claims(
+            "elder_care",
+            "fta_numeric",
+            "20260914T101133Z-a41",
+            _run_ts(),
+            [_claim_row(surface="fta_numeric", asserted_unit="USD_m")],
+            rung=3,
+        )
+
+
+def test_write_claims_rung_2_explicit_matches_default_strict_pairing() -> None:
+    writer = S2Writer(catalog="uc13_ale", sql_executor=RecordingSqlExecutor())
+    row = _claim_row(surface="fta_numeric", asserted_magnitude=Decimal("4.2"))
+
+    with pytest.raises(ValueError, match="rung-2 numeric"):
+        writer.write_claims(
+            "elder_care",
+            "fta_numeric",
+            "20260914T101133Z-a41",
+            _run_ts(),
+            [row],
+            rung=2,
+        )
+
+    with pytest.raises(ValueError, match="rung-2 numeric"):
+        writer.write_claims(
+            "elder_care",
+            "fta_numeric",
+            "20260914T101133Z-a41",
+            _run_ts(),
+            [row],
         )
 
 
@@ -296,6 +358,13 @@ def test_sql_str_escapes_backslash_and_quote() -> None:
 def test_run_ts_sql_literal_retains_six_fractional_digits() -> None:
     ts = datetime(2026, 9, 14, 10, 11, 33, 481920, tzinfo=timezone.utc)
     assert _sql_literal(ts) == "TIMESTAMP '2026-09-14 10:11:33.481920'"
+
+
+def test_ensure_utc_microsecond_normalizes_naive_to_utc() -> None:
+    naive = datetime(2026, 8, 13, 18, 30, 0, 481920)
+    normalized = _ensure_utc_microsecond(naive)
+    assert normalized.tzinfo == timezone.utc
+    assert normalized.microsecond == 481920
 
 
 def test_write_claims_refuses_partial_run_retry() -> None:

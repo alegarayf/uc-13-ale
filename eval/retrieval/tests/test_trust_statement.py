@@ -576,6 +576,117 @@ def test_fetch_s2_score_rows_preserves_magnitude_unit_columns() -> None:
     assert fetched[0].extracted_unit == "percent"
 
 
+def test_fetch_s2_score_rows_parses_sdk_three_digit_fractional_run_ts() -> None:
+    sdk_ts = "2026-08-13T18:30:00.481Z"
+    source = S2ScoreRow(
+        company="elder_care",
+        surface="fta_numeric",
+        run_id="20260813T183000Z-probe",
+        run_ts=datetime(2026, 8, 13, 18, 30, 0, 481000, tzinfo=timezone.utc),
+        row_type="claim",
+        claim_id="fta.claim.001",
+        verdict="supported",
+    )
+    warehouse_row = _warehouse_row_from_s2(source)
+    warehouse_row[3] = sdk_ts
+
+    class _Client:
+        def execute_sql(self, _sql: str) -> list[list[str | None]]:
+            return [warehouse_row]
+
+    fetched = fetch_s2_score_rows("elder_care", "uc13_ale", client=_Client())
+    assert len(fetched) == 1
+    assert fetched[0].run_ts == datetime(2026, 8, 13, 18, 30, 0, 481000, tzinfo=timezone.utc)
+
+
+def test_fetch_s2_score_rows_raises_on_short_row() -> None:
+    class _Client:
+        def execute_sql(self, _sql: str) -> list[list[str | None]]:
+            return [
+                [
+                    "elder_care",
+                    "legal_register",
+                    "20260813T120000Z-x",
+                    "2026-08-13T12:00:00.000Z",
+                    "claim",
+                ]
+            ]
+
+    with pytest.raises(ValueError, match="expected 17"):
+        fetch_s2_score_rows("elder_care", "uc13_ale", client=_Client())
+
+
+def test_derive_content_rows_supersedes_older_marker_on_same_surface() -> None:
+    older_ts = datetime(2026, 8, 13, 12, 0, 0, 0, tzinfo=timezone.utc)
+    newer_ts = datetime(2026, 8, 13, 13, 0, 0, 0, tzinfo=timezone.utc)
+    s2_rows = [
+        S2ScoreRow(
+            company="elder_care",
+            surface="legal_register",
+            run_id="20260813T120000Z-old",
+            run_ts=older_ts,
+            row_type="claim",
+            claim_id="legal.claim.001",
+            verdict="contradicted",
+        ),
+        S2ScoreRow.from_completion_marker(
+            company="elder_care",
+            surface="legal_register",
+            run_id="20260813T120000Z-old",
+            run_ts=older_ts,
+            writer="deterministic_verifier",
+        ),
+        S2ScoreRow(
+            company="elder_care",
+            surface="legal_register",
+            run_id="20260813T130000Z-new",
+            run_ts=newer_ts,
+            row_type="claim",
+            claim_id="legal.claim.001",
+            verdict="supported",
+        ),
+        S2ScoreRow.from_completion_marker(
+            company="elder_care",
+            surface="legal_register",
+            run_id="20260813T130000Z-new",
+            run_ts=newer_ts,
+            writer="deterministic_verifier",
+        ),
+    ]
+
+    rows = derive_content_rows("elder_care", "uc13_ale", s2_rows=s2_rows)
+    legal = next(
+        row
+        for row in rows
+        if row.layer == LAYER_CONTENT_CORRECTNESS and row.content_surface == "legal_register"
+    )
+    assert legal.attestation == "attested"
+    assert legal.evidence_refs == ["s2_scores:20260813T130000Z-new"]
+
+
+def test_derive_content_rows_fail_closed_on_truncated_run_ts_tie() -> None:
+    tied_ts = datetime(2026, 8, 13, 18, 30, 0, 481000, tzinfo=timezone.utc)
+    s2_rows = [
+        S2ScoreRow.from_completion_marker(
+            company="elder_care",
+            surface="exec_summary",
+            run_id="20260813T183000Z-aaaa",
+            run_ts=tied_ts,
+            writer="human_spot_check",
+        ),
+        S2ScoreRow.from_completion_marker(
+            company="elder_care",
+            surface="exec_summary",
+            run_id="20260813T183000Z-bbbb",
+            run_ts=tied_ts,
+            writer="human_spot_check",
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="ambiguous latest marker"):
+        derive_content_rows("elder_care", "uc13_ale", s2_rows=s2_rows)
+
+
 def test_derive_rows_seam_threads_s2_client_to_content_rows() -> None:
     s2_fixture = [
         _claim_row(
