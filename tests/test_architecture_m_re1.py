@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_ARCH = _REPO_ROOT / ".dev" / "architecture" / "rallyday"
+_ARCH = _REPO_ROOT / "eval" / "architecture" / "rallyday"
 
 
 def _arch_text(name: str) -> str:

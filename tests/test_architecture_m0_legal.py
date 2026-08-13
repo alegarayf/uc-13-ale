@@ -5,11 +5,18 @@ from __future__ import annotations
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_ARCH = _REPO_ROOT / ".dev" / "architecture" / "rallyday"
+_ARCH = _REPO_ROOT / "eval" / "architecture" / "rallyday"
 
 
 def _arch_text(name: str) -> str:
     return (_ARCH / name).read_text(encoding="utf-8")
+
+
+def test_arch_path_resolves_under_eval_not_dev():
+    """Falsifier: architecture docs must not depend on gitignored .dev/architecture/."""
+    assert "eval" in _ARCH.parts
+    assert ".dev" not in _ARCH.parts
+    assert _ARCH.is_dir()
 
 
 def test_data_contract_registry_includes_analysis_legal():
