@@ -215,3 +215,88 @@ def test_revenue_quality_never_raises_on_missing_or_malformed_cqa_yaml():
     assert result["concentration"] == "not a dict"
     assert result["retention_notes"] == ""
     assert result["end_market_mix"] == ""
+
+
+# ---------------------------------------------------------------------------
+# _revenue_quality_from_agents — KPI fallback (2026-08-13 follow-up). CQA's
+# concentration_summary/payor_mix are frequently null (not every vertical's
+# CIM reports a top-N-clients table or a payor split), but kpi_agent already
+# extracts an overlay-specific market/geography/channel signal for exactly
+# this purpose (e.g. healthcare's census_or_patient_panel embeds the
+# page-44-style "Clients by Location" breakdown). Falls back to it only when
+# CQA's own field came back blank — never overrides a value CQA gave.
+# ---------------------------------------------------------------------------
+
+
+def test_revenue_quality_falls_back_to_kpi_census_when_cqa_concentration_is_blank():
+    """Real Elder Care shape: concentration_summary all-null, but
+    healthcare_kpis.census_or_patient_panel has the location breakdown."""
+    cqa_yaml = {"concentration_summary": {"top1_pct": None, "top3_pct": None, "top5_pct": None, "top10_pct": None}}
+    kpi_yaml = {
+        "overlay_confirmed": "healthcare_services",
+        "healthcare_kpis": {
+            "census_or_patient_panel": "1,186 total clients TTM Aug-24 across NYC: 331, Westchester: 259, New Jersey: 306",
+            "referral_source_breakdown": None,
+        },
+    }
+    result = _revenue_quality_from_agents(None, cqa_yaml, kpi_yaml)
+    assert "1,186 total clients" in result["end_market_mix"]
+    assert result["concentration"] == ""  # referral_source_breakdown was null too — genuine gap, stays blank
+
+
+def test_revenue_quality_kpi_fallback_never_overrides_a_real_cqa_value():
+    cqa_yaml = {
+        "concentration_summary": {"top1_pct": 12.0, "top3_pct": None, "top5_pct": None, "top10_pct": None},
+        "payor_mix": [{"payor_category": "Medicare", "pct_of_revenue": 40.0}],
+    }
+    kpi_yaml = {
+        "healthcare_kpis": {
+            "census_or_patient_panel": "should never appear",
+            "referral_source_breakdown": "should never appear either",
+        }
+    }
+    result = _revenue_quality_from_agents(None, cqa_yaml, kpi_yaml)
+    assert result["concentration"] == "Top 1: 12.0% of revenue"
+    assert "Medicare" in result["end_market_mix"]
+    assert "should never appear" not in result["concentration"]
+    assert "should never appear" not in result["end_market_mix"]
+
+
+def test_revenue_quality_kpi_fallback_generalizes_to_tech_services_and_consumer():
+    """Anti-overfit: two other overlays, two different field names, same
+    generic composition function — no vertical-specific branching."""
+    tech = _revenue_quality_from_agents(
+        None, None,
+        {"tech_services_kpis": {"delivery_geography_note": "80% of delivery is offshore (India)."}},
+    )
+    assert "80% of delivery is offshore" in tech["end_market_mix"]
+
+    consumer = _revenue_quality_from_agents(
+        None, None,
+        {"consumer_kpis": {
+            "channel_mix_note": "DTC 60% / wholesale 40%.",
+            "platform_concentration_note": "Amazon is 70% of online revenue.",
+        }},
+    )
+    assert "DTC 60%" in consumer["end_market_mix"]
+    assert "Amazon is 70%" in consumer["concentration"]
+
+
+def test_revenue_quality_kpi_fallback_blank_for_overlays_with_no_analog_field():
+    """b2b_saas and industrial genuinely have no geography/channel/
+    concentration concept in kpi_agent's schema — must stay blank, not
+    fabricate one, so absence_check keeps covering the real gap."""
+    saas = _revenue_quality_from_agents(None, None, {"saas_kpis": {"nrr_pct": 110.0}})
+    assert saas["end_market_mix"] == ""
+    assert saas["concentration"] == ""
+
+    industrial = _revenue_quality_from_agents(None, None, {"industrial_kpis": {"backlog_months": 6}})
+    assert industrial["end_market_mix"] == ""
+    assert industrial["concentration"] == ""
+
+
+def test_revenue_quality_no_kpi_yaml_is_the_same_as_before():
+    """Backwards compatible: omitting kpi_yaml (existing callers) behaves
+    exactly as it did before this fallback was added."""
+    cqa_yaml = {"concentration_summary": {"top1_pct": None, "top3_pct": None, "top5_pct": None, "top10_pct": None}}
+    assert _revenue_quality_from_agents(None, cqa_yaml) == _revenue_quality_from_agents(None, cqa_yaml, None)

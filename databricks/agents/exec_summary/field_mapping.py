@@ -401,8 +401,9 @@ def _retention_note_from_cqa(cqa_yaml: dict) -> str:
 def _end_market_mix_note_from_cqa(cqa_yaml: dict) -> str:
     """``payor_mix`` (who pays — Medicare/Medicaid/Commercial/private-pay/etc.)
     is the closest end-market-style split CQA extracts today. Left blank when
-    the agent found nothing here — absence_check still covers a genuine gap;
-    this never fabricates a mix that wasn't extracted."""
+    the agent found nothing here — the KPI-based fallback below covers most
+    of the real gap this leaves; this never fabricates a mix that wasn't
+    extracted."""
     payor_mix = cqa_yaml.get("payor_mix") or []
     if not isinstance(payor_mix, list):
         return ""
@@ -414,8 +415,51 @@ def _end_market_mix_note_from_cqa(cqa_yaml: dict) -> str:
     return ", ".join(parts)
 
 
+# kpi_agent writes ONE of these overlay blocks per company (whichever overlay
+# was confirmed) — same detection order _kpi_rows_from_yaml already uses.
+# Each overlay's own schema already carries a market/geography/channel-style
+# field and, for some overlays, a concentration-style field — this just wires
+# those into revenue_quality as a fallback when CQA itself found nothing,
+# instead of adding a new field or a new extraction path. A blank overlay or
+# an overlay with no such field (b2b_saas, industrial — neither schema has
+# a geography/channel concept) stays blank; genuinely nothing to report.
+_KPI_OVERLAY_BLOCKS: tuple[str, ...] = (
+    "healthcare_kpis", "tech_services_kpis", "saas_kpis", "industrial_kpis", "consumer_kpis",
+)
+_KPI_END_MARKET_MIX_FIELD: dict[str, str] = {
+    "healthcare_kpis": "census_or_patient_panel",   # e.g. "1,186 clients ... NYC: 331, Westchester: 259, ..."
+    "tech_services_kpis": "delivery_geography_note",
+    "consumer_kpis": "channel_mix_note",
+}
+_KPI_CONCENTRATION_FIELD: dict[str, str] = {
+    "healthcare_kpis": "referral_source_breakdown",
+    "consumer_kpis": "platform_concentration_note",
+}
+
+
+def _kpi_overlay_block(kpi_yaml: dict) -> tuple[str, dict] | tuple[None, None]:
+    for key in _KPI_OVERLAY_BLOCKS:
+        blob = kpi_yaml.get(key)
+        if blob:
+            return key, blob if isinstance(blob, dict) else {}
+    return None, None
+
+
+def _note_from_kpi_field(kpi_yaml: dict | None, field_by_overlay: dict[str, str]) -> str:
+    if not kpi_yaml:
+        return ""
+    overlay_key, blob = _kpi_overlay_block(kpi_yaml)
+    if not overlay_key:
+        return ""
+    field = field_by_overlay.get(overlay_key)
+    if not field:
+        return ""  # this overlay's schema has no analog field — genuinely nothing to report
+    value = blob.get(field)
+    return str(value) if value not in (None, "", "null") else ""
+
+
 def _revenue_quality_from_agents(
-    bma_yaml: dict | None, cqa_yaml: dict | None
+    bma_yaml: dict | None, cqa_yaml: dict | None, kpi_yaml: dict | None = None,
 ) -> dict[str, str]:
     concentration = ""
     retention_notes = ""
@@ -424,6 +468,13 @@ def _revenue_quality_from_agents(
         concentration = _concentration_note_from_cqa(cqa_yaml)
         retention_notes = _retention_note_from_cqa(cqa_yaml)
         end_market_mix = _end_market_mix_note_from_cqa(cqa_yaml)
+    # KPI fallback: only when CQA's own field came back blank for THIS
+    # company (a real gap or an overlay CQA doesn't cover well), never a
+    # second opinion overriding a value CQA already gave.
+    if not concentration:
+        concentration = _note_from_kpi_field(kpi_yaml, _KPI_CONCENTRATION_FIELD)
+    if not end_market_mix:
+        end_market_mix = _note_from_kpi_field(kpi_yaml, _KPI_END_MARKET_MIX_FIELD)
     scale = ""
     if bma_yaml and bma_yaml.get("executive_summary"):
         scale = str(bma_yaml["executive_summary"])[:500]
@@ -550,7 +601,7 @@ def apply_field_mappings(
             "observations": [],
             "geographic_mix": (fta_yaml or {}).get("revenue_by_segment") or [],
         },
-        "revenue_quality": _revenue_quality_from_agents(bma_yaml, cqa_yaml),
+        "revenue_quality": _revenue_quality_from_agents(bma_yaml, cqa_yaml, kpi_yaml),
         "kpi_dashboard": _kpi_rows_from_yaml(kpi_yaml),
         "qoe": _qoe_from_snapshots(snapshots.get("quality_of_earnings"), fta_yaml),
         "legal": _build_legal_block(legal_delta)
