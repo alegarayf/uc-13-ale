@@ -12,7 +12,6 @@ import yaml
 from eval.content.s2_writer import S2ScoreRow, S2Writer
 from eval.content.spot_check import SpotCheckConfig, write_spot_check_results
 from eval.retrieval.trust_statement import (
-    ATTESTATION_WAIVED,
     CompanyDomainRow,
     IngestProbeResult,
     LAYER_CONTENT_CORRECTNESS,
@@ -141,14 +140,10 @@ def test_non_ingest_layers_default_to_no_completed_run() -> None:
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
     )
     others = [r for r in rows if r.layer != "ingest_completeness"]
-    content = [r for r in others if r.layer == LAYER_CONTENT_CORRECTNESS]
-    non_content = [r for r in others if r.layer != LAYER_CONTENT_CORRECTNESS]
-    assert len(content) == 3
-    assert all(r.attestation == ATTESTATION_WAIVED for r in content)
-    assert all(r.reason == "no_completed_run" for r in content)
-    assert len(non_content) == 3
-    assert all(r.attestation == "not_attested" for r in non_content)
-    assert all(r.reason == "no_completed_run" for r in non_content)
+    assert len(others) == 6
+    assert all(r.attestation == "not_attested" for r in others)
+    assert all(r.reason == "no_completed_run" for r in others)
+    assert all(r.rung is None for r in others)
 
 
 def test_validate_row_rejects_reasonless_not_attested() -> None:
@@ -357,12 +352,28 @@ def _marker_row(*, surface: str, run_id: str, writer: str) -> S2ScoreRow:
     )
 
 
-def test_derive_content_rows_waived_when_no_completed_run() -> None:
+def test_derive_content_rows_not_attested_when_no_completed_run() -> None:
     rows = derive_content_rows("elder_care", "uc13_ale", s2_rows=[])
     assert len(rows) == 3
-    assert all(row.attestation == ATTESTATION_WAIVED for row in rows)
+    assert all(row.attestation == "not_attested" for row in rows)
     assert all(row.reason == "no_completed_run" for row in rows)
     assert all(row.rung is None for row in rows)
+    assert all(row.content_surface in {"fta_numeric", "legal_register", "exec_summary"} for row in rows)
+
+
+def test_validate_row_rejects_retired_waived_attestation() -> None:
+    row = TrustStatementRow(
+        company="elder_care",
+        layer=LAYER_CONTENT_CORRECTNESS,
+        surface="exec_summary",
+        content_surface="exec_summary",
+        attestation="waived",
+        reason="no_completed_run",
+        method=None,
+        rung=None,
+    )
+    with pytest.raises(TrustStatementGenerationError, match="out-of-vocabulary attestation"):
+        validate_row(row)
 
 
 def test_derive_content_rows_rung_from_marker_writer() -> None:
