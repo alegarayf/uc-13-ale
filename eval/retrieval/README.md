@@ -295,7 +295,7 @@ from eval.retrieval.harness import EvalHarness
 from eval.retrieval.store import DeltaEvalStore
 
 CATALOG = "uc13_ale"
-harness = EvalHarness()
+harness = EvalHarness(company_slug="elder_care")
 store = DeltaEvalStore(spark, catalog=CATALOG)
 
 report = harness.run(
@@ -410,7 +410,7 @@ from eval.retrieval.store import DeltaEvalStore
 
 CATALOG = "uc13_ale"
 BASELINE_REF = "baseline_1aeb0ace584a"  # M-PHV4 post-consolidation (promoted 2026-07-15)
-harness = EvalHarness()
+harness = EvalHarness(company_slug="elder_care")
 store = DeltaEvalStore(spark, catalog=CATALOG)
 
 for arm in ("merge_rank_on", "merge_rank_off", "sim_only", "tier_only"):
@@ -526,7 +526,7 @@ from eval.retrieval.harness import EvalHarness
 from eval.retrieval.store import DeltaEvalStore
 
 CATALOG = "uc13_ale"
-harness = EvalHarness()
+harness = EvalHarness(company_slug="elder_care")
 store = DeltaEvalStore(spark, catalog=CATALOG)
 
 report = harness.run(
