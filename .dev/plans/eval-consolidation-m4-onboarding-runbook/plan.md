@@ -1,12 +1,13 @@
 # Orchestrator plan — M4 / S3 Company Onboarding Runbook
 
-**Plan version:** 1.6 · **Date:** 2026-08-14 · **Status:** **AUDIT REMEDIATION — ESC-M4-1 RULED; T12 executable now, T11/T13 packets pending four named operator confirmations (ESC-M4-1 §6)** · previously Complete + §8 handoff @ HEAD `1a2daeb`, but the 2026-08-14 audit (`.dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md`) returned verdict **`fail`** / `audit_status: blocked` on 8 majors (F-01–F-08). This version opens the remediation round. T1–T10-bis landed; T9 pilot COMPLETE @ `6f6e9ac`; T10 HALTed (audit record only, superseded by T10-bis @ `231941b`); RB-DEFECT-T9-1 @ `0a5b2f2`, RB-DEFECT-T9-2 resolved by T10-bis, RB-DEFECT-T9-3 closed @ `6f6e9ac`
+**Plan version:** 1.6 · **Date:** 2026-08-14 · **Status:** **Complete + audit remediation landed — §8 handoff v1.6 @ `3f212f1`, ready for re-audit (rev 2)** · T1–T10-bis + T11/T12/T13 remediation executed; rev-1 audit (`.dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md`) **`fail`** on F-01–F-08 closed in §8.4.4 · T9 pilot COMPLETE @ `6f6e9ac` · T10 HALTed (superseded by T10-bis @ `231941b`) · ESC-M4-1 → charter A5 → T11 @ `0e86004`/`87e194e` · T12 @ `2ceb25d` · T13 @ `5bbd3a1`
 **Produced by:** orchestrator-planning v0.8 (charter-governed mode)
 **Planning tree SHA:** `3126c2b08c7b9ae8c484f437948c271c27aee217` (clean working tree)
 **Amendment tree SHA (v1.1 authoring):** working tree at `0a5b2f2` + uncommitted `.dev/t9_kpi_location_probe.py` (untracked, unrelated to this amendment)
 **Amendment tree SHA (v1.2 authoring):** working tree at `0a5b2f2`, clean; T10 produced **no commit** (drafted then reverted on HALT per its changelog) — v1.2 authors against the same base T9's second HALT ran against.
 **Amendment tree SHA (v1.3 completion):** HEAD at `6f6e9ac`
-**Amendment tree SHA (v1.4 completion + audit):** HEAD at `1a2daeb`; audit HEAD `4d7063b`
+**Amendment tree SHA (v1.4 completion + audit rev 1):** HEAD at `1a2daeb`; audit HEAD `4d7063b`
+**Amendment tree SHA (v1.6 remediation + audit rev 2 handoff):** HEAD at `3f212f1` (handoff commit; remediation code tip @ `87e194e`)
 **v1.6 amendment summary (ESC-M4-1 ruled; remediation round becomes executable).** The operator ruled all three ESC-M4-1 decisions plus an added Decision 4 for F-03, 2026-08-14 (`escalations/ESC-M4-1-rb-defect-t9-1-gold-corpus.md` §5). Consequences for this plan:
 
 - **Decision 1 (a) — ratify `0a5b2f2` retroactively.** F-01 closes on the governance record alone; no code change, no revert. The record is ESC-M4-1 promoted to charter **Amendment A5**. A5 must state the ratification is retroactive and non-precedential, which is the mitigation the operator attached to the accepted precedent risk.
@@ -676,13 +677,11 @@ Emitted to `.dev/plans/eval-consolidation-m4-onboarding-runbook/packets/T<n>.md`
 
 ## 8. Auditor handoff
 
-Produced when this plan is marked **Complete** (or **Complete + amendment landed**), frozen alongside the version bump and shipped in the same commit as the artifacts it cites. **Applicable at v1.4 — populated below.** The instruction block through line 518 is the pre-complete template; the **§8 handoff (v1.4 — Complete)** block is authoritative.
+Produced when this plan is marked **Complete** (or **Complete + amendment landed**), frozen alongside the version bump and shipped in the same commit as the artifacts it cites.
 
-Required at that point: §8.1 completion snapshot (tree SHA plus `pytest -q` on a **clean checkout** of that SHA, result inline — a dirty-tree run does not satisfy it); §8.2 artifact chain, every path resolving at HEAD, with the `.dev/` Option C exception stated per §0; §8.3 per-row §2 evidence; §8.4 disposition of every §5.2 and §5.4 item as closed / open / treat-as-prediction; §8.5 cold-read seeds; §8.6 only if §7 fired.
+**Authoritative handoff:** **§8 handoff (v1.6 — Complete + audit remediation landed)** below. The **§8 handoff (v1.4 — Complete, pre-audit)** block is retained as history only (first M4 complete banner @ `1a2daeb`; audit @ `4d7063b` returned **`fail`** on eight majors).
 
-**§7 has now fired twice for the same defect (v1.1 T10 → HALT; v1.2 T10-bis, RB-DEFECT-T9-2).** §8.6 will be required at the next *Complete* banner, pointing to: this section's T10 **and** T10-bis subsections above, `packets/T10.md` (HALT record) and `packets/T10-bis.md` (landed), `decision-logs/T10.md` (superseded, with its supersession banner) and `decision-logs/T10-bis.md` (current authority), and the §2.1 "HALTed (v1.1, T10)" and "Landed (v1.2, T10-bis)" rows. Add `eval/retrieval/gold/bootstrap.py` to the §8.5 cold-read seed list below once T10-bis lands (it is the amendment's sole code surface and is not yet in the pre-nominated list).
-
-Pre-nominated §8.5 cold-read seeds, chosen from §2 contract anchors and §5.4 confirmed couplings: `eval/program/onboarding_runbook.md`, `eval/retrieval/trust_statement.py`, `eval/retrieval/exemptions.py`, `eval/retrieval/harness.py`, `eval/retrieval/tests/test_eval_program_registry.py`.
+Required at a *Complete* banner: §8.1 completion snapshot (tree SHA plus `pytest -q` on a **clean checkout** of that SHA, result inline — a dirty-tree run does not satisfy it); §8.2 artifact chain, every path resolving at HEAD or via Option C `git hash-object` per §0; §8.3 per-row §2 evidence; §8.4 disposition of every §5.2 and §5.4 item as closed / open / treat-as-prediction, plus audit-major closure when remediation landed; §8.5 cold-read seeds; §8.6 when §7 fired (this plan: T10/T10-bis **and** ESC-M4-1/T11/T12/T13).
 
 The auditor re-runs the full suite against the §8.1 SHA as its first Phase 2 action; §8.1 is the anchor for that run, not a substitute for it.
 
@@ -695,7 +694,7 @@ The auditor re-runs the full suite against the §8.1 SHA as its first Phase 2 ac
 | 1 | All required fields present; no TBD in kill criteria or contract bindings | PASS |
 | 2 | DAG acyclic, no orphans | PASS — **(v1.6)** 15 nodes: the 11 below plus `ESCM41`, `A5`, `T11`/`T12`/`T13`. Acyclic: the remediation tail is a tree rooted at `T9` (`T9 → ESCM41 → A5 → {T11, T13}`, `T11 → T13`, and five landed-subtask edges into `T12`), with no edge from any remediation node back into T1–T10-bis. No orphans: `A5` has one inbound (`ESCM41`) and two outbound edges; `T12`'s five inbound edges are its five remediation targets; `T13`'s three inbound edges are the grant, the ordering dependency, and the frozen-CLI constraint. Original v1.2 reading retained: 11 nodes total (v1.2 adds T10-bis alongside v1.1's T10), single source T1, single sink T9; T10 now has one inbound edge (`T8`) and one outbound edge (`T10 --> T10-bis`, not `T10 --> T9` — the v1.1 edge is retired since T10 never landed); T10-bis has one inbound edge (`T10`) and one outbound edge (`T10-bis --> T9`) |
 | 3 | Parallel safety | PASS — `{T2,T3,T4,T5}` touch disjoint files; T6 is the sole writer of `trust_statement.py`, enforced by an explicit exception in T4's and T5's Contract bindings. **(v1.6)** The one parallel pair in the remediation round, `{T11, T12}`, shares exactly one file, `eval/program/onboarding_runbook.md`, and is kept parallel under the documented merge strategy at §5.4 item 14 (section-disjoint, additive, no `bash`-block edits, second-lander rebases without re-editing). `{T11, T13}` share `eval_debt.yaml` and are **sequenced** (`T11 --> T13`) rather than merged, because the ledger's high-water mark is order-sensitive (§5.4 item 15) |
-| 4 | ≥1 rejected alternative and ≥1 load-bearing assumption | PASS — 4 rejected decompositions; 13 load-bearing assumptions (v1.2 adds 12–13, and downgrades 11 to disproven-but-retained) |
+| 4 | ≥1 rejected alternative and ≥1 load-bearing assumption | PASS — 4 rejected decompositions; 16 load-bearing assumptions (§5.2 items 1–16; v1.2 adds 12–13 and downgrades 11; v1.6 adds 14–16) |
 | 5 | Log tiers match scope; no trivial-tier subtask owns a contract anchor | PASS — no trivial tier assigned; T2/T3 are standard under the contract-anchor override; T10-bis is architectural for the same reason T10 was, plus the error-envelope-scope narrowing |
 | 6 | Packets emitted and self-contained | PASS for T1–T9, T10 (HALT record, retained unmodified), T10-bis (v1.2, live). **(v1.6)** All three remediation packets emitted and self-contained: `packets/T11.md`, `packets/T12.md`, `packets/T13.md` — each carries §1 verbatim, its binding §2 rows, its §4 block verbatim, its filtered §5.2/§5.4 tuples, and resolved inputs. Neither T11 nor T13 contains a conditional branch: F-04 is disclaimed to T13 in T11's packet and claimed in T13's, and the restoration/closure paths are stated unconditionally per ESC-M4-1 §6. Cold-packet check: T11 needs the charter, ESC-M4-1, the audit §7 and `clearsulting.yaml`; T13 needs those plus T11's landed row — all named with paths in each packet's Resolved inputs. `packets/T9.md` updated (v1.2) to gate on **T10-bis** landing, superseding its v1.1 gate on T10 — the same freeze-before-consume shape used for its original T8-dependency, carried forward across the amendment chain rather than dropped |
 | 7 | Typed-surface binding | PASS — every §2.1 key names owner, typed surface and test; the one deferral (`doc_status` richness) carries blocking follow-up `PREFLIGHT-DOCSTATUS-1` |
@@ -706,19 +705,19 @@ The auditor re-runs the full suite against the §8.1 SHA as its first Phase 2 ac
 | 12 | §5.2/§5.4 entries conform to the tuple shape and name explicit `Tn` IDs | PASS |
 | 13 | §5 answered under the packet-only lens | PASS — stated at §5 head with the findings it produced |
 | 14 | Context map present where Files to touch would be unknown | PASS — no subtask carries "unknown — discovery required"; every path is a real file or a §2.3-pinned new file |
-| 15 | §8.1 snapshot valid | PASS — gate SHA `1a2daeb`, pytest **1153 passed / 23 skipped / 0 failed** on clean detached worktree @ 2026-08-14 (21.07s, exit 0); operator tree with Option C `.dev/` artifacts: 1187 / 1 / 0 — see §8.1 |
-| 16 | §8.2 chain resolves at HEAD | PASS — tracked artifacts verified `git ls-files` @ `1a2daeb`; `.dev/` binding artifacts on disk + `git hash-object` per Option C (§0); context map flagged stale vs gate SHA |
-| 17 | §8.4 disposition complete | PASS — §8.4 (v1.4) tables cover all §5.2 items 1–13 and §5.4 items 1–11 |
+| 15 | §8.1 snapshot valid | PASS — gate SHA `3f212f1` (`handoff -> audit rev 2`; code+tests unchanged since `87e194e`), `python -m pytest -q` **1201 passed / 1 skipped / 0 failed** (1202 collected) on clean worktree @ 2026-08-14 (21.58s, exit 0); prior gates @ `1a2daeb` and audit rev 1 @ `4d7063b` — see §8.1 (v1.6) |
+| 16 | §8.2 chain resolves at HEAD | PASS — gate SHA `3f212f1`; tracked artifacts verified `git ls-files` @ HEAD; `.dev/` binding artifacts on disk + `git hash-object` per Option C (§0); context map stale vs gate SHA by construction; remediation chain (ESC-M4-1, T11–T13, rev-1 audit) listed in §8.2 (v1.6) |
+| 17 | §8.4 disposition complete | PASS — §8.4 (v1.6) covers §5.2 items 1–16, §5.4 items 1–15, §8.4.3 deferred gaps, and §8.4.4 audit findings F-01–F-08 (majors closed) plus F-09/F-10/F-13 (minors closed); v1.4 table retained as history for items 1–13 / 1–11 |
 | 18 | **Charter binding declared** — milestone ID, charter version, invocation-stub non-goals verbatim | PASS — §1 (a), (b), (c) |
 | 19 | **Carryability** — honest subtask count against §Budget 4–10 | PASS, with an explicit counting rule stated here rather than left implicit. **Distinct-slot count remains 10** (T1–T9 + one T10 amendment unit). T10-bis is **not** a new slot: it is the same amendment unit's re-attempt after a kill-criterion HALT, following the same precedent the plan already uses for T9 itself — T9 was executed three times (original walk, RB-DEFECT-T9-1 re-run, RB-DEFECT-T9-2 re-run) under one `T9` ID and one budget slot, because a HALTed *execution* of a subtask is not a new subtask, it is the same subtask re-entered after its kill criterion fired and the blocking condition was addressed. T10-bis is named with a suffix rather than reusing the bare `T10` ID **only** because the operator asked for a distinct node to preserve the HALT audit trail as readable history (T10's packet, changelog, and decision log stay exactly as HALTed, rather than being overwritten in place) — that is a **presentation** choice for auditability, not a claim that a new subtask was decomposed. If a *third*, functionally distinct defect surfaces after T10-bis lands — one that is not a continuation of RB-DEFECT-T9-2's own investigation — that would be a genuine new amendment and **would** consume an 11th slot, at which point the ceiling is exceeded and the §Budget HALT-and-split-proposal rule applies without exception. This plan is not there: T10-bis is one investigation's continuation, not a second defect. |
 | 21 | **(v1.6) Carryability under §Budget with T13 added** | **ADVISORY — split proposal emitted, plan not halted.** Honest distinct-slot count is now **12** (T1–T9, one T10 amendment unit, T11, T12, T13) against the §Budget ceiling of 10. v1.5's amendment-round exception covers T11 and T12 (both are pure audit-major closure: records and falsifiers, no design fork). **It does not cover T13**, which introduces a new design choice — §7's own text says that is a re-plan, not an amendment. T13 is nonetheless carried here because ESC-M4-1 Decision 3(b) is itself the Tier-2 ruling that authorizes the work and A5 records the grant; the §Budget response is therefore an explicit split proposal to the charter rather than silent absorption: **if T13's kill criterion (2) fires** — the per-company invariant cannot close without also company-scoping `kpi_claim_intent_map.yaml` — the structural work stops at that boundary and the remainder becomes an M5 charter slice with its own orchestrator plan. Recorded for the charter's records, per §Budget's "compression is silent scope loss" rule: nothing was compressed to fit; the overage is stated. |
-| 20 | **(v1.5) Amendment-round validity** — every §7-routed remediation subtask has explicit DAG edges, a DoD, and either a live packet or a stated, named blocker | **PASS at v1.6** (was CONDITIONAL PASS at v1.5; the v1.5 reasoning is retained below as history rather than rewritten). T12 fully satisfies items 1–6 (packet to be emitted at `packets/T12.md`, no blocker). **T11 does not yet satisfy item 6** (packet emitted) by design — per item 14's own rule ("if any subtask's Files to touch resolves to unknown — discovery required, the plan is incomplete unless a context map or an explicit blocking cite justifies the deferral"), T11's Files-to-touch is stated as *provisional* with the blocking artifact named (`ESC-M4-1`) and the specific decisions that resolve it (1–3) enumerated — this is the explicit-blocker path, not silent incompleteness. The plan is **not** marked *Complete* at v1.5; it is marked **AUDIT REMEDIATION — blocked**, honestly reflecting that one subtask (T11) cannot execute yet. §8's handoff is **not** re-emitted at v1.5 — the prior §8 handoff (v1.4, below) is retained as history; a new §8 handoff is required only once T11 and T12 both land and a re-audit is requested. **(v1.6 update)** ESC-M4-1 is ruled, so T11's §4 block is now decision-complete and its Files-to-touch are real paths, not provisional ones; the four residual confirmations at ESC-M4-1 §6 are answered and charter Amendment A5 has landed at charter v0.1.4, so **all three remediation packets are emitted and every conditional branch is resolved to one live path** — item 20 therefore reads **PASS** at v1.6, not conditional. T13 is added under Decision 3(b) with its own DAG edges, DoD, and A5-grant kill criterion. The new §8 handoff now requires **T11, T12 and T13** landed, and must add §8.4 dispositions for §5.2 items 14–16 and §5.4 items 12–15, plus `eval/retrieval/gold/gold_exclusions.yaml` and `eval/retrieval/tests/test_gold_exclusions.py` to the §8.5 cold-read seeds (T13's contract surface and its invariant). |
+| 20 | **(v1.5) Amendment-round validity** — every §7-routed remediation subtask has explicit DAG edges, a DoD, and either a live packet or a stated, named blocker | **PASS at v1.6, remediation landed.** T11, T12, and T13 executed @ `0e86004` / `2ceb25d` / `5bbd3a1` (+ T11 signoff @ `87e194e`); all three packets landed; ESC-M4-1/A5 grant satisfied; §8 handoff **v1.6 emitted** @ gate SHA `3f212f1` with §8.4 dispositions for §5.2 items 14–16, §5.4 items 12–15, and §8.4.4 audit-major closure. Plan status: **Complete + audit remediation landed — ready for re-audit rev 2**. *(v1.5 history retained: was CONDITIONAL PASS while T11 blocked on ESC-M4-1 §6; §8 v1.4 retained as pre-audit history only.)* |
 
 ---
 
-## §8 handoff (v1.4 — Complete)
+## §8 handoff (v1.4 — Complete, pre-audit; superseded by v1.6 below)
 
-> **Label:** §8 instruction block above (lines 508–518) is the pre-complete template. **This block is the v1.4 handoff** appended at M4 Complete. Charter M4 execution status: **complete**; audit not yet run.
+> **Label:** First M4 complete banner @ `1a2daeb`. Audit @ `4d7063b` returned **`fail`** / `audit_status: blocked` (F-01–F-08). Retained as history; do not use for re-audit entry.
 
 **Status:** M4 complete · pre-audit handoff · **Handoff date:** 2026-08-14 · **Gate SHA:** `1a2daeb82a60f070c2c1eb3eaf661509b38388d4` · **Pilot anchor:** T9 @ `6f6e9ac` · **Amendment anchor:** T10-bis @ `231941b` · **Code ladder tip (pre-handoff):** `e3ce0bd`
 
@@ -867,4 +866,158 @@ Recommended narrative-blind Phase 0 read **after** diff `3126c2b..1a2daeb`:
 | Code + tests | `eval/retrieval/gold/bootstrap.py` · `eval/retrieval/tests/test_gold_kpi_pdf_branch.py` |
 | T9 consumption | `signoffs/T9-clearsulting-pilot.md` Steps 3–4; pilot COMPLETE @ `6f6e9ac` |
 
-**Re-audit entry sequence:** (1) cold diff `3126c2b..1a2daeb` → (2) §8.5 seeds → (3) re-run `pytest -q` on clean worktree @ gate SHA — expect **1153 / 23 / 0** (§8.1 binding counts) → (4) T9 signoff + committed Clearsulting artifacts → (5) confirm §8.4 covers all §5.2/§5.4 items → (6) plan §8 (v1.4) + changelogs for narrative alignment only.
+**Re-audit entry sequence (v1.4 era — superseded):** (1) cold diff `3126c2b..1a2daeb` → (2) §8.5 seeds → (3) re-run `pytest -q` on clean worktree @ gate SHA — expect **1153 / 23 / 0** (§8.1 binding counts) → (4) T9 signoff + committed Clearsulting artifacts → (5) confirm §8.4 covers all §5.2/§5.4 items → (6) plan §8 (v1.4) + changelogs for narrative alignment only.
+
+---
+
+## §8 handoff (v1.6 — Complete + audit remediation landed)
+
+> **Label:** Authoritative re-audit handoff. M4 original execution (T1–T10-bis) plus audit-remediation round (ESC-M4-1 → A5 → T11/T12/T13) landed. Prior audit rev 1 **`fail`** on eight majors; remediation targets F-01–F-08 (+ recommended minors F-09, F-10, F-13).
+
+**Status:** M4 complete + audit remediation landed · **Handoff date:** 2026-08-14 · **Gate SHA:** `3f212f161e3282b152406a17752b66aa35f32711` *(handoff commit; plan-only delta on remediation code tip `87e194e`)* · **Prior audit HEAD:** `4d7063b6566c74094b23b13251c42fb3ad1df264` · **Remediation ladder:** `2ceb25d` (T12) → `9ea58a4` (T12 changelog) → `0e86004` (T11) → `5bbd3a1` (T13) → `87e194e` (T11 signoff) → `3f212f1` (this handoff) · **Charter grant:** Amendment **A5** @ charter v0.1.4
+
+### §8.1 Completion snapshot
+
+| Field | Value |
+|---|---|
+| Gate SHA (HEAD) | `3f212f161e3282b152406a17752b66aa35f32711` — commit `handoff -> audit rev 2` (plan §8 v1.6; code unchanged since `87e194e`) |
+| Auditor locate | If this hash ≠ `git rev-parse HEAD` on the handoff commit, use `git log -1 --grep='handoff -> audit rev 2' --format=%H` as authoritative |
+| Working tree @ gate SHA | **clean** — `git status -uno` empty for tracked files |
+| Verification command | `python -m pytest -q` from repo root |
+| Result @ gate SHA (2026-08-14, **clean worktree @ HEAD**) | **1201 passed, 1 skipped, 0 failed** (1202 collected) in 21.58s · exit **0** · Python 3.13 / pytest 9.x · *(verified @ remediation tip `87e194e`; no code delta in handoff commit)* |
+| Prior snapshots (history) | Pre-audit gate @ `1a2daeb`: **1153 / 23 / 0** (21.07s). First audit @ `4d7063b`: **1187 / 1 / 0** (19.20s). Remediation adds 14 tests (KPI falsifiers, cluster-submit parse, eval-debt id persistence, company-scoped exclusions, display-name round-trip). |
+| Re-audit diff scope | **Full pass** against gate SHA required (audit rev 1 instruction). Remediation code diff: `4d7063b..87e194e` (5 commits). Handoff doc: `87e194e..3f212f1`. Full orientation diff: `4d7063b..3f212f1`. Planning baseline remains `3126c2b`. |
+| Prior audit | `.dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md` rev 1 — verdict **`fail`**, blocking F-01–F-08 |
+| Pytest evidence (prior) | `.dev/audits/eval-consolidation/M4/m4-pytest-evidence.md` — pre-handoff @ `e3ce0bd`; **§8.1 table above is authoritative** @ `3f212f1` |
+
+Auditor re-runs pytest on a **clean bare worktree** @ gate SHA as Phase 2 step 1. Expected binding counts: **1201 / 1 / 0** (1202 collected) on this machine with Option C `.dev/eval-program/company_slug_vectors.yaml` present; without that artifact, golden-vector tests deselect and counts drop accordingly — record which environment was used.
+
+### §8.2 Artifact chain
+
+**Convention:** Tracked paths resolve via `git ls-files` @ HEAD. `.dev/` binding artifacts resolve via stable working-tree path + `git hash-object` per §0 Option C — not via `git ls-files`.
+
+| ID | Artifact | Path | Notes |
+|---|---|---|---|
+| 0 | This plan (v1.6 §8 body) | `.dev/plans/eval-consolidation-m4-onboarding-runbook/plan.md` | Option C; hash at handoff time |
+| 1 | Context map | `.dev/plans/eval-consolidation-m4-onboarding-runbook/context-map.md` | **staleness:** map SHA `3126c2b` ≠ gate SHA `3f212f1` — planning baseline only |
+| 2 | Orchestrator HALT (discharged) | `.dev/plans/eval-consolidation-m4-onboarding-runbook/orchestrator-halt.md` | Entry-gate halt record |
+| A0 | Prior audit (failed) | `.dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md` | Rev 1 @ audit HEAD `4d7063b`; remediation response |
+| A1 | Tier-2 escalation | `.dev/plans/eval-consolidation-m4-onboarding-runbook/escalations/ESC-M4-1-rb-defect-t9-1-gold-corpus.md` | RULED 2026-08-14; Decisions 1–4 |
+| A2 | Charter Amendment A5 | `.dev/specs/eval-consolidation-program/eval_consolidation_program_milestone_charter.md` | v0.1.4; retroactive ratification + bounded gold surface grant |
+| T1–T10-bis | Original execution chain | `packets/T1.md` … `packets/T10-bis.md` + changelogs/decision logs per §8.2 v1.4 table | Unchanged from v1.4 chain; T10 HALT record retained |
+| T11 | Packet / changelog / decision log / signoff | `packets/T11.md` · `changelogs/T11.md` · `decision-logs/T11.md` · `signoffs/T11-clearsulting-bloated-gold-disposition.md` | @ `0e86004` records + `87e194e` operator sign; F-02 record, F-03 disposition |
+| T11 | Program records | `eval/program/registry.yaml` (`GAP-M4-1-clearsulting-bloated-filename-closure`) · `eval/program/eval_debt/eval_debt.yaml` (Decision 2 row + 12 bloated rows; HWM **14**) · `signoffs/T9-clearsulting-pilot.md` addendum · `eval/program/onboarding_runbook.md` Step 6 caveat | Records only |
+| T12 | Packet / changelog | `packets/T12.md` · `changelogs/T12.md` | @ `2ceb25d`; F-05–F-08 majors + F-09/F-10/F-13 minors |
+| T12 | Code + plan narrative | `eval/retrieval/tests/test_gold_kpi_pdf_branch.py` · `test_onboarding_runbook.py` · `harness_cli.py` · `test_eval_debt.py` · `trust_statement.py` · plan §2.6 line 2 | Parse guard + falsifiers + §2.4 summaries |
+| T13 | Packet / changelog / decision log | `packets/T13.md` · `changelogs/T13.md` · `decision-logs/T13.md` | @ `5bbd3a1`; F-02 structural, F-04, coupling 12 |
+| T13 | Company-scoped exclusions + restoration | `eval/retrieval/gold/gold_exclusions.yaml` · `eval/retrieval/gold/bootstrap.py::load_gold_exclusions` · `eval/retrieval/gold_labels/elder_care.yaml` (three rows) · `eval/program/registry.yaml` (`GAP-103` evidence line) · closed `elder_care:global:no_citation_source_provenance_loss` | A5-granted surfaces |
+| H1 | M4 pytest evidence | `.dev/audits/eval-consolidation/M4/m4-pytest-evidence.md` | Historical; §8.1 @ `3f212f1` supersedes |
+| H2 | M4 upstream handoff | `.dev/audits/eval-consolidation/M4/m4-upstream-handoff.md` | Extend SHA ladder through `3f212f1` |
+
+### §8.3 §2 contract evidence
+
+Sample key §2 rows — full suite is the binding proof; auditor may spot-check these then trust green `pytest -q` @ gate SHA.
+
+| Symbol / key | Landed artifact | Proving test |
+|---|---|---|
+| *(v1.4 rows unchanged — bootstrap, harness, exemptions, preflight, eval-debt, runbook, T10-bis KPI branch)* | see §8 handoff (v1.4) §8.3 table | same |
+| `load_gold_exclusions(..., *, company_slug)` | `eval/retrieval/gold/bootstrap.py:load_gold_exclusions` | `test_gold_exclusions.py::test_load_gold_exclusions_requires_company_slug`, `test_exclusions_are_company_scoped_and_do_not_leak_across_companies`, `test_unknown_company_returns_empty_exclusions` |
+| Company-keyed `gold_exclusions.yaml` | `eval/retrieval/gold/gold_exclusions.yaml` (`companies:` top level) | `test_gold_exclusions.py::test_gold_exclusions_totality_and_disjointness` (per-company invariant), `test_committed_exclusions_artifact_validates` |
+| Elder Care `no_citation_source` restoration | `eval/retrieval/gold_labels/elder_care.yaml` (three KPI rows) | `test_gold_bootstrap.py` population constants + `test_gold_exclusions.py` Elder Care block count **5** |
+| `display_name_from_company_slug` | `eval/retrieval/trust_statement.py:display_name_from_company_slug` | `test_trust_statement.py::test_display_name_from_slug_round_trips_domain_companies` |
+| §2.4 harness_cli summaries | `eval/retrieval/harness_cli.py` run + validate-baseline stdout | `test_harness_cli.py` (existing) + manual read: lines include `company=` and `catalog=` |
+| Cluster-submit runbook parse guard | `.dev/onboarding_cluster_submit.py::build_parser` wired in `test_onboarding_runbook.py` | `test_runbook_cluster_submit_commands_parse` |
+| T10-bis kill criterion (3) falsifiers | `_normalize_kpi_pdf_location` + PDF branch | `test_gold_kpi_pdf_branch.py::test_kpi_pdf_branch_over_broad_section_pattern_resolves_exact_chunk_ids`, `test_kpi_pdf_branch_no_page_location_is_document_scoped_not_page_scoped` |
+| Eval-debt deletion-as-closure guard | `eval/retrieval/eval_debt.py::close_debt` | `test_eval_debt.py::test_close_debt_preserves_committed_id_set` |
+| §2.6 frozen `harness_cli run` string | plan §2.6 line 2 (includes `--run-type baseline`) | `harness_cli.build_parser()` + `test_onboarding_runbook.py` runbook blocks |
+
+### §8.4 §5 disposition
+
+#### §8.4.1 Load-bearing assumptions (§5.2 items 1–16)
+
+| # | Assumption (summary) | Disposition | Evidence |
+|---|---|---|---|
+| 1–13 | *(v1.4 dispositions)* | unchanged | see §8 handoff (v1.4) §8.4.1 |
+| 14 | Claim map can stay company-agnostic while exclusions are company-scoped | **closed** | T13 @ `5bbd3a1`; per-company disjointness without touching `kpi_claim_intent_map.yaml`; kill criterion (2) did not fire |
+| 15 | Restoring Elder Care annotations moves no metric | **closed** | T13 decision log + harness skip-predicate unchanged; Elder Care metrics path verified in T13 Outputs (e) |
+| 16 | A5 retroactive ratification is non-precedential | **closed** | charter v0.1.4 Amendment A5 text + ESC-M4-1 §5 Decision 1 |
+
+#### §8.4.2 Hidden couplings (§5.4 items 1–15)
+
+| # | Coupling (summary) | Disposition | Evidence |
+|---|---|---|---|
+| 1–11 | *(v1.4 dispositions)* | unchanged | see §8 handoff (v1.4) §8.4.2 |
+| 12 | Company-agnostic `gold_exclusions.yaml` cross-company rewrite | **closed** | T13 company-keyed artifact + `test_exclusions_are_company_scoped_and_do_not_leak_across_companies`; Elder Care annotations restored |
+| 13 | Shared exclusion-population test constants | **closed** | T13 changelog documents constant moves per company; kill criterion (6) satisfied — movements tied to contract reshape, not silent accommodation |
+| 14 | T11/T12 parallel runbook edits | **closed** | Section-disjoint merges landed; Step 6 caveat (T11) + serverless Option C caveat (T12) both present in `onboarding_runbook.md` |
+| 15 | T11/T13 eval_debt HWM ordering | **closed** | `T11 --> T13` sequencing; HWM **14** monotonic; Decision 2 row closed without lowering HWM |
+
+#### §8.4.3 Deferred adversarial gaps from subtask changelogs
+
+| Source | Gap | Disposition |
+|---|---|---|
+| *(v1.4 rows through T10-bis)* | | see §8 handoff (v1.4) §8.4.3 |
+| T7 | No pytest detecting deletion-as-closure | **closed** — `test_close_debt_preserves_committed_id_set` @ T12 `2ceb25d` (F-08) |
+| T3 | No dedicated test for unnormalizable `--company-name` on harness CLI | **open** (non-blocking) — unchanged from v1.4 |
+| T10-bis | No hermetic test mixed Excel+PDF note composition | **treat-as-prediction** — production data in `clearsulting.yaml` exhibits it; still no hermetic test |
+
+#### §8.4.4 Audit finding disposition (rev 1 → remediation)
+
+| Finding | Severity | Disposition | Closing evidence |
+|---|---|---|---|
+| F-01 | major | **closed** | ESC-M4-1 + charter Amendment A5 retroactive ratification of `0a5b2f2` (non-precedential) |
+| F-02 | major | **closed** | T11 debt row @ `0e86004`; T13 company-scoped exclusions + Elder Care restoration @ `5bbd3a1`; debt closed with `closed_evidence_refs` |
+| F-03 | major | **closed** | `GAP-M4-1-clearsulting-bloated-filename-closure` + 12 eval-debt rows + `signoffs/T11-clearsulting-bloated-gold-disposition.md` @ `87e194e` |
+| F-04 | major | **closed** | T13 restored Elder Care exclusion population **5**; `GAP-103-recall-at-10-bloated-gold` evidence line @ registry |
+| F-05 | major | **closed** | T12 `test_kpi_pdf_branch_over_broad_section_pattern_resolves_exact_chunk_ids` + `test_kpi_pdf_branch_no_page_location_is_document_scoped_not_page_scoped` |
+| F-06 | major | **closed** | T12 `test_runbook_cluster_submit_commands_parse` + `_cluster_submit_parser_factory` |
+| F-07 | major | **closed** | T12 `harness_cli.py` summary lines name slug + catalog |
+| F-08 | major | **closed** | T12 `test_close_debt_preserves_committed_id_set` (waiver follow-up ID not needed) |
+| F-09 | minor | **closed** | T12 corrected plan §2.6 line 2 (`--run-type baseline`) |
+| F-10 | minor | **closed** | T12 `display_name_from_company_slug` + round-trip test |
+| F-13 | minor | **closed** | T12 runbook Option C caveat sentence @ serverless section |
+| F-14 | minor | **treat-as-prediction** | Context map stale by construction; unchanged |
+| F-15 | minor | **open** (non-blocking) | Unfolded slug reaching `default_gold_path` still lacks library-path falsifier |
+
+### §8.5 Cold-read seeds
+
+Recommended narrative-blind Phase 0 read **after** diff `4d7063b..3f212f1` (remediation + handoff) or full `3126c2b..3f212f1` (charter re-audit):
+
+1. `.dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md` — prior findings table (rev 1)
+2. `.dev/plans/eval-consolidation-m4-onboarding-runbook/escalations/ESC-M4-1-rb-defect-t9-1-gold-corpus.md` — Tier-2 ruling consumed by T11/T13
+3. `eval/retrieval/gold/gold_exclusions.yaml` — T13 contract surface (company-keyed shape)
+4. `eval/retrieval/tests/test_gold_exclusions.py` — per-company invariant + cross-company leak guard
+5. `eval/program/eval_debt/eval_debt.yaml` — Decision 2 closure + F-03 debt rows
+6. `eval/program/registry.yaml` — `GAP-M4-1-clearsulting-bloated-filename-closure` + `GAP-103` evidence line
+7. `eval/program/onboarding_runbook.md` — G7 contract surface (T8 + T11/T12 caveat edits)
+8. `eval/retrieval/harness_cli.py` — §2.4 summary-line fix (F-07)
+9. `eval/retrieval/tests/test_onboarding_runbook.py` — cluster-submit parse guard (F-06)
+10. `eval/retrieval/tests/test_gold_kpi_pdf_branch.py` — F-05 falsifiers
+11. `eval/retrieval/gold/bootstrap.py` — T10-bis KPI PDF branch + T13 loader
+12. `.dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md` — F-03 operator disposition
+
+### §8.6 §7 amendment cross-link
+
+#### Original KPI PDF amendment (T10 / T10-bis)
+
+| Link | Path / anchor |
+|---|---|
+| §7 T10 / T10-bis subsections | plan §7 — RB-DEFECT-T9-2; HALT → Option A continuation |
+| HALT record | `packets/T10.md` · `changelogs/T10.md` · `decision-logs/T10.md` (supersession banner) |
+| Landed fix | `packets/T10-bis.md` · `changelogs/T10-bis.md` · `decision-logs/T10-bis.md` @ `231941b` |
+| §2.1 contract rows | "HALTed (v1.1, T10)" + "Landed (v1.2, T10-bis)" |
+| Code + tests | `eval/retrieval/gold/bootstrap.py` · `eval/retrieval/tests/test_gold_kpi_pdf_branch.py` |
+
+#### Audit remediation round (ESC-M4-1 / T11 / T12 / T13)
+
+| Link | Path / anchor |
+|---|---|
+| Tier-2 escalation | `escalations/ESC-M4-1-rb-defect-t9-1-gold-corpus.md` · charter Amendment **A5** |
+| §7 ESC-M4-1 / T11 / T12 / T13 subsections | plan §7 — audit F-01–F-08 routing |
+| Prior audit | `.dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md` §6–§10 |
+| T11 records | `packets/T11.md` · `decision-logs/T11.md` · `signoffs/T11-clearsulting-bloated-gold-disposition.md` @ `87e194e` |
+| T12 coverage fixes | `packets/T12.md` · `changelogs/T12.md` @ `2ceb25d` · §2.6 line 2 correction |
+| T13 structural fix | `packets/T13.md` · `decision-logs/T13.md` @ `5bbd3a1` · §2.1 v1.6 rows |
+| §2 *Landed* back-annotation | §2.1 T13 rows; §2.6 line 2; §8.4.4 table above |
+
+**Re-audit entry sequence:** (1) read rev-1 audit findings §6 → (2) cold diff `4d7063b..3f212f1` (or full `3126c2b..3f212f1` per charter gate) → (3) §8.5 seeds → (4) re-run `pytest -q` on **clean worktree** @ gate SHA `3f212f1` — expect **1201 / 1 / 0** (1202 collected, this environment) → (5) verify §8.4.4 all eight majors **closed** with cited evidence → (6) T9 pilot artifacts + T11 disposition signoff → (7) this plan §8 (v1.6) + remediation changelogs for narrative alignment.
