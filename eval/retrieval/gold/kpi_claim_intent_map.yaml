@@ -1,5 +1,6 @@
 # Fail-closed claim→intent mapping for analysis.kpi Excel citations (Contract T2-a).
 # Raw claim keys from uc13_ale.analysis.kpi Elder Care row (2026-07-28); exact match only.
+# Clearsulting tech-services claims appended (RB-DEFECT-T9-1 / Option A, 2026-08-14).
 claims:
   healthcare_kpis.caregiver_headcount: kpi.retrieve_healthcare_ops
   healthcare_kpis.census_or_patient_panel: kpi.retrieve_healthcare_ops
@@ -21,17 +22,34 @@ claims:
   healthcare_kpis.utilization_or_productivity_note (% not utilized 2 months after hire): kpi.retrieve_healthcare_ops
   healthcare_kpis.utilization_or_productivity_note (not used in 3 months): kpi.retrieve_healthcare_ops
   healthcare_kpis.utilization_or_productivity_note (nurse % not utilized): kpi.retrieve_healthcare_ops
+  bench_note: kpi.retrieve_bench_and_capacity
+  bill_rates_by_role — EMEA Rank 01: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — EMEA Rank 02: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — EMEA Rank 03: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — EMEA Rank 04: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — EMEA Rank 05: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — North America Rank 01: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — North America Rank 02: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — North America Rank 03: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — North America Rank 04: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role — North America Rank 05: kpi.retrieve_bill_rates_and_margins
+  contractor_pct_of_workforce — subcontracting fees disclosed: kpi.retrieve_headcount_attrition
+  delivery_capacity_note — average headcount: kpi.retrieve_headcount_attrition
+  delivery_geography_note: kpi.retrieve_bench_and_capacity
+  gross_margin_by_segment — Financial Close Practice 2025E: kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment — Overall Forecast 2025E: kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment — Overall Recast Historical: kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment — Treasury Practice 2025E: kpi.retrieve_bill_rates_and_margins
+  missing_kpis — revenue model transition note: kpi.retrieve_pipeline_backlog
+  utilization_by_segment — leadership/sales-focused <50%: kpi.retrieve_bench_and_capacity
 
 intents:
   kpi.retrieve_bench_and_capacity:
-    role: unmappable
-    reason: no_live_claims
+    role: claim_target
   kpi.retrieve_bill_rates_and_margins:
-    role: unmappable
-    reason: no_live_claims
+    role: claim_target
   kpi.retrieve_headcount_attrition:
-    role: unmappable
-    reason: no_live_claims
+    role: claim_target
   kpi.retrieve_healthcare_labor_market:
     role: unmappable
     reason: no_live_claims
@@ -40,5 +58,4 @@ intents:
   kpi.retrieve_healthcare_revenue_per_unit:
     role: claim_target
   kpi.retrieve_pipeline_backlog:
-    role: unmappable
-    reason: no_live_claims
+    role: claim_target

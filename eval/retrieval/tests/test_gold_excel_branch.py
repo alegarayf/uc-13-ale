@@ -111,6 +111,9 @@ def test_load_kpi_claim_intent_map_totality():
     assert claim_map["healthcare_kpis.revenue_per_hour_dollars"] == (
         "kpi.retrieve_healthcare_revenue_per_unit"
     )
+    assert claim_map["bill_rates_by_role — North America Rank 05"] == (
+        "kpi.retrieve_bill_rates_and_margins"
+    )
 
 
 def test_excel_location_form_i_exact_tab():

@@ -29,9 +29,6 @@ KPI_MAP_PATH = REPO_ROOT / "eval" / "retrieval" / "gold" / "kpi_claim_intent_map
 LAUNCH_EXCLUDED_KPI = frozenset(
     {
         "kpi.retrieve_healthcare_labor_market",
-        "kpi.retrieve_bill_rates_and_margins",
-        "kpi.retrieve_headcount_attrition",
-        "kpi.retrieve_pipeline_backlog",
     }
 )
 BENCH_AND_CAPACITY = "kpi.retrieve_bench_and_capacity"
@@ -121,9 +118,9 @@ def test_write_gold_labels_rejects_out_of_vocabulary_exclude_reason(tmp_path):
         write_gold_labels(tmp_path / "gold.yaml", [label])
 
 
-def test_gold_exclusions_population_is_five_intents():
+def test_gold_exclusions_population_is_two_intents():
     exclusions = load_gold_exclusions(GOLD_EXCLUSIONS_PATH)
-    assert len(exclusions) == 5
+    assert len(exclusions) == 2
     assert "profiler.company_size_indicators" in exclusions
     assert all(reason == "no_citation_source" for reason in exclusions.values())
 
@@ -142,9 +139,9 @@ def test_gold_exclusions_totality_and_disjointness():
 
     assert excluded_kpi == LAUNCH_EXCLUDED_KPI
     assert excluded_kpi.isdisjoint(claim_mapped)
-    assert BENCH_AND_CAPACITY in unmappable_kpi
+    assert BENCH_AND_CAPACITY in claim_mapped
     assert BENCH_AND_CAPACITY not in exclusions
-    assert excluded_kpi == unmappable_kpi - {BENCH_AND_CAPACITY}
+    assert excluded_kpi == unmappable_kpi
 
 
 def test_bootstrap_short_circuits_excluded_intent():
@@ -198,7 +195,7 @@ def test_compute_metrics_skips_aggregate_exclude_despite_ready_positives():
 def test_bootstrap_exclusion_does_not_query_analysis_tables():
     spark = MockSpark()
     bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
-    bootstrap.bootstrap([_sample_intent("kpi.retrieve_pipeline_backlog")])
+    bootstrap.bootstrap([_sample_intent("kpi.retrieve_healthcare_labor_market")])
     assert not any("analysis." in query for query in spark.queries)
 
 
