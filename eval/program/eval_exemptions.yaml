@@ -1,2 +1,53 @@
 schema_version: 1
-exemptions: []
+exemptions:
+- company: clearsulting
+  intent_id: legal.contracts_vendors_platform
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_absent
+  corpus_evidence:
+    legal_doc_count: 0
+  approved_by: operator
+- company: clearsulting
+  intent_id: legal.employment
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_absent
+  corpus_evidence:
+    legal_doc_count: 0
+  approved_by: operator
+- company: clearsulting
+  intent_id: legal.insurance
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_absent
+  corpus_evidence:
+    legal_doc_count: 0
+  approved_by: operator
+- company: clearsulting
+  intent_id: legal.ip_privacy
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_absent
+  corpus_evidence:
+    legal_doc_count: 0
+  approved_by: operator
+- company: clearsulting
+  intent_id: legal.litigation
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_absent
+  corpus_evidence:
+    legal_doc_count: 0
+  approved_by: operator
+- company: clearsulting
+  intent_id: kpi.retrieve_bench_and_capacity
+  surface: null
+  coverage: null
+  reason: overlay_mismatch
+  corpus_evidence:
+    registry_id: A-09
+    claim_utilization: utilization_by_segment — leadership/sales-focused <50%
+    claim_bench_note: bench_note
+    pdf_branch_unresolved: Section_Other_EBITDA_considerations
+  approved_by: operator

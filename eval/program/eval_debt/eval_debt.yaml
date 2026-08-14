@@ -1,3 +1,13 @@
 schema_version: 1
-open_debt_high_water_mark: 0
-debts: []
+open_debt_high_water_mark: 1
+debts:
+- id: clearsulting:global:promotion_inputs
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: promotion_inputs
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  closes_when: per-company golden checklists scored and pipeline run_ids recorded
+    for all agents (registry:OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg)
