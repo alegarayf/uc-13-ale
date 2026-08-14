@@ -12,6 +12,7 @@ import yaml
 from eval.content.s2_writer import S2ScoreRow, S2Writer
 from eval.content.spot_check import SpotCheckConfig, write_spot_check_results
 from eval.retrieval.exemptions import IntentExemption, load_exemptions
+from eval.retrieval.companies import canonical_company_slug
 from eval.retrieval.trust_statement import (
     CompanyDomainRow,
     IngestProbeResult,
@@ -25,6 +26,7 @@ from eval.retrieval.trust_statement import (
     derive_content_rows,
     derive_rows,
     derive_rows_for_company,
+    display_name_from_company_slug,
     fetch_s2_score_rows,
     load_epoch_context_from_baseline_report,
     merge_exemption_companies_into_domain,
@@ -991,6 +993,21 @@ def test_merge_exemption_companies_into_domain_unions_new_slug() -> None:
     clearsulting = next(entry for entry in merged if entry.company == "clearsulting")
     assert clearsulting.catalog == "uc13_ale"
     assert clearsulting.display_name == "Clearsulting"
+
+
+def test_display_name_from_slug_round_trips_domain_companies() -> None:
+    """F-10: inverse display label must round-trip via canonical_company_slug."""
+    domain_slugs = ("elder_care", "clearsulting")
+    for slug in domain_slugs:
+        display = display_name_from_company_slug(slug)
+        assert canonical_company_slug(display) == slug
+    merged = merge_exemption_companies_into_domain(
+        [_ELDER],
+        [_sample_exemption(company="clearsulting")],
+        catalog="uc13_ale",
+    )
+    for entry in merged:
+        assert canonical_company_slug(entry.display_name or "") == entry.company
 
 
 def test_run_ingest_probe_delegates_to_preflight_contract() -> None:
