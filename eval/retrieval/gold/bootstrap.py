@@ -190,6 +190,16 @@ def _section_pattern_from_location(location: str | None) -> str | None:
     return f"%{cleaned}%"
 
 
+_KPI_PDF_PAGE_SUFFIX_RE = re.compile(r",\s*page\s*\d+\s*$", re.IGNORECASE)
+
+
+def _normalize_kpi_pdf_location(location: str) -> str:
+    """Strip KPI PDF citation prefixes/suffixes before section ILIKE matching."""
+    cleaned = re.sub(r"^section:\s*", "", location.strip(), flags=re.IGNORECASE)
+    cleaned = _KPI_PDF_PAGE_SUFFIX_RE.sub("", cleaned)
+    return cleaned.strip()
+
+
 def _is_excel_shaped_location(location: str | None) -> bool:
     if not location:
         return False
@@ -426,6 +436,10 @@ class GoldLabelBootstrap:
 
         result = self._try_positive_methods(intent, POSITIVE_FALLBACK_CHAIN)
         if result is None:
+            kpi_notes = self._last_excel_citation_notes.pop(intent.intent_id, None)
+            notes = "Pass 1 found zero positives"
+            if kpi_notes:
+                notes = f"{notes}; {kpi_notes}"
             return GoldLabel(
                 intent_id=intent.intent_id,
                 company_name=self.company_name,
@@ -435,7 +449,7 @@ class GoldLabelBootstrap:
                 gold_method="citation_backfill",
                 ingestion_snapshot=snapshot,
                 confidence="low",
-                notes="Pass 1 found zero positives",
+                notes=notes,
             )
 
         positives, gold_method, confidence = result
@@ -705,6 +719,30 @@ class GoldLabelBootstrap:
             chunk_ids.extend(_chunk_ids_from_sql(self.spark, query))
         return _dedupe_preserve_order(chunk_ids)
 
+    def _chunks_for_kpi_pdf_citation(
+        self, document: str, location: str
+    ) -> list[str]:
+        normalized = _normalize_kpi_pdf_location(location)
+        company_lit = _sql_literal(self.company_name)
+        doc_lit = _sql_literal(document)
+        page = _parse_page_from_location(location)
+        section_pattern = _section_pattern_from_location(normalized)
+        page_clause = f"AND c.page_start = {page}" if page is not None else ""
+        section_clause = (
+            f"AND c.section_header ILIKE {_sql_literal(section_pattern)}"
+            if section_pattern
+            else ""
+        )
+        query = f"""
+            SELECT c.chunk_id
+            FROM {self.catalog}.ingestion.chunks c
+            WHERE c.company_name = {company_lit}
+              AND (c.file_name = {doc_lit} OR c.file_name ILIKE {_sql_literal('%' + document[-40:] + '%')})
+              {page_clause}
+              {section_clause}
+        """
+        return _chunk_ids_from_sql(self.spark, query)
+
     def _positives_from_kpi_citations(
         self,
         intent: RetrievalIntent,
@@ -715,28 +753,48 @@ class GoldLabelBootstrap:
 
         chunk_ids: list[str] = []
         excel_note_parts: list[str] = []
+        pdf_note_parts: list[str] = []
+        pdf_unresolved_parts: list[str] = []
         for document, location, claim in refs:
             assert claim is not None
             if claim_map[claim] != intent.intent_id:
                 continue
-            if not location or not _is_excel_shaped_location(location):
+            if not location:
                 raise PreconditionError(
-                    f"KPI claim {claim!r} has non-Excel location for document={document!r}: "
-                    f"{location!r}"
+                    f"KPI claim {claim!r} has missing location for document={document!r}"
                 )
-            tab = self._resolve_excel_tab(document, location)
-            matched = self._chunks_for_file_and_tab(document, tab)
-            if not matched:
-                raise PreconditionError(
-                    "Zero chunks for KPI Excel citation "
-                    f"(document={document!r}, tab={tab!r}, claim={claim!r})"
-                )
-            chunk_ids.extend(matched)
-            excel_note_parts.append(f"claim={claim}; tab={tab}")
+            if _is_excel_shaped_location(location):
+                tab = self._resolve_excel_tab(document, location)
+                matched = self._chunks_for_file_and_tab(document, tab)
+                if not matched:
+                    raise PreconditionError(
+                        "Zero chunks for KPI Excel citation "
+                        f"(document={document!r}, tab={tab!r}, claim={claim!r})"
+                    )
+                chunk_ids.extend(matched)
+                excel_note_parts.append(f"claim={claim}; tab={tab}")
+            else:
+                matched = self._chunks_for_kpi_pdf_citation(document, location)
+                if not matched:
+                    pdf_unresolved_parts.append(
+                        f"claim={claim}; location={location}"
+                    )
+                    continue
+                chunk_ids.extend(matched)
+                pdf_note_parts.append(f"claim={claim}")
 
+        note_segments: list[str] = []
         if excel_note_parts:
-            self._last_excel_citation_notes[intent.intent_id] = (
-                "excel_branch: " + "; ".join(excel_note_parts)
+            note_segments.append("excel_branch: " + "; ".join(excel_note_parts))
+        if pdf_note_parts:
+            note_segments.append("pdf_branch: " + "; ".join(pdf_note_parts))
+        if pdf_unresolved_parts:
+            note_segments.append(
+                "pdf_branch_unresolved: " + "; ".join(pdf_unresolved_parts)
+            )
+        if note_segments:
+            self._last_excel_citation_notes[intent.intent_id] = "; ".join(
+                note_segments
             )
         return _dedupe_preserve_order(chunk_ids)
 
