@@ -32,7 +32,7 @@ GOLD_PATH = REPO_ROOT / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
 GOLD_COUNTS_PATH = REPO_ROOT / "eval" / "retrieval" / "fixtures" / "gold_positive_counts.yaml"
 GOLD_EXCLUSIONS_PATH = REPO_ROOT / "eval" / "retrieval" / "gold" / "gold_exclusions.yaml"
 EXPECTED_READY_PARTIAL_COUNT = 52
-EXPECTED_AGGREGATE_EXCLUDE_COUNT = 2
+EXPECTED_AGGREGATE_EXCLUDE_COUNT = 5
 INGESTION_SNAPSHOT = "uc13_ale:55812:2026-08-11"
 SNAPSHOT_INGESTION_DATE = date(2026, 8, 11)
 SNAPSHOT_CHUNK_COUNT = 55812
@@ -319,7 +319,7 @@ def test_committed_gold_ready_partial_have_nonempty_positives():
 def test_committed_gold_excluded_rows_match_t3c_shape():
     """Item 16 — excluded rows match T3-c: annotated bootstrap_failed + empty positives."""
     labels = load_gold_labels(GOLD_PATH)
-    exclusions = load_gold_exclusions(GOLD_EXCLUSIONS_PATH)
+    exclusions = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
     assert len(exclusions) == EXPECTED_AGGREGATE_EXCLUDE_COUNT
     _assert_excluded_rows_match_t3c_shape(labels, exclusions)
 

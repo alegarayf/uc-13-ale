@@ -340,6 +340,7 @@ items:
   - baseline_acf58bcc4968
   - signoffs/T12-bench-disposition.md
   - .dev/plans/eval-consolidation-m1-metric-guardrail-hardening/escalations/ESC-T12-1-bench-spec-note.md
+  - T13:2026-08-14:elder_care aggregate_exclude population restored to 5 (profiler + 4 KPI no_citation_source) after company-scoped gold_exclusions.yaml reshape; F-04 closed by restored truth
   rung_assignments: {}
   assessment_metrics: {}
 - id: GAP-104-no-enhancement-gate-hash-c
