@@ -1677,3 +1677,23 @@ items:
   - eval/program/registry.yaml
   rung_assignments: {}
   assessment_metrics: {}
+
+- id: PREFLIGHT-DOCSTATUS-1
+  title: doc_status preflight expected-document denominator
+  source_refs:
+  - .dev/specs/eval-consolidation-program/spec.md#18
+  - databricks/jobs/scripts/status_store.py
+  source_id: PREFLIGHT-DOCSTATUS-1
+  disposition: deferred
+  stage: null
+  status: n/a
+  trigger: Sibling doc_status program lands an expected-document count column on doc_status
+  rationale: M4 ships the doc_status preflight backend against status_store columns today (observed
+    status histogram only); richer §8.4 completeness semantics require an expected-document denominator
+    the sibling schema does not expose yet — backend returns denominator_undefined until then.
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/ingest_preflight.py
+  - databricks/jobs/scripts/status_store.py
+  rung_assignments: {}
+  assessment_metrics: {}

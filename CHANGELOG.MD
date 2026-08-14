@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-consolidation-m4-onboarding-runbook — 2026-08-14
+
+- T5 (Two-backend ingest preflight): Landed `eval/retrieval/ingest_preflight.py` with `run_ingest_preflight()` (`sql_chunk_count` + `doc_status`), `IngestPreflightError`, CLI, and hermetic tests; appended deferred registry row `PREFLIGHT-DOCSTATUS-1` for missing expected-document denominator on doc_status; synced matching `source_manifest.yaml` source entry (item-2a validator coupling per R7b). Rationale: M4 item 34 — backend swap behind one §8.4 return contract without modifying `trust_statement.py` (T6 delegates). Decision log at `.dev/plans/eval-consolidation-m4-onboarding-runbook/decision-logs/T5.md`. Adversarial gap deferred: no pytest for live CLI warehouse/Spark paths — mocked injection tests are the contract; onboarding walk (T9) exercises live execution.
+
 ## eval-path-migration — 2026-08-13
 
 - E4 (Clean-worktree fan-in — adversarial path checks + calibration skip): Fixed E2/E3 falsifier tests to assert repo-relative paths (`eval/...`) instead of rejecting `.dev` in absolute `Path.parts` (false failure when checkout lives under `.dev/_worktree/`); `test_sample_presence_half` skips when operator-local calibration samples are absent but tracked registry is present. Rationale: bare git worktree must be a valid full-suite falsifier after E1–E3.
