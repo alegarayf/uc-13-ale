@@ -9,6 +9,7 @@ Pinned ILIKE patterns (Surface 8) live in module constants below.
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from collections.abc import Iterable, Mapping, Sequence
@@ -949,29 +950,90 @@ def validate_ingestion_snapshot_consistency(labels: Sequence[GoldLabel]) -> str:
     return next(iter(snapshots))
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="eval.retrieval.gold.bootstrap")
+    parser.add_argument(
+        "--company",
+        default=DEFAULT_COMPANY_NAME,
+        help=f"Company display name (default: {DEFAULT_COMPANY_NAME!r})",
+    )
+    parser.add_argument(
+        "--catalog",
+        default=DEFAULT_CATALOG,
+        help=f"Unity Catalog (default: {DEFAULT_CATALOG})",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help=(
+            "Gold YAML output path "
+            "(default: eval/retrieval/gold_labels/<canonical_slug>.yaml)"
+        ),
+    )
+    return parser
+
+
+def _resolved_output_path(args: argparse.Namespace) -> Path:
+    if args.output is not None:
+        return args.output
+    from eval.retrieval.companies import canonical_company_slug
+    from eval.retrieval.harness import default_gold_path
+
+    return default_gold_path(canonical_company_slug(args.company))
+
+
+def main(argv: list[str] | None = None) -> int:
+    import sys
+
     from pyspark.sql import SparkSession
+
+    from eval.retrieval.companies import canonical_company_slug
+    from eval.retrieval.errors import PreconditionError
+
+    args = build_parser().parse_args(argv)
+
+    try:
+        company_slug = canonical_company_slug(args.company)
+        output_path = _resolved_output_path(args)
+    except ValueError as exc:
+        print(f"gold bootstrap: {exc}", file=sys.stderr)
+        return 1
 
     repo_root = Path(__file__).resolve().parents[3]
     registry_path = repo_root / "eval" / "retrieval" / "intent_registry.yaml"
-    output_path = repo_root / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
 
     spark = SparkSession.getActiveSession()
     if spark is None:
-        raise RuntimeError(
-            "Active SparkSession required — run on Databricks cluster after Cell 7"
+        print(
+            "Active SparkSession required — run on Databricks cluster after Cell 7",
+            file=sys.stderr,
         )
+        return 1
 
-    intents = load_registry(registry_path)
-    bootstrap = GoldLabelBootstrap(spark)
-    labels = bootstrap.bootstrap(intents)
-    write_gold_labels(output_path, labels)
+    try:
+        intents = load_registry(registry_path)
+        bootstrap = GoldLabelBootstrap(
+            spark,
+            catalog=args.catalog,
+            company_name=args.company,
+        )
+        labels = bootstrap.bootstrap(intents)
+        write_gold_labels(output_path, labels)
+    except (PreconditionError, ValueError) as exc:
+        print(f"gold bootstrap: {exc}", file=sys.stderr)
+        return 1
+
     ready = sum(1 for label in labels if label.gold_status != "bootstrap_failed")
     print(
         f"Wrote {len(labels)} gold labels to {output_path} "
+        f"for company={company_slug} catalog={args.catalog} "
         f"(ready/partial={ready}, snapshot={bootstrap.ingestion_snapshot})"
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    raise SystemExit(main())

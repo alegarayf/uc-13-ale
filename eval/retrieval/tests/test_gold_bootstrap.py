@@ -13,13 +13,17 @@ from eval.retrieval.errors import PreconditionError
 from eval.retrieval.gold.bootstrap import (
     BASIS_NEGATIVE_SECTION_PATTERNS,
     GoldLabelBootstrap,
+    _resolved_output_path,
+    build_parser,
     format_ingestion_snapshot,
     load_gold_exclusions,
     load_gold_labels,
     load_registry,
+    main,
     validate_ingestion_snapshot_consistency,
     write_gold_labels,
 )
+from eval.retrieval.harness import default_gold_path
 from eval.retrieval.models import EXCLUDE_REASON_VOCABULARY, GoldLabel, RetrievalIntent
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -600,3 +604,103 @@ def test_pass2_partial_strip_does_not_reengage_fallback():
     assert q1_label.positive_chunk_ids == ["chunk_b"]
     assert q1_label.notes is None
     _assert_no_empty_ready_partial([q1_label])
+
+
+def test_main_parses_company_catalog_output(tmp_path, monkeypatch):
+    captured: dict[str, object] = {}
+    written: dict[str, object] = {}
+
+    class FakeBootstrap:
+        def __init__(self, spark, *, catalog, company_name, ingestion_date=None):
+            captured["spark"] = spark
+            captured["catalog"] = catalog
+            captured["company_name"] = company_name
+
+        def bootstrap(self, intents):
+            captured["intent_count"] = len(intents)
+            return []
+
+        @property
+        def ingestion_snapshot(self):
+            return "uc13_ale:1:2026-08-14"
+
+    def fake_write(path, labels):
+        written["path"] = path
+        written["labels"] = labels
+
+    monkeypatch.setattr("eval.retrieval.gold.bootstrap.GoldLabelBootstrap", FakeBootstrap)
+    monkeypatch.setattr(
+        "eval.retrieval.gold.bootstrap.load_registry",
+        lambda _path: ["intent"],
+    )
+    monkeypatch.setattr("eval.retrieval.gold.bootstrap.write_gold_labels", fake_write)
+
+    fake_spark = object()
+
+    class _SparkModule:
+        @staticmethod
+        def getActiveSession():
+            return fake_spark
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "pyspark.sql",
+        type("m", (), {"SparkSession": _SparkModule})(),
+    )
+
+    output = tmp_path / "custom.yaml"
+    rc = main(
+        [
+            "--company",
+            "Clearsulting",
+            "--catalog",
+            "uc13_ale",
+            "--output",
+            str(output),
+        ]
+    )
+    assert rc == 0
+    assert captured["company_name"] == "Clearsulting"
+    assert captured["catalog"] == "uc13_ale"
+    assert written["path"] == output
+
+
+def test_main_output_defaults_to_company_gold_path():
+    parser = build_parser()
+    args = parser.parse_args(["--company", "Clearsulting"])
+    assert _resolved_output_path(args) == default_gold_path("clearsulting")
+
+    args_default = parser.parse_args([])
+    assert _resolved_output_path(args_default) == default_gold_path("elder_care")
+
+
+def test_main_returns_nonzero_without_spark_session(monkeypatch, capsys):
+    class _SparkModule:
+        @staticmethod
+        def getActiveSession():
+            return None
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "pyspark.sql",
+        type("m", (), {"SparkSession": _SparkModule})(),
+    )
+    rc = main(["--company", "Elder Care", "--catalog", "uc13_ale"])
+    assert rc == 1
+    assert "Active SparkSession required" in capsys.readouterr().err
+
+
+def test_main_returns_nonzero_for_unnormalizable_company(monkeypatch, capsys):
+    class _SparkModule:
+        @staticmethod
+        def getActiveSession():
+            return object()
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "pyspark.sql",
+        type("m", (), {"SparkSession": _SparkModule})(),
+    )
+    rc = main(["--company", "!!!", "--catalog", "uc13_ale"])
+    assert rc == 1
+    assert "gold bootstrap:" in capsys.readouterr().err
