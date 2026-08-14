@@ -14,6 +14,7 @@ from eval.content.s2_writer import S2Writer
 from eval.content.spot_check import (
     ChunkIndex,
     ChunkRecord,
+    LOCATION_CHUNK_OVERRIDE,
     SpotCheckConfig,
     SpotCheckIngestionError,
     load_claim_enumeration,
@@ -598,7 +599,7 @@ def test_claim_null_citation_when_document_has_unscored_candidates(
 def test_fta_citation_set_reproducible_without_draft_artifact(
     spot_check_tree: Path,
 ) -> None:
-    """O-1 falsifier: shipped producer resolves fta_numeric citations from ChunkIndex only."""
+    """O-1 override-branch falsifier: LOCATION_CHUNK_OVERRIDE resolves citations without scoring."""
     cfg = _config(
         spot_check_tree,
         surface="fta_numeric",
@@ -626,4 +627,61 @@ def test_fta_citation_set_reproducible_without_draft_artifact(
             claim.cited_locator_kind,
             claim.cited_locator_value,
         ) == expected_citations[claim.claim_id]
+
+
+def _scored_branch_chunk_index() -> ChunkIndex:
+    """Multi-candidate index where only the winner scores via section-pattern term."""
+    return ChunkIndex(
+        [
+            ChunkRecord(
+                chunk_id="chunk-scored-winner",
+                file_name="2024 Elder Care - CIM_vF.pdf",
+                section_header="Revenue Analysis & Projections",
+                page_start=99,
+                chunk_text="winner body",
+            ),
+            ChunkRecord(
+                chunk_id="chunk-scored-loser",
+                file_name="2024 Elder Care - CIM_vF.pdf",
+                section_header="Unrelated Section",
+                page_start=10,
+                chunk_text="loser body",
+            ),
+        ]
+    )
+
+
+def test_fta_citation_resolves_via_general_scoring_branch(
+    spot_check_tree: Path,
+) -> None:
+    """O-1 general-scoring falsifier: multi-candidate lookup via page/section scoring."""
+    source_location = "Section: Revenue Analysis"
+    assert source_location not in LOCATION_CHUNK_OVERRIDE
+
+    cfg = _config(
+        spot_check_tree,
+        surface="fta_numeric",
+        source="uc13_ale.analysis.financial_trends",
+    )
+    manifest_path = spot_check_tree / "eval/content/fta_numeric_rubric_claims.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["claims"] = [
+        {
+            "claim_id": "fta.claim.scored",
+            "claim_text": "yoy_growth_pct: 58.3%",
+            "source_doc": "2024 Elder Care - CIM_vF.pdf",
+            "source_location": source_location,
+        }
+    ]
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    index = _scored_branch_chunk_index()
+    claims = load_claim_enumeration(cfg, chunk_index=index)
+    claim = next(c for c in claims if c.claim_id == "fta.claim.scored")
+
+    winner = index.record("chunk-scored-winner")
+    assert winner is not None
+    assert claim.cited_chunk_id == winner.chunk_id
+    assert claim.cited_locator_kind == "section"
+    assert claim.cited_locator_value == winner.section_header
 
