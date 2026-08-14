@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from eval.retrieval.errors import PreconditionError
+
 _NON_ALNUM_RUN = re.compile(r"[^A-Za-z0-9]+")
 
 # Launch default — Elder Care is the program's primary eval company (spec §12.2 S0 domain).
@@ -38,3 +40,28 @@ def canonical_company_slug(name: str) -> str:
 def resolve_company_slug(display_name: str) -> str:
     """Resolve a SharePoint / warehouse display name to the canonical slug."""
     return canonical_company_slug(display_name)
+
+
+def require_folded_company_slug(company_slug: str) -> str:
+    """Guard that a ``company_slug``-typed parameter is already canonical.
+
+    Returns ``company_slug`` unchanged when it equals its own fold (per
+    ``canonical_company_slug``'s idempotence). Raises ``PreconditionError``
+    for any value that is not a str, or that is not already in folded form —
+    including a raw display name or a value that folds to empty.
+    """
+    if not isinstance(company_slug, str):
+        raise PreconditionError(
+            f"company_slug must be canonical (already folded): {company_slug!r}"
+        )
+    try:
+        folded = canonical_company_slug(company_slug)
+    except UnnormalizableCompanySlugError:
+        raise PreconditionError(
+            f"company_slug must be canonical (already folded): {company_slug!r}"
+        ) from None
+    if folded != company_slug:
+        raise PreconditionError(
+            f"company_slug must be canonical (already folded): {company_slug!r}"
+        )
+    return company_slug

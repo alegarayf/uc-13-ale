@@ -422,6 +422,16 @@ def test_default_gold_path_requires_slug():
     assert default_gold_path("clearsulting").name == "clearsulting.yaml"
 
 
+def test_default_gold_path_rejects_unfolded_company_slug():
+    with pytest.raises(PreconditionError, match="company_slug must be canonical"):
+        default_gold_path("Elder Care")
+
+
+def test_evalharness_init_rejects_unfolded_company_slug():
+    with pytest.raises(PreconditionError, match="company_slug must be canonical"):
+        EvalHarness(company_slug="Elder Care")
+
+
 def test_harness_resolves_gold_path_from_company_slug():
     harness = EvalHarness(company_slug="elder_care")
     assert harness.gold_path == default_gold_path("elder_care")

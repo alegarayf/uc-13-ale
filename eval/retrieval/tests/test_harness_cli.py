@@ -126,6 +126,36 @@ def test_run_explicit_gold_path_skips_company_slug_derivation(
 
 @patch("eval.retrieval.harness_cli.EvalHarness")
 @patch("eval.retrieval.harness_cli._build_store")
+def test_run_unnormalizable_company_name_fails_before_harness_run(
+    mock_build_store,
+    mock_eval_harness,
+):
+    mock_harness = MagicMock()
+    mock_eval_harness.return_value = mock_harness
+
+    exit_code, _ = _run_main(
+        [
+            "run",
+            "--store-backend",
+            "sqlite",
+            "--run-type",
+            "baseline",
+            "--company-name",
+            "!!!",
+            "--catalog",
+            "uc13_ale",
+            "--gold-path",
+            "/tmp/custom_gold.yaml",
+        ]
+    )
+
+    assert exit_code == 1
+    mock_build_store.assert_not_called()
+    mock_harness.run.assert_not_called()
+
+
+@patch("eval.retrieval.harness_cli.EvalHarness")
+@patch("eval.retrieval.harness_cli._build_store")
 def test_validate_baseline_summary_line_names_company_slug_and_catalog(
     mock_build_store,
     mock_eval_harness,

@@ -181,6 +181,15 @@ def test_unknown_company_returns_empty_exclusions():
     assert load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="acme_corp") == {}
 
 
+def test_load_gold_exclusions_rejects_unfolded_company_slug():
+    with pytest.raises(PreconditionError, match="company_slug must be canonical"):
+        load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="Elder Care")
+
+
+def test_load_gold_exclusions_unknown_folded_slug_returns_empty():
+    assert load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="acme_corp") == {}
+
+
 def test_committed_exclusions_artifact_validates():
     payload = yaml.safe_load(GOLD_EXCLUSIONS_PATH.read_text(encoding="utf-8"))
     assert isinstance(payload.get("companies"), dict)
