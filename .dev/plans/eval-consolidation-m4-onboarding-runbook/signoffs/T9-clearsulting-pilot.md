@@ -217,3 +217,9 @@ Bootstrap completes; overlay gaps annotated via exemption + gold notes.
 | Zero resolvable positives for every intent | No | 48/57 ready/partial; bootstrap completed |
 | Step requires editing eval code to proceed | No | T10-bis prerequisite satisfied |
 | Flag-6 unclassifiable corpus gap | No | Legal → corpus_absent; KPI overlay → overlay_mismatch |
+
+---
+
+## Post-walk addendum (2026-08-14)
+
+**RB-DEFECT-T9-3** was filed during this walk (Steps 3 and 5 serverless execution) and closed @ `6f6e9ac` via runbook serverless subsections and `.dev/onboarding_cluster_submit.py`. Closure record: `signoffs/RB-DEFECT-T9-3.md`.

@@ -1,6 +1,6 @@
 # Orchestrator plan — M4 / S3 Company Onboarding Runbook
 
-**Plan version:** 1.3 · **Date:** 2026-08-14 · **Status:** T1–T10-bis landed; T9 pilot COMPLETE @ `6f6e9ac`; T10 HALTed (audit record only, superseded by T10-bis @ `231941b`); RB-DEFECT-T9-1 @ `0a5b2f2`, RB-DEFECT-T9-2 resolved by T10-bis, RB-DEFECT-T9-3 closed @ `6f6e9ac`
+**Plan version:** 1.4 · **Date:** 2026-08-14 · **Status:** M4 complete; §8 handoff populated @ HEAD `e3ce0bd`; T1–T10-bis landed; T9 pilot COMPLETE @ `6f6e9ac`; T10 HALTed (audit record only, superseded by T10-bis @ `231941b`); RB-DEFECT-T9-1 @ `0a5b2f2`, RB-DEFECT-T9-2 resolved by T10-bis, RB-DEFECT-T9-3 closed @ `6f6e9ac`
 **Produced by:** orchestrator-planning v0.8 (charter-governed mode)
 **Planning tree SHA:** `3126c2b08c7b9ae8c484f437948c271c27aee217` (clean working tree)
 **Amendment tree SHA (v1.1 authoring):** working tree at `0a5b2f2` + uncommitted `.dev/t9_kpi_location_probe.py` (untracked, unrelated to this amendment)
@@ -537,8 +537,158 @@ The auditor re-runs the full suite against the §8.1 SHA as its first Phase 2 ac
 | 12 | §5.2/§5.4 entries conform to the tuple shape and name explicit `Tn` IDs | PASS |
 | 13 | §5 answered under the packet-only lens | PASS — stated at §5 head with the findings it produced |
 | 14 | Context map present where Files to touch would be unknown | PASS — no subtask carries "unknown — discovery required"; every path is a real file or a §2.3-pinned new file |
-| 15 | §8.1 snapshot valid | N/A at v1.0 |
-| 16 | §8.2 chain resolves at HEAD | N/A at v1.0 |
-| 17 | §8.4 disposition complete | N/A at v1.0 |
+| 15 | §8.1 snapshot valid | PASS — HEAD `e3ce0bd`, pytest **1187 passed / 1 skipped / 0 failed** @ 2026-08-14 (dirty tree; see `.dev/audits/eval-consolidation/M4/m4-pytest-evidence.md`) |
+| 16 | §8.2 chain resolves at HEAD | PASS — tracked artifacts verified `git ls-files`; `.dev/` binding artifacts on disk per Option C (§0) |
+| 17 | §8.4 disposition complete | PASS — §8.4 (v1.4) tables cover all §5.2 items 1–13 and §5.4 items 1–11 |
 | 18 | **Charter binding declared** — milestone ID, charter version, invocation-stub non-goals verbatim | PASS — §1 (a), (b), (c) |
 | 19 | **Carryability** — honest subtask count against §Budget 4–10 | PASS, with an explicit counting rule stated here rather than left implicit. **Distinct-slot count remains 10** (T1–T9 + one T10 amendment unit). T10-bis is **not** a new slot: it is the same amendment unit's re-attempt after a kill-criterion HALT, following the same precedent the plan already uses for T9 itself — T9 was executed three times (original walk, RB-DEFECT-T9-1 re-run, RB-DEFECT-T9-2 re-run) under one `T9` ID and one budget slot, because a HALTed *execution* of a subtask is not a new subtask, it is the same subtask re-entered after its kill criterion fired and the blocking condition was addressed. T10-bis is named with a suffix rather than reusing the bare `T10` ID **only** because the operator asked for a distinct node to preserve the HALT audit trail as readable history (T10's packet, changelog, and decision log stay exactly as HALTed, rather than being overwritten in place) — that is a **presentation** choice for auditability, not a claim that a new subtask was decomposed. If a *third*, functionally distinct defect surfaces after T10-bis lands — one that is not a continuation of RB-DEFECT-T9-2's own investigation — that would be a genuine new amendment and **would** consume an 11th slot, at which point the ceiling is exceeded and the §Budget HALT-and-split-proposal rule applies without exception. This plan is not there: T10-bis is one investigation's continuation, not a second defect. |
+
+---
+
+## §8 handoff (v1.4 — Complete)
+
+> **Label:** §8 instruction block above (lines 508–518) is the pre-complete template. **This block is the v1.4 handoff** appended at M4 Complete. Charter M4 execution status: **complete**; audit not yet run.
+
+**Status:** M4 complete · pre-audit handoff · **Handoff date:** 2026-08-14 · **Gate SHA:** `e3ce0bd2fee8ed6fb83d4fdf42f29c34d7a86f59` · **Pilot anchor:** T9 @ `6f6e9ac` · **Amendment anchor:** T10-bis @ `231941b`
+
+### §8.1 Completion snapshot
+
+| Field | Value |
+|---|---|
+| Gate SHA (HEAD) | `e3ce0bd2fee8ed6fb83d4fdf42f29c34d7a86f59` |
+| Working tree | **dirty** — `decision-logs/T9.md`, `eval/content/tests/test_spot_check.py`, `eval/retrieval/tests/test_trust_statement.py`, `signoffs/T11-closeout.md` modified; handoff docs uncommitted |
+| Verification command | `pytest -q` from repo root |
+| Result (2026-08-14, operator tree @ HEAD) | **1187 passed, 1 skipped, 0 failed** in 19.81s · exit **0** |
+| Pytest evidence | `.dev/audits/eval-consolidation/M4/m4-pytest-evidence.md` |
+| Upstream handoff (auditor routing) | `.dev/audits/eval-consolidation/M4/m4-upstream-handoff.md` — **Phase 0: diff first, not this file** |
+| T9 live evidence | `.dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T9-clearsulting-pilot.md` + committed Clearsulting artifacts |
+
+Auditor should re-run pytest on a **clean bare worktree** @ gate SHA for a binding §8.1 falsifier (M3 R8/R14 discipline).
+
+### §8.2 Artifact chain
+
+**Convention:** Tracked paths resolve via `git ls-files` @ HEAD. `.dev/` binding artifacts resolve via stable working-tree path + `git hash-object` per §0 Option C — not via `git ls-files`.
+
+| ID | Artifact | Path | Notes |
+|---|---|---|---|
+| 0 | This plan (v1.4 §8 body) | `.dev/plans/eval-consolidation-m4-onboarding-runbook/plan.md` | Appended at Complete; working-tree |
+| 1 | Context map | `.dev/plans/eval-consolidation-m4-onboarding-runbook/context-map.md` | Promoted from `_pending/` at planning |
+| 2 | Orchestrator HALT (discharged) | `.dev/plans/eval-consolidation-m4-onboarding-runbook/orchestrator-halt.md` | Entry-gate halt record |
+| T1 | Packet / changelog / decision log | `packets/T1.md` · `changelogs/T1.md` · `decision-logs/T1.md` | @ `b2c4b77`; R12 supersession banner |
+| T1 | Registry hub | `eval/program/registry.yaml` | GAP-108 + REG-CANON-1 closed |
+| T2 | Packet / changelog | `packets/T2.md` · `changelogs/T2.md` | @ `4c3b9b3`; no decision log |
+| T2 | Bootstrap CLI | `eval/retrieval/gold/bootstrap.py` · `eval/retrieval/tests/test_gold_bootstrap.py` | |
+| T3 | Packet / changelog | `packets/T3.md` · `changelogs/T3.md` | @ `23eb6fd` |
+| T3 | Harness wiring | `eval/retrieval/harness.py` · `eval/retrieval/harness_cli.py` · `test_harness_fixture.py` · `test_harness_cli.py` | |
+| T4 | Packet / changelog / decision log | `packets/T4.md` · `changelogs/T4.md` · `decision-logs/T4.md` | @ `b08463f` |
+| T4 | Exemption store | `eval/retrieval/exemptions.py` · `eval/program/eval_exemptions.yaml` · `test_exemptions.py` | |
+| T5 | Packet / changelog / decision log | `packets/T5.md` · `changelogs/T5.md` · `decision-logs/T5.md` | @ `c14919b` |
+| T5 | Ingest preflight | `eval/retrieval/ingest_preflight.py` · `test_ingest_preflight.py` | `PREFLIGHT-DOCSTATUS-1` deferred |
+| T6 | Packet / changelog / decision log | `packets/T6.md` · `changelogs/T6.md` · `decision-logs/T6.md` | @ `7d7f949` |
+| T6 | C6 wiring | `eval/retrieval/trust_statement.py` · `test_trust_statement.py` | |
+| T7 | Packet / changelog / decision log | `packets/T7.md` · `changelogs/T7.md` · `decision-logs/T7.md` | @ `9f7ff5e` |
+| T7 | Eval-debt | `eval/retrieval/eval_debt.py` · `eval/program/eval_debt/eval_debt.yaml` · `test_eval_debt.py` | |
+| T8 | Packet / changelog / decision log | `packets/T8.md` · `changelogs/T8.md` · `decision-logs/T8.md` | @ `8c68cf9` |
+| T8 | Runbook | `eval/program/onboarding_runbook.md` · `test_onboarding_runbook.py` | |
+| T9 | Packet / changelog / decision log / signoff | `packets/T9.md` · `changelogs/T9.md` · `decision-logs/T9.md` · `signoffs/T9-clearsulting-pilot.md` | COMPLETE @ `6f6e9ac` |
+| T9 | Pilot artifacts | `eval/retrieval/gold_labels/clearsulting.yaml` · populated `eval_exemptions.yaml` · `eval_debt.yaml` · `registry.yaml` rows | Live-warehouse walk |
+| T10 | Packet / changelog / decision log | `packets/T10.md` · `changelogs/T10.md` · `decision-logs/T10.md` | **HALT — no commit**; superseded |
+| T10-bis | Packet / changelog / decision log | `packets/T10-bis.md` · `changelogs/T10-bis.md` · `decision-logs/T10-bis.md` | @ `231941b` |
+| T10-bis | KPI PDF branch | `eval/retrieval/gold/bootstrap.py` · `test_gold_kpi_pdf_branch.py` | RB-DEFECT-T9-2 fix |
+| H1 | M4 pytest evidence | `.dev/audits/eval-consolidation/M4/m4-pytest-evidence.md` | §8.1 gate record |
+| H2 | M4 upstream handoff | `.dev/audits/eval-consolidation/M4/m4-upstream-handoff.md` | Auditor cold-read routing |
+| F1 | Fan-in CHANGELOG | `9c4e619` | T1–T4, T2, T3, T9, T10-bis entries |
+
+### §8.3 §2 contract evidence
+
+Sample key §2.1 rows — full suite is the binding proof; auditor may spot-check these then trust green `pytest -q`.
+
+| Symbol / key | Proving test |
+|---|---|
+| `bootstrap.main` / `--company` / `--catalog` / `--output` | `test_gold_bootstrap.py::test_main_parses_company_catalog_output`, `test_main_output_defaults_to_company_gold_path` |
+| `harness.default_gold_path(company_slug)` | `test_harness_fixture.py::test_default_gold_path_requires_slug` |
+| `EvalHarness.__init__(company_slug=…)` | `test_harness_fixture.py::test_harness_resolves_gold_path_from_company_slug` |
+| `harness_cli run --gold-path` derivation | `test_harness_cli.py::test_run_derives_gold_path_from_company_name` |
+| `IntentExemption` + store roundtrip | `test_exemptions.py::test_roundtrip_write_then_load`, `test_committed_store_validates` |
+| `run_ingest_preflight` both backends | `test_ingest_preflight.py::test_both_backends_satisfy_return_contract` |
+| Eval-debt ledger | `test_eval_debt.py::test_ledger_roundtrip` |
+| Onboarding runbook CLI surface | `test_onboarding_runbook.py::test_runbook_commands_match_cli_surface` |
+| T10-bis KPI PDF branch (§2.1 landed row) | `test_gold_kpi_pdf_branch.py::test_kpi_pdf_branch_resolves_section_location`, `test_kpi_pdf_branch_zero_chunks_skips_without_raising`, `test_kpi_pdf_branch_intent_degrades_to_bootstrap_failed_when_no_citation_resolves` |
+
+### §8.4 §5 disposition
+
+#### §8.4.1 Load-bearing assumptions (§5.2 items 1–13)
+
+| # | Assumption (summary) | Disposition | Evidence |
+|---|---|---|---|
+| 1 | Item-30 escalation authorizes real second-company gold | **closed** | T1 registry row; T9 `clearsulting.yaml` committed |
+| 2 | UGA-1 findings are eval-debt content, not DAG blockers | **treat-as-prediction** | Operator waiver §0; UGA-1 still open program-wide |
+| 3 | `eval/program/` is correct home for runbook + eval-debt | **closed** | T7/T8 landed paths; §2.3 pin |
+| 4 | Bootstrap engine accepts `company_name`/`catalog` | **closed** | T2 CLI @ `4c3b9b3` |
+| 5 | `default_gold_path` is sole gold filename authority | **closed** | T2 default + T3 resolution |
+| 6 | §8.3 reason vocabulary covers Clearsulting | **closed** | T9 six exemptions use all three reasons |
+| 7 | Empty exemption store → Elder Care byte-identical | **closed** | T6 `test_derive_content_rows_*` DG-10 parity |
+| 8 | Sibling doc_status exposes enough for §8.4 shape | **closed** | T5 backend + `denominator_undefined`; `PREFLIGHT-DOCSTATUS-1` tracks richness gap |
+| 9 | Clearsulting corpus exists in `uc13_ale` at pilot | **closed** | T9 signoff Step 2 preflight + bootstrap |
+| 10 | `pytest.ini` testpaths reach every new test | **closed** | 1187 collected @ HEAD; KPI PDF test under `eval/retrieval/tests/` |
+| 11 | Shared page/section query generalizes to KPI PDF (v1.1) | **disproven — retained** | T10 HALT 0/6 raw reuse; superseded by item 12 |
+| 12 | KPI location-normalization adapter sufficient for resolvable claims | **closed** | T10-bis @ `231941b`; 4/6 warehouse + hermetic tests |
+| 13 | Zero-chunk PDF citations are corpus gaps, safe to skip | **treat-as-prediction** | T10-bis skip + T9 `overlay_mismatch` exemptions; falsified if alias exists |
+
+#### §8.4.2 Hidden couplings (§5.4 items 1–11)
+
+| # | Coupling (summary) | Disposition | Evidence |
+|---|---|---|---|
+| 1 | Dual registry hub `.dev` vs `eval/program` | **closed** | T1 retired mirror; `test_eval_program_registry.py` |
+| 2 | SQL vs Python company slug fold | **open** | `company_slug_vectors.yaml` not landed; out of M4 charter |
+| 3 | Harness gold path display name vs slug | **closed** | T3 @ `23eb6fd` |
+| 4 | Intent registry vs program registry conflation | **closed** | T8 runbook disambiguation + parse test |
+| 5 | Catalog split `uc13` vs `uc13_ale` | **closed** | Runbook + CLI default `uc13_ale` on every step |
+| 6 | Ingest preflight backend swap injection styles | **closed** | T5 shared module; T6 delegates |
+| 7 | Bootstrap join key file_name vs doc_id | **closed** | Disproven — doc_id-first joins; T9 bootstrap succeeded |
+| 8 | Charter vs spec artifact paths + `.dev/` Option C | **closed** | §2.3 pin; this handoff uses hash-object discipline |
+| 9 | Per-citation loop for mixed Excel/PDF KPI citations | **closed** | T10-bis implementation + tests |
+| 10 | Uncaught `PreconditionError` kills whole bootstrap run | **closed** | T10-bis PDF skip documented as pre-existing shape |
+| 11 | T9 Step 4 assumes legible `bootstrap_failed` for overlay intents | **closed** | T10-bis tests + T9 signoff Step 4 exemptions filed |
+
+#### §8.4.3 Deferred adversarial gaps from subtask changelogs
+
+| Source | Gap | Disposition |
+|---|---|---|
+| T1 | No replacement test for retired mirror parity | **accepted** — R12 supersession; T8 runbook mitigates |
+| T3 | No dedicated test for unnormalizable `--company-name` on harness CLI | **open** (non-blocking) — shared ValueError envelope |
+| T4 | Clearsulting gap classification deferred to T9 | **closed** — T9 populated exemptions |
+| T5 | No pytest for live CLI warehouse/Spark paths | **treat-as-prediction** — T9 walk exercised live |
+| T6 | No live trust regeneration with populated exemptions | **closed** — T9 Step 8 |
+| T7 | No pytest detecting deletion-as-closure | **open** (non-blocking) — git history + operator procedure |
+| T8 | No pytest for runbook step-order rearrangement | **closed** — T9 walk followed landed order |
+| T9 | No hermetic test warehouse snapshot matches gold epoch | **treat-as-prediction** — Databricks logs + signoff |
+| T10 | No hermetic tests (HALT before authoring) | **closed** — T10-bis landed tests |
+| T10-bis | No hermetic test mixed Excel+PDF note composition | **treat-as-prediction** — Clearsulting gold notes in signoff |
+
+### §8.5 Cold-read seeds
+
+Recommended narrative-blind Phase 0 read **after** diff `3126c2b..e3ce0bd`:
+
+1. `.dev/audits/eval-consolidation/M4/m4-upstream-handoff.md` — routing + SHA ladder; read **after** diff
+2. `eval/program/onboarding_runbook.md` — G7 contract surface (T8)
+3. `eval/retrieval/trust_statement.py` — C6 hub extension (T6)
+4. `eval/retrieval/exemptions.py` — §8.3 store (T4)
+5. `eval/retrieval/harness.py` — company→gold-path resolution (T3)
+6. `eval/retrieval/gold/bootstrap.py` — T10-bis KPI PDF branch (amendment sole code surface)
+7. `eval/retrieval/tests/test_eval_program_registry.py` — hub retirement guard (T1)
+8. `.dev/audits/eval-consolidation/M4/m4-pytest-evidence.md` — §8.1 gate counts
+
+### §8.6 §7 amendment cross-link (T10 / T10-bis)
+
+| Link | Path / anchor |
+|---|---|
+| §7 T10 subsection | plan §7 — RB-DEFECT-T9-2 trigger; T10 HALT; superseded DAG edge |
+| §7 T10-bis subsection | plan §7 — Option A continuation; `T10 --> T10-bis --> T9` chain |
+| HALT record | `packets/T10.md` · `changelogs/T10.md` · `decision-logs/T10.md` (supersession banner) |
+| Landed fix | `packets/T10-bis.md` · `changelogs/T10-bis.md` · `decision-logs/T10-bis.md` @ `231941b` |
+| §2.1 contract rows | "HALTed (v1.1, T10)" + "Landed (v1.2, T10-bis)" |
+| Code + tests | `eval/retrieval/gold/bootstrap.py` · `eval/retrieval/tests/test_gold_kpi_pdf_branch.py` |
+| T9 consumption | `signoffs/T9-clearsulting-pilot.md` Steps 3–4; pilot COMPLETE @ `6f6e9ac` |
+
+**Re-audit entry sequence:** (1) cold diff `3126c2b..e3ce0bd` → (2) §8.5 seeds → (3) verify or re-run pytest per `m4-pytest-evidence.md` on clean worktree @ gate SHA → (4) T9 signoff + committed Clearsulting artifacts → (5) confirm §8.4 covers all §5.2/§5.4 items → (6) plan §8 (v1.4) + changelogs for narrative alignment only.
