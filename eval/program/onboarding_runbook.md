@@ -57,7 +57,29 @@ Preflight returns a summary on stdout and exit code `0` on success. §8.4 bounda
 
 **Catalog:** `uc13_ale`.
 
-Requires an active Databricks Spark session (cluster after ingestion rebuild). Gold output defaults to `eval/retrieval/gold_labels/<canonical_slug>.yaml` via `harness.default_gold_path` — do not hand-derive filenames.
+Gold bootstrap requires an active Databricks `SparkSession` (after ingestion rebuild). Gold output defaults to `eval/retrieval/gold_labels/<canonical_slug>.yaml` via `harness.default_gold_path` — do not hand-derive filenames.
+
+#### Cluster execution (serverless)
+
+**Operator path when no local Spark** (typical laptop workflow): submit via `.dev/onboarding_cluster_submit.py`. Full recipe: **Onboarding cluster steps** in `.dev/agent-databricks-recipes.md`.
+
+The helper:
+
+1. Loads repo-root `.env` (never prints tokens).
+2. **Syncs code** — uploads `eval/retrieval/` and `databricks/agents/` to `/Workspace/Users/<you>/uc-13-ale/` (run `sync` subcommand alone to upload without submitting).
+3. Submits a serverless `jobs.submit` task with pip deps: **`pyyaml`**, **`pydantic>=2.0`**, **`mlflow`**.
+4. Sets **`PYTHONPATH`** to repo root (bootstrap driver).
+5. Polls to completion; prints `DATABRICKS_RUN_ID=` on stdout.
+
+```bash
+python .dev/onboarding_cluster_submit.py bootstrap --company "<Display Name>" --catalog uc13_ale
+```
+
+Use `--no-sync` only when the workspace copy is already fresh. Step 3 gold output lands on the workspace driver — export `eval/retrieval/gold_labels/<canonical_slug>.yaml` back locally before committing.
+
+#### Reference shape (cluster CLI equivalent)
+
+When running inside an interactive cluster notebook or all-in-one shell with Spark already active:
 
 ```bash
 python -m eval.retrieval.gold.bootstrap --company "<Display Name>" --catalog uc13_ale
@@ -103,7 +125,23 @@ python -m eval.retrieval.exemptions add --company "Clearsulting" --intent-id leg
 
 **Catalog:** `uc13_ale`.
 
-Establishes the retrieval harness baseline for the company. When `--gold-path` is omitted, gold resolves from `--company-name` via `canonical_company_slug` → `default_gold_path`.
+Establishes the retrieval harness baseline for the company. When `--gold-path` is omitted, gold resolves from `--company-name` via `canonical_company_slug` → `default_gold_path`. Requires Spark (Delta eval store).
+
+#### Cluster execution (serverless)
+
+**Operator path when no local Spark:** same helper as step 3 — `.dev/onboarding_cluster_submit.py` with the `harness-baseline` subcommand. See **Onboarding cluster steps** in `.dev/agent-databricks-recipes.md`.
+
+Prerequisites match step 3: **code sync** of `eval/retrieval/` + `databricks/agents/`, pip deps **`pyyaml`**, **`pydantic>=2.0`**, **`mlflow`**, and **`PYTHONPATH`** including `databricks/` (harness imports agent shared code).
+
+```bash
+python .dev/onboarding_cluster_submit.py harness-baseline --company "<Display Name>" --catalog uc13_ale
+```
+
+Re-syncs by default before submit. On success, logs include a harness `baseline_<hash>` run id — record it for step 6 evidence. If Databricks reports `INTERNAL_ERROR` but logs contain a valid `baseline_*` id, treat as success (T9 quirk; the submit script checks logs).
+
+#### Reference shape (cluster CLI equivalent)
+
+When running inside an interactive cluster with Spark already active:
 
 ```bash
 python -m eval.retrieval.harness_cli run --store-backend delta --run-type baseline --company-name "<Display Name>" --catalog uc13_ale

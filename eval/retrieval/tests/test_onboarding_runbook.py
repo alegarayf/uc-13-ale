@@ -97,6 +97,20 @@ def test_runbook_names_program_registry_hub() -> None:
     assert "intent registry" in text.lower()
 
 
+def test_runbook_documents_serverless_cluster_path() -> None:
+    text = _runbook_text()
+    assert ".dev/onboarding_cluster_submit.py" in text
+    assert "Cluster execution (serverless)" in text
+    assert "bootstrap" in text
+    assert "harness-baseline" in text
+    assert ".dev/agent-databricks-recipes.md" in text
+    assert "pyyaml" in text
+    assert "pydantic>=2.0" in text
+    assert "mlflow" in text
+    assert "eval/retrieval/" in text
+    assert "databricks/agents" in text
+
+
 @pytest.mark.parametrize(
     "command",
     _extract_bash_commands(_RUNBOOK.read_text(encoding="utf-8"))
