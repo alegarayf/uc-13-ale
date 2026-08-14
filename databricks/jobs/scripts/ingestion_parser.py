@@ -1570,6 +1570,17 @@ def main():
     parse_tiers_raw = get_param("parse_priority_tiers", default="all").strip().lower()
     tiers, tier_label = _parse_tiers(parse_tiers_raw)
 
+    # Optional scoping to a specific file subset (CIM-first preview — plan
+    # §7 Día 2, Apéndice A.1). Default "[]" = every approved file, i.e.
+    # today's behavior unchanged. Threaded via env/get_param, same pattern
+    # as parse_priority_tiers above (main() takes no arguments). The clause
+    # itself is applied inside ParseManifest, which owns the doc_relevance
+    # read since M0 — see parse_manifest.build_file_whitelist_filter.
+    from parse_manifest import build_file_whitelist_filter
+
+    file_whitelist = json.loads(get_param("file_whitelist", default="[]") or "[]")
+    _, whitelist_label = build_file_whitelist_filter(file_whitelist)
+
     volume_path      = f"/Volumes/{catalog}/{schema}/raw_files/{company_name}"
     table_chunks     = f"{catalog}.{schema}.chunks"
     table_embeddings = f"{catalog}.{schema}.embeddings"
@@ -1582,6 +1593,7 @@ def main():
     print(f"\n=== UC13 Phase 2b — Ingestion Parser ({company_name}) ===")
     print(f"Volume     : {volume_path}")
     print(f"Parsing    : {tier_label}")
+    print(f"Scoping    : {whitelist_label}")
     print(f"Force      : {force_raw}")
     print(f"Coverage   : {coverage_per_workstream} per uncovered workstream")
 
@@ -1642,7 +1654,9 @@ def main():
         from contextlib import ExitStack
         from parse_manifest import ParseManifest
 
-        manifest = ParseManifest(_spark, catalog, schema, company_name)
+        manifest = ParseManifest(
+            _spark, catalog, schema, company_name, file_whitelist=file_whitelist
+        )
 
         with ExitStack() as stack:
             if _is_unit_test_spark(_spark):

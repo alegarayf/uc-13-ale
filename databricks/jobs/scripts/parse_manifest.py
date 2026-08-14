@@ -33,6 +33,22 @@ _WORK_LIST_CLASSIFICATIONS = frozenset(
 )
 
 
+def build_file_whitelist_filter(whitelist: list[str] | None) -> tuple[str, str]:
+    """``(sql_clause, label)`` for the optional ``filename IN (...)`` scoping of
+    the ``doc_relevance`` read (CIM-first preview — plan §7 Día 2, Apéndice A.1).
+
+    Empty/``None`` → ``("", "no whitelist")``, i.e. today's full-room behavior
+    unchanged. Lives here rather than in ``ingestion_parser`` because the read
+    it scopes moved into this module with the M0 manifest; putting it here also
+    means the coverage sub-pass (which re-reads ``doc_relevance`` with
+    ``tiers=None``) is scoped by the same clause and cannot inject non-CIM docs.
+    """
+    if not whitelist:
+        return "", "no whitelist"
+    quoted = ", ".join("'" + fn.replace("'", "''") + "'" for fn in whitelist)
+    return f"AND filename IN ({quoted})", f"whitelist ({len(whitelist)} file(s))"
+
+
 @dataclass(frozen=True)
 class ManifestItem:
     doc_id: str
@@ -92,11 +108,13 @@ class ParseManifest:
         catalog: str,
         schema: str,
         company: str,
+        file_whitelist: list[str] | None = None,
     ) -> None:
         self.spark = spark
         self.catalog = catalog
         self.schema = schema
         self.company = company
+        self.file_whitelist = file_whitelist or None
         self.last_summary: ManifestSummary | None = None
 
     @property
@@ -167,6 +185,7 @@ class ParseManifest:
         tier_sql = ""
         if tiers is not None:
             tier_sql = f"AND priority_tier IN ({', '.join(str(t) for t in tiers)})"
+        whitelist_sql, _ = build_file_whitelist_filter(self.file_whitelist)
         try:
             rows = self.spark.sql(f"""
                 SELECT
@@ -179,6 +198,7 @@ class ParseManifest:
                 WHERE should_parse = true
                   AND company_name = '{escaped_company}'
                   {tier_sql}
+                  {whitelist_sql}
                 ORDER BY priority_tier ASC NULLS LAST, filename ASC
             """).collect()
         except Exception as exc:

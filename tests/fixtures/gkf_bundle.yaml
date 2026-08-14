@@ -1,0 +1,694 @@
+meta:
+  schema_version: 0.1.0
+  company_name: GKF
+  company_safe: GKF
+  catalog: uc13_ale
+  deal_type: unknown
+  generated_at: '2026-07-30T13:47:50.450045Z'
+  status: complete
+  freshness: current
+  render_state: bundle_only
+  demo_mode: false
+  disclaimer_text: ''
+  basis_of_preparation: Phase 3 workstream outputs (M2 deterministic builder). cim_detected=True
+  overall_confidence: low
+  agents_present:
+    business_model: true
+    financial_trends: true
+    customer_quality: true
+    kpi: true
+    legal: true
+    quality_of_earnings: true
+  vertical_overlay: other
+headline_metrics:
+  ltm_revenue: ''
+  ltm_ebitda: ''
+  ltm_ebitda_margin_pct: ''
+  revenue_cagr: 3%
+  enterprise_value_indicated: null
+  rule_of_40: null
+executive:
+  in_one_line: Five-school Goddard franchisee in the DMV with $22.3M revenue, 29% Adj. EBITDA margins, and near-pure recurring
+    tuition — but a heavily owner-adjusted EBITDA bridge, occupancy softness at two locations, and a franchisor change-of-control
+    consent requirement that must be resolved before close.
+  preliminary_view:
+    strengths:
+    - 'Revenue quality is exceptionally high: ~98% recurring tuition fees, $2,422 average monthly tuition per student, ~3-year
+      average student tenure, and $2.0M in deferred (prepaid) tuition on the balance sheet provide strong cash flow visibility.'
+    - Gross margins of 52–53% and Adj. EBITDA of $6.4M (29% margin) in 2024A are attractive for a multi-site childcare operator;
+      the elimination of $7.3M in related-party management fees from 2026P onward materially normalizes the earnings base.
+    - The Goddard brand affiliation in high-income DMV submarkets (Bethesda, Tysons Corner, Rockville) supports premium tuition
+      pricing and family retention; a 10.3% revenue CAGR over five years demonstrates durable demand.
+    - Leadership team carries deep industry tenure — CEO Mike Pesi (25+ years, on-site since 2015), DMO Laura Dinder (10+
+      years), and CSO Ross Flax (35+ years) — providing operational continuity through a transition.
+    - Committed greenfield expansion into Detroit and Salt Lake City targets ~$57M in incremental revenue by 2030 across 19
+      new schools, offering a visible platform growth story beyond the existing five-site base.
+    concerns:
+    - All ten QofE addbacks are classified Tier 4 (no supporting document referenced in the passthrough schedule); the largest
+      single item — $5.7M in management fees — requires independent verification that go-forward owner compensation is fully
+      and correctly offset before any EBITDA multiple can be applied with confidence.
+    - Diligence-adjusted EBITDA of $6.66M (TTM25) includes a ~$738K pro forma uplift for the Bethesda expansion that depends
+      on 36 incremental enrollments not yet achieved; stripping this adjustment reduces run-rate EBITDA meaningfully.
+    - Overall portfolio occupancy declined from 903 individuals in FY23 to 872 in TTM25; Smart Kids fell from 92% to 83% occupancy
+      and Tysons Kids showed intra-period dips to 74%, signaling location-level demand risk that is not reflected in the consolidated
+      headline.
+    - GFL (Goddard Franchise Limited) change-of-control consent is required per the Goddard FDD 2025 — a deal-critical condition
+      that must be obtained pre-close and whose terms (including any transfer fees or re-approval conditions) are not yet
+      confirmed.
+    - The company operates on a modified cash basis with no formal accrual process; prepaid tuition balances are updated only
+      annually or semi-annually, and historical prepaid tuition data could not be obtained — creating unquantified revenue
+      recognition exposure.
+    - 'Key legal gaps remain open: founder/key-employee agreements, vendor pricing and cancellation terms, platform/channel
+      dependencies, and litigation exposure were all unextractable from retrieved documents, leaving material contract risk
+      unassessed.'
+    closing: 'The single most consequential open question is whether the $5.7M management-fee addback — and the go-forward
+      owner compensation offset — will survive an independent QofE: the answer determines whether the reported 29% EBITDA
+      margin is real or a presentation artifact, and therefore whether the platform growth story is being offered at a credible
+      entry price.'
+  business_snapshot_narrative: Project Ajax is a five-location Goddard School franchisee concentrated in affluent DMV submarkets
+    (Bethesda, Rockville, Tysons Corner, Ellicott City, Clarksburg), generating $22.3M in 2024A revenue at a 10.3% five-year
+    CAGR almost entirely from recurring monthly tuition fees (~98% of revenue) averaging $2,422 per student. Gross margins
+    of 52–53% and a reported Adj. EBITDA of $6.4M (29%) are compelling for the sector, but the earnings base is heavily shaped
+    by the elimination of $7.3M in related-party management fees — making the true normalized margin the central underwriting
+    question. The company is positioned as a premium early-childhood platform with a committed greenfield expansion into two
+    new markets (Detroit, Salt Lake City) targeting ~$57M in new revenue by 2030, which warrants scrutiny of unit-economics
+    replicability outside the DMV. The full report examines whether the EBITDA bridge holds under independent QofE, where
+    occupancy is softening, and what the Goddard franchisor consent process means for deal certainty.
+  confidence_rationale: 'KPI confidence is rated low because enrollment by location, tuition rate by program type, staff-to-child
+    ratios, employee turnover, waitlist data, licensing inspection history, franchise agreement terms, lease schedules, and
+    family re-enrollment rates were all absent from retrieved documents — the KPI dashboard is effectively a gap register
+    rather than a populated scorecard. Forecast confidence is similarly low: no budget-vs.-actual data was found, making it
+    impossible to assess whether management''s 2025B or greenfield projections are grounded in historical execution. The modified
+    cash-basis accounting policy, with prepaid tuition balances updated only annually or semi-annually and no historical prepaid
+    data obtainable, introduces an unquantified revenue recognition exposure that caps QofE confidence at medium. Legal confidence
+    is medium because founder/key-employee agreements, vendor pricing and cancellation terms, platform dependencies, and litigation
+    exposure were all unextractable — the GFL change-of-control consent is confirmed as deal-critical, but the full contract
+    risk perimeter remains open.'
+  preliminary_digest: Revenue is nearly pure recurring tuition with a five-year CAGR of 10.3% and gross margins consistently
+    in the 52–53% range, making the top-line quality among the strongest attributes of this asset. [Revenue Quality] Reported
+    Adj. EBITDA of $6.4M (2024A) and $7.6M (2025B) are materially dependent on a $5.7M management-fee addback and a $738K
+    Bethesda expansion pro forma that has not yet been earned; diligence-adjusted EBITDA of $6.66M (TTM25) is the more defensible
+    baseline. [Quality of Earnings] Portfolio occupancy declined from 903 to 872 individuals between FY23 and TTM25, with
+    Smart Kids dropping to 83% and Tysons Kids experiencing intra-period dips to 74% — two locations that require site-level
+    P&L scrutiny. [KPI Dashboard] The Goddard FDD 2025 requires GFL change-of-control consent, and founder/key-employee agreements,
+    vendor terms, and litigation exposure remain unextracted — leaving the legal risk perimeter materially open. [Legal Snapshot]
+    Greenfield expansion into Detroit and Salt Lake City (19 schools, ~$57M revenue target by 2030) is the primary value-creation
+    lever, but no budget-vs.-actual track record or unit-economics support for new markets was available in the data room.
+    [Financial Strip] Confidence is high on financial trends but low on KPIs and forecast support, and the modified cash-basis
+    accounting policy with unquantified prepaid tuition exposure adds a further layer of earnings quality uncertainty. [Confidence
+    by Area]
+  thesis_bullets:
+  - 'Premium DMV franchise platform: five Goddard-branded schools in high-income submarkets with ~98% recurring tuition revenue,
+    52–53% gross margins, and a demonstrated 10.3% five-year revenue CAGR — a rare combination of revenue quality and margin
+    profile in fragmented childcare M&A.'
+  - 'Earnings normalization opportunity: elimination of $7.3M in related-party management fees from 2026P onward converts
+    a heavily owner-managed P&L into an institutional earnings base, with Adj. EBITDA projected to reach $7.9M (2026P) — contingent
+    on independent QofE validation of the addback.'
+  - 'Bethesda capacity expansion as near-term catalyst: licensed capacity increase at the highest-occupancy location (L3M
+    average 97%) targets steady-state by summer 2026, with ~$1.3M incremental revenue and ~$738K EBITDA already embedded in
+    the TTM25 pro forma.'
+  - 'Greenfield platform growth story: committed expansion into Detroit and Salt Lake City (19 schools, ~3,040 students, ~$57M
+    revenue by 2030) offers a replicable franchise rollout thesis — though unit economics outside the DMV are unvalidated
+    and represent the primary execution risk.'
+  - 'Experienced owner-operator team with transition structure: CEO Mike Pesi (on-site since 2015), DMO Laura Dinder, and
+    CSO Ross Flax average ~15 years of industry tenure; the 2025 formalization of the executive structure is designed to support
+    institutional ownership, though key-employee agreements have not been confirmed.'
+  - 'Franchisor relationship as both moat and constraint: Goddard brand affiliation supports premium pricing and family trust,
+    but GFL change-of-control consent and franchise transfer provisions are deal-gating conditions that will shape transaction
+    structure and timeline.'
+  key_watchouts:
+  - 'Occupancy softness at two locations: Smart Kids (Clarksburg) declined from 92% to 83% occupancy and Tysons Kids showed
+    intra-period dips to 74% between FY23 and TTM25 — site-level P&L and enrollment trend data are needed to determine whether
+    these reflect structural demand weakness or temporary disruption.'
+  - 'Enrollment replicability in new markets: the greenfield expansion thesis (Detroit, Salt Lake City) assumes DMV-level
+    tuition pricing and fill rates in markets with different competitive dynamics and income demographics; no unit-economics
+    benchmarks for these markets are present in the data room.'
+  - 'Teacher and staff retention risk: with salaries and wages at $8.8M (the largest COGS item) across ~217–253 employees
+    and a contractor workforce at Clarksburg, employee turnover data by location and role are entirely absent — a critical
+    gap for a labor-intensive, ratio-regulated business.'
+  - 'Referral and enrollment concentration: no family-level retention or re-enrollment rate data was provided; the ~3-year
+    average student tenure and $177K LTV figures are management representations without independent verification, and churn
+    at any single high-occupancy location would disproportionately impact revenue.'
+  - 'Franchisor change-of-control consent: GFL consent is required under the Goddard FDD 2025 and is a deal-gating condition;
+    transfer fees, re-approval requirements, and any franchisor right of first refusal have not been confirmed and could affect
+    deal structure, timeline, or economics.'
+  - 'Organic vs. acquisition growth mix: all five current locations are organic or legacy franchise sites; the greenfield
+    expansion plan has no acquisition track record to benchmark against, and the absence of budget-vs.-actual data makes it
+    impossible to assess whether management has demonstrated the execution discipline required for a 19-school build-out.'
+company_framing:
+  overview_bullets:
+  - Ajax (Project Ajax) is a Goddard School franchisee operating 5 early childhood education centers in the DMV area (Ellicott
+    City, Rockville, Bethesda, Tysons Corner, Clarksburg), generating $22.3M in revenue in 2024A with a 10.3% revenue CAGR
+    over the prior 5 years. Revenue is almost entirely recurring tuition fees (~98% of revenue) at an average monthly tuition
+    of $2,422 per student, with gross margins of 52–53% and Adj. EBITDA of $6.4M (29% margin) in 2024A growing to $7.6M (30%)
+    in 2025B. The company is led by CEO Mike Pesi (25+ years industry experience, on-site owner since 2015, transitioned to
+    CEO in 2025), Designated Market Operator Laura Dinder (10+ years), and Chief Strategy Officer Ross Flax (35+ years), with
+    an average ~15 years of industry experience across the team; no ownership table was provided in the retrieved documents.
+    The workforce totals approximately 217–253 employees across 5 school locations, all onsite in the DMV, with a contractor
+    workforce at Clarksburg; salaries and wages represent the largest COGS item at $8.8M in 2024A. Customer stickiness is
+    supported by an average ~3-year student tenure and $177K total potential LTV per student, with $2.0M in deferred revenue
+    (prepaid tuition) on the balance sheet. Key recent changes include the Bethesda location expansion (targeting steady-state
+    by summer 2026), committed greenfield expansion into Detroit and Salt Lake City targeting ~$57M in new revenue by 2030,
+    and the elimination of $7.3M in management fees beginning in 2026P which significantly normalizes reported EBITDA.
+  - Tuition Fees - Preschool / Core Childcare (Tuition Fees - Other)
+  - Registration Fees
+  - Summer Camp
+  revenue_model:
+    tag: pure_recurring
+    quality_flag: Green
+    note: Ajax earns revenue primarily through recurring tuition fees (98%+ of revenue) charged to families for early childhood
+      education and after-school programs across 5 Goddard franchise schools in the DMV area. Total revenue was $22.3M in
+      2024A with 4% growth.
+  recent_changes:
+  - change_type: operational
+    description: Mike Pesi transitioned from on-site owner at Goddard of Bethesda to CEO role
+    approximate_date: '2025'
+    impact_note: Formalized executive leadership structure for growth phase
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    source_location: Chief Executive Officer
+  - change_type: operational
+    description: Bethesda location underwent expansion increasing licensed capacity and available space for new enrollments
+    approximate_date: '2025'
+    impact_note: Management expects steady state utilization by summer 2026; pro forma reflects ~21% increase in total occupants
+      based on L3M average occupancy of 97% applied to incremental capacity
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    source_location: MANAGEMENT DISCUSSION & ANALYSIS
+  - change_type: ma
+    description: Acquisition of CommunityPro Suite technology platform; earnout payable recorded as Other Current Liabilities
+    approximate_date: null
+    impact_note: Earnout payable present on balance sheet as of 2023A–July 2025
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    source_location: MANAGEMENT DISCUSSION & ANALYSIS
+  - change_type: geography
+    description: Committed expansion into Detroit, MI and Salt Lake City, UT; evaluating Palm Beach, FL as third new market
+    approximate_date: 2026–2030 (projected)
+    impact_note: Total new market revenue opportunity ~$57mm; 19 targeted greenfield schools by 2030; 3,040 potential students
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    source_location: Committed to Expand Into Attractive New Markets
+  - change_type: revenue_model
+    description: Management fees of $7,173K (FY23) and $7,286K (FY24) eliminated in 2025B ($5,700K) and projected to zero
+      from 2026P onward, replaced by normalized go-forward management compensation structure
+    approximate_date: 2025–2026
+    impact_note: Significant EBITDA normalization adjustment; Adj. EBITDA improves from $6,382K (FY24) to $7,881K (2026P)
+      partly due to management fee elimination
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    source_location: SUMMARY INCOME STATEMENT
+  - change_type: operational
+    description: Bethesda location opened in 2015 under Mike Pesi as on-site owner
+    approximate_date: '2015'
+    impact_note: null
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    source_location: Chief Executive Officer
+  thesis:
+    bullets: []
+    value_creation_levers: []
+  workforce_notes: 'Aggregate workforce model: offshore/contract headcount Contractor department present at Clarksburg; no
+    offshore workforce identified. Headcount by function: Teachers and Staff — Ellicott City 39 onsite; Teachers and Staff
+    — Rockville 43 onsite; Teachers and Staff — Bethesda 51 onsite; Teachers and Staff — Tysons Corner 32 onsite; Teachers
+    and Staff — Clarksburg 52 onsite; Preschool — Clarksburg (Smart Kids) ~33–36 FTE equivalent per month (avg cost basis)
+    onsite; Officers — Clarksburg (onsite); Before & After — Clarksburg (onsite); Contractor — Clarksburg (contract); Smart
+    Kids (Clarksburg — combined preschool dept) (onsite); Staff — Rockville (Top Farm) (onsite); Tysons Kids (all staff) ~31–39
+    FTE equivalent per month onsite.'
+financials:
+  table_rows:
+  - year: 2023A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 53%
+    ebitda: ''
+    ebitda_margin_pct: ''
+  - year: 2024A
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 52%
+    ebitda: ''
+    ebitda_margin_pct: ''
+  - year: 2025B
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 53%
+    ebitda: ''
+    ebitda_margin_pct: ''
+  observations: []
+  geographic_mix: []
+revenue_quality:
+  scale_narrative: 'Ajax (Project Ajax) is a Goddard School franchisee operating 5 early childhood education centers in the
+    DMV area (Ellicott City, Rockville, Bethesda, Tysons Corner, Clarksburg), generating $22.3M in revenue in 2024A with a
+    10.3% revenue CAGR over the prior 5 years. Revenue is almost entirely recurring tuition fees (~98% of revenue) at an average
+    monthly tuition of $2,422 per student, with gross margins of 52–53% and Adj. EBITDA of $6.4M (29% margin) in 2024A growing
+    to $7.6M (30%) in 2025B. The '
+  concentration: ''
+  end_market_mix: ''
+  retention_notes: ''
+kpi_dashboard:
+- metric_id: site_level_visibility
+  display_name: Site Level Visibility
+  stated_value: partial
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: site_level_visibility_note
+  display_name: Site Level Visibility Note
+  stated_value: P&L data available at individual school level (Top Farm/Rockville, Creative Learning/Ellicott City, Smart
+    Kids, Bethesda Kids, Tysons Kids, Clarksburg). Payroll detail available by location and role category.
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+qoe:
+  addback_pct_of_ebitda: '569.3'
+  tier_summary: The GKF (Project Ajax) QofE databook presents ten addback line items totaling a net positive adjustment to
+    TTM25 EBITDA, with the largest items being Management Fees ($5.7M, representing owner compensation to related-party entities)
+    and Owner Personal Expenses & Capitalizable Items ($342K); all ten addbacks are classified Tier 4 due to the absolute
+    rule that no supporting document was referenced in the passthrough addback schedule, though the VDR databook contains
+    detailed narratives and GL-level support for each item. Diligence-adjusted EBITDA is $6.66M in TTM25 (28.1% margin), rising
+    to $7.40M pro forma for the Bethesda expansion, which represents a Tier 3 execution-risk adjustment dependent on 36 additional
+    occupants not yet enrolled. Key revenue quality concerns include a $190K Facility Cost Reimbursement appearing only in
+    FY24 and fully reversed as an adjusting journal entry, a modified cash-basis accounting policy with unquantified prepaid
+    tuition liability exposure, declining occupancy at Smart Kids and Tysons Kids, and one-time government grants that require
+    confirmation of non-recurrence.
+  flags:
+  - metric: tier4_addback
+    value: Non-Recurring Items (A) ($$22)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Non-Recurring Items (A) ($$22) — unlikely to survive buyer QofE. Source: Project Ajax CIM vF -
+      Rallyday Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Reversal of Adj. Journal Entries (B) ($($3))
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Reversal of Adj. Journal Entries (B) ($($3)) — unlikely to survive buyer QofE. Source: Project
+      Ajax CIM vF - Rallyday Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Management Fees (C) ($$5,700)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Management Fees (C) ($$5,700) — unlikely to survive buyer QofE. Source: Project Ajax CIM vF - Rallyday
+      Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Go-Forward Owner Compensation (D) ($($561))
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Go-Forward Owner Compensation (D) ($($561)) — unlikely to survive buyer QofE. Source: Project Ajax
+      CIM vF - Rallyday Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Rent Normalization (E) ($$247)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Rent Normalization (E) ($$247) — unlikely to survive buyer QofE. Source: Project Ajax CIM vF -
+      Rallyday Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Owner Personal Expenses & Capitalizable Items (F) ($$342)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Owner Personal Expenses & Capitalizable Items (F) ($$342) — unlikely to survive buyer QofE. Source:
+      Project Ajax CIM vF - Rallyday Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Other Income & Expenses (G) ($($36))
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Other Income & Expenses (G) ($($36)) — unlikely to survive buyer QofE. Source: Project Ajax CIM
+      vF - Rallyday Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Normalize Franchise & Advertising Fees (H) ($($29))
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Normalize Franchise & Advertising Fees (H) ($($29)) — unlikely to survive buyer QofE. Source: Project
+      Ajax CIM vF - Rallyday Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Bonus Accrual (I) ($$0)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Bonus Accrual (I) ($$0) — unlikely to survive buyer QofE. Source: Project Ajax CIM vF - Rallyday
+      Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Out-of-Period Items (J) ($$0)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Out-of-Period Items (J) ($$0) — unlikely to survive buyer QofE. Source: Project Ajax CIM vF - Rallyday
+      Partners.pdf.'
+    source_doc: Project Ajax CIM vF - Rallyday Partners.pdf
+    confidence: high
+  - metric: revenue_quality_non_recurring_in_run_rate
+    value: 'A Bethesda Expansion pro forma adjustment of ~$1.31M revenue and ~$738K EBITDA is included in TTM25 '
+    threshold: 'Revenue quality pattern: non_recurring_in_run_rate'
+    severity: Yellow
+    note: 'Revenue quality concern (non_recurring_in_run_rate): A Bethesda Expansion pro forma adjustment of ~$1.31M revenue
+      and ~$738K EBITDA is included in TTM25 run-rate figures. The narrative states management expects full capacity ''in
+      the near term'' based on . Source: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx.'
+    source_doc: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx
+    confidence: medium
+  - metric: revenue_quality_episodic_revenue
+    value: Overall occupancy declined from 903 individuals in FY23 to 872 in TTM25. Smart Kids occupancy fell f
+    threshold: 'Revenue quality pattern: episodic_revenue'
+    severity: Yellow
+    note: 'Revenue quality concern (episodic_revenue): Overall occupancy declined from 903 individuals in FY23 to 872 in TTM25.
+      Smart Kids occupancy fell from 92% to 83% and Tysons Kids from 83% to 84% (with intra-period dips to 74%), indicating
+      inconsist. Source: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx.'
+    source_doc: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx
+    confidence: medium
+  - metric: revenue_quality_unusual_credits_rebates_refunds
+    value: A Facility Cost Reimbursement of $190,077 appears as a revenue line in FY24 only (not in FY23 or TTM
+    threshold: 'Revenue quality pattern: unusual_credits_rebates_refunds'
+    severity: Red
+    note: 'Revenue quality concern (unusual_credits_rebates_refunds): A Facility Cost Reimbursement of $190,077 appears as
+      a revenue line in FY24 only (not in FY23 or TTM25), and is simultaneously subject to a Reversal of Adjusting Journal
+      Entries diligence adjustment (. Source: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx.'
+    source_doc: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx
+    confidence: medium
+  - metric: revenue_quality_non_recurring_in_run_rate
+    value: The VDR narrative for Other Income & Expenses (Ref 7) identifies one-time state and county child car
+    threshold: 'Revenue quality pattern: non_recurring_in_run_rate'
+    severity: Yellow
+    note: 'Revenue quality concern (non_recurring_in_run_rate): The VDR narrative for Other Income & Expenses (Ref 7) identifies
+      one-time state and county child care grants and insurance proceeds included in reported EBITDA. These government subsidy
+      grants are fla. Source: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx.'
+    source_doc: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx
+    confidence: medium
+  - metric: revenue_quality_revenue_recognition_change
+    value: The company operates on a modified cash basis with no formal accrual process. Prepaid tuition balanc
+    threshold: 'Revenue quality pattern: revenue_recognition_change'
+    severity: Yellow
+    note: 'Revenue quality concern (revenue_recognition_change): The company operates on a modified cash basis with no formal
+      accrual process. Prepaid tuition balances are updated only annually or semi-annually, and management could not obtain
+      historical prepaid tu. Source: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx.'
+    source_doc: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx
+    confidence: medium
+legal:
+  assessed_count: 7
+  checklist_total: 11
+  section_confidence: high
+  top_flags:
+  - metric: coc_consent_required
+    value: GFL (Goddard Franchise Limited / Licensor) — CoC consent required
+    threshold: Any CoC consent required
+    severity: Red
+    note: 'CoC consent required for GFL (Goddard Franchise Limited / Licensor). Deal-relevant — obtain consent pre-close.
+      Source: Goddard FDD 2025.pdf.'
+    source_doc: Goddard FDD 2025.pdf
+    confidence: high
+  - metric: restrictive_covenant
+    value: 'GFL (Goddard Franchise Limited / Licensor): we have agreed and are obligated to protect your rights to use the
+      trademarks, service marks, trade names, logotypes or other commercial symbols'
+    threshold: Restrictive covenant present
+    severity: Yellow
+    note: 'Restrictive covenant (we have agreed and are obligated to protect your rights to use the trademarks, service marks,
+      trade names, logotypes or other commercial symbols) in GFL (Goddard Franchise Limited / Licensor) contract. May limit
+      add-on M&A options. Source: Goddard FDD 2025.pdf.'
+    source_doc: Goddard FDD 2025.pdf
+    confidence: high
+  - metric: unusual_indemnity
+    value: GFL (Collateral Assignment / Lease Agreement) — unusual_indemnity=true
+    threshold: Unusual indemnity scope
+    severity: Yellow
+    note: 'Unusual indemnity scope in GFL (Collateral Assignment / Lease Agreement) contract. Refer to outside counsel for
+      assessment. Source: Goddard FDD 2025.pdf.'
+    source_doc: Goddard FDD 2025.pdf
+    confidence: medium
+  - metric: unusual_indemnity
+    value: GFL (Goddard Franchise Limited / Licensor) — unusual_indemnity=true
+    threshold: Unusual indemnity scope
+    severity: Yellow
+    note: 'Unusual indemnity scope in GFL (Goddard Franchise Limited / Licensor) contract. Refer to outside counsel for assessment.
+      Source: Goddard FDD 2025.pdf.'
+    source_doc: Goddard FDD 2025.pdf
+    confidence: medium
+  top_gaps:
+  - Vendor pricing / cancellation terms
+  - Platform / reseller / channel dependencies
+  - Founder / key employee agreements
+  - Litigation exposure
+  recommended_diligence: []
+confidence_by_area:
+  business_model: medium
+  financial_trends: high
+  customer_quality: medium
+  kpi: low
+  legal: medium
+  quality_of_earnings: medium
+  forecast_support: low
+provenance:
+  agent_report_paths:
+    business_model: /Volumes/uc13_ale/analysis/reports/GKF/business_model_report.yaml
+    financial_trends: /Volumes/uc13_ale/analysis/reports/GKF/financial_trends_report.yaml
+    customer_quality: /Volumes/uc13_ale/analysis/reports/GKF/customer_quality_report.yaml
+    kpi: /Volumes/uc13_ale/analysis/reports/GKF/kpi_report.yaml
+    legal: /Volumes/uc13_ale/analysis/reports/GKF/legal_report.yaml
+    quality_of_earnings: /Volumes/uc13_ale/analysis/reports/GKF/quality_of_earnings_report.yaml
+  agent_delta_tables:
+    business_model: uc13_ale.analysis.business_model
+    financial_trends: uc13_ale.analysis.financial_trends
+    customer_quality: uc13_ale.analysis.customer_quality
+    kpi: uc13_ale.analysis.kpi
+    legal: uc13_ale.analysis.legal
+    quality_of_earnings: uc13_ale.analysis.quality_of_earnings
+  bundle_builder_version: 0.2.0-m2
+  synthesis_gaps:
+  - field_path: headline_metrics.ltm_revenue
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+  - field_path: headline_metrics.ltm_ebitda_margin_pct
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+  - field_path: revenue_quality.concentration
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+  - field_path: company_framing.thesis.bullets
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+risks:
+- risk: coc_consent_required
+  severity: critical
+  evidence: GFL (Goddard Franchise Limited / Licensor) — CoC consent required (Goddard FDD 2025.pdf
+  mitigant_or_question: 'CoC consent required for GFL (Goddard Franchise Limited / Licensor). Deal-relevant — obtain consent
+    pre-close. Source: Goddard FDD 2025.pdf.'
+  source_agent: legal
+  confidence: high
+  fill_state: filled_cited
+- risk: revenue_quality_unusual_credits_rebates_refunds
+  severity: critical
+  evidence: A Facility Cost Reimbursement of $190,077 appears as a revenue line in FY24 only (not in FY23 or TTM (Project
+    Ajax - Financial Due Diligence Databook - 12.22.25.xlsx
+  mitigant_or_question: 'Revenue quality concern (unusual_credits_rebates_refunds): A Facility Cost Reimbursement of $190,077
+    appears as a revenue line in FY24 only (not in FY23 or TTM25), and is simultaneously subject to a Reversal of Adjusting
+    Journal Entries diligence adjustment (. Source: Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx.'
+  source_agent: quality_of_earnings
+  confidence: medium
+  fill_state: filled_cited
+- risk: tier4_addback
+  severity: critical
+  evidence: Bonus Accrual (I) ($$0) (Project Ajax CIM vF - Rallyday Partners.pdf
+  mitigant_or_question: 'Tier 4 addback: Bonus Accrual (I) ($$0) — unlikely to survive buyer QofE. Source: Project Ajax CIM
+    vF - Rallyday Partners.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: tier4_addback
+  severity: critical
+  evidence: Go-Forward Owner Compensation (D) ($($561)) (Project Ajax CIM vF - Rallyday Partners.pdf
+  mitigant_or_question: 'Tier 4 addback: Go-Forward Owner Compensation (D) ($($561)) — unlikely to survive buyer QofE. Source:
+    Project Ajax CIM vF - Rallyday Partners.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: tier4_addback
+  severity: critical
+  evidence: Management Fees (C) ($$5,700) (Project Ajax CIM vF - Rallyday Partners.pdf
+  mitigant_or_question: 'Tier 4 addback: Management Fees (C) ($$5,700) — unlikely to survive buyer QofE. Source: Project Ajax
+    CIM vF - Rallyday Partners.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: tier4_addback
+  severity: critical
+  evidence: Non-Recurring Items (A) ($$22) (Project Ajax CIM vF - Rallyday Partners.pdf
+  mitigant_or_question: 'Tier 4 addback: Non-Recurring Items (A) ($$22) — unlikely to survive buyer QofE. Source: Project
+    Ajax CIM vF - Rallyday Partners.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: tier4_addback
+  severity: critical
+  evidence: Normalize Franchise & Advertising Fees (H) ($($29)) (Project Ajax CIM vF - Rallyday Partners.pdf
+  mitigant_or_question: 'Tier 4 addback: Normalize Franchise & Advertising Fees (H) ($($29)) — unlikely to survive buyer QofE.
+    Source: Project Ajax CIM vF - Rallyday Partners.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: tier4_addback
+  severity: critical
+  evidence: Other Income & Expenses (G) ($($36)) (Project Ajax CIM vF - Rallyday Partners.pdf
+  mitigant_or_question: 'Tier 4 addback: Other Income & Expenses (G) ($($36)) — unlikely to survive buyer QofE. Source: Project
+    Ajax CIM vF - Rallyday Partners.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+data_room_gaps:
+- item: customer_operational_metrics.by_location has only 1 record(s). If the document has a multi-location client metrics
+    table, the LLM may have stopped after the first row. Review and re-run.
+  priority: medium
+  source_agent: business_model
+  fill_state: filled_cited
+- item: people_and_org.ownership is empty — ownership structure not extracted. Key-man and equity structure assessment requires
+    this. Check retrieval of capitalization, entity structure, or transaction overview sections.
+  priority: medium
+  source_agent: business_model
+  fill_state: filled_cited
+- item: Adjusted EBITDA records found but none have ebitda_margin_pct populated. Margin % may be present in the document but
+    was not extracted — check whether a subordinate Margin row, inline column, or summary table was missed.
+  priority: medium
+  source_agent: financial_trends
+  fill_state: filled_cited
+- item: Budget vs. actual data was not found in retrieved documents. If the data room includes a management reporting package,
+    board deck, monthly controller report, or rolling forecast, confirm those files are tagged with the FINANCIAL workstream
+    and re-run the agent. Budget vs. actual is required to assess forecast credibility.
+  priority: medium
+  source_agent: financial_trends
+  fill_state: filled_cited
+- item: Termination-for-convenience terms not determinable from retrieved documents — contract review required for material
+    customers.
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Change-of-control consent terms not determinable — contract review required for all customers >20% of revenue.
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: 'Missing KPI [Enrollment / Census by Location]: What is the licensed capacity and current enrolled headcount at each
+    school location, and what is the average occupancy rate across the portfolio for FY23, FY24, and TTM25?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Tuition Rate per Child / Revenue per Enrolled Child]: What is the average monthly tuition rate per enrolled
+    child by program type (infant, toddler, preschool, before & after) and by location, and how has this changed over FY23–TTM25?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Staff-to-Child Ratio / Regulatory Compliance with Ratios]: Are all locations currently in compliance
+    with applicable state staff-to-child ratio requirements, and has any location received a citation or corrective action
+    related to ratios in the past three years?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Employee Turnover / Attrition Rate]: What is the annual employee turnover rate by location and role
+    category (teachers/staff vs. directors) for FY23, FY24, and YTD FY25?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Waitlist Length by Location]: What is the current waitlist headcount by location and program type, and
+    what is the average time from waitlist to enrollment?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Licensing and Regulatory Compliance History]: Please provide the last three years of state licensing
+    inspection reports for each location, including any citations, corrective action plans, or license suspensions or probations.'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Franchise Agreement Terms and Renewal Risk]: What are the key terms of the franchise agreement(s), including
+    expiration dates, renewal options, transfer/change-of-control provisions, and any outstanding disputes with the franchisor?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Lease Terms and Rent Escalation Schedule]: What are the lease expiration dates, renewal options, and
+    rent escalation terms for each school location?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [AR Aging and Collections]: Please provide an AR aging schedule by location as of the most recent month-end,
+    and what is the historical bad debt / write-off rate as a percentage of tuition revenue?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Customer (Family) Retention / Churn Rate]: What is the annual family retention rate (re-enrollment rate)
+    by location and program type for FY23, FY24, and YTD FY25?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: contract_trigger_list not found — Customer Quality Agent has not run or returned no material customers. Legal Agent
+    proceeding without triggered reviews.
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'vendor: chunks retrieved but no extractable terms'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'platform: chunks retrieved but no extractable terms'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'founder: chunks retrieved but no extractable terms'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'litigation: chunks retrieved but no extractable terms'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: Vendor pricing / cancellation terms
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Platform / reseller / channel dependencies
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Founder / key employee agreements
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Litigation exposure
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Customer Quality Agent output present but no per-customer gross margin data (gm_pct / gm_dollars) — customer profitability
+    cross-check skipped.
+  priority: medium
+  source_agent: quality_of_earnings
+  fill_state: filled_cited
+diligence_questions:
+- category: kpi
+  question: What is the licensed capacity and current enrolled headcount at each school location, and what is the average
+    occupancy rate across the portfolio for FY23, FY24, and TTM25?
+  priority: medium
+  source_agent: kpi
+  fill_state: gap_correct
+- category: kpi
+  question: What is the average monthly tuition rate per enrolled child by program type (infant, toddler, preschool, before
+    & after) and by location, and how has this changed over FY23–TTM25?
+  priority: medium
+  source_agent: kpi
+  fill_state: gap_correct
+- category: kpi
+  question: Are all locations currently in compliance with applicable state staff-to-child ratio requirements, and has any
+    location received a citation or corrective action related to ratios in the past three years?
+  priority: medium
+  source_agent: kpi
+  fill_state: gap_correct
+- category: kpi
+  question: What is the annual employee turnover rate by location and role category (teachers/staff vs. directors) for FY23,
+    FY24, and YTD FY25?
+  priority: medium
+  source_agent: kpi
+  fill_state: gap_correct

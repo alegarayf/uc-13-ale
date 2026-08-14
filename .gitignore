@@ -259,7 +259,7 @@ eval/retrieval/reports/*.json
 databricks/.env
 databricks/tmp/
 databricks/context_docs/
-docs/
+docs/*
 
 # Root-level eval harness exports and ablation snapshots
 /ablation_*.csv

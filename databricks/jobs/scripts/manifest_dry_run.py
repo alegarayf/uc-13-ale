@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -143,6 +144,7 @@ def run_manifest_dry_run(
     tiers: list[int] | None,
     tier_label: str,
     coverage_per_workstream: int,
+    file_whitelist: list[str] | None = None,
 ) -> dict[str, Any]:
     """S0 ensure state tables + S1 build manifest. Read-only — no status transitions."""
     volume_path = f"/Volumes/{catalog}/{schema}/raw_files/{company_name}"
@@ -150,7 +152,9 @@ def run_manifest_dry_run(
     ensure_doc_status(spark, catalog, schema)
     ensure_sync_state(spark, catalog, schema)
 
-    manifest = ParseManifest(spark, catalog, schema, company_name)
+    manifest = ParseManifest(
+        spark, catalog, schema, company_name, file_whitelist=file_whitelist
+    )
     work_list = manifest.build(
         tiers,
         coverage_per_workstream,
@@ -196,6 +200,9 @@ def main() -> None:
     coverage_per_workstream = int(
         get_param("coverage_per_workstream", default="3")
     )
+    # Same param as ingestion_parser — lets the dry run prove CIM-only scoping
+    # read-only, before spending a real ingest on it.
+    file_whitelist = json.loads(get_param("file_whitelist", default="[]") or "[]")
 
     tiers, tier_label = _parse_tiers(parse_tiers_raw)
 
@@ -215,6 +222,7 @@ def main() -> None:
         tiers=tiers,
         tier_label=tier_label,
         coverage_per_workstream=coverage_per_workstream,
+        file_whitelist=file_whitelist,
     )
     for line in result["summary_lines"]:
         print(line)
