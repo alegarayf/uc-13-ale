@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-consolidation-debt-cleanup — 2026-08-14
+
+- T3 (M3 self-hash citation hygiene, §8.4 disposition rows, mandatory self-hash re-fill — R-1/R-2): Annotation only — the R23 bullet below (`:` line, `542daaf4…`) is a historical record and is not rewritten. The binding v5 self-hash declaration is **plan §8.2 row 0⁴** of `.dev/plans/eval-consolidation-m3-s2-build/plan.md` (single source of truth per OD-v5-1); it was re-derived and re-filled as this subtask's terminal edit, and `verify_plan_selfhash.py` prints `STATUS: PASS` against the current file. `r23-selfhash-evidence.md`'s Forward statement, and M3 plan §8.4.3 assumption 24 / §8.4.1 Q-6 / §8.4.5 Q-6 disposition rows, were corrected to match (pointer-only, no hash literals). Rationale: close M3 rev-5 R-1 (stale self-hash quotations) and R-2 (stale disposition rows) without recreating the same defect one level down. `[eval-consolidation-debt-cleanup T3, 2026-08-14]`
+
 ## eval-consolidation-m4-onboarding-runbook — 2026-08-14
 
 - T13 (M4 audit remediation — company-scoped gold exclusions): Reshaped `gold_exclusions.yaml` to company-keyed blocks, required `company_slug` on `load_gold_exclusions`, re-expressed disjointness per company against committed gold, restored Elder Care three `no_citation_source` annotations (A5), closed F-04 on `GAP-103-recall-at-10-bloated-gold` by restored population-5 truth, and closed T11 debt row `elder_care:global:no_citation_source_provenance_loss` without lowering `open_debt_high_water_mark` (14). Rationale: fix F-02 cross-company exclusion defect — not a revert of Clearsulting claim-map work. Decision log at `.dev/plans/eval-consolidation-m4-onboarding-runbook/decision-logs/T13.md`. Adversarial gap covered: `test_per_company_invariant_fails_on_within_company_contradiction`.
