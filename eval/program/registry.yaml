@@ -955,11 +955,14 @@ items:
   source_id: OI-eval-harness-phase-c-multi-company-gold-yaml
   disposition: staged
   stage: S1
-  status: pending
+  status: in_progress
   trigger: null
-  rationale: null
+  rationale: Clearsulting pilot gold landed at T9; Elder Care remains canonical; GKF/SPG pending.
   tshirt: null
-  evidence_refs: []
+  evidence_refs:
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - baseline_7174e0399e29
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T9-clearsulting-pilot.md
   rung_assignments: {}
   assessment_metrics: {}
 - id: OI-eval-harness-profiler-re-run-clearsulting-gkf-spg
@@ -1695,5 +1698,48 @@ items:
   evidence_refs:
   - eval/retrieval/ingest_preflight.py
   - databricks/jobs/scripts/status_store.py
+  rung_assignments: {}
+  assessment_metrics: {}
+
+- id: M4-S3-item-36-clearsulting-pilot
+  title: M4 spec item 36 — Clearsulting onboarding pilot walk (T9)
+  source_refs:
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/packets/T9.md
+  - eval/program/onboarding_runbook.md
+  source_id: null
+  disposition: accepted
+  stage: S3
+  status: closed
+  trigger: null
+  rationale: T9 completed Clearsulting end-to-end onboarding per eval/program/onboarding_runbook.md
+    — gold corpus (57 labels, 48 ready/partial), six exemptions, harness baseline baseline_7174e0399e29,
+    promotion skip with eval-debt, trust regeneration including Clearsulting rows.
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - eval/program/eval_exemptions.yaml
+  - eval/program/eval_debt/eval_debt.yaml
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T9-clearsulting-pilot.md
+  - baseline_7174e0399e29
+  rung_assignments: {}
+  assessment_metrics: {}
+
+- id: RB-DEFECT-T9-3
+  title: Runbook gap — serverless cluster steps lack documented deps and code-sync path
+  source_refs:
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T9-clearsulting-pilot.md
+  source_id: null
+  disposition: staged
+  stage: S3
+  status: open
+  trigger: Follow-on runbook amendment after T9 walk
+  rationale: Steps 3 and 5 require serverless jobs.submit with pydantic>=2.0 and mlflow pip deps,
+    workspace upload of eval/retrieval + databricks/agents, and PYTHONPATH including databricks/
+    — none documented in onboarding_runbook.md or databricks-access skill cluster section.
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T9-clearsulting-pilot.md
+  - Databricks run 502286866957035
+  - Databricks run 1086586115456516
   rung_assignments: {}
   assessment_metrics: {}
