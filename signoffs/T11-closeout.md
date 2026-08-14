@@ -29,7 +29,7 @@
 | Action | Count | Item ids |
 |---|---|---|
 | **Closed** (M1 evidence landed) | 5 | `GAP-103-recall-at-10-bloated-gold`, `GAP-105-no-ci-guard-gold-positives`, `GAP-105-no-cluster-gates-xfail-guard`, `OI-eval-harness-elder-care-slice-json-refresh-trigger`, `OI-eval-harness-fta-rubric-eval-fta` |
-| **Accepted** (ratified known gaps) | 10 | GAP-103/105 family rows listed in `.dev/eval-program/registry.yaml` with `disposition: accepted` |
+| **Accepted** (ratified known gaps) | 10 | GAP-103/105 family rows listed in `eval/program/registry.yaml` with `disposition: accepted` |
 | **Staged/pending** (S2+ backlog) | 28 | Remaining S1-staged rows unchanged — product/agent/Phase-C backlog carries forward |
 
 ## Trust statement v1

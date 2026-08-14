@@ -88,8 +88,8 @@ def _fta_manifest() -> str:
 def spot_check_tree(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
     (root / "eval/content").mkdir(parents=True)
-    (root / ".dev/eval-program").mkdir(parents=True)
-    (root / ".dev/eval-program/registry.yaml").write_text(
+    (root / "eval/program").mkdir(parents=True)
+    (root / "eval/program/registry.yaml").write_text(
         _registry_yaml(), encoding="utf-8"
     )
     (root / "eval/content/exec_summary_rubric_claims.json").write_text(
@@ -118,7 +118,7 @@ def _config(
         output_dir=out,
         verdicts_path=verdicts,
         operator_id="operator_a",
-        registry_path=root / ".dev/eval-program/registry.yaml",
+        registry_path=root / "eval/program/registry.yaml",
         repo_root=root,
     )
 
@@ -142,7 +142,7 @@ def test_spot_check_config_rejects_unsupported_surface(spot_check_tree: Path) ->
             output_dir=spot_check_tree / "out",
             verdicts_path=spot_check_tree / "out/verdicts.yaml",
             operator_id="operator_a",
-            registry_path=spot_check_tree / ".dev/eval-program/registry.yaml",
+            registry_path=spot_check_tree / "eval/program/registry.yaml",
             repo_root=spot_check_tree,
         )
 
@@ -360,12 +360,12 @@ def test_prepare_spot_check_rejects_non_human_surface_assignment(
     spot_check_tree: Path,
 ) -> None:
     registry = yaml.safe_load(
-        (spot_check_tree / ".dev/eval-program/registry.yaml").read_text(encoding="utf-8")
+        (spot_check_tree / "eval/program/registry.yaml").read_text(encoding="utf-8")
     )
     for item in registry["items"]:
         if item["id"] == "CHK-26a":
             item["rung_assignments"]["exec_summary"] = "deterministic"
-    (spot_check_tree / ".dev/eval-program/registry.yaml").write_text(
+    (spot_check_tree / "eval/program/registry.yaml").write_text(
         yaml.safe_dump(registry), encoding="utf-8"
     )
     cfg = _config(spot_check_tree)
@@ -378,12 +378,12 @@ def test_prepare_spot_check_halts_on_rung2_registry_assignment(
     spot_check_tree: Path,
 ) -> None:
     registry = yaml.safe_load(
-        (spot_check_tree / ".dev/eval-program/registry.yaml").read_text(encoding="utf-8")
+        (spot_check_tree / "eval/program/registry.yaml").read_text(encoding="utf-8")
     )
     for item in registry["items"]:
         if item["id"] == "CHK-26a":
             item["rung_assignments"]["exec_summary"] = "judge"
-    (spot_check_tree / ".dev/eval-program/registry.yaml").write_text(
+    (spot_check_tree / "eval/program/registry.yaml").write_text(
         yaml.safe_dump(registry), encoding="utf-8"
     )
     cfg = _config(spot_check_tree)

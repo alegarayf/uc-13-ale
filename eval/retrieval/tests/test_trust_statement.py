@@ -743,8 +743,8 @@ def _spot_check_registry_yaml() -> str:
 def test_content_rows_compose_with_spot_check_writer_fixtures(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     (root / "eval/content").mkdir(parents=True)
-    (root / ".dev/eval-program").mkdir(parents=True)
-    (root / ".dev/eval-program/registry.yaml").write_text(
+    (root / "eval/program").mkdir(parents=True)
+    (root / "eval/program/registry.yaml").write_text(
         _spot_check_registry_yaml(), encoding="utf-8"
     )
     manifest = """{
@@ -779,7 +779,7 @@ def test_content_rows_compose_with_spot_check_writer_fixtures(tmp_path: Path) ->
         output_dir=root / ".dev/eval-program/spot-check",
         verdicts_path=verdicts,
         operator_id="operator_a",
-        registry_path=root / ".dev/eval-program/registry.yaml",
+        registry_path=root / "eval/program/registry.yaml",
         repo_root=root,
     )
 
