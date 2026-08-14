@@ -7,6 +7,8 @@ import json
 import sys
 from pathlib import Path
 
+from eval.retrieval.companies import canonical_company_slug
+from eval.retrieval.errors import PreconditionError
 from eval.retrieval.harness import EvalHarness, default_sqlite_path
 from eval.retrieval.store import DeltaEvalStore, SqliteEvalStore
 
@@ -73,19 +75,29 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _run_harness_kwargs(args: argparse.Namespace) -> dict:
+    harness_kwargs: dict = {}
+    if args.registry_path is not None:
+        harness_kwargs["registry_path"] = args.registry_path
+    if args.gold_path is not None:
+        harness_kwargs["gold_path"] = args.gold_path
+    else:
+        harness_kwargs["company_slug"] = canonical_company_slug(args.company_name)
+    if args.reports_dir is not None:
+        harness_kwargs["reports_dir"] = args.reports_dir
+    return harness_kwargs
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    harness_kwargs: dict = {}
-    if getattr(args, "registry_path", None) is not None:
-        harness_kwargs["registry_path"] = args.registry_path
-    if getattr(args, "gold_path", None) is not None:
-        harness_kwargs["gold_path"] = args.gold_path
-    if getattr(args, "reports_dir", None) is not None:
-        harness_kwargs["reports_dir"] = args.reports_dir
-    harness = EvalHarness(**harness_kwargs)
 
     if args.command == "run":
+        try:
+            harness = EvalHarness(**_run_harness_kwargs(args))
+        except (PreconditionError, ValueError) as exc:
+            print(f"[harness_cli] ERROR: {exc}", file=sys.stderr)
+            return 1
         store = _build_store(
             args.store_backend,
             catalog=args.catalog,
@@ -117,12 +129,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         try:
             current = store.get_run(args.current_run_id)
+            company_slug = canonical_company_slug(current.manifest.company_name)
+            harness = EvalHarness(company_slug=company_slug)
             harness.validate_baseline_ref(
                 store,
                 args.baseline_ref_run_id,
                 gated_intents=current.manifest.gated_intents,
                 current_manifest=current.manifest,
             )
+        except (PreconditionError, ValueError) as exc:
+            print(f"[harness_cli] ERROR: {exc}", file=sys.stderr)
+            return 1
         finally:
             close = getattr(store, "close", None)
             if callable(close):

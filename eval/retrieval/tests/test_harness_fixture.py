@@ -17,9 +17,12 @@ for _path in (_REPO_ROOT / "databricks", _REPO_ROOT):
     if _entry not in sys.path:
         sys.path.insert(0, _entry)
 
+from eval.retrieval.errors import PreconditionError
 from eval.retrieval.harness import (
+    EvalHarness,
     compare_results,
     compute_metrics,
+    default_gold_path,
     default_registry_path,
     dispatch_retrieval,
     metric_gate_pass,
@@ -410,3 +413,18 @@ def test_validate_baseline_ref_and_compare_round_trip(tmp_path):
     )
     assert recall_delta.gate_pass is False
     store.close()
+
+
+def test_default_gold_path_requires_slug():
+    with pytest.raises(TypeError):
+        default_gold_path()
+    assert default_gold_path("elder_care").name == "elder_care.yaml"
+    assert default_gold_path("clearsulting").name == "clearsulting.yaml"
+
+
+def test_harness_resolves_gold_path_from_company_slug():
+    harness = EvalHarness(company_slug="elder_care")
+    assert harness.gold_path == default_gold_path("elder_care")
+
+    with pytest.raises(PreconditionError, match="gold_path or company_slug"):
+        EvalHarness()
