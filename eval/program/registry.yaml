@@ -1,6 +1,5 @@
-# Canonical eval-program registry (charter hub). After edits, sync the tracked mirror:
-#   python -c "from eval.retrieval.tests.test_eval_program_registry import sync_registry_mirror; sync_registry_mirror()"
-# See .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R12.md (D8).
+# Canonical eval-program registry hub (Amendment A4 / REG-CANON-1). Sole path: eval/program/registry.yaml
+# See .dev/plans/eval-consolidation-m4-onboarding-runbook/decision-logs/T1.md
 schema_version: 1
 items:
 - id: A-03
@@ -627,11 +626,15 @@ items:
   source_id: GAP-108-operator-escalation-not-recorded
   disposition: staged
   stage: S3
-  status: pending
+  status: closed
   trigger: null
-  rationale: null
+  rationale: 'Operator directive 2026-08-13 — go for multi-company gold. M4 builds the go branch: Clearsulting
+    receives a real gold corpus, a harness baseline, and per-company baseline promotion (charter §3 M4
+    entry gate item 30 escalation).'
   tshirt: null
-  evidence_refs: []
+  evidence_refs:
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/plan.md#0
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/orchestrator-halt.md
   rung_assignments: {}
   assessment_metrics: {}
 - id: GAP-108-slug-convention-split
@@ -1660,16 +1663,17 @@ items:
   - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R12.md
   - .dev/plans/eval-consolidation-m3-s2-build/plan.md#7
   source_id: null
-  disposition: deferred
-  stage: null
-  status: n/a
-  trigger: M4 entry gate — charter Tier-2 amendment retires dual-location model (D8 mirror-not-move)
-    and promotes eval/program/registry.yaml to canonical; parity guard retired with promotion
-  rationale: N-6 (rev-2 audit) — M3 closes the dual-registry hole via enforced byte-parity mirror
-    and pytest guard without moving hub ownership; full canonical promotion is charter Tier-2
-    (operator routing §7.4) and belongs at M4 entry alongside UGA-1 and CID-STABLE-1.
+  disposition: staged
+  stage: S3
+  status: closed
+  trigger: null
+  rationale: 'Amendment A4 (2026-08-13) lands sole-hub promotion: eval/program/registry.yaml is canonical;
+    sync_registry_mirror(), CANONICAL_REGISTRY_PATH, MIRROR_REGISTRY_PATH, and the byte-parity guard
+    retired in T1. R12 mirror-not-move superseded — see T1 decision log.'
   tshirt: null
   evidence_refs:
-  - .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R12.md
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/decision-logs/T1.md
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/plan.md#0
+  - eval/program/registry.yaml
   rung_assignments: {}
   assessment_metrics: {}
