@@ -217,6 +217,11 @@ def validate_row(row: TrustStatementRow) -> None:
             f"row ({row.company}, {row.layer}, {row.surface}): "
             f"out-of-vocabulary method {row.method!r}"
         )
+    if row.layer != "ingest_completeness" and row.method is not None:
+        raise TrustStatementGenerationError(
+            f"row ({row.company}, {row.layer}, {row.surface}): "
+            "method must be null outside ingest_completeness"
+        )
     if row.rung is not None and row.rung not in RUNGS:
         raise TrustStatementGenerationError(
             f"row ({row.company}, {row.layer}, {row.surface}): "
@@ -227,6 +232,11 @@ def validate_row(row: TrustStatementRow) -> None:
             raise TrustStatementGenerationError(
                 f"row ({row.company}, {row.layer}, {row.surface}): "
                 f"rung required for run-provenance attestation {row.attestation!r}"
+            )
+        elif row.layer != "content_correctness" and row.rung is not None:
+            raise TrustStatementGenerationError(
+                f"row ({row.company}, {row.layer}, {row.surface}): "
+                "rung must be null outside content_correctness"
             )
     elif row.rung is not None:
         raise TrustStatementGenerationError(
