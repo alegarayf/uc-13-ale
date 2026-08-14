@@ -1,0 +1,365 @@
+schema_version: 1
+surface: fta_numeric
+assessed_by: operator
+assessed_at: '2026-08-12'
+claims:
+- claim_id: fta.numeric.001
+  claim_text: FTA reports ebitda dollars as 2,104
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '2104'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.002
+  claim_text: FTA reports ebitda margin pct as 23.5%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.235'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.003
+  claim_text: FTA reports ebitda dollars as 3,157
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '3157'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.004
+  claim_text: FTA reports ebitda margin pct as 22.3%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.223'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.005
+  claim_text: FTA reports ebitda dollars as 4,016
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '4016'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.006
+  claim_text: FTA reports ebitda margin pct as 19.3%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.193'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.007
+  claim_text: FTA reports ebitda dollars as 6,677
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '6677'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.008
+  claim_text: FTA reports ebitda margin pct as 19.5%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.195'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.009
+  claim_text: FTA reports ebitda dollars as 9,239
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '9239'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.010
+  claim_text: FTA reports ebitda margin pct as 19.9%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.199'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.011
+  claim_text: FTA reports ebitda dollars as 2,104
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '2104'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.012
+  claim_text: FTA reports ebitda margin pct as 23.5%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.235'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.013
+  claim_text: FTA reports ebitda dollars as 3,157
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '3157'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.014
+  claim_text: FTA reports ebitda margin pct as 22.3%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.223'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.015
+  claim_text: FTA reports ebitda dollars as 4,016
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '4016'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.016
+  claim_text: FTA reports ebitda margin pct as 19.3%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.193'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.017
+  claim_text: FTA reports ebitda dollars as 6,677
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '6677'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.018
+  claim_text: FTA reports ebitda margin pct as 19.5%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.195'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.019
+  claim_text: FTA reports ebitda dollars as 9,239
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '9239'
+    unit: USD_k
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.020
+  claim_text: FTA reports ebitda margin pct as 19.9%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Diligence Adjusted Income Statement
+  verdict: supported
+  expected_value:
+    magnitude: '0.199'
+    unit: ratio
+  expected_span:
+    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    locator:
+      kind: section
+      value: Diligence Adjusted Income Statement
+- claim_id: fta.numeric.021
+  claim_text: FTA reports revenue stated as 8,955
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '8955'
+    unit: USD_k
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.022
+  claim_text: FTA reports revenue stated as 14,176
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '14176'
+    unit: USD_k
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.023
+  claim_text: FTA reports yoy growth pct as 58.3%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '0.583'
+    unit: ratio
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.024
+  claim_text: FTA reports revenue stated as 20,846
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '20846'
+    unit: USD_k
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.025
+  claim_text: FTA reports yoy growth pct as 47.1%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '0.471'
+    unit: ratio
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.026
+  claim_text: FTA reports revenue stated as 33,700
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '33700'
+    unit: USD_k
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.027
+  claim_text: FTA reports yoy growth pct as 61.7%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '0.617'
+    unit: ratio
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.028
+  claim_text: FTA reports revenue stated as 44,735
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '44735'
+    unit: USD_k
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.029
+  claim_text: FTA reports revenue stated as 47,198
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '47198'
+    unit: USD_k
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection
+- claim_id: fta.numeric.030
+  claim_text: FTA reports yoy growth pct as 30.2%
+  source_ref: cite://2024 Elder Care - CIM_vF.pdf#Pro Forma Income Statement & Projection
+  verdict: supported
+  expected_value:
+    magnitude: '0.302'
+    unit: ratio
+  expected_span:
+    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    locator:
+      kind: section
+      value: Pro Forma Income Statement & Projection

@@ -1412,7 +1412,7 @@ items:
   tshirt: null
   evidence_refs:
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T2-fta-assessment.md
-  - .dev/eval-program/calibration_sample_fta_numeric.yaml
+  - eval/content/calibration_samples/calibration_sample_fta_numeric.yaml
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/t2_fta_probe_report.json
   rung_assignments: {}
   assessment_metrics: {}
@@ -1541,10 +1541,10 @@ items:
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration.md
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration-exec_summary.json
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration-fta_numeric.json
-  - .dev/eval-program/calibration_sample_exec_summary.yaml
+  - eval/content/calibration_samples/calibration_sample_exec_summary.yaml
   - eval/content/spot_check.py
-  - .dev/eval-program/spot-check/exec_summary_elder_care_2026-08-12.verdicts.yaml
-  - .dev/eval-program/spot-check/fta_numeric_elder_care_2026-08-13.verdicts.yaml
+  - eval/content/spot-check/exec_summary_elder_care_2026-08-12.verdicts.yaml
+  - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.verdicts.yaml
   - .dev/audits/eval-consolidation/M3/g6-closeout-evidence.md
   - .dev/audits/eval-consolidation/M3/operator-attestation-rung3.md
   rung_assignments:
@@ -1639,8 +1639,8 @@ items:
   tshirt: null
   evidence_refs:
   - .dev/audits/eval-consolidation/M3/upstream-grounding-audit-prompt.md
-  - .dev/eval-program/spot-check/exec_summary_elder_care_2026-08-12.verdicts.yaml
-  - .dev/eval-program/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+  - eval/content/spot-check/exec_summary_elder_care_2026-08-12.verdicts.yaml
+  - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
   rung_assignments: {}
   assessment_metrics: {}
 - id: CID-STABLE-1
@@ -1770,7 +1770,7 @@ items:
   tshirt: null
   evidence_refs:
   - eval/program/onboarding_runbook.md
-  - .dev/onboarding_cluster_submit.py
+  - eval/program/onboarding_cluster_submit.py
   - signoffs/RB-DEFECT-T9-3.md
   rung_assignments: {}
   assessment_metrics: {}

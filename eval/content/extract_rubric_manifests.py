@@ -78,7 +78,7 @@ def write_exec_manifest(text: str) -> Path:
         "source_query": meta["source_query"],
         "created_at": meta["created_at"],
         "generator": "eval/content/extract_rubric_manifests.py",
-        "calibration_sample": ".dev/eval-program/calibration_sample_exec_summary.yaml",
+        "calibration_sample": "eval/content/calibration_samples/calibration_sample_exec_summary.yaml",
         "claim_count": len(claims),
         "claims": claims,
     }

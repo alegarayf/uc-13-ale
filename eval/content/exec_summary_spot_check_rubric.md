@@ -27,7 +27,7 @@ SELECT executive_summary, created_at FROM uc13_ale.analysis.diligence_report WHE
 
 **Listing evidence:** `created_at = 2026-07-28T22:47:46.289Z`, text length 5641 chars. Count: **53** (`exec.claim.001`–`exec.claim.053`).
 
-**ID pinning:** `exec.claim.001`–`028` are **byte-identical** to `.dev/eval-program/calibration_sample_exec_summary.yaml` (item 26a judge calibration). Claims `exec.claim.029`–`exec.claim.053` are source-field extensions (`origin: source_extension` in the manifest). Claims `exec.claim.027`–`028` are **calibration probes** (`origin: calibration_probe`) — retained for judge-calibration join keys; they are not verbatim sentences in the executive_summary field (operator-labelled during T5).
+**ID pinning:** `exec.claim.001`–`028` are **byte-identical** to `eval/content/calibration_samples/calibration_sample_exec_summary.yaml` (item 26a judge calibration). Claims `exec.claim.029`–`exec.claim.053` are source-field extensions (`origin: source_extension` in the manifest). Claims `exec.claim.027`–`028` are **calibration probes** (`origin: calibration_probe`) — retained for judge-calibration join keys; they are not verbatim sentences in the executive_summary field (operator-labelled during T5).
 
 | section | claim_id | claim_text |
 | --- | --- | --- |

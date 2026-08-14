@@ -61,9 +61,7 @@ Gold bootstrap requires an active Databricks `SparkSession` (after ingestion reb
 
 #### Cluster execution (serverless)
 
-**Option C caveat:** `.dev/onboarding_cluster_submit.py` lives under the gitignored `.dev/` tree (charter Option C). It is force-added in this repo so the runbook resolves at HEAD; if the helper is moved or the force-add is dropped, re-verify the path before walking Step 3 — an auditor cannot read a binding artifact that is not tracked.
-
-**Operator path when no local Spark** (typical laptop workflow): submit via `.dev/onboarding_cluster_submit.py`. Full recipe: **Onboarding cluster steps** in `.dev/agent-databricks-recipes.md`.
+**Operator path when no local Spark** (typical laptop workflow): submit via `eval/program/onboarding_cluster_submit.py`. Full recipe: **Onboarding cluster steps** in `.dev/agent-databricks-recipes.md`.
 
 The helper:
 
@@ -74,7 +72,7 @@ The helper:
 5. Polls to completion; prints `DATABRICKS_RUN_ID=` on stdout.
 
 ```bash
-python .dev/onboarding_cluster_submit.py bootstrap --company "<Display Name>" --catalog uc13_ale
+python eval/program/onboarding_cluster_submit.py bootstrap --company "<Display Name>" --catalog uc13_ale
 ```
 
 Use `--no-sync` only when the workspace copy is already fresh. Step 3 gold output lands on the workspace driver — export `eval/retrieval/gold_labels/<canonical_slug>.yaml` back locally before committing.
@@ -131,12 +129,12 @@ Establishes the retrieval harness baseline for the company. When `--gold-path` i
 
 #### Cluster execution (serverless)
 
-**Operator path when no local Spark:** same helper as step 3 — `.dev/onboarding_cluster_submit.py` with the `harness-baseline` subcommand. See **Onboarding cluster steps** in `.dev/agent-databricks-recipes.md`.
+**Operator path when no local Spark:** same helper as step 3 — `eval/program/onboarding_cluster_submit.py` with the `harness-baseline` subcommand. See **Onboarding cluster steps** in `.dev/agent-databricks-recipes.md`.
 
 Prerequisites match step 3: **code sync** of `eval/retrieval/` + `databricks/agents/`, pip deps **`pyyaml`**, **`pydantic>=2.0`**, **`mlflow`**, and **`PYTHONPATH`** including `databricks/` (harness imports agent shared code).
 
 ```bash
-python .dev/onboarding_cluster_submit.py harness-baseline --company "<Display Name>" --catalog uc13_ale
+python eval/program/onboarding_cluster_submit.py harness-baseline --company "<Display Name>" --catalog uc13_ale
 ```
 
 Re-syncs by default before submit. On success, logs include a harness `baseline_<hash>` run id — record it for step 6 evidence. If Databricks reports `INTERNAL_ERROR` but logs contain a valid `baseline_*` id, treat as success (T9 quirk; the submit script checks logs).
