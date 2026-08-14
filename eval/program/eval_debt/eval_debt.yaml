@@ -24,6 +24,12 @@ debts:
   closes_when: gold_exclusions.yaml is company-scoped and Elder Care three no_citation_source
     annotations restored (kpi.retrieve_bill_rates_and_margins, kpi.retrieve_headcount_attrition,
     kpi.retrieve_pipeline_backlog)
+  closed_at: '2026-08-14'
+  closed_evidence_refs:
+  - .dev/specs/eval-consolidation-program/eval_consolidation_program_milestone_charter.md#Amendment-A5
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/changelogs/T13.md
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/elder_care.yaml
 - id: clearsulting:global:bloated_fc_cqa_retrieve_revenue_type_and_renewals
   company: clearsulting
   surface: null

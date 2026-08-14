@@ -50,7 +50,9 @@ def test_kpi_pdf_branch_resolves_section_location():
             ],
         }
     )
-    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
+    bootstrap = GoldLabelBootstrap(
+        spark, ingestion_date=date(2026, 8, 11), company_name="Clearsulting"
+    )
     intent = _sample_intent("kpi.retrieve_bill_rates_and_margins", agent_id="kpi")
     label = bootstrap.bootstrap([intent])[0]
     assert label.gold_status == "ready"
@@ -90,7 +92,9 @@ def test_kpi_pdf_branch_zero_chunks_skips_without_raising():
             ],
         }
     )
-    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
+    bootstrap = GoldLabelBootstrap(
+        spark, ingestion_date=date(2026, 8, 11), company_name="Clearsulting"
+    )
     intent = _sample_intent("kpi.retrieve_bill_rates_and_margins", agent_id="kpi")
     label = bootstrap.bootstrap([intent])[0]
     assert label.positive_chunk_ids == ["gm_chunk_1"]
@@ -125,7 +129,9 @@ def test_kpi_pdf_branch_intent_degrades_to_bootstrap_failed_when_no_citation_res
             ],
         }
     )
-    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
+    bootstrap = GoldLabelBootstrap(
+        spark, ingestion_date=date(2026, 8, 11), company_name="Clearsulting"
+    )
     intent = _sample_intent("kpi.retrieve_bench_and_capacity", agent_id="kpi")
     labels = bootstrap.bootstrap([intent])
     assert len(labels) == 1
@@ -173,7 +179,9 @@ def test_kpi_pdf_branch_over_broad_section_pattern_resolves_exact_chunk_ids():
             ],
         }
     )
-    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
+    bootstrap = GoldLabelBootstrap(
+        spark, ingestion_date=date(2026, 8, 11), company_name="Clearsulting"
+    )
     intent = _sample_intent("kpi.retrieve_bill_rates_and_margins", agent_id="kpi")
     label = bootstrap.bootstrap([intent])[0]
     assert label.positive_chunk_ids == ["overview_p14_a", "overview_p14_b"]
@@ -205,7 +213,9 @@ def test_kpi_pdf_branch_no_page_location_is_document_scoped_not_page_scoped():
             ],
         }
     )
-    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
+    bootstrap = GoldLabelBootstrap(
+        spark, ingestion_date=date(2026, 8, 11), company_name="Clearsulting"
+    )
     intent = _sample_intent("kpi.retrieve_bill_rates_and_margins", agent_id="kpi")
     label = bootstrap.bootstrap([intent])[0]
     assert label.positive_chunk_ids == ["employee_doc_a", "employee_doc_b"]

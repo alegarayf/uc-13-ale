@@ -277,35 +277,57 @@ def load_kpi_claim_intent_map(
 
 def load_gold_exclusions(
     path: Path = GOLD_EXCLUSIONS_PATH,
+    *,
+    company_slug: str,
 ) -> dict[str, str]:
-    """Load aggregate-exclusion population (Contract T3-b): intent_id → exclude_reason."""
+    """Load company-scoped aggregate-exclusion population (Contract T3-b / T13)."""
+    if not company_slug or not str(company_slug).strip():
+        raise PreconditionError(
+            "company_slug is required for load_gold_exclusions"
+        )
+    slug = str(company_slug).strip()
     payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise PreconditionError(
             f"Gold exclusions artifact must be a mapping at {path}"
         )
-    excluded = payload.get("excluded")
+    companies = payload.get("companies")
+    if not isinstance(companies, dict):
+        raise PreconditionError(
+            f"Gold exclusions artifact missing companies mapping at {path}"
+        )
+    company_block = companies.get(slug)
+    if company_block is None:
+        return {}
+    if not isinstance(company_block, dict):
+        raise PreconditionError(
+            f"Gold exclusions company block for {slug!r} must be a mapping at {path}"
+        )
+    excluded = company_block.get("excluded")
+    if excluded is None:
+        return {}
     if not isinstance(excluded, list):
         raise PreconditionError(
-            f"Gold exclusions artifact missing excluded list at {path}"
+            f"Gold exclusions excluded list for {slug!r} must be a list at {path}"
         )
     mapping: dict[str, str] = {}
     for index, entry in enumerate(excluded):
         if not isinstance(entry, dict):
             raise PreconditionError(
-                f"Gold exclusions entry {index} must be a mapping at {path}"
+                f"Gold exclusions entry {index} for {slug!r} must be a mapping at {path}"
             )
         intent_id = entry.get("intent_id")
         exclude_reason = entry.get("exclude_reason")
         if not intent_id or not exclude_reason:
             raise PreconditionError(
-                f"Gold exclusions entry {index} missing intent_id or exclude_reason "
-                f"at {path}"
+                f"Gold exclusions entry {index} for {slug!r} missing intent_id or "
+                f"exclude_reason at {path}"
             )
         intent_key = str(intent_id)
         if intent_key in mapping:
             raise PreconditionError(
-                f"Duplicate gold exclusion for intent {intent_key!r} at {path}"
+                f"Duplicate gold exclusion for intent {intent_key!r} "
+                f"under {slug!r} at {path}"
             )
         mapping[intent_key] = str(exclude_reason)
     return mapping
@@ -369,6 +391,7 @@ class GoldLabelBootstrap:
         self._analysis_row_cache: dict[str, dict[str, Any] | None] = {}
         self._kpi_claim_map_cache: tuple[dict[str, str], dict[str, Any]] | None = None
         self._gold_exclusions_cache: dict[str, str] | None = None
+        self._gold_exclusions_cache_slug: str | None = None
         self._last_excel_citation_notes: dict[str, str] = {}
 
     def compute_ingestion_snapshot(self) -> str:
@@ -617,8 +640,17 @@ class GoldLabelBootstrap:
         return self._kpi_claim_map_cache
 
     def _gold_exclusions(self) -> dict[str, str]:
-        if self._gold_exclusions_cache is None:
-            self._gold_exclusions_cache = load_gold_exclusions()
+        from eval.retrieval.companies import canonical_company_slug
+
+        company_slug = canonical_company_slug(self.company_name)
+        if (
+            self._gold_exclusions_cache is None
+            or self._gold_exclusions_cache_slug != company_slug
+        ):
+            self._gold_exclusions_cache = load_gold_exclusions(
+                company_slug=company_slug,
+            )
+            self._gold_exclusions_cache_slug = company_slug
         return self._gold_exclusions_cache
 
     def _validate_kpi_citation_refs(self, refs: Sequence[CitationRef]) -> None:

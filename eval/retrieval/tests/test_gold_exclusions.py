@@ -1,4 +1,4 @@
-"""Tests for GoldLabel aggregate exclusion machinery — Contract T3-a/b/c."""
+"""Tests for GoldLabel aggregate exclusion machinery — Contract T3-a/b/c, T13."""
 
 from __future__ import annotations
 
@@ -13,10 +13,11 @@ from eval.retrieval.errors import PreconditionError
 from eval.retrieval.gold.bootstrap import (
     GoldLabelBootstrap,
     load_gold_exclusions,
+    load_gold_labels,
     load_kpi_claim_intent_map,
     write_gold_labels,
 )
-from eval.retrieval.harness import compute_metrics
+from eval.retrieval.harness import compute_metrics, default_gold_path
 from eval.retrieval.models import EXCLUDE_REASON_VOCABULARY, GoldLabel, RetrievalIntent
 from eval.retrieval.scope_resolver import is_gate_eligible
 
@@ -25,13 +26,25 @@ GOLD_EXCLUSIONS_PATH = (
     REPO_ROOT / "eval" / "retrieval" / "gold" / "gold_exclusions.yaml"
 )
 KPI_MAP_PATH = REPO_ROOT / "eval" / "retrieval" / "gold" / "kpi_claim_intent_map.yaml"
+ELDER_CARE_GOLD_PATH = default_gold_path("elder_care")
+CLEARSULTING_GOLD_PATH = default_gold_path("clearsulting")
 
-LAUNCH_EXCLUDED_KPI = frozenset(
+ELDER_CARE_LAUNCH_EXCLUDED_KPI = frozenset(
     {
         "kpi.retrieve_healthcare_labor_market",
+        "kpi.retrieve_bill_rates_and_margins",
+        "kpi.retrieve_headcount_attrition",
+        "kpi.retrieve_pipeline_backlog",
     }
 )
 BENCH_AND_CAPACITY = "kpi.retrieve_bench_and_capacity"
+RESTORED_NO_CITATION_KPI = frozenset(
+    {
+        "kpi.retrieve_bill_rates_and_margins",
+        "kpi.retrieve_headcount_attrition",
+        "kpi.retrieve_pipeline_backlog",
+    }
+)
 
 
 class MockSpark:
@@ -69,6 +82,47 @@ def _sample_intent(intent_id: str) -> RetrievalIntent:
             "invocation_path": "direct",
         }
     )
+
+
+def _claim_resolved_kpi_for_company(gold_path: Path) -> set[str]:
+    """KPI intents this company's committed gold treats as claim-resolved (not excluded)."""
+    labels = load_gold_labels(gold_path)
+    return {
+        label.intent_id
+        for label in labels
+        if label.intent_id.startswith("kpi.")
+        and not label.aggregate_exclude
+        and label.gold_status in {"ready", "partial"}
+    }
+
+
+def _assert_per_company_exclusion_invariant(
+    *,
+    exclusions_path: Path,
+    company_slug: str,
+    gold_path: Path,
+    launch_excluded_kpi: frozenset[str] | None = None,
+) -> None:
+    exclusions = load_gold_exclusions(exclusions_path, company_slug=company_slug)
+    excluded_kpi = {
+        intent_id for intent_id in exclusions if intent_id.startswith("kpi.")
+    }
+    claim_resolved = _claim_resolved_kpi_for_company(gold_path)
+    assert excluded_kpi.isdisjoint(claim_resolved), (
+        f"{company_slug}: excluded KPI intents overlap claim-resolved gold rows: "
+        f"{sorted(excluded_kpi & claim_resolved)}"
+    )
+    if launch_excluded_kpi is not None:
+        _, intent_block = load_kpi_claim_intent_map(KPI_MAP_PATH)
+        unmappable_kpi = {
+            intent_id
+            for intent_id, meta in intent_block.items()
+            if isinstance(meta, dict) and meta.get("role") == "unmappable"
+        }
+        assert excluded_kpi == launch_excluded_kpi
+        assert "kpi.retrieve_healthcare_labor_market" in excluded_kpi
+        assert unmappable_kpi <= {BENCH_AND_CAPACITY, "kpi.retrieve_healthcare_labor_market"}
+        assert "kpi.retrieve_healthcare_labor_market" in unmappable_kpi
 
 
 def test_gold_label_aggregate_exclude_requires_exclude_reason():
@@ -118,30 +172,111 @@ def test_write_gold_labels_rejects_out_of_vocabulary_exclude_reason(tmp_path):
         write_gold_labels(tmp_path / "gold.yaml", [label])
 
 
-def test_gold_exclusions_population_is_two_intents():
-    exclusions = load_gold_exclusions(GOLD_EXCLUSIONS_PATH)
-    assert len(exclusions) == 2
+def test_load_gold_exclusions_requires_company_slug():
+    with pytest.raises(TypeError):
+        load_gold_exclusions(GOLD_EXCLUSIONS_PATH)  # type: ignore[call-arg]
+
+
+def test_unknown_company_returns_empty_exclusions():
+    assert load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="acme_corp") == {}
+
+
+def test_committed_exclusions_artifact_validates():
+    payload = yaml.safe_load(GOLD_EXCLUSIONS_PATH.read_text(encoding="utf-8"))
+    assert isinstance(payload.get("companies"), dict)
+    elder = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
+    assert len(elder) == 5
+    assert all(reason == "no_citation_source" for reason in elder.values())
+    assert load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="clearsulting") == {}
+
+
+def test_elder_care_exclusion_population_is_five_intents():
+    exclusions = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
+    assert len(exclusions) == 5
     assert "profiler.company_size_indicators" in exclusions
-    assert all(reason == "no_citation_source" for reason in exclusions.values())
+    assert RESTORED_NO_CITATION_KPI <= set(exclusions)
+
+
+def test_exclusions_are_company_scoped_and_do_not_leak_across_companies():
+    elder = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
+    pilot = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="clearsulting")
+    assert len(elder) == 5
+    assert pilot == {}
+    assert "kpi.retrieve_bill_rates_and_margins" in elder
+    assert "kpi.retrieve_bill_rates_and_margins" not in pilot
 
 
 def test_gold_exclusions_totality_and_disjointness():
+    _assert_per_company_exclusion_invariant(
+        exclusions_path=GOLD_EXCLUSIONS_PATH,
+        company_slug="elder_care",
+        gold_path=ELDER_CARE_GOLD_PATH,
+        launch_excluded_kpi=ELDER_CARE_LAUNCH_EXCLUDED_KPI,
+    )
+    _assert_per_company_exclusion_invariant(
+        exclusions_path=GOLD_EXCLUSIONS_PATH,
+        company_slug="clearsulting",
+        gold_path=CLEARSULTING_GOLD_PATH,
+    )
     claim_map, intent_block = load_kpi_claim_intent_map(KPI_MAP_PATH)
-    exclusions = load_gold_exclusions(GOLD_EXCLUSIONS_PATH)
     claim_mapped = set(claim_map.values())
-    excluded_kpi = {intent_id for intent_id in exclusions if intent_id.startswith("kpi.")}
-
-    unmappable_kpi = {
+    elder_excluded_kpi = {
         intent_id
-        for intent_id, meta in intent_block.items()
-        if isinstance(meta, dict) and meta.get("role") == "unmappable"
+        for intent_id in load_gold_exclusions(
+            GOLD_EXCLUSIONS_PATH, company_slug="elder_care"
+        )
+        if intent_id.startswith("kpi.")
     }
-
-    assert excluded_kpi == LAUNCH_EXCLUDED_KPI
-    assert excluded_kpi.isdisjoint(claim_mapped)
     assert BENCH_AND_CAPACITY in claim_mapped
-    assert BENCH_AND_CAPACITY not in exclusions
-    assert excluded_kpi == unmappable_kpi
+    assert BENCH_AND_CAPACITY in intent_block
+    assert not elder_excluded_kpi.isdisjoint(claim_mapped)
+
+
+def test_per_company_invariant_fails_on_within_company_contradiction(tmp_path):
+    payload = {
+        "companies": {
+            "elder_care": {
+                "excluded": [
+                    {
+                        "intent_id": "kpi.retrieve_healthcare_ops",
+                        "exclude_reason": "no_citation_source",
+                    }
+                ]
+            }
+        }
+    }
+    path = tmp_path / "gold_exclusions.yaml"
+    path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    with pytest.raises(AssertionError, match="overlap claim-resolved"):
+        _assert_per_company_exclusion_invariant(
+            exclusions_path=path,
+            company_slug="elder_care",
+            gold_path=ELDER_CARE_GOLD_PATH,
+        )
+
+
+def test_clearsulting_claim_targets_do_not_shrink_elder_care_exclusions():
+    elder = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
+    assert RESTORED_NO_CITATION_KPI <= set(elder)
+    claim_map, _ = load_kpi_claim_intent_map(KPI_MAP_PATH)
+    for intent_id in RESTORED_NO_CITATION_KPI:
+        assert intent_id in set(claim_map.values())
+
+
+def test_restored_elder_care_rows_still_skip_metrics():
+    labels = {
+        row.intent_id: row
+        for row in load_gold_labels(ELDER_CARE_GOLD_PATH)
+        if row.intent_id in RESTORED_NO_CITATION_KPI
+    }
+    for intent_id in RESTORED_NO_CITATION_KPI:
+        label = labels[intent_id]
+        assert label.aggregate_exclude is True
+        assert label.exclude_reason == "no_citation_source"
+        assert label.gold_status == "bootstrap_failed"
+        assert label.positive_chunk_ids == []
+        result = compute_metrics(_sample_intent(intent_id), label, SimpleNamespace(chunks=[]))
+        assert result.eval_status == "skipped_bootstrap_failed"
 
 
 def test_bootstrap_short_circuits_excluded_intent():
@@ -201,15 +336,19 @@ def test_bootstrap_exclusion_does_not_query_analysis_tables():
 
 def test_load_gold_exclusions_custom_path(tmp_path):
     payload = {
-        "excluded": [
-            {
-                "intent_id": "profiler.company_size_indicators",
-                "exclude_reason": "no_citation_source",
+        "companies": {
+            "elder_care": {
+                "excluded": [
+                    {
+                        "intent_id": "profiler.company_size_indicators",
+                        "exclude_reason": "no_citation_source",
+                    }
+                ]
             }
-        ]
+        }
     }
     path = tmp_path / "gold_exclusions.yaml"
     path.write_text(yaml.safe_dump(payload), encoding="utf-8")
-    assert load_gold_exclusions(path) == {
+    assert load_gold_exclusions(path, company_slug="elder_care") == {
         "profiler.company_size_indicators": "no_citation_source"
     }

@@ -1,9 +1,18 @@
-# Aggregate-exclusion population (Contract T3-b) — machinery only; gold refresh is T4.
-# Launch population: profiler (no analysis table) + zero-claim KPI intents (§5.2 item 3).
-# Clearsulting claim mappings (RB-DEFECT-T9-1 / Option A, 2026-08-14) removed bill_rates,
-# headcount_attrition, and pipeline_backlog from exclusion — they now have live claim targets.
-excluded:
-  - intent_id: profiler.company_size_indicators
-    exclude_reason: no_citation_source
-  - intent_id: kpi.retrieve_healthcare_labor_market
-    exclude_reason: no_citation_source
+# Aggregate-exclusion population (Contract T3-b / T13) — company-scoped machinery.
+# Launch population: profiler (no analysis table) + zero-claim / no_citation_source KPI intents.
+# Clearsulting claim mappings (RB-DEFECT-T9-1) live in kpi_claim_intent_map.yaml; Clearsulting block is empty.
+companies:
+  elder_care:
+    excluded:
+      - intent_id: profiler.company_size_indicators
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_healthcare_labor_market
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_bill_rates_and_margins
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_headcount_attrition
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_pipeline_backlog
+        exclude_reason: no_citation_source
+  clearsulting:
+    excluded: []
