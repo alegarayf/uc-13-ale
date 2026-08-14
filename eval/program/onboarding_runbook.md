@@ -61,6 +61,8 @@ Gold bootstrap requires an active Databricks `SparkSession` (after ingestion reb
 
 #### Cluster execution (serverless)
 
+**Option C caveat:** `.dev/onboarding_cluster_submit.py` lives under the gitignored `.dev/` tree (charter Option C). It is force-added in this repo so the runbook resolves at HEAD; if the helper is moved or the force-add is dropped, re-verify the path before walking Step 3 — an auditor cannot read a binding artifact that is not tracked.
+
 **Operator path when no local Spark** (typical laptop workflow): submit via `.dev/onboarding_cluster_submit.py`. Full recipe: **Onboarding cluster steps** in `.dev/agent-databricks-recipes.md`.
 
 The helper:
@@ -202,6 +204,7 @@ def evaluate_promotion(
 2. **First-bootstrap path:** When all required arguments *are* available and no prior E2E baseline exists for `(e2e_agent_id, company_name, catalog)`, expect `PromotionResult.status == "baseline_bootstrap"`.
 3. **Non–Elder Care deferral:** Per-company golden checklists and full agent matrices are not assumed at onboarding time. Missing score provenance is an onboarding shortfall — not a reason to reuse Elder Care scores.
 4. **Eval-debt instead of invented values:** When `candidate_score` / `candidate_total` or a pipeline `run_id` cannot be supplied, open an eval-debt row (step 7) with `closes_when` naming the missing artifact. Cite registry row `OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg` for the general pattern on non–Elder Care companies.
+5. **Bloated-gold baseline label:** A promoted baseline whose gold carries bloated `filename_closure` intents (positive sets so large that max recall@10 is not interpretable per intent) must be labeled at promotion time — registry row, operator disposition signoff, and runbook cross-reference — so aggregate recall is not read as per-intent meaningful; see `GAP-M4-1-clearsulting-bloated-filename-closure` and `signoffs/T11-clearsulting-bloated-gold-disposition.md`.
 
 #### Example invocation (only when checklist + pipeline run exist)
 

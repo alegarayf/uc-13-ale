@@ -137,3 +137,82 @@ def test_kpi_pdf_branch_intent_degrades_to_bootstrap_failed_when_no_citation_res
     assert "pdf_branch_unresolved" in label.notes
     assert "bench_note" in label.notes
     assert "utilization_by_segment — leadership/sales-focused <50%" in label.notes
+
+
+def test_kpi_pdf_branch_over_broad_section_pattern_resolves_exact_chunk_ids():
+    """F-05: Overview matches multiple headers; page narrowing must pin exact positives."""
+    spark = MockSpark(
+        {
+            "COUNT(*) AS chunk_count": [{"chunk_count": 12000}],
+            "analysis.kpi": [
+                {
+                    "citations": _kpi_citations_json(
+                        [
+                            (
+                                "Clearsulting Diligence Report_vF.pdf",
+                                "Section: Overview, Page 14",
+                                "gross_margin_by_segment — Overall Recast Historical",
+                            ),
+                        ]
+                    ),
+                    "created_at": "2026-07-28T00:00:00Z",
+                }
+            ],
+            "page_start = 14 AND section_header ILIKE '%Overview%'": [
+                {"chunk_id": "overview_p14_a"},
+                {"chunk_id": "overview_p14_b"},
+            ],
+            "page_start = 14": [
+                {"chunk_id": "overview_p14_a"},
+                {"chunk_id": "overview_p14_b"},
+            ],
+            "section_header ILIKE '%Overview%'": [
+                {"chunk_id": "overview_p14_a"},
+                {"chunk_id": "overview_p14_b"},
+                {"chunk_id": "overview_p99_unrelated"},
+            ],
+        }
+    )
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
+    intent = _sample_intent("kpi.retrieve_bill_rates_and_margins", agent_id="kpi")
+    label = bootstrap.bootstrap([intent])[0]
+    assert label.positive_chunk_ids == ["overview_p14_a", "overview_p14_b"]
+    assert "overview_p99_unrelated" not in label.positive_chunk_ids
+
+
+def test_kpi_pdf_branch_no_page_location_is_document_scoped_not_page_scoped():
+    """F-05: Section-only citation must not add page_start narrowing to the chunk query."""
+    spark = MockSpark(
+        {
+            "COUNT(*) AS chunk_count": [{"chunk_count": 12000}],
+            "analysis.kpi": [
+                {
+                    "citations": _kpi_citations_json(
+                        [
+                            (
+                                "Clearsulting Diligence Report_vF.pdf",
+                                "Section: Employee Analysis",
+                                "gross_margin_by_segment — Overall Recast Historical",
+                            ),
+                        ]
+                    ),
+                    "created_at": "2026-07-28T00:00:00Z",
+                }
+            ],
+            "section_header ILIKE '%Employee Analysis%'": [
+                {"chunk_id": "employee_doc_a"},
+                {"chunk_id": "employee_doc_b"},
+            ],
+        }
+    )
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
+    intent = _sample_intent("kpi.retrieve_bill_rates_and_margins", agent_id="kpi")
+    label = bootstrap.bootstrap([intent])[0]
+    assert label.positive_chunk_ids == ["employee_doc_a", "employee_doc_b"]
+    pdf_queries = [
+        query
+        for query in spark.queries
+        if "section_header ILIKE '%Employee Analysis%'" in " ".join(query.split())
+    ]
+    assert pdf_queries, "expected a section-scoped KPI PDF query"
+    assert all("page_start" not in query for query in pdf_queries)

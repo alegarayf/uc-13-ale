@@ -84,6 +84,31 @@ def test_open_rejects_high_water_mark_exceeded(tmp_path: Path) -> None:
         )
 
 
+def test_close_debt_preserves_committed_id_set(tmp_path: Path) -> None:
+    """F-08: closing a row must not shrink the ledger's id set (no deletion-as-closure)."""
+    ledger = _seed_ledger(tmp_path, hwm=2)
+    first = open_debt(
+        ledger,
+        company="Clearsulting",
+        surface="legal_register",
+        kind="gold_bootstrap",
+        closes_when="legal_register attested",
+    )
+    second = open_debt(
+        ledger,
+        company="Clearsulting",
+        surface="null",
+        kind="promotion_inputs",
+        closes_when="pipeline run_id recorded",
+    )
+    ids_before = {row.id for row in load_debts(ledger)}
+    close_debt(ledger, debt_id=first.id, closed_evidence_refs=["registry:UGA-1"])
+    ids_after = {row.id for row in load_debts(ledger)}
+    assert ids_before <= ids_after
+    assert ids_after == ids_before
+    assert second.id in ids_after
+
+
 def test_close_records_state_without_deleting_row(tmp_path: Path) -> None:
     ledger = _seed_ledger(tmp_path, hwm=1)
     opened = open_debt(

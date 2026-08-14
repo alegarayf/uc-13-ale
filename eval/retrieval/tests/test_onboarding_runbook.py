@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import shlex
 from pathlib import Path
@@ -17,6 +18,7 @@ from eval.retrieval.trust_statement import build_parser as build_trust_statement
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _RUNBOOK = _REPO_ROOT / "eval" / "program" / "onboarding_runbook.md"
+_CLUSTER_SUBMIT = _REPO_ROOT / ".dev" / "onboarding_cluster_submit.py"
 
 _MODULE_PARSERS = {
     "eval.retrieval.gold.bootstrap": build_bootstrap_parser,
@@ -43,6 +45,8 @@ _PLACEHOLDER_SUBSTITUTIONS = (
     ("<condition>", "per-company legal golden checklist scored"),
 )
 
+_CLUSTER_SUBMIT_PREFIX = "python .dev/onboarding_cluster_submit.py"
+
 
 def _runbook_text() -> str:
     assert _RUNBOOK.is_file(), f"missing runbook: {_RUNBOOK}"
@@ -56,6 +60,17 @@ def _extract_bash_commands(text: str) -> list[str]:
         for line in block.splitlines():
             stripped = line.strip()
             if stripped.startswith("python -m eval.retrieval."):
+                commands.append(stripped)
+    return commands
+
+
+def _extract_cluster_submit_commands(text: str) -> list[str]:
+    blocks = re.findall(r"```bash\n(.*?)```", text, flags=re.DOTALL)
+    commands: list[str] = []
+    for block in blocks:
+        for line in block.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(_CLUSTER_SUBMIT_PREFIX):
                 commands.append(stripped)
     return commands
 
@@ -78,6 +93,28 @@ def _parse_runbook_command(command: str) -> None:
     parser_factory().parse_args(argv)
 
 
+def _cluster_submit_parser_factory():
+    assert _CLUSTER_SUBMIT.is_file(), f"missing cluster helper: {_CLUSTER_SUBMIT}"
+    spec = importlib.util.spec_from_file_location(
+        "onboarding_cluster_submit",
+        _CLUSTER_SUBMIT,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.build_parser
+
+
+def _parse_cluster_submit_command(command: str) -> None:
+    normalized = _substitute_placeholders(command)
+    tokens = shlex.split(normalized, posix=False)
+    assert tokens[:2] == ["python", ".dev/onboarding_cluster_submit.py"], (
+        f"expected cluster submit prefix: {command!r}"
+    )
+    argv = tokens[2:]
+    _cluster_submit_parser_factory()().parse_args(argv)
+
+
 def test_runbook_commands_match_cli_surface() -> None:
     commands = _extract_bash_commands(_runbook_text())
     assert commands, "runbook must contain at least one bash CLI block"
@@ -97,12 +134,24 @@ def test_runbook_names_program_registry_hub() -> None:
     assert "intent registry" in text.lower()
 
 
+def test_runbook_cluster_submit_commands_parse() -> None:
+    commands = _extract_cluster_submit_commands(_runbook_text())
+    assert len(commands) >= 2, "runbook must document bootstrap and harness-baseline cluster paths"
+    subcommands = {
+        shlex.split(_substitute_placeholders(command), posix=False)[2]
+        for command in commands
+    }
+    assert "bootstrap" in subcommands
+    assert "harness-baseline" in subcommands
+    for command in commands:
+        _parse_cluster_submit_command(command)
+
+
 def test_runbook_documents_serverless_cluster_path() -> None:
     text = _runbook_text()
     assert ".dev/onboarding_cluster_submit.py" in text
     assert "Cluster execution (serverless)" in text
-    assert "bootstrap" in text
-    assert "harness-baseline" in text
+    assert "Option C caveat" in text
     assert ".dev/agent-databricks-recipes.md" in text
     assert "pyyaml" in text
     assert "pydantic>=2.0" in text

@@ -405,6 +405,15 @@ def _default_not_attested_row(company: str, layer: str, surface: str | None) -> 
     )
 
 
+def display_name_from_company_slug(slug: str) -> str:
+    """Inverse display label for a canonical slug (paired with ``canonical_company_slug``).
+
+    Valid only when ``canonical_company_slug(display_name_from_company_slug(slug)) == slug``.
+    Callers must keep slugs on the write path folded via ``canonical_company_slug`` (§2.2).
+    """
+    return slug.replace("_", " ").title()
+
+
 def merge_exemption_companies_into_domain(
     domain: list[CompanyDomainRow],
     exemptions: list[IntentExemption],
@@ -422,7 +431,7 @@ def merge_exemption_companies_into_domain(
             CompanyDomainRow(
                 company=exemption.company,
                 catalog=catalog,
-                display_name=exemption.company.replace("_", " ").title(),
+                display_name=display_name_from_company_slug(exemption.company),
             )
         )
     return merged

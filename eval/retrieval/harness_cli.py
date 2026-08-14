@@ -118,7 +118,11 @@ def main(argv: list[str] | None = None) -> int:
             close = getattr(store, "close", None)
             if callable(close):
                 close()
-        print(report.manifest.run_id)
+        slug = canonical_company_slug(args.company_name)
+        print(
+            f"harness_cli: run_id={report.manifest.run_id} "
+            f"company={slug} catalog={args.catalog}"
+        )
         return 0
 
     if args.command == "validate-baseline":
@@ -144,7 +148,10 @@ def main(argv: list[str] | None = None) -> int:
             close = getattr(store, "close", None)
             if callable(close):
                 close()
-        print("baseline_ref validation passed")
+        print(
+            f"harness_cli: baseline_ref validation passed "
+            f"company={company_slug} catalog={args.catalog}"
+        )
         return 0
 
     parser.error(f"unknown command: {args.command}")
