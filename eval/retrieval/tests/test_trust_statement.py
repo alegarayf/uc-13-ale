@@ -153,6 +153,67 @@ def test_non_ingest_layers_default_to_no_completed_run() -> None:
     assert all(r.rung is None for r in others)
 
 
+def test_validate_row_rejects_method_outside_ingest_completeness() -> None:
+    row = TrustStatementRow(
+        company="elder_care",
+        layer="retrieval",
+        surface=None,
+        attestation="not_attested",
+        reason="no_completed_run",
+        method="sql_chunk_count",
+        rung=None,
+    )
+    with pytest.raises(
+        TrustStatementGenerationError,
+        match="method must be null outside ingest_completeness",
+    ):
+        validate_row(row)
+
+
+def test_validate_row_rejects_rung_outside_content_correctness_on_attested() -> None:
+    row = TrustStatementRow(
+        company="elder_care",
+        layer="retrieval",
+        surface=None,
+        attestation="attested",
+        reason=None,
+        method=None,
+        rung="deterministic",
+    )
+    with pytest.raises(
+        TrustStatementGenerationError,
+        match="rung must be null outside content_correctness",
+    ):
+        validate_row(row)
+
+
+def test_validate_row_accepts_method_on_ingest_completeness() -> None:
+    row = TrustStatementRow(
+        company="elder_care",
+        layer="ingest_completeness",
+        surface=None,
+        attestation="not_attested",
+        reason="probe_unavailable",
+        method="sql_chunk_count",
+        rung=None,
+    )
+    validate_row(row)
+
+
+def test_validate_row_accepts_rung_on_content_correctness() -> None:
+    row = TrustStatementRow(
+        company="elder_care",
+        layer=LAYER_CONTENT_CORRECTNESS,
+        surface="exec_summary",
+        content_surface="exec_summary",
+        attestation="attested",
+        reason=None,
+        method=None,
+        rung="human",
+    )
+    validate_row(row)
+
+
 def test_validate_row_rejects_reasonless_not_attested() -> None:
     row = TrustStatementRow(
         company="elder_care",
