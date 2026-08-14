@@ -285,6 +285,9 @@ def load_gold_exclusions(
         raise PreconditionError(
             "company_slug is required for load_gold_exclusions"
         )
+    from eval.retrieval.companies import require_folded_company_slug
+
+    require_folded_company_slug(company_slug)
     slug = str(company_slug).strip()
     payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):

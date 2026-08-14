@@ -9,8 +9,10 @@ from eval.retrieval.companies import (
     DEFAULT_COMPANY_SLUG,
     UnnormalizableCompanySlugError,
     canonical_company_slug,
+    require_folded_company_slug,
     resolve_company_slug,
 )
+from eval.retrieval.errors import PreconditionError
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _VECTORS_PATH = _REPO_ROOT / ".dev" / "eval-program" / "company_slug_vectors.yaml"
@@ -63,3 +65,18 @@ def test_resolve_company_slug_delegates_to_canonical_fold() -> None:
 def test_hyphen_slug_form_is_not_produced_for_elder_care() -> None:
     assert canonical_company_slug("Elder Care") == "elder_care"
     assert canonical_company_slug("Elder Care") != "elder-care"
+
+
+@pytest.mark.parametrize("slug", ["elder_care", "clearsulting", "acme_corp"])
+def test_require_folded_company_slug_accepts_folded_slug(slug: str) -> None:
+    assert require_folded_company_slug(slug) == slug
+
+
+def test_require_folded_company_slug_rejects_display_name() -> None:
+    with pytest.raises(PreconditionError, match="company_slug must be canonical"):
+        require_folded_company_slug("Elder Care")
+
+
+def test_require_folded_company_slug_rejects_empty() -> None:
+    with pytest.raises(PreconditionError, match="company_slug must be canonical"):
+        require_folded_company_slug("")

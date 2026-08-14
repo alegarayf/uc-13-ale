@@ -95,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run":
         try:
             harness = EvalHarness(**_run_harness_kwargs(args))
+            slug = canonical_company_slug(args.company_name)
         except (PreconditionError, ValueError) as exc:
             print(f"[harness_cli] ERROR: {exc}", file=sys.stderr)
             return 1
@@ -118,7 +119,6 @@ def main(argv: list[str] | None = None) -> int:
             close = getattr(store, "close", None)
             if callable(close):
                 close()
-        slug = canonical_company_slug(args.company_name)
         print(
             f"harness_cli: run_id={report.manifest.run_id} "
             f"company={slug} catalog={args.catalog}"

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from eval.retrieval.companies import require_folded_company_slug
 from eval.retrieval.errors import (
     BaselineInvalidError,
     CoverageError,
@@ -94,6 +95,7 @@ def default_registry_path() -> Path:
 
 
 def default_gold_path(company_slug: str) -> Path:
+    require_folded_company_slug(company_slug)
     return _repo_root() / "eval" / "retrieval" / "gold_labels" / f"{company_slug}.yaml"
 
 
