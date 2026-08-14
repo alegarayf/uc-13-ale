@@ -11,7 +11,7 @@ import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SAMPLES_DIR = REPO_ROOT / ".dev" / "eval-program"
+SAMPLES_DIR = REPO_ROOT / "eval" / "content" / "calibration_samples"
 REGISTRY_PATH = REPO_ROOT / "eval" / "program" / "registry.yaml"
 SAMPLE_GLOB = "calibration_sample_*.yaml"
 
@@ -459,8 +459,8 @@ def test_committed_calibration_samples_pass_schema(committed_sample_paths):
 def test_sample_presence_half(registry_doc):
     if not any(SAMPLES_DIR.glob(SAMPLE_GLOB)):
         pytest.skip(
-            f"no {SAMPLE_GLOB} under {SAMPLES_DIR} — operator-local calibration samples; "
-            "presence half runs when samples exist (tracked or .dev/eval-program/)"
+            f"no {SAMPLE_GLOB} under {SAMPLES_DIR} — "
+            "presence half runs when calibration samples exist"
         )
     population = derive_judge_human_surfaces(registry_doc)
     if not population:

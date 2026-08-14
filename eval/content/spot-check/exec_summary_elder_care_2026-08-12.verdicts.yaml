@@ -1,0 +1,189 @@
+# FINAL — operator-reconciled adjudication for T5 exec_summary spot-check (2026-08-12).
+# Reconciles .dev/eval-program/spot-check/exec_summary_elder_care_2026-08-12.review_queue.md
+# "Operator's review and notes" against draft_audit.json, applying the adjudication philosophy
+# from the D1 brief plus a targeted Databricks investigation of uc13_ale.analysis.* tables
+# (see exec_summary_elder_care_2026-08-12.failure_modes.md §0 for the full method note).
+#
+# KEY FINDING (read before approving): the exec_summary's claims are generated from
+# uc13_ale.analysis.diligence_report (executive_summary, section_ratings_json,
+# section_confidence_json, top_10_issues_json, reconciliation_summary_json) and the per-workstream
+# analysis tables (business_model, kpi, financial_trends, quality_of_earnings, forecast) — NOT from
+# the VDR document chunk index (uc13_ale.ingestion.chunks/embeddings) that the T5 spot-check tool's
+# retrieval targets. Every one of these structured tables carries its own source_doc/source_location
+# citations back to VDR files, so they are valid independent evidence, not a restatement of the
+# claim. Checking claims against them (instead of only chunk-level RAG) flips the large majority of
+# "unsupported" drafts to "supported" with exact-number matches. One claim (026) is newly caught as
+# a genuine internal miscount and reclassified contradicted. Full per-claim deltas and citations are
+# in the review notes below; see failure_modes.md for the retrieval-architecture root cause and
+# M3 backlog implications.
+#
+# Tally: supported 50, unsupported 1 (027, mandatory-flag calibration probe),
+# contradicted 2 (026 -- newly caught internal miscount; 028 -- mandatory-flag calibration probe).
+# Draft tally was: supported 22, unsupported 30, contradicted 1.
+
+schema_version: 1
+surface: exec_summary
+company: Elder Care
+operator_id: ale
+adjudicated_at: '2026-08-13T12:19:00+00:00'
+status: operator_approved
+claims:
+- claim_id: exec.claim.001
+  verdict: supported
+  rationale: "OVERTURNED (draft: supported/medium, operator asked whether the '6' was a hallucinated count). uc13_ale.analysis.business_model.customer_operational_metrics_json.by_location lists exactly six distinct locations as of Q4-24E (Long Island, New York, Westchester, Massachusetts/Guided Living, New Jersey/Unicity, Connecticut) -- an exact match to the claimed 'six locations'. Not a hallucination; the count is grounded in the business_model workstream table, just absent from the CIM chunk the RAG tool retrieved. Basis: analysis table (business_model.customer_operational_metrics_json) + CIM p.5 chunk (621e400f) for the qualitative description."
+- claim_id: exec.claim.002
+  verdict: supported
+  rationale: "Operator confirmed: substantiated by data even though not verbatim. KPI billing-log chunks (e.g. caeba4fd) show per-caregiver Bill Rate x Billed Hours records consistent with hourly private-pay billing. Basis: retrieved data, valid inference."
+- claim_id: exec.claim.003
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- compared against an unrelated CIM 'Clients Served: 1,186' aggregate on a different date basis). uc13_ale.analysis.kpi.healthcare_kpis_json.census_or_patient_panel gives weekly Company Total Clients for Q2 2025 (343, 350, 350, 355, 361) with a QTD average of 351.8 -- rounds to the claimed 'approximately 352 active clients as of Q2 2025', an exact match once the correct structured KPI table is consulted instead of the CIM narrative chunk. Basis: analysis table (kpi.healthcare_kpis_json), source_doc Company KPI Dashboard SAMPLE.xlsx."
+- claim_id: exec.claim.004
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- compared against an unrelated CIM 'Active Caregivers: 1,888' aggregate). uc13_ale.analysis.kpi.healthcare_kpis_json.caregiver_headcount states verbatim 'All Markets Total Caregivers: 2,123 (as of 4/21/25)' -- exact match to the claimed 2,123 caregivers as of Q2 2025. Basis: analysis table (kpi.healthcare_kpis_json), exact numeric match."
+- claim_id: exec.claim.005
+  verdict: supported
+  rationale: "Batch-approved, unchanged. CIM p.18 'Corporate Functions' (chunk ffdfd9cb) names both Guided Living and Unicity."
+- claim_id: exec.claim.006
+  verdict: supported
+  rationale: "Batch-approved, unchanged. CIM p.41 confirms October 2023 Connecticut market entry."
+- claim_id: exec.claim.007
+  verdict: supported
+  rationale: "OVERTURNED confidence (draft: supported/medium, off by a 'location subtotal' the agent couldn't reconcile). uc13_ale.analysis.financial_trends.revenue_trend_json 'Historical P&L Summary' row states Pro Forma Adjusted Revenue of $46,423K (46.4M) for TTM Aug-24 -- exact match once the correct structured table (vs. the CIM location-subtotal chunk, $44.7M) is consulted; the claim's own text even cites 'per the Historical P&L Summary workstream', which is this table. Basis: analysis table (financial_trends.revenue_trend_json)."
+- claim_id: exec.claim.008
+  verdict: supported
+  rationale: "Confidence raised to high (was medium, chunk-boundary truncation). uc13_ale.analysis.financial_trends.revenue_trend_json confirms both endpoints exactly: 2020A = 8,955, TTM Aug-24 = 46,423 (Historical P&L Summary row). The RAG chunk truncation noted by the operator was purely a retrieval artifact -- the source table itself is complete. Root-cause note carried to failure_modes.md (chunk_truncation bucket)."
+- claim_id: exec.claim.009
+  verdict: supported
+  rationale: "Confidence raised to high. uc13_ale.analysis.financial_trends.ebitda_json 'Diligence Adjusted Income Statement' row confirms Pro Forma Adjusted EBITDA of $9,239K / 19.9% margin for TTM Aug-24 exactly, resolving the truncated-excerpt gap the operator flagged."
+- claim_id: exec.claim.010
+  verdict: supported
+  rationale: "Confidence raised to high. uc13_ale.analysis.financial_trends.ebitda_json confirms Reported EBITDA margin of 7.9% for TTM Aug-24; diligence_report.top_10_issues_json rank 1 independently states the same figure against the same '~10% healthcare services threshold' benchmark verbatim."
+- claim_id: exec.claim.011
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- RAG retrieved unrelated tax-return Schedule M-2 chunks). uc13_ale.analysis.diligence_report.top_10_issues_json rank 1 states verbatim '17 discrete Tier 4 items totaling ~$7.3M'; quality_of_earnings.tier4_addback_count = 17 independently confirms the count. Basis: analysis tables, not VDR chunk RAG (root cause: retrieval index does not cover the analysis-pipeline's own structured output -- see failure_modes.md)."
+- claim_id: exec.claim.012
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). uc13_ale.analysis.financial_trends.addback_pct_of_ebitda = 246.9, and diligence_report.top_10_issues_json rank 1 states 'approximately 247% of reported EBITDA' verbatim. Basis: analysis table, exact numeric match."
+- claim_id: exec.claim.013
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- no VDR chunk discussed the classification rationale). uc13_ale.analysis.quality_of_earnings.addback_ledger_json: all 17 items carry tier_classification='Tier 4' with tier_rationale text stating '...per absolute rule, any addback without a supporting_doc_referenced must be classified Tier 4' -- a verbatim mechanism match to the claim. Basis: analysis table (quality_of_earnings.addback_ledger_json)."
+- claim_id: exec.claim.014
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). uc13_ale.analysis.quality_of_earnings.addback_ledger_json item [G] 'Run-rate executive compensation' = $2,490 exactly. Basis: analysis table, exact numeric match."
+- claim_id: exec.claim.015
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). addback_ledger_json item [K] 'Unicity pre-acquisition results' = $1,077 exactly. Basis: analysis table, exact numeric match."
+- claim_id: exec.claim.016
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). addback_ledger_json item [O] 'Unicity incremental earnings from synergies' = $909 exactly. Basis: analysis table, exact numeric match."
+- claim_id: exec.claim.017
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- RAG retrieved unrelated bank-reconciliation PDFs). uc13_ale.analysis.diligence_report.reconciliation_summary_json = {match: 0, mismatch: 1, cannot_check: 9} -- an exact match to 'one mismatch and ... unable to verify nine items.' Basis: analysis table, exact match."
+- claim_id: exec.claim.018
+  verdict: supported
+  rationale: "Confidence raised to high. uc13_ale.analysis.forecast.forecast_assumptions_json states verbatim 'Management projects revenue growing from $47.2M (2024E) to $197.8M (2029P)'; 197.8/47.2 = 4.19x, confirming the '4.2x increase' math."
+- claim_id: exec.claim.019
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low; operator: 'if by some logic it attributes the red label then it's ok as long as the rationale checks out'). uc13_ale.analysis.diligence_report.section_ratings_json.forecast = 'Red' -- a real source-table rating, not a hallucinated label. forecast.credibility_summary_json shows 5 of 15 assumptions rated 'Stretch' (beyond the historical envelope; stretch_assumption_count=5), which is the substantiated basis for 'aggressive assumptions'. This is exactly the 'valid agent-derived rationale that follows exec-summary instructions' case in the adjudication philosophy. Basis: analysis tables (diligence_report.section_ratings_json, forecast.credibility_summary_json)."
+- claim_id: exec.claim.020
+  verdict: supported
+  rationale: "Batch-approved, unchanged. Diligence workbook Q&A states the NYSDOH citation verbatim."
+- claim_id: exec.claim.021
+  verdict: supported
+  rationale: "Unchanged verdict, confidence corroborated. diligence_report.top_10_issues_json rank 3 poses the same open question ('has the company provided written DOH confirmation of closure'), confirming this is a real, source-grounded open item rather than an unprovable negative-inference guess."
+- claim_id: exec.claim.022
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- no chunk had explicit OIG/SAM language). uc13_ale.analysis.kpi.healthcare_kpis_json.compliance_incidents item 3 has status='open': 'Diligence request item 4 ... list of ... persons excluded from Medicare ... is listed as Open.' diligence_report.top_10_issues_json rank 4 states the same open item verbatim. Basis: analysis table, exact match."
+- claim_id: exec.claim.023
+  verdict: supported
+  rationale: "Batch-approved, unchanged. Retainer-agreement document itself confirms outside counsel retention."
+- claim_id: exec.claim.024
+  verdict: supported
+  rationale: "Batch-approved, unchanged. Manhattan_Lease_0424.pdf Section 11 is the anti-assignment covenant itself."
+- claim_id: exec.claim.025
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low; operator suspected this was agent self-assessment, not documentation). uc13_ale.analysis.diligence_report.section_confidence_json shows all seven workstreams rated 'Medium' -- an exact match to 'Overall analytical confidence across all seven workstreams is rated Medium.' This IS documented in the analysis pipeline's own structured output, not an ungrounded self-assessment. Basis: analysis table, exact match."
+- claim_id: exec.claim.026
+  verdict: contradicted
+  rationale: "OVERTURNED (draft: unsupported/low; operator: 'same as claim 19'). uc13_ale.analysis.diligence_report.section_ratings_json shows ALL SEVEN workstreams carry a Red or Yellow rating (business_model=Yellow, financial_trends=Red, customer_quality=Yellow, kpi=Red, legal_contracts=Red, quality_of_earnings=Red, forecast=Red) -- zero are Green. The claim's specific count of 'five of seven ... carry at least one Red or Yellow rating' is directly contradicted by the source table; the correct figure is seven of seven. This is consistent with claims 046+047, which correctly enumerate 5 Red + 2 Yellow = 7 total, and with the verbatim executive_summary text itself ('five of seven workstreams carry a Red rating ... with the remaining two rated Yellow') -- i.e. the exec_summary's OWN 'Confidence' section never actually makes the '5 of 7 Red-or-Yellow' claim; exec.claim.026 appears to be a claim-extraction misstatement of that sentence. Genuine numeric/internal-consistency catch, not a retrieval-fix target. Basis: analysis table (diligence_report.section_ratings_json), cross-checked against claims 046/047 and the verbatim executive_summary text."
+- claim_id: exec.claim.027
+  verdict: unsupported
+  rationale: "Unchanged (mandatory always-flagged calibration probe; agrees with M2 calibration operator verdict). Investigated: no analysis table (business_model, kpi) states Medicare/Medicaid certification status for any location; kpi.missing_kpis_json flags payor_mix as a data-room gap, which is adjacent but not the same fact. No chunk or structured-table trace exists either way."
+- claim_id: exec.claim.028
+  verdict: contradicted
+  rationale: "Unchanged verdict, evidence strengthened (mandatory always-flagged calibration probe; agrees with M2 calibration operator verdict). uc13_ale.analysis.quality_of_earnings.qofe_report_present = false, and every one of the 17 addback_ledger_json items carries a tier_rationale stating it lacks supporting documentation -- directly contradicting a claim that the QoE workstream 'validated every Tier 4 addback against audited standalone financials.' The Project Orange QoE engagement letter (chunk 62a944a5) independently corroborates: the QoE scope was to identify/analyze addbacks, not validate them."
+- claim_id: exec.claim.029
+  verdict: supported
+  rationale: "Batch-approved, unchanged. Client service agreements confirm the service lines."
+- claim_id: exec.claim.030
+  verdict: supported
+  rationale: "Batch-approved, unchanged. CIM p.22 MD&A states organic + acquisitive growth verbatim."
+- claim_id: exec.claim.031
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). uc13_ale.analysis.quality_of_earnings.ebitda_scenarios_json.reported_ebitda = 7718.0, i.e. ~$7.7M exactly; also cited verbatim in diligence_report.top_10_issues_json rank 1. Basis: analysis table, exact numeric match. Root cause is agent/retrieval architecture (correct figure lives in a structured field, not a VDR chunk), not an agent computation failure, per the operator's question."
+- claim_id: exec.claim.032
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). addback_ledger_json item [D] 'Cash-to-accrual revenue adjustment' = $665 exactly. Basis: analysis table, exact numeric match."
+- claim_id: exec.claim.033
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). addback_ledger_json item [N] 'Guided Living ramp-up/maturity adjustment' = $430 exactly. Basis: analysis table, exact numeric match."
+- claim_id: exec.claim.034
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). uc13_ale.analysis.diligence_report.top_10_issues_json rank 1 enumerates exactly five addbacks each exceeding 5% of the $7,718K reported EBITDA base: exec comp 32.3%, Unicity pre-acq 14.0%, Unicity synergies 11.8%, cash-to-accrual 8.6%, Guided Living ramp-up 5.6%; independently re-verified by dividing each addback_ledger_json dollar amount by ebitda_scenarios_json.reported_ebitda (all confirm to within rounding). Basis: analysis tables, independently recomputed."
+- claim_id: exec.claim.035
+  verdict: supported
+  rationale: "Confidence raised to high (was medium, inference-only). uc13_ale.analysis.diligence_report.top_10_issues_json rank 2 states near-verbatim that these pro-forma/pre-close addbacks were incorporated 'without audited standalone financials or demonstrated post-close performance' -- a direct source match, not just internal-consistency inference from the exec_summary's own text."
+- claim_id: exec.claim.036
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- treated as an unverifiable hypothetical). uc13_ale.analysis.diligence_report.top_10_issues_json rank 5 'why_it_matters' states near-verbatim: 'If the QofE process rejects even a portion of the Tier 4 addbacks, reported EBITDA could turn negative or near-zero, fundamentally altering the investment thesis, leverage profile, and valuation.' This is the report's own stated implication, not agent speculation. Basis: analysis table, near-verbatim match."
+- claim_id: exec.claim.037
+  verdict: supported
+  rationale: "Batch-approved, unchanged. CIM p.48 confirms organic growth drivers; CT de novo ramp confirmed via claim.006."
+- claim_id: exec.claim.038
+  verdict: supported
+  rationale: "Confidence raised to high (was low, 'generic/vague'). uc13_ale.analysis.diligence_report.top_10_issues_json contains explicit severity labels 'Critical' (5 issues) and 'Material' (4 issues) across multiple workstreams -- a verbatim match to 'critical and material issues' (which is itself the literal first sentence of the executive_summary's Top Risks section). Basis: analysis table, verbatim match."
+- claim_id: exec.claim.039
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- retrieval surfaced unrelated billing rows). uc13_ale.analysis.diligence_report.top_10_issues_json rank 3 poses exactly this open question: '...are there any related corrective action plans, consent orders, or ongoing monitoring obligations...' Basis: analysis table, exact match."
+- claim_id: exec.claim.040
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- retrieval surfaced unrelated Amex transaction rows). uc13_ale.analysis.diligence_report.top_10_issues_json rank 4 states the OIG/SAM exclusion screening and False Claims Act exposure verbatim. Basis: analysis table, exact match."
+- claim_id: exec.claim.041
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- treated as an unverifiable evaluative ranking). uc13_ale.analysis.diligence_report.top_10_issues_json rank 1 (severity 'Critical', workstreams quality_of_earnings + financial_trends) is literally the #1-ranked issue in the report's own structured output, with why_it_matters citing 'LOI price, leverage capacity, and deal structure' -- matching the claim almost verbatim, and matching the executive_summary's own verbatim sentence ('represents the single most consequential open item for price and structure'). The ranking is a real, source-table fact, not an ungrounded evaluative judgment. Basis: analysis table, verbatim + rank-order match."
+- claim_id: exec.claim.042
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- the relevant retainer-agreement chunk wasn't retrieved). uc13_ale.analysis.diligence_report.top_10_issues_json rank 6 why_it_matters: 'deteriorating cash conversion, payor disputes, or billing compliance issues that could impair working capital assumptions.' Basis: analysis table, exact match."
+- claim_id: exec.claim.043
+  verdict: supported
+  rationale: "Confidence raised to high (was low). uc13_ale.analysis.diligence_report.top_10_issues_json rank 7 states verbatim: 'Material customer contracts contain termination-for-convenience provisions; can the seller confirm whether any such contracts include change-of-control triggers...' Basis: analysis table, verbatim match."
+- claim_id: exec.claim.044
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- retrieval surfaced only individual 'Not Billable' status rows). uc13_ale.analysis.diligence_report.top_10_issues_json rank 8 states the exact same two-client decline figures ($205,830 and $62,902 total) as the claim. Basis: analysis table, exact numeric match."
+- claim_id: exec.claim.045
+  verdict: supported
+  rationale: "Confidence raised to high (was medium; 'unusual' characterization flagged as beyond raw fact). uc13_ale.analysis.diligence_report.top_10_issues_json rank 10 states verbatim: 'unusual indemnity provisions flagged across multiple contracts (Manhattan lease, Unicity Asset Purchase Agreement, Koeppel Rosen vendor agreement).' The 'unusual ... multiple contracts' characterization is the report's own stated finding, not an agent overclaim. Basis: analysis table, verbatim match."
+- claim_id: exec.claim.046
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). uc13_ale.analysis.diligence_report.section_ratings_json Red ratings are exactly: financial_trends, kpi, legal_contracts, quality_of_earnings, forecast -- an exact enumeration match to the claim's named five workstreams. Basis: analysis table, exact match."
+- claim_id: exec.claim.047
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low). section_ratings_json Yellow ratings are exactly: business_model, customer_quality -- an exact match. Basis: analysis table, exact match."
+- claim_id: exec.claim.048
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- treated as a forward-looking recommendation with no source-document fact). uc13_ale.analysis.diligence_report.top_10_issues_json rank 1 states this near-verbatim as the top-ranked issue ('can the seller provide audited or third-party-verified support for each of these items?'). Basis: analysis table, near-verbatim match."
+- claim_id: exec.claim.049
+  verdict: supported
+  rationale: "Confidence raised to high (was low). Combines diligence_report.top_10_issues_json rank 3 (DOH written confirmation) and rank 4 (OIG/SAM exclusion screening) into a single 'open item' framing; both are stated verbatim in the source. Basis: analysis table, verbatim match on both components."
+- claim_id: exec.claim.050
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- only topically-adjacent chunks retrieved). uc13_ale.analysis.diligence_report.top_10_issues_json rank 6 poses exactly this open item (aggregate amount and aging profile of receivables in collection). Basis: analysis table, exact match."
+- claim_id: exec.claim.051
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- only topically-adjacent chunks retrieved). uc13_ale.analysis.diligence_report.top_10_issues_json rank 7 poses exactly this open item (change-of-control triggers in material customer contracts). Basis: analysis table, exact match."
+- claim_id: exec.claim.052
+  verdict: supported
+  rationale: "Confidence raised to high (was low, 'generic diligence-tracker evidence'). uc13_ale.analysis.diligence_report.top_10_issues_json rank 9 states verbatim the company 'cannot produce location-level P&L or operational KPIs across its multi-site footprint,' naming Guided Living, Unicity, and ECHC among the entities needed to validate the EBITDA build-up. Basis: analysis table, verbatim match."
+- claim_id: exec.claim.053
+  verdict: supported
+  rationale: "OVERTURNED (draft: unsupported/low -- retrieval surfaced unrelated contractor-agreement boilerplate). uc13_ale.analysis.diligence_report.top_10_issues_json rank 10 states verbatim that outside counsel should confirm whether the Manhattan lease assignment restriction applies to a change-of-control transaction. Basis: analysis table, verbatim match."

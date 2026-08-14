@@ -12,7 +12,7 @@ REPO = Path(__file__).resolve().parents[3]
 RUBRIC = REPO / "eval/content/exec_summary_spot_check_rubric.md"
 EXEC_MANIFEST = REPO / "eval/content/exec_summary_rubric_claims.json"
 FTA_MANIFEST = REPO / "eval/content/fta_numeric_rubric_claims.json"
-SAMPLE = REPO / ".dev/eval-program/calibration_sample_exec_summary.yaml"
+SAMPLE = REPO / "eval/content/calibration_samples/calibration_sample_exec_summary.yaml"
 SOURCE_FIXTURE = REPO / "eval/content/fixtures/exec_summary_enumeration_source.md"
 SOURCE_META = REPO / "eval/content/fixtures/exec_summary_enumeration_source.meta.json"
 

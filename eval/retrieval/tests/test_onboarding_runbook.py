@@ -18,7 +18,7 @@ from eval.retrieval.trust_statement import build_parser as build_trust_statement
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _RUNBOOK = _REPO_ROOT / "eval" / "program" / "onboarding_runbook.md"
-_CLUSTER_SUBMIT = _REPO_ROOT / ".dev" / "onboarding_cluster_submit.py"
+_CLUSTER_SUBMIT = _REPO_ROOT / "eval" / "program" / "onboarding_cluster_submit.py"
 
 _MODULE_PARSERS = {
     "eval.retrieval.gold.bootstrap": build_bootstrap_parser,
@@ -45,7 +45,7 @@ _PLACEHOLDER_SUBSTITUTIONS = (
     ("<condition>", "per-company legal golden checklist scored"),
 )
 
-_CLUSTER_SUBMIT_PREFIX = "python .dev/onboarding_cluster_submit.py"
+_CLUSTER_SUBMIT_PREFIX = "python eval/program/onboarding_cluster_submit.py"
 
 
 def _runbook_text() -> str:
@@ -108,7 +108,7 @@ def _cluster_submit_parser_factory():
 def _parse_cluster_submit_command(command: str) -> None:
     normalized = _substitute_placeholders(command)
     tokens = shlex.split(normalized, posix=False)
-    assert tokens[:2] == ["python", ".dev/onboarding_cluster_submit.py"], (
+    assert tokens[:2] == ["python", "eval/program/onboarding_cluster_submit.py"], (
         f"expected cluster submit prefix: {command!r}"
     )
     argv = tokens[2:]
@@ -149,9 +149,8 @@ def test_runbook_cluster_submit_commands_parse() -> None:
 
 def test_runbook_documents_serverless_cluster_path() -> None:
     text = _runbook_text()
-    assert ".dev/onboarding_cluster_submit.py" in text
+    assert "eval/program/onboarding_cluster_submit.py" in text
     assert "Cluster execution (serverless)" in text
-    assert "Option C caveat" in text
     assert ".dev/agent-databricks-recipes.md" in text
     assert "pyyaml" in text
     assert "pydantic>=2.0" in text

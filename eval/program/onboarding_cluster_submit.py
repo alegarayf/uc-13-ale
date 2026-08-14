@@ -4,9 +4,9 @@ Uploads eval/retrieval (and databricks/agents for harness PYTHONPATH), submits
 serverless jobs with pyyaml + pydantic>=2.0 + mlflow, polls to completion.
 
 Usage (from repo root):
-  python .dev/onboarding_cluster_submit.py bootstrap --company "Clearsulting"
-  python .dev/onboarding_cluster_submit.py harness-baseline --company "Clearsulting"
-  python .dev/onboarding_cluster_submit.py sync
+  python eval/program/onboarding_cluster_submit.py bootstrap --company "Clearsulting"
+  python eval/program/onboarding_cluster_submit.py harness-baseline --company "Clearsulting"
+  python eval/program/onboarding_cluster_submit.py sync
 
 Loads repo-root `.env`; never prints tokens.
 """
@@ -22,7 +22,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 load_dotenv(REPO / ".env")
 
 from databricks.sdk import WorkspaceClient  # noqa: E402

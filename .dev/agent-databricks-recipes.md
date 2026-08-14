@@ -146,7 +146,7 @@ Upload local file first via `workspace.import_` (see `import_text_file` in `.dev
 
 ## Onboarding cluster steps (M4 runbook Steps 3 & 5)
 
-Steps 3 (gold bootstrap) and 5 (harness baseline) in `eval/program/onboarding_runbook.md` need an active `SparkSession`. The workspace is serverless-only — use **`.dev/onboarding_cluster_submit.py`** instead of running those CLIs locally.
+Steps 3 (gold bootstrap) and 5 (harness baseline) in `eval/program/onboarding_runbook.md` need an active `SparkSession`. The workspace is serverless-only — use **`eval/program/onboarding_cluster_submit.py`** instead of running those CLIs locally.
 
 **What the helper does:**
 
@@ -167,13 +167,13 @@ Steps 3 (gold bootstrap) and 5 (harness baseline) in `eval/program/onboarding_ru
 
 ```bash
 # Step 3 — gold bootstrap (sync + submit + poll)
-python .dev/onboarding_cluster_submit.py bootstrap --company "Clearsulting" --catalog uc13_ale
+python eval/program/onboarding_cluster_submit.py bootstrap --company "Clearsulting" --catalog uc13_ale
 
 # Step 5 — harness baseline (re-syncs by default)
-python .dev/onboarding_cluster_submit.py harness-baseline --company "Clearsulting" --catalog uc13_ale
+python eval/program/onboarding_cluster_submit.py harness-baseline --company "Clearsulting" --catalog uc13_ale
 
 # Upload only (no job)
-python .dev/onboarding_cluster_submit.py sync
+python eval/program/onboarding_cluster_submit.py sync
 ```
 
 **Notes:**
@@ -231,4 +231,4 @@ If `DATABRICKS_GENIE_SPACE_ID` is set, `backend-ai` can route NL queries through
 - Pipeline rules: `databricks/CLAUDE.md`
 - Eval / ops SQL examples: `eval/retrieval/README.md`
 - Operator T2 submit: `.dev/t2_databricks_submit.py`
-- Onboarding Steps 3 & 5: `.dev/onboarding_cluster_submit.py`
+- Onboarding Steps 3 & 5: `eval/program/onboarding_cluster_submit.py`
