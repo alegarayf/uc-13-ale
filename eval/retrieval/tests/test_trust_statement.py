@@ -11,6 +11,7 @@ import yaml
 
 from eval.content.s2_writer import S2ScoreRow, S2Writer
 from eval.content.spot_check import SpotCheckConfig, write_spot_check_results
+from eval.retrieval.exemptions import IntentExemption, load_exemptions
 from eval.retrieval.trust_statement import (
     CompanyDomainRow,
     IngestProbeResult,
@@ -26,12 +27,16 @@ from eval.retrieval.trust_statement import (
     derive_rows_for_company,
     fetch_s2_score_rows,
     load_epoch_context_from_baseline_report,
+    merge_exemption_companies_into_domain,
     registry_gap_titles_for_company,
     render_trust_statement_markdown,
     run_ingest_probe,
     validate_row,
     validate_rows,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_COMMITTED_EXEMPTIONS = _REPO_ROOT / "eval" / "program" / "eval_exemptions.yaml"
 
 _ELDER = CompanyDomainRow(company="elder_care", catalog="uc13_ale", display_name="Elder Care")
 _EMPTY_S2: list[S2ScoreRow] = []
@@ -815,3 +820,195 @@ def test_content_rows_compose_with_spot_check_writer_fixtures(tmp_path: Path) ->
     exec_row = next(row for row in content if row.content_surface == "exec_summary")
     assert exec_row.attestation == "attested"
     assert exec_row.rung == "human"
+
+
+def _sample_exemption(**overrides: object) -> IntentExemption:
+    base = {
+        "company": "clearsulting",
+        "intent_id": "legal.ip_privacy",
+        "surface": "legal_register",
+        "coverage": "eliminates",
+        "reason": "corpus_absent",
+        "corpus_evidence": {"legal_docs": 0},
+        "approved_by": "operator",
+    }
+    base.update(overrides)
+    return IntentExemption(**base)  # type: ignore[arg-type]
+
+
+def test_empty_exemptions_preserves_elder_care_rows_dg10() -> None:
+    """DG-10: committed empty store must not alter Elder Care row set."""
+    epoch = TrustEpochContext(
+        baseline_id="baseline_acf58bcc4968",
+        ingestion_snapshot="uc13_ale:55812:2026-08-11",
+        gold_ready_summary=_GOLD_READY_SUMMARY,
+    )
+    kwargs = {
+        "ingest_probe": _probe_measured(completeness=467 / 475, denominator=475),
+        "registry_gap_titles": ["Elder Care ingest gap"],
+        "epoch_context": epoch,
+        "s2_rows": [
+            _claim_row(
+                surface="legal_register",
+                run_id="20260813T120000Z-legal",
+                claim_id="legal.claim.001",
+                verdict="supported",
+            ),
+            _marker_row(
+                surface="legal_register",
+                run_id="20260813T120000Z-legal",
+                writer="deterministic_verifier",
+            ),
+        ],
+    }
+    baseline = _derive_company_rows(_ELDER, **kwargs)
+    with_empty_list = derive_rows_for_company(_ELDER, exemptions=[], **kwargs)  # type: ignore[arg-type]
+    with_committed_store = derive_rows_for_company(
+        _ELDER,
+        exemptions=load_exemptions(_COMMITTED_EXEMPTIONS),
+        **kwargs,  # type: ignore[arg-type]
+    )
+    baseline_payload = [row.as_dict() for row in baseline]
+    assert baseline_payload == [row.as_dict() for row in with_empty_list]
+    assert baseline_payload == [row.as_dict() for row in with_committed_store]
+
+
+def test_eliminates_exemption_emits_known_gap_row() -> None:
+    rows = derive_rows_for_company(
+        CompanyDomainRow(company="clearsulting", catalog="uc13_ale"),
+        ingest_probe=_probe_measured(completeness=1.0, denominator=10),
+        s2_rows=_EMPTY_S2,
+        exemptions=[_sample_exemption()],
+    )
+    legal = next(
+        row
+        for row in rows
+        if row.layer == LAYER_CONTENT_CORRECTNESS and row.content_surface == "legal_register"
+    )
+    assert legal.attestation == "known_gap"
+    assert legal.reason == "corpus_absent"
+    assert legal.rung is None
+
+
+def test_eliminates_severity_precedence_on_same_surface() -> None:
+    exemptions = [
+        _sample_exemption(intent_id="gap.overlay", reason="overlay_mismatch"),
+        _sample_exemption(intent_id="gap.absent", reason="corpus_absent"),
+        _sample_exemption(intent_id="gap.thin", reason="corpus_thin"),
+    ]
+    rows = derive_rows_for_company(
+        CompanyDomainRow(company="clearsulting", catalog="uc13_ale"),
+        ingest_probe=_probe_measured(completeness=1.0, denominator=10),
+        s2_rows=_EMPTY_S2,
+        exemptions=exemptions,
+    )
+    legal = next(
+        row
+        for row in rows
+        if row.layer == LAYER_CONTENT_CORRECTNESS and row.content_surface == "legal_register"
+    )
+    assert legal.attestation == "known_gap"
+    assert legal.reason == "corpus_absent"
+
+
+def test_narrows_relabels_partial_only_on_exempted_surface() -> None:
+    s2_rows = [
+        _claim_row(
+            surface="exec_summary",
+            run_id="20260813T124947Z-9a9e",
+            claim_id="exec.claim.001",
+            verdict="contradicted",
+        ),
+        _marker_row(
+            surface="exec_summary",
+            run_id="20260813T124947Z-9a9e",
+            writer="human_spot_check",
+        ),
+        _claim_row(
+            surface="legal_register",
+            run_id="20260813T120000Z-legal",
+            claim_id="legal.claim.001",
+            verdict="contradicted",
+        ),
+        _marker_row(
+            surface="legal_register",
+            run_id="20260813T120000Z-legal",
+            writer="deterministic_verifier",
+        ),
+    ]
+    exemptions = [
+        _sample_exemption(
+            company="elder_care",
+            surface="exec_summary",
+            coverage="narrows",
+            reason="corpus_thin",
+        )
+    ]
+    rows = derive_rows_for_company(
+        _ELDER,
+        ingest_probe=_probe_measured(completeness=1.0, denominator=10),
+        s2_rows=s2_rows,
+        exemptions=exemptions,
+    )
+    exec_row = next(row for row in rows if row.content_surface == "exec_summary")
+    legal_row = next(row for row in rows if row.content_surface == "legal_register")
+    assert exec_row.attestation == "partial"
+    assert exec_row.reason == "exempted_corpus_failures"
+    assert legal_row.attestation == "partial"
+    assert legal_row.reason == "claim_failures"
+
+
+def test_surface_null_exemption_does_not_affect_content_rows() -> None:
+    kwargs = {
+        "ingest_probe": _probe_measured(completeness=1.0, denominator=10),
+        "s2_rows": _EMPTY_S2,
+    }
+    baseline = _derive_company_rows(_ELDER, **kwargs)
+    with_null_scope = derive_rows_for_company(
+        _ELDER,
+        exemptions=[
+            _sample_exemption(
+                company="elder_care",
+                surface=None,
+                coverage=None,
+                reason="corpus_thin",
+                intent_id="retrieval.scope",
+            )
+        ],
+        **kwargs,  # type: ignore[arg-type]
+    )
+    assert [row.as_dict() for row in baseline] == [row.as_dict() for row in with_null_scope]
+
+
+def test_merge_exemption_companies_into_domain_unions_new_slug() -> None:
+    merged = merge_exemption_companies_into_domain(
+        [_ELDER],
+        [_sample_exemption(company="clearsulting")],
+        catalog="uc13_ale",
+    )
+    slugs = {entry.company for entry in merged}
+    assert slugs == {"elder_care", "clearsulting"}
+    clearsulting = next(entry for entry in merged if entry.company == "clearsulting")
+    assert clearsulting.catalog == "uc13_ale"
+    assert clearsulting.display_name == "Clearsulting"
+
+
+def test_run_ingest_probe_delegates_to_preflight_contract() -> None:
+    calls: list[str] = []
+
+    def _execute(sql: str) -> list[list[str | None]]:
+        calls.append(sql)
+        if "GROUP BY e.doc_type" in sql:
+            return [["FINANCIAL", "10", "8"]]
+        return [["10", "8"]]
+
+    probe = run_ingest_probe(
+        _execute,
+        company_slug="elder_care",
+        catalog="uc13_ale",
+        company_display="Elder Care",
+    )
+    assert probe.status == "measured"
+    assert probe.backend == "sql_chunk_count"
+    assert probe.completeness == 0.8
+    assert len(calls) == 2

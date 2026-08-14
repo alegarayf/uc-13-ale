@@ -18,12 +18,14 @@ import yaml
 
 from eval.content.s2_writer import WRITERS
 from eval.retrieval.errors import EvalError
+from eval.retrieval.exemptions import IntentExemption, load_exemptions
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CATALOG = "uc13_ale"
 _DEFAULT_OUTPUT = Path("eval/program/trust_statement.md")
 _DEFAULT_REGISTRY = Path("eval/program/registry.yaml")
+_DEFAULT_EXEMPTIONS = Path("eval/program/eval_exemptions.yaml")
 _DEFAULT_BASELINE_REPORT = Path("eval/retrieval/reports/baseline_acf58bcc4968.json")
 _UNNORMALIZABLE_SLUG = "__unnormalizable__"
 _GENERATOR_VERSION = "v1"
@@ -63,6 +65,11 @@ REASONS = frozenset(
 )
 METHODS = frozenset({"sql_chunk_count", "doc_status", "null"})
 RUNGS = frozenset({"deterministic", "judge", "human", "null"})
+_EXEMPTION_REASON_SEVERITY: dict[str, int] = {
+    "corpus_absent": 0,
+    "corpus_thin": 1,
+    "overlay_mismatch": 2,
+}
 
 
 class TrustStatementGenerationError(EvalError):
@@ -398,6 +405,91 @@ def _default_not_attested_row(company: str, layer: str, surface: str | None) -> 
     )
 
 
+def merge_exemption_companies_into_domain(
+    domain: list[CompanyDomainRow],
+    exemptions: list[IntentExemption],
+    *,
+    catalog: str,
+) -> list[CompanyDomainRow]:
+    """Union §8.3 exemption-store companies into the §12.2 derived domain."""
+    known = {entry.company for entry in domain}
+    merged = list(domain)
+    for exemption in exemptions:
+        if exemption.company in known:
+            continue
+        known.add(exemption.company)
+        merged.append(
+            CompanyDomainRow(
+                company=exemption.company,
+                catalog=catalog,
+                display_name=exemption.company.replace("_", " ").title(),
+            )
+        )
+    return merged
+
+
+def _index_company_exemptions(
+    exemptions: list[IntentExemption],
+) -> tuple[dict[str, list[IntentExemption]], frozenset[str]]:
+    eliminates: dict[str, list[IntentExemption]] = {}
+    narrows: set[str] = set()
+    for exemption in exemptions:
+        if exemption.surface is None:
+            continue
+        if exemption.coverage == "eliminates":
+            eliminates.setdefault(exemption.surface, []).append(exemption)
+        elif exemption.coverage == "narrows":
+            narrows.add(exemption.surface)
+    return eliminates, frozenset(narrows)
+
+
+def _eliminates_reason_for_surface(exemptions: list[IntentExemption]) -> str:
+    """Pick highest-severity reason among eliminates annotations (spec §16)."""
+    return min(exemptions, key=lambda row: _EXEMPTION_REASON_SEVERITY[row.reason]).reason
+
+
+def _known_gap_content_row(company: str, surface: str, reason: str) -> TrustStatementRow:
+    return TrustStatementRow(
+        company=company,
+        layer=LAYER_CONTENT_CORRECTNESS,
+        surface=surface,
+        content_surface=surface,
+        attestation="known_gap",
+        reason=reason,
+        method=None,
+        rung=None,
+    )
+
+
+def _apply_narrows_relabel(
+    row: TrustStatementRow,
+    *,
+    narrows_surfaces: frozenset[str],
+) -> TrustStatementRow:
+    surface = row.content_surface
+    if (
+        row.layer == LAYER_CONTENT_CORRECTNESS
+        and surface is not None
+        and surface in narrows_surfaces
+        and row.attestation == "partial"
+        and row.reason == "claim_failures"
+    ):
+        return TrustStatementRow(
+            company=row.company,
+            layer=row.layer,
+            surface=row.surface,
+            content_surface=row.content_surface,
+            attestation=row.attestation,
+            reason="exempted_corpus_failures",
+            method=row.method,
+            rung=row.rung,
+            evidence_refs=list(row.evidence_refs),
+            known_gaps=list(row.known_gaps),
+            manual_check=row.manual_check,
+        )
+    return row
+
+
 def _writer_to_rung(writer: str | None) -> str:
     if writer is None:
         raise ValueError("completion marker missing writer")
@@ -619,8 +711,10 @@ def derive_content_rows(
     *,
     client: Any | None = None,
     s2_rows: Iterable[Any] | None = None,
+    surfaces: Sequence[str] | None = None,
 ) -> list[TrustStatementRow]:
     """Derive content_correctness rows from latest marker-complete S2 runs."""
+    target_surfaces = tuple(surfaces or CONTENT_SURFACES)
     if s2_rows is None:
         if client is None:
             raise ValueError(
@@ -633,7 +727,7 @@ def derive_content_rows(
 
     latest = _latest_marker_runs_by_surface(rows, company=company)
     content_rows: list[TrustStatementRow] = []
-    for surface in CONTENT_SURFACES:
+    for surface in target_surfaces:
         run = latest.get(surface)
         if run is None:
             content_rows.append(
@@ -679,20 +773,47 @@ def derive_rows_for_company(
     epoch_context: TrustEpochContext | None = None,
     s2_rows: Iterable[Any] | None = None,
     s2_client: Any | None = None,
+    exemptions: list[IntentExemption] | None = None,
 ) -> list[TrustStatementRow]:
     gap_titles = registry_gap_titles or []
     if domain.company == _UNNORMALIZABLE_SLUG:
         return _sentinel_rows(domain.company)
 
-    content_rows = {
-        row.content_surface: row
-        for row in derive_content_rows(
-            domain.company,
-            domain.catalog,
-            client=s2_client,
-            s2_rows=s2_rows,
+    company_exemptions = [
+        row for row in (exemptions or []) if row.company == domain.company
+    ]
+    eliminates_by_surface, narrows_surfaces = _index_company_exemptions(company_exemptions)
+    run_surfaces = [
+        surface for surface in CONTENT_SURFACES if surface not in eliminates_by_surface
+    ]
+    if run_surfaces:
+        derived_by_surface = {
+            row.content_surface: row
+            for row in derive_content_rows(
+                domain.company,
+                domain.catalog,
+                client=s2_client,
+                s2_rows=s2_rows,
+                surfaces=run_surfaces,
+            )
+        }
+    else:
+        derived_by_surface = {}
+
+    content_rows: dict[str, TrustStatementRow] = {}
+    for surface in CONTENT_SURFACES:
+        if surface in eliminates_by_surface:
+            content_rows[surface] = _known_gap_content_row(
+                domain.company,
+                surface,
+                _eliminates_reason_for_surface(eliminates_by_surface[surface]),
+            )
+            continue
+        row = derived_by_surface[surface]
+        content_rows[surface] = _apply_narrows_relabel(
+            row,
+            narrows_surfaces=narrows_surfaces,
         )
-    }
 
     rows: list[TrustStatementRow] = []
     for layer, surface in _rows_per_company(domain.company):
@@ -723,6 +844,7 @@ def derive_rows(
     epoch_context: TrustEpochContext | None = None,
     s2_client: Any | None = None,
     s2_rows_by_company: dict[str, Iterable[Any]] | None = None,
+    exemptions: list[IntentExemption] | None = None,
 ) -> list[TrustStatementRow]:
     gap_map = registry_gap_titles_by_company or {}
     s2_by_company = s2_rows_by_company or {}
@@ -737,6 +859,7 @@ def derive_rows(
                 epoch_context=epoch_context,
                 s2_client=s2_client,
                 s2_rows=company_s2_rows,
+                exemptions=exemptions,
             )
         )
     validate_rows(rows)
@@ -770,48 +893,6 @@ def registry_gap_titles_for_company(
     return titles
 
 
-def _ingest_probe_sql(catalog: str, company_display: str) -> str:
-    company_literal = _escape_sql_literal(company_display)
-    return f"""
-WITH ingested AS (
-  SELECT DISTINCT c.doc_id
-  FROM {catalog}.ingestion.chunks c
-  WHERE c.company_name = '{company_literal}'
-)
-SELECT
-  (SELECT COUNT(DISTINCT doc_id) FROM {catalog}.classification.doc_relevance
-   WHERE company_name = '{company_literal}' AND should_parse = true) AS denominator,
-  (SELECT COUNT(1) FROM ingested i
-   WHERE i.doc_id IN (
-     SELECT doc_id FROM {catalog}.classification.doc_relevance
-     WHERE company_name = '{company_literal}' AND should_parse = true
-   )) AS ingested_count
-"""
-
-
-def _ingest_per_doc_type_sql(catalog: str, company_display: str) -> str:
-    company_literal = _escape_sql_literal(company_display)
-    return f"""
-WITH expected AS (
-  SELECT doc_id, explode(workstream) AS doc_type
-  FROM {catalog}.classification.doc_relevance
-  WHERE company_name = '{company_literal}' AND should_parse = true
-),
-ingested AS (
-  SELECT DISTINCT c.doc_id
-  FROM {catalog}.ingestion.chunks c
-  WHERE c.company_name = '{company_literal}'
-)
-SELECT e.doc_type,
-       COUNT(DISTINCT e.doc_id) AS expected,
-       COUNT(DISTINCT CASE WHEN i.doc_id IS NOT NULL THEN e.doc_id END) AS ingested
-FROM expected e
-LEFT JOIN ingested i ON e.doc_id = i.doc_id
-GROUP BY e.doc_type
-ORDER BY e.doc_type
-"""
-
-
 def run_ingest_probe(
     execute_sql: SqlExecutor,
     *,
@@ -819,51 +900,16 @@ def run_ingest_probe(
     catalog: str,
     company_display: str,
 ) -> IngestProbeResult:
-    """Implement §8.4 sql_chunk_count backend; never raises across the boundary."""
-    try:
-        count_rows = execute_sql(_ingest_probe_sql(catalog, company_display))
-        if not count_rows or len(count_rows[0]) < 2:
-            return IngestProbeResult(
-                company=company_slug,
-                catalog=catalog,
-                backend="sql_chunk_count",
-                status="probe_failed",
-            )
-        denominator = int(count_rows[0][0] or 0)
-        ingested_count = int(count_rows[0][1] or 0)
-        if denominator <= 0:
-            return IngestProbeResult(
-                company=company_slug,
-                catalog=catalog,
-                backend="sql_chunk_count",
-                status="denominator_undefined",
-            )
-        per_doc_type: dict[str, dict[str, int]] = {}
-        breakdown_rows = execute_sql(_ingest_per_doc_type_sql(catalog, company_display))
-        for row in breakdown_rows:
-            if len(row) < 3 or row[0] is None:
-                continue
-            per_doc_type[str(row[0])] = {
-                "expected": int(row[1] or 0),
-                "ingested": int(row[2] or 0),
-            }
-        completeness = ingested_count / denominator
-        return IngestProbeResult(
-            company=company_slug,
-            catalog=catalog,
-            backend="sql_chunk_count",
-            status="measured",
-            completeness=completeness,
-            denominator=denominator,
-            per_doc_type=per_doc_type,
-        )
-    except Exception:  # noqa: BLE001 - §8.4 boundary contract
-        return IngestProbeResult(
-            company=company_slug,
-            catalog=catalog,
-            backend="sql_chunk_count",
-            status="probe_failed",
-        )
+    """Implement §8.4 sql_chunk_count backend via shared ingest preflight."""
+    from eval.retrieval.ingest_preflight import run_ingest_preflight
+
+    return run_ingest_preflight(
+        backend="sql_chunk_count",
+        company_slug=company_slug,
+        catalog=catalog,
+        company_display=company_display,
+        execute_sql=execute_sql,
+    )
 
 
 def fetch_company_domain_sql(catalog: str) -> str:
@@ -943,11 +989,14 @@ def generate_trust_statement(
     catalog: str,
     registry_path: Path,
     baseline_report_path: Path = _DEFAULT_BASELINE_REPORT,
+    exemptions_path: Path = _DEFAULT_EXEMPTIONS,
 ) -> tuple[list[TrustStatementRow], TrustEpochContext]:
     registry = load_registry(registry_path)
     epoch_context = load_epoch_context_from_baseline_report(baseline_report_path)
+    exemptions = load_exemptions(exemptions_path)
     domain_rows = execute_sql(fetch_company_domain_sql(catalog))
     domain = parse_company_domain(domain_rows, catalog)
+    domain = merge_exemption_companies_into_domain(domain, exemptions, catalog=catalog)
     if not domain:
         raise TrustStatementGenerationError(
             f"derived company domain is empty for catalog {catalog!r}"
@@ -976,6 +1025,7 @@ def generate_trust_statement(
         registry_gap_titles_by_company=gap_titles,
         epoch_context=epoch_context,
         s2_client=execute_sql,
+        exemptions=exemptions,
     )
     assert_row_set_total(rows, [entry.company for entry in domain])
     return rows, epoch_context
