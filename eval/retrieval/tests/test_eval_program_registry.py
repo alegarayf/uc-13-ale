@@ -10,27 +10,8 @@ import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CANONICAL_REGISTRY_PATH = REPO_ROOT / ".dev" / "eval-program" / "registry.yaml"
 REGISTRY_PATH = REPO_ROOT / "eval" / "program" / "registry.yaml"
-MIRROR_REGISTRY_PATH = REGISTRY_PATH
 MANIFEST_PATH = REPO_ROOT / "eval" / "program" / "source_manifest.yaml"
-
-
-def sync_registry_mirror(
-    *,
-    canonical: Path = CANONICAL_REGISTRY_PATH,
-    mirror: Path = MIRROR_REGISTRY_PATH,
-) -> None:
-    """Copy canonical registry bytes to the tracked mirror (D8 / R12).
-
-    Call after every T2/T7/T8-class write to ``.dev/eval-program/registry.yaml``.
-    """
-    if not canonical.is_file():
-        raise FileNotFoundError(
-            f"canonical registry missing at {canonical}; cannot sync mirror"
-        )
-    mirror.parent.mkdir(parents=True, exist_ok=True)
-    mirror.write_bytes(canonical.read_bytes())
 MUTATION_MANIFEST_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "eval_program_registry_mutation_base.yaml"
 )
@@ -610,35 +591,3 @@ def test_production_modules_do_not_embed_gitignored_dev_runtime_paths() -> None:
                 if ".dev/" in line and not line.strip().startswith("#"):
                     violations.append(f"{path.relative_to(REPO_ROOT)}:{line_no}: {line.strip()}")
     assert not violations, "gitignored .dev/ runtime dependencies:\n" + "\n".join(violations)
-
-
-def test_registry_mirror_byte_parity_when_canonical_present() -> None:
-    """D8 parity guard — canonical and tracked mirror must be byte-identical."""
-    if not CANONICAL_REGISTRY_PATH.is_file():
-        pytest.skip(
-            "canonical .dev/eval-program/registry.yaml absent — bare worktree; "
-            "mirror-only suite remains valid (E1–E4)"
-        )
-    canonical_bytes = CANONICAL_REGISTRY_PATH.read_bytes()
-    mirror_bytes = MIRROR_REGISTRY_PATH.read_bytes()
-    assert canonical_bytes == mirror_bytes, (
-        "registry mirror diverged from canonical hub copy — "
-        "run sync_registry_mirror() after editing .dev/eval-program/registry.yaml"
-    )
-
-
-def test_sync_registry_mirror_raises_when_canonical_missing(tmp_path: Path) -> None:
-    missing = tmp_path / "missing" / "registry.yaml"
-    mirror = tmp_path / "mirror" / "registry.yaml"
-    with pytest.raises(FileNotFoundError, match="canonical registry missing"):
-        sync_registry_mirror(canonical=missing, mirror=mirror)
-
-
-def test_sync_registry_mirror_copies_bytes(tmp_path: Path) -> None:
-    canonical = tmp_path / "canonical" / "registry.yaml"
-    mirror = tmp_path / "mirror" / "registry.yaml"
-    payload = b"schema_version: 1\nitems: []\n"
-    canonical.parent.mkdir(parents=True)
-    canonical.write_bytes(payload)
-    sync_registry_mirror(canonical=canonical, mirror=mirror)
-    assert mirror.read_bytes() == payload
