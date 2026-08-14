@@ -93,7 +93,7 @@ def default_registry_path() -> Path:
     return _repo_root() / "eval" / "retrieval" / "intent_registry.yaml"
 
 
-def default_gold_path(company_slug: str = "elder_care") -> Path:
+def default_gold_path(company_slug: str) -> Path:
     return _repo_root() / "eval" / "retrieval" / "gold_labels" / f"{company_slug}.yaml"
 
 
@@ -520,11 +520,20 @@ class EvalHarness:
         *,
         registry_path: Path | None = None,
         gold_path: Path | None = None,
+        company_slug: str | None = None,
         reports_dir: Path | None = None,
         retrieval_dispatch: Callable[..., Any] | None = None,
     ) -> None:
         self.registry_path = registry_path or default_registry_path()
-        self.gold_path = gold_path or default_gold_path()
+        if gold_path is not None:
+            self.gold_path = gold_path
+        elif company_slug is not None:
+            self.gold_path = default_gold_path(company_slug)
+        else:
+            raise PreconditionError(
+                "EvalHarness requires gold_path or company_slug; "
+                "no silent Elder Care fallback"
+            )
         self.reports_dir = reports_dir or default_reports_dir()
         self._retrieval_dispatch = retrieval_dispatch or dispatch_retrieval
 
