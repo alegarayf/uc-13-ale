@@ -74,8 +74,15 @@ def test_write_rejects_coverage_surface_mismatch(tmp_path: Path) -> None:
 def test_committed_store_validates() -> None:
     payload = yaml.safe_load(_COMMITTED_STORE.read_text(encoding="utf-8"))
     assert payload["schema_version"] == 1
-    assert payload["exemptions"] == []
-    assert load_exemptions(_COMMITTED_STORE) == []
+    loaded = load_exemptions(_COMMITTED_STORE)
+    assert len(loaded) == 6
+    assert all(row.company == "clearsulting" for row in loaded)
+    legal = [row for row in loaded if row.intent_id.startswith("legal.")]
+    assert len(legal) == 5
+    assert all(row.reason == "corpus_absent" for row in legal)
+    overlay = [row for row in loaded if row.intent_id == "kpi.retrieve_bench_and_capacity"]
+    assert len(overlay) == 1
+    assert overlay[0].reason == "overlay_mismatch"
 
 
 def test_exemption_validation_error_subclasses_eval_error() -> None:

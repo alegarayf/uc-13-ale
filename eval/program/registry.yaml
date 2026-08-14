@@ -1709,7 +1709,7 @@ items:
   source_id: null
   disposition: accepted
   stage: S3
-  status: closed
+  status: n/a
   trigger: null
   rationale: T9 completed Clearsulting end-to-end onboarding per eval/program/onboarding_runbook.md
     — gold corpus (57 labels, 48 ready/partial), six exemptions, harness baseline baseline_7174e0399e29,
@@ -1731,7 +1731,7 @@ items:
   source_id: null
   disposition: staged
   stage: S3
-  status: open
+  status: pending
   trigger: Follow-on runbook amendment after T9 walk
   rationale: Steps 3 and 5 require serverless jobs.submit with pydantic>=2.0 and mlflow pip deps,
     workspace upload of eval/retrieval + databricks/agents, and PYTHONPATH including databricks/
