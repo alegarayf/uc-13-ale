@@ -305,6 +305,9 @@ sources:
 - id: CID-STABLE-1
   source_ref: .dev/plans/eval-consolidation-m3-s2-build/decision-logs/R3.md
   title: Stable legal-register claim_id scheme (F-25 deferral from R3)
+- id: PREFLIGHT-DOCSTATUS-1
+  source_ref: .dev/specs/eval-consolidation-program/spec.md#18
+  title: doc_status preflight expected-document denominator
 ratifications:
 - subject: No pytest for g1_score_all_agents.py
   rides: GAP-105-g1-scorer-pytest
