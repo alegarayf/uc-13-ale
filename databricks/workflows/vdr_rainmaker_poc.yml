@@ -1,0 +1,81 @@
+# VDR Rainmaker POC — Databricks Asset Bundle workflow.
+#
+# NEW, separate job from "VDR Diligence Pipeline" (617196299594076) — the CIM-
+# first Rainmaker POC (docs/plans/CIM-first-rainmaker-template/plan.md). Reads
+# a companies_vdr_history record by id; if a CIM is found in the data room,
+# runs a CIM-scoped diligence pass (Ruta 2: 7 workstream agents on an isolated
+# preview catalog) and renders the Rainmaker "Opportunity Summary" PDF; if no
+# CIM is found, no-ops with a message. Does not touch, call, or depend on
+# run_vdr_pipeline.py, run_full_pipeline.py, or the production VDR job.
+#
+# Output files are written to:
+#   /Volumes/rallyday_partners_llc/default/vdr/{company_snake}/{ISO_timestamp}/
+#       executive_summary.pdf
+#       rainmaker_opportunity_summary.html
+#
+# Trigger (manual, for the POC — no UI wiring yet):
+#   databricks jobs run-now <job_id> \
+#     --notebook-params '{"table_name":"rallyday_partners_llc.default.companies_vdr_history","id":"24"}'
+
+resources:
+  jobs:
+    vdr_rainmaker_poc:
+      name: "VDR Rainmaker POC"
+      description: >
+        CIM-first Rainmaker POC. Reads a companies_vdr_history record by id;
+        if a CIM is found, runs a CIM-scoped diligence pass (7 workstream
+        agents, isolated uc13_preview catalog) and renders the Rainmaker
+        "Opportunity Summary" PDF; otherwise no-ops with a message. Separate
+        from and does not modify the production VDR Diligence Pipeline job.
+
+      # Same pattern as vdr_pipeline.yml: code served from the Databricks Git
+      # folder "Rallyday" via the WORKSPACE notebook path below — NOT via
+      # job-level git_source.
+      #
+      # NO job-level parameters and NO task-level parameters, mirroring
+      # vdr_pipeline.yml, so this can also be triggered with run-now
+      # notebook params (table_name, id) rather than only fixed job params.
+
+      tasks:
+        - task_key: run_vdr_rainmaker
+          description: >
+            Reads table_name/id/special_folder widgets → detects a CIM →
+            if found, runs the CIM-scoped Ruta 2 diligence pass and renders
+            the Rainmaker PDF; if not, no-ops with a message on the record.
+          notebook_task:
+            notebook_path: "/Workspace/Users/hector.corro@nimblegravity.com/Rallyday/databricks/jobs/notebooks/run_vdr_rainmaker_job"
+            source: WORKSPACE
+          environment_key: vdr_rainmaker_poc_environment
+          max_retries: 0
+          retry_on_timeout: false
+          # CIM-only ingestion + 7 agents is far cheaper than a full-room run;
+          # generous ceiling still kept for POC headroom.
+          timeout_seconds: 14400
+
+      environments:
+        - environment_key: vdr_rainmaker_poc_environment
+          spec:
+            client: "1"
+            dependencies:
+              - msal>=1.28.0
+              - requests>=2.31.0
+              - python-docx>=1.1.0
+              - openpyxl>=3.1.0
+              - typing_extensions>=4.6.0
+              - mlflow[databricks]>=3.1
+              - pydantic>=2.0.0
+              - pymupdf>=1.24.0
+              - reportlab>=4.0.0
+              # PDF engine for the Rainmaker template (Apéndice A.5/R1). Tried
+              # first for best CSS fidelity; render_rainmaker() falls back to
+              # PyMuPDF Story (already listed above) if the system libs
+              # (cairo/pango) this package needs aren't present in this
+              # serverless environment — the pip install itself won't fail
+              # even if the import later does.
+              - weasyprint>=62.0
+
+      email_notifications:
+        on_failure: []
+
+      # Allow parallel runs for different companies (mirrors vdr_pipeline.yml).
+      max_concurrent_runs: 3

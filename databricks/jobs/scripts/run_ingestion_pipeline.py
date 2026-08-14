@@ -26,6 +26,7 @@ Also callable as a Python function from run_full_pipeline.py or a notebook::
 
 import importlib
 import importlib.util
+import json
 import os
 import sys
 import time
@@ -97,12 +98,18 @@ def run_ingestion_pipeline(
     vision_endpoint: str = "",
     parse_priority_tiers: str = "1,2",
     skip_download: bool = False,
+    file_whitelist: list[str] | None = None,
     force: str = "none",
     coverage_per_workstream: int = 3,
     skip_sync: bool = False,
     sync_only: bool = False,
 ) -> dict:
     """Run Phase 1-2 in dependency order and return a step-by-step summary.
+
+    ``file_whitelist`` (CIM-first preview — plan §7 Día 2, Apéndice A.1):
+    when set, ``download_upload`` only downloads/uploads these file names and
+    ``ingestion_parser`` only parses these — everything else in the data room
+    is skipped. Default ``None`` (empty) preserves today's full-room behavior.
 
     Returns::
 
@@ -132,6 +139,7 @@ def run_ingestion_pipeline(
         os.environ["llm_endpoint"] = "databricks-meta-llama-3-3-70b-instruct"
     os.environ["vision_endpoint"]      = vision_endpoint
     os.environ["parse_priority_tiers"] = parse_priority_tiers
+    os.environ["file_whitelist"]       = json.dumps(file_whitelist or [])
     os.environ["force"]                = force
     os.environ["coverage_per_workstream"] = str(coverage_per_workstream)
     os.environ["skip_sync"]            = "true" if skip_sync else "false"

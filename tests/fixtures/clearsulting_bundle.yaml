@@ -1,0 +1,1005 @@
+meta:
+  schema_version: 0.1.0
+  company_name: Clearsulting
+  company_safe: Clearsulting
+  catalog: uc13_ale
+  deal_type: recapitalization
+  generated_at: '2026-07-30T13:52:14.649328Z'
+  status: complete
+  freshness: current
+  render_state: bundle_only
+  demo_mode: false
+  disclaimer_text: ''
+  basis_of_preparation: Phase 3 workstream outputs (M2 deterministic builder). cim_detected=True
+  overall_confidence: low
+  agents_present:
+    business_model: true
+    financial_trends: true
+    customer_quality: true
+    kpi: true
+    legal: true
+    quality_of_earnings: true
+  vertical_overlay: healthcare_services
+headline_metrics:
+  ltm_revenue: ''
+  ltm_ebitda: ''
+  ltm_ebitda_margin_pct: 20.0%
+  revenue_cagr: 3.8%
+  enterprise_value_indicated: null
+  rule_of_40: null
+executive:
+  in_one_line: Clearsulting is a ~$63M OCFO digital transformation consultancy with a 20% EBITDA margin, a credible land-and-expand
+    model, and a heavily contested addback stack that makes the stated earnings base the central diligence question.
+  preliminary_view:
+    strengths:
+    - 'Diversified, no-client-over-20% revenue base with demonstrated land-and-expand traction: customer count grew from 223
+      to ~394 and project count from 296 to ~587 over 2023–TTM25 per the CIM, supporting the $300M+ lifetime sales claim.'
+    - Practice-level gross margins are differentiated and defensible — Treasury at ~63% and Financial Close at ~58% anchor
+      the blended 43.6% TTM25 adjusted gross margin and suggest pricing power in the firm's core competencies.
+    - Deep second-layer leadership (14 named practice leads and regional heads averaging ~7 years tenure) reduces founder-concentration
+      risk and provides a platform for post-close continuity.
+    - 'Structural cost arbitrage is nascent but directionally positive: the Poland-based AMS team and ~9% offshore delivery
+      mix (30 of 334 FTEs in ''Other/Remote Delivery'' per the CIM headcount table) create a margin lever that is not yet
+      fully reflected in TTM25 results.'
+    - New recurring-revenue vector (AMS, fixed-fee/hybrid now 39% of YTD May 2025 revenue vs. 26% in 2024) and two greenfield
+      practices (SAP S/4HANA, HighRadius OTC) provide identifiable growth optionality beyond the core T&M book.
+    concerns:
+    - All 12 EBITDA addbacks are classified Tier 4 (no VDR document support), and five individually exceed 5% of reported
+      EBITDA — the $4,715K total addback pool represents 59.7% of reported TTM25 EBITDA of $7,899K, making the $12,614K diligence-adjusted
+      figure highly vulnerable to buyer QofE challenge.
+    - Several addbacks recur across all three measurement periods (restructuring, new venture losses, go-forward bonus adjustment),
+      suggesting these are structural costs embedded in the run-rate rather than genuinely one-time items.
+    - Revenue growth of ~3.8% (2024A vs. TTM25 per the financial diligence report) is below the pace implied by the CIM's
+      customer and project count expansion, raising questions about average deal size compression or episodic large-client
+      roll-off (Amazon, OCI N.V. project completions visible in the Revenue Masterfile).
+    - A hindsight revenue recognition restatement (Adj-07) affects 24.6% of TTM25 revenue, and multiple unexplained negative
+      revenue entries appear across clients in the Revenue Masterfile — both patterns require reconciliation before the top-line
+      can be taken at face value.
+    - 'The entire legal layer is unassessed: no customer MSAs/SOWs, employment agreements, founder agreements, change-of-control
+      provisions, or litigation schedule were available in the VDR, leaving contract portability and key-person retention
+      entirely unresolved.'
+    - Core consulting KPIs — blended utilization rate, attrition by level, backlog/pipeline coverage, revenue per FTE, and
+      top-10 client concentration — are absent from the data room, making it impossible to independently validate the operating
+      model or forecast credibility.
+    closing: 'The single most consequential open question the full report surfaces — but cannot yet resolve — is whether the
+      $12.6M diligence-adjusted EBITDA survives an independent QofE: with all addbacks Tier 4, five exceeding 5% of reported
+      EBITDA individually, and several recurring across periods, the true normalized earnings base could differ materially
+      from the seller''s presentation, and that gap directly sets the valuation anchor for any transaction.'
+  business_snapshot_narrative: Clearsulting is a founder-led OCFO digital transformation consultancy generating TTM25 adjusted
+    revenue of ~$62.9M and diligence-adjusted EBITDA of ~$12.6M (20.0% margin) across four practices — Financial Close (~$31.8M
+    2025E), Treasury (~$12.2M), Digital Reporting & Compliance (~$8.6M), and Risk Advisory (~$6.4M) — billed primarily on
+    T&M with a stated shift toward fixed-fee (39% of YTD May 2025 revenue per the CIM vs. 26% in 2024). The land-and-expand
+    model has scaled from 223 to ~394 customers and 296 to ~587 projects over 2023–TTM25 (per CIM), with no single client
+    exceeding 20% of revenue, though top-10 concentration figures are not disclosed. The 2025 launch of AMS (recurring fixed-fee,
+    early clients including ExxonMobil and L'Oréal) and inaugural SAP and HighRadius partnerships represent the primary incremental
+    revenue vectors, while a Poland-based delivery team provides early-stage offshore cost arbitrage. The revenue quality
+    and addback profile — not the growth narrative — is what warrants the deepest scrutiny in the full report.
+  confidence_rationale: Confidence is materially capped across most areas by the absence of supporting documentation for all
+    12 EBITDA addbacks (Tier 4 classification across the board), which prevents independent verification of the $12.6M adjusted
+    EBITDA figure that anchors valuation. The KPI agent returned no data on blended utilization, attrition by level, backlog,
+    pipeline coverage, or revenue per FTE — the full set of consulting operating metrics needed to stress-test the revenue
+    model — leaving business model and forecast support confidence rated low. The legal agent retrieved zero documents across
+    all 11 checklist categories (contracts, employment, founder agreements, litigation, IP, insurance), meaning contract portability,
+    change-of-control exposure, and key-person retention are entirely unassessed. Budget-versus-actual data was also absent
+    from the data room, preventing any assessment of forecast credibility; the 2025E and 2026F projections in the CIM therefore
+    rest solely on management's own presentation with no independent corroboration available in this review.
+  preliminary_digest: 'Clearsulting''s OCFO consulting model has scaled to ~$62.9M TTM25 adjusted revenue with a 20% adjusted
+    EBITDA margin, supported by multi-practice diversification and a land-and-expand customer base that has nearly doubled
+    in project count since 2023. [Business Snapshot] Revenue growth of ~3.8% from 2024A to TTM25 is below the pace implied
+    by customer and project count expansion, and episodic large-client completions (Amazon, OCI N.V.) visible in the Revenue
+    Masterfile suggest average deal size or retention dynamics that the aggregate figures obscure. [Financial Strip] The $4,715K
+    addback pool — 59.7% of reported TTM25 EBITDA — is entirely Tier 4 with no VDR document support, and five addbacks individually
+    exceed 5% of reported EBITDA; several recur across all three periods, indicating structural rather than one-time cost
+    characteristics. [Quality of Earnings] A hindsight revenue recognition restatement affects 24.6% of TTM25 revenue, multiple
+    unexplained negative revenue entries appear in the Revenue Masterfile, and the company carries no allowance for doubtful
+    accounts despite $157K in historical write-offs. [Revenue Quality] Core operating KPIs — blended utilization, attrition
+    by level, backlog, pipeline coverage, revenue per FTE, and top-10 client concentration — are entirely absent from the
+    data room, making independent validation of the operating model or forward projections impossible at this stage. [KPI
+    Dashboard] The entire legal layer is unreviewed: no customer contracts, employment or founder agreements, change-of-control
+    provisions, or litigation schedule were available, leaving contract portability and key-person retention unresolved. [Legal
+    Snapshot] Confidence is high only on financial trends (audited/reviewed financials available); business model, KPI, legal,
+    and forecast support are all rated low due to the gaps described above. [Confidence by Area]'
+  thesis_bullets:
+  - 'Scaled OCFO niche with multi-practice diversification: ~$62.9M TTM25 adjusted revenue across Financial Close, Treasury,
+    DR&C, and Risk Advisory — no single client above 20% of revenue — positions the firm as a platform rather than a single-practice
+    boutique.'
+  - 'Land-and-expand model with demonstrated traction: customer count grew from 223 to ~394 and project count from 296 to
+    ~587 over 2023–TTM25 per the CIM, with $300M+ in cumulative lifetime client sales cited as evidence of repeat engagement
+    depth.'
+  - 'Recurring revenue inflection underway: AMS (fixed-fee, Poland-delivered) and the fixed-fee/hybrid mix shift (39% of YTD
+    May 2025 revenue vs. 26% in 2024) represent a structural move toward more predictable revenue that could re-rate the business
+    if sustained.'
+  - 'Greenfield practice optionality: SAP S/4HANA (forecast $864K in first revenue year 2026F, growing to $10.5M by 2030F
+    per CIM) and HighRadius OTC partnerships provide identifiable growth vectors beyond the core T&M book, with offshore delivery
+    cost arbitrage (Poland AMS team) as a margin lever.'
+  - 'Deep second-layer leadership reduces key-man risk: 14 named practice leads and regional heads averaging ~7 years tenure
+    provide post-close continuity, though founder agreements and equity structure remain unreviewed in the current data room.'
+  - 'Inorganic capability-building precedent: the 2022 acquisitions of PBC Global (Risk Advisory) and WorkOps Consulting (Workiva/DR&C)
+    demonstrate a repeatable tuck-in model for adding practice capabilities and geographic footprint, relevant to a buyer
+    seeking to accelerate the platform build.'
+  key_watchouts:
+  - 'Talent retention at scale is unquantified: voluntary and involuntary attrition rates by level (Analyst through Partner)
+    are absent from the data room — in a people-intensive consulting model where delivery quality is the product, this is
+    the single most important operating metric not yet in evidence.'
+  - 'Utilization rate opacity: blended billable utilization is not disclosed, making it impossible to assess whether the 20%
+    EBITDA margin reflects structural efficiency or a temporarily favorable headcount-to-revenue ratio that could compress
+    as the firm scales or bench costs rise.'
+  - 'Episodic large-client revenue: Amazon (~$5M+ in 2022–2023, near-zero 2024–2025) and OCI N.V. show project-based revenue
+    that starts and stops abruptly — the Revenue Masterfile pattern raises questions about whether the land-and-expand narrative
+    holds for the largest engagements or whether top-of-funnel replenishment is masking churn at the top.'
+  - 'Top-10 client concentration undisclosed: the CIM states no client exceeds 20% of revenue but does not provide top-5 or
+    top-10 concentration figures — a critical gap for assessing revenue durability and change-of-control contract risk, particularly
+    given that no customer MSAs or SOWs are in the VDR.'
+  - 'New venture and AMS revenue replicability: four new venture practices generated losses added back in every measurement
+    period ($91K / $856K / $839K across 2023–TTM25), and AMS is forecast to reach only $7.5M by 2030F — the path from early-client
+    proof points (AngloAmerican, ExxonMobil) to scaled recurring revenue has not been independently validated.'
+  - 'Fixed-fee model execution risk: the shift from T&M to fixed-fee/hybrid (now 39% of YTD May 2025 revenue) introduces scope-creep
+    and margin-compression risk that is not yet visible in the gross margin trend — the hindsight revenue recognition restatement
+    affecting 24.6% of TTM25 revenue suggests fixed-fee project accounting is already a source of complexity.'
+  - 'Partner and platform dependency unreviewed: agreements with SAP, Workiva, Coupa, and HighRadius are not in the VDR —
+    exclusivity, MFN, and termination provisions in these relationships are load-bearing for the new venture growth thesis
+    and entirely unassessed.'
+company_framing:
+  overview_bullets:
+  - Clearsulting is a global financial consulting and technology implementation firm specializing in Office of the CFO (OCFO)
+    digital transformation, with TTM25 adjusted revenue of ~$62.9M and diligence-adjusted EBITDA of ~$12.6M (20.0% margin).
+    The company earns revenue primarily through project-based consulting engagements (T&M and fixed-fee) across practices
+    including Financial Close (~$31.8M 2025E, 58% gross margin), Treasury (~$12.2M, 63% gross margin), Digital Reporting &
+    Compliance (~$8.6M, 48% gross margin), and Risk Advisory (~$6.4M, 40% gross margin), with overall adjusted gross margin
+    of 43.6% in TTM25. The company was founded in 2015 by Marc Ursick (CEO) and is supported by a deep second layer of 14
+    named practice leads and regional heads averaging ~7 years tenure; no ownership structure is disclosed in the available
+    documents. The workforce of 334 FTEs (YTD Aug 2025) is primarily US-based (237) with meaningful EMEA presence (38 UK,
+    30 other remote delivery) and a growing Poland-based AMS team for cost arbitrage; average compensation was $143K in TTM25.
+    Customer stickiness is evidenced by growth from 223 to 394 customers and 296 to 587 projects over 2023-TTM25, a 'land
+    & expand' model with no client exceeding 20% of revenue, and $300M+ in client lifetime sales. Key recent changes include
+    the 2025 launch of Application Managed Services (recurring fixed-fee), an inaugural SAP partnership, APAC expansion, and
+    a strategic pricing shift from T&M toward fixed-fee/hybrid models (39% of revenue YTD May 2025 vs. 26% in 2024).
+  - Financial Close Practice
+  - Treasury Practice
+  - Digital Reporting and Compliance Practice
+  revenue_model:
+    tag: project_based
+    quality_flag: Green
+    note: Clearsulting earns revenue through discrete consulting engagements (financial close, treasury, risk advisory, digital
+      reporting, EPM, source-to-pay, and new ventures) billed primarily on T&M basis with a stated strategic shift toward
+      fixed-fee and outcome-based models. TTM25 adjusted revenue was ~$62.9M.
+  recent_changes:
+  - change_type: geography
+    description: Launched EMEA Practice, strengthening roster of global talent
+    approximate_date: '2020'
+    impact_note: 977% 3-year revenue growth achieved; named to Inc. 5000 list
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Founded to Challenge the Status Quo of Digital Finance
+  - change_type: ma
+    description: Acquired PBC Global (Risk Advisory practice) and WorkOps Consulting (Workiva practice)
+    approximate_date: '2022'
+    impact_note: Established Canadian footprint; added Workiva DR&C capabilities via WorkOps; Molly Cotter (former WorkOps
+      President/COO) joined as Digital Reporting Lead
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Founded to Challenge the Status Quo of Digital Finance / Overview of Growth Opportunity
+  - change_type: gtm
+    description: Launched partnership with Coupa for Source-to-Pay practice
+    approximate_date: '2023'
+    impact_note: 'Named #25 in Fortune Best Consulting Workplaces; awarded Great Place to Work Certification'
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Founded to Challenge the Status Quo of Digital Finance
+  - change_type: gtm
+    description: Launched partnership with HighRadius for Order-to-Cash New Venture practice
+    approximate_date: '2024'
+    impact_note: Launched AmplifAI AI initiative; maintaining ~200 active clients and 330+ team members across 10 countries
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Founded to Challenge the Status Quo of Digital Finance
+  - change_type: product
+    description: Launched Application Managed Services (AMS) as a global recurring fixed-fee offering; growing delivery out
+      of Poland
+    approximate_date: '2025'
+    impact_note: Early clients include AngloAmerican, EG Group, ExxonMobil, L'OREAL; forecast to reach $7.5M revenue by 2030F
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Driving ERP Success through Business Integration
+  - change_type: geography
+    description: Expansion into APAC region with 1 full-time employee in Sydney; market under development
+    approximate_date: '2025'
+    impact_note: Significant growth in EMEA also noted for 2025
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Founded to Challenge the Status Quo of Digital Finance / Deep Technological Expertise Enables a Global
+      Delivery Platform
+  - change_type: gtm
+    description: Launched inaugural SAP partnership for SAP New Venture practice targeting S/4HANA migrations
+    approximate_date: '2025'
+    impact_note: SAP New Venture forecast to generate $864K in 2026F first year of revenue, growing to $10.5M by 2030F
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Founded to Challenge the Status Quo of Digital Finance
+  - change_type: pricing
+    description: Strategic shift from time-and-materials to fixed-fee and outcome-based fee models; establishment of AmplifAI
+      initiative
+    approximate_date: 2024-2025
+    impact_note: Fixed-fee/hybrid models grew from 25% (2023) to 26% (2024) to 39% (YTD May 2025) of total revenue; fixed-fee
+      billing schedule was ~10% of total revenue in 2024A
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Overview of Growth Opportunity / Optimized Revenue & Delivery Model
+  - change_type: operational
+    description: Transitioning from 5-level role framework to a more granular 12-level model to align with industry-standard
+      salary and rank structures
+    approximate_date: 2025-2026
+    impact_note: Brings compensation more in line with broader consulting market and enables greater role specialization
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Technology Overview — Special Projects
+  - change_type: technology
+    description: Planned 2026 integration of Pigment for budgeting and performance management
+    approximate_date: '2026'
+    impact_note: Will enhance budgeting with real-time data, dynamic forecasting, and improved accuracy; reduce manual work
+    source_doc: Project Infinity  - Confidential Information Memorandum.pdf
+    source_location: Technology Overview — Finance & Accounting
+  - change_type: revenue_model
+    description: 'Employee cost reallocation adjustment: reclassified non-billable portion of Heads of Practices and sales-focused
+      individuals from cost of revenue to operating expense'
+    approximate_date: 2023-2025 (historical recast)
+    impact_note: Adjustment ensures gross margin more accurately reflects operational structure; impacts reported gross margin
+      figures
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    source_location: Other EBITDA considerations
+  thesis:
+    bullets: []
+    value_creation_levers: []
+  workforce_notes: 'Aggregate workforce model: offshore/contract headcount 30 (Other/Remote Delivery); AMS team based in Poland,
+    offshore ~9% (30 of 334 in ''Other'' remote delivery category) of total. Headcount by function: People Experience 12 unknown;
+    Finance & Accounting 2 unknown; Business Enablement 8 unknown; Special Projects 1 unknown; Analyst (Level 1, 0-2 Years
+    Experience) 57 unknown; Sr. Analyst (Level 2, 3+ Years Experience) 96 unknown; Manager (Level 3, 6+ Years Experience)
+    91 unknown; Director (Level 4, 8+ Years Experience) 74 unknown; Partner (Level 5, Experts & Equity Holders) 5 unknown;
+    Other 16 unknown; United States (all functions) 237 onsite; United Kingdom (all functions) 38 onsite; Canada (all functions)
+    28 onsite; Australia (all functions) 1 onsite; Other / Remote Delivery (all functions) 30 offshore; Cost of Revenue (billable
+    staff) (unknown).'
+financials:
+  table_rows:
+  - year: '2023'
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 46.2%
+    ebitda: ''
+    ebitda_margin_pct: 24.1%
+  - year: '2024'
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 42.9%
+    ebitda: ''
+    ebitda_margin_pct: 19.2%
+  - year: TTM25
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 43.6%
+    ebitda: ''
+    ebitda_margin_pct: 20.0%
+  - year: '2023'
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 46.2%
+    ebitda: ''
+    ebitda_margin_pct: 24.1%
+  - year: '2024'
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 42.9%
+    ebitda: ''
+    ebitda_margin_pct: 19.2%
+  - year: TTM25
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 43.6%
+    ebitda: ''
+    ebitda_margin_pct: 20.0%
+  - year: '2023'
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 46.2%
+    ebitda: ''
+    ebitda_margin_pct: 24.1%
+  - year: '2024'
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 42.9%
+    ebitda: ''
+    ebitda_margin_pct: 19.2%
+  - year: TTM25
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 43.6%
+    ebitda: ''
+    ebitda_margin_pct: 20.0%
+  - year: '2023'
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 46.2%
+    ebitda: ''
+    ebitda_margin_pct: 24.1%
+  - year: '2024'
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 42.9%
+    ebitda: ''
+    ebitda_margin_pct: 19.2%
+  - year: TTM25
+    revenue: ''
+    gross_profit: ''
+    gross_margin_pct: 43.6%
+    ebitda: ''
+    ebitda_margin_pct: 20.0%
+  observations: []
+  geographic_mix:
+  - segment: Billable cost of goods sold (wages)
+    revenue_pct: 23.6%
+    revenue_dollars: $13,683 thousand
+    period: '2023'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+  - segment: Billable cost of goods sold (wages)
+    revenue_pct: 28.6%
+    revenue_dollars: $17,031 thousand
+    period: '2024'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+  - segment: Billable cost of goods sold (wages)
+    revenue_pct: 29.1%
+    revenue_dollars: $18,324 thousand
+    period: TTM25
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+  - segment: Billable cost of goods sold (subcontracting fees)
+    revenue_pct: 3.7%
+    revenue_dollars: $2,168 thousand
+    period: '2023'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+  - segment: Billable cost of goods sold (subcontracting fees)
+    revenue_pct: 4.4%
+    revenue_dollars: $2,612 thousand
+    period: '2024'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+  - segment: Billable cost of goods sold (subcontracting fees)
+    revenue_pct: 4.4%
+    revenue_dollars: $2,797 thousand
+    period: TTM25
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+revenue_quality:
+  scale_narrative: Clearsulting is a global financial consulting and technology implementation firm specializing in Office
+    of the CFO (OCFO) digital transformation, with TTM25 adjusted revenue of ~$62.9M and diligence-adjusted EBITDA of ~$12.6M
+    (20.0% margin). The company earns revenue primarily through project-based consulting engagements (T&M and fixed-fee) across
+    practices including Financial Close (~$31.8M 2025E, 58% gross margin), Treasury (~$12.2M, 63% gross margin), Digital Reporting
+    & Compliance (~$8.6M, 4
+  concentration: ''
+  end_market_mix: ''
+  retention_notes: ''
+kpi_dashboard:
+- metric_id: site_level_visibility
+  display_name: Site Level Visibility
+  stated_value: 'false'
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+- metric_id: site_level_visibility_note
+  display_name: Site Level Visibility Note
+  stated_value: No healthcare-specific site-level data found in documents. Company is a tech services consulting firm, not
+    a healthcare services provider.
+  threshold: ''
+  flag: N/A
+  confidence: low
+  fill_state: gap_correct
+qoe:
+  addback_pct_of_ebitda: '45.4'
+  tier_summary: 'Clearsulting''s TTM25 diligence-adjusted EBITDA of $12,614K reflects $4,715K in addbacks (59.7% of reported
+    EBITDA of $7,899K), all of which are classified Tier 4 due to the absence of any supporting documentation references across
+    all 12 addback items. Key concerns include the recurring nature of restructuring (Adj-03: present in all three periods),
+    new venture losses (Adj-01: $91K / $856K / $839K), and the go-forward bonus adjustment (Adj-02: $2,105K / $1,314K / $777K),
+    which collectively suggest structural rather than one-time costs. Revenue quality is further pressured by a hindsight
+    revenue recognition restatement affecting 24.6% of TTM25 revenue, multiple unexplained negative revenue entries across
+    clients in the Revenue Masterfile, episodic large-client project completions (Amazon, OCI N.V.), and the absence of an
+    allowance for doubtful accounts despite $157K in historical write-offs.'
+  flags:
+  - metric: tier4_addback
+    value: New venture practices — add back of monthly losses generated by four new venture ($839)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: New venture practices — add back of monthly losses generated by four new venture practices ($839)
+      — unlikely to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Go forward bonus structure adjustment — adjustment to present the Company's go f ($777)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Go forward bonus structure adjustment — adjustment to present the Company''s go forward bonus structure
+      ($777) — unlikely to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Business restructuring — fully burdened compensation for terminated employees ($721)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Business restructuring — fully burdened compensation for terminated employees ($721) — unlikely
+      to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Employee ramp-up — fully burdened compensation during ramp-up period for five st ($501)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Employee ramp-up — fully burdened compensation during ramp-up period for five strategic hires ($501)
+      — unlikely to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: One-time / non-recurring expenses — primarily separation package to founding tea ($486)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: One-time / non-recurring expenses — primarily separation package to founding team member and equity
+      holder ($256 of $486 total) ($486) — unlikely to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence
+      Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: CLEARStock — phantom stock plan non-cash expense add back ($None)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: CLEARStock — phantom stock plan non-cash expense add back ($None) — unlikely to survive buyer QofE.
+      Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Net realized and unrealized FX gain / loss and interest — non-operational exclus ($None)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Net realized and unrealized FX gain / loss and interest — non-operational exclusion ($None) — unlikely
+      to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Separation agreement — Employee 484 separation package add back (excess over sta ($264)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Separation agreement — Employee 484 separation package add back (excess over standard severance)
+      ($264) — unlikely to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Signing bonus — add back of signing bonuses for Practice Leads, Directors, and o ($None)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Signing bonus — add back of signing bonuses for Practice Leads, Directors, and one Consulting Manager
+      ($None) — unlikely to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Bad debt normalization — one-time customer bankruptcy write-off add back and nor ($None)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Bad debt normalization — one-time customer bankruptcy write-off add back and normalization of remaining
+      bad debt ($None) — unlikely to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence Report - August
+      29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: All hands event normalization — elevated 2023 global gathering costs normalized  ($None)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: All hands event normalization — elevated 2023 global gathering costs normalized to regional format
+      baseline ($325 budgeted) ($None) — unlikely to survive buyer QofE. Source: Project Infinity - Draft Financial Diligence
+      Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: tier4_addback
+    value: Employee cost reallocation — reclassification of non-billable compensation of lo ($None)
+    threshold: Tier 4 classification
+    severity: Red
+    note: 'Tier 4 addback: Employee cost reallocation — reclassification of non-billable compensation of low-utilization leaders
+      from cost of revenue to operating expense ($None) — unlikely to survive buyer QofE. Source: Project Infinity - Draft
+      Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: New venture practices — add back of monthly losses generated ($839, 10.6% of EBITDA)
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (10.6%) with no VDR document support: New venture practices — add back of monthly losses
+      generated by four new venture practices. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: Go forward bonus structure adjustment — adjustment to presen ($777, 9.8% of EBITDA)
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (9.8%) with no VDR document support: Go forward bonus structure adjustment — adjustment to
+      present the Company''s go forward bonus structure. Source: Project Infinity - Draft Financial Diligence Report - August
+      29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: Business restructuring — fully burdened compensation for ter ($721, 9.1% of EBITDA)
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (9.1%) with no VDR document support: Business restructuring — fully burdened compensation
+      for terminated employees. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: Employee ramp-up — fully burdened compensation during ramp-u ($501, 6.3% of EBITDA)
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (6.3%) with no VDR document support: Employee ramp-up — fully burdened compensation during
+      ramp-up period for five strategic hires. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: large_unsupported_addback
+    value: One-time / non-recurring expenses — primarily separation pac ($486, 6.2% of EBITDA)
+    threshold: '>5% of EBITDA with no VDR support'
+    severity: Red
+    note: 'Addback >5% of EBITDA (6.2%) with no VDR document support: One-time / non-recurring expenses — primarily separation
+      package to founding team member and equity holder ($256 of $486 total). Source: Project Infinity - Draft Financial Diligence
+      Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: total_addbacks_pct_of_ebitda
+    value: 45.4%
+    threshold: '>20% of reported EBITDA'
+    severity: Yellow
+    note: Total addbacks represent 45.4% of reported EBITDA — QofE review high priority. Heavy reliance on addbacks increases
+      deal risk.
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: high
+  - metric: revenue_quality_revenue_recognition_change
+    value: The Company uses milestone (FFD) and percentage-of-completion (FFBS) revenue recognition for 24.6% o
+    threshold: 'Revenue quality pattern: revenue_recognition_change'
+    severity: Yellow
+    note: 'Revenue quality concern (revenue_recognition_change): The Company uses milestone (FFD) and percentage-of-completion
+      (FFBS) revenue recognition for 24.6% of TTM25 revenue. A hindsight adjustment (Adj-07) was applied to restate margins
+      for in-progress and . Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: medium
+  - metric: revenue_quality_non_recurring_in_run_rate
+    value: Total diligence-adjusted EBITDA addbacks of $4,715K in TTM25 represent approximately 37.4% of report
+    threshold: 'Revenue quality pattern: non_recurring_in_run_rate'
+    severity: Red
+    note: 'Revenue quality concern (non_recurring_in_run_rate): Total diligence-adjusted EBITDA addbacks of $4,715K in TTM25
+      represent approximately 37.4% of reported EBITDA of $7,899K. Multiple addbacks (restructuring, new venture losses, ramp-up
+      costs) recurred . Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: medium
+  - metric: revenue_quality_addbacks_growing_faster
+    value: Reported EBITDA declined from $8,247K (2023) to $6,532K (2024) to $7,899K (TTM25), while total addba
+    threshold: 'Revenue quality pattern: addbacks_growing_faster'
+    severity: Red
+    note: 'Revenue quality concern (addbacks_growing_faster): Reported EBITDA declined from $8,247K (2023) to $6,532K (2024)
+      to $7,899K (TTM25), while total addbacks were $5,753K, $4,868K, and $4,715K respectively. The addback-to-reported-EBITDA
+      ratio increased . Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: medium
+  - metric: revenue_quality_ar_aging_writeoffs
+    value: The Company does not maintain an allowance for doubtful accounts and writes off balances only once d
+    threshold: 'Revenue quality pattern: ar_aging_writeoffs'
+    severity: Yellow
+    note: 'Revenue quality concern (ar_aging_writeoffs): The Company does not maintain an allowance for doubtful accounts
+      and writes off balances only once deemed uncollectible. Total write-offs were $157K across the Historical Period ($149K
+      US plus additio. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+    source_doc: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+    confidence: medium
+  - metric: revenue_quality_unusual_credits_rebates_refunds
+    value: Multiple negative revenue entries appear in the Revenue Masterfile across clients and periods, inclu
+    threshold: 'Revenue quality pattern: unusual_credits_rebates_refunds'
+    severity: Yellow
+    note: 'Revenue quality concern (unusual_credits_rebates_refunds): Multiple negative revenue entries appear in the Revenue
+      Masterfile across clients and periods, including DPR Construction ($-4,140 Dec-23; $-18,358.50 Jun-24), Amazon ($-14,052.50
+      Dec-23), Northern Il. Source: Project Infinity - Revenue Masterfile (Monthly Jan 2020 - Aug 2025).xlsx.'
+    source_doc: Project Infinity - Revenue Masterfile (Monthly Jan 2020 - Aug 2025).xlsx
+    confidence: medium
+  - metric: revenue_quality_episodic_revenue
+    value: Several large clients show project-based revenue that starts and stops abruptly with no continuation
+    threshold: 'Revenue quality pattern: episodic_revenue'
+    severity: Yellow
+    note: 'Revenue quality concern (episodic_revenue): Several large clients show project-based revenue that starts and stops
+      abruptly with no continuation: Amazon (multiple projects totaling ~$5M+ in 2022-2023 with near-zero 2024-2025 activity),
+      OCI N.V.. Source: Project Infinity - Revenue Masterfile (Monthly Jan 2020 - Aug 2025).xlsx.'
+    source_doc: Project Infinity - Revenue Masterfile (Monthly Jan 2020 - Aug 2025).xlsx
+    confidence: medium
+  - metric: ar_aging_note
+    value: Payment terms are generally 30–60 days, though negotiations with certain customers may extend the terms. The Company
+      doe
+    threshold: AR aging note from Financial Trends Agent
+    severity: Yellow
+    note: 'AR aging observation: Payment terms are generally 30–60 days, though negotiations with certain customers may extend
+      the terms. The Company does not maintain an allowance for doubtful accounts and writes off balances once deemed uncollectible.
+      Total write-offs throughout the Historical Period were $157.'
+    source_doc: uc13_ale.analysis.financial_trends (working_capital_json)
+    confidence: medium
+legal:
+  assessed_count: 0
+  checklist_total: 11
+  section_confidence: low
+  top_flags: []
+  top_gaps:
+  - Customer contracts — termination for convenience
+  - Change-of-control clauses
+  - Exclusivity, MFN, non-compete, non-solicit
+  - Vendor pricing / cancellation terms
+  - Platform / reseller / channel dependencies
+  - Employee, contractor, commission agreements
+  - Founder / key employee agreements
+  - Litigation exposure
+  recommended_diligence:
+  - doc_type: Top Customer Contracts / MSAs / SOWs
+    priority: High
+    item_id: t4c
+  - doc_type: Top Customer Contracts / MSAs / SOWs
+    priority: High
+    item_id: coc
+  - doc_type: Top Customer Contracts / MSAs / SOWs
+    priority: High
+    item_id: restrictive
+  - doc_type: Vendor Contracts
+    priority: Medium
+    item_id: vendor
+  - doc_type: Referral / Channel / Platform Agreements
+    priority: High
+    item_id: platform
+  - doc_type: Employment Agreements
+    priority: Medium
+    item_id: employment
+  - doc_type: Founder / Key Employee Agreements
+    priority: High
+    item_id: founder
+  - doc_type: Litigation Summary / Legal Matters Schedule
+    priority: High
+    item_id: litigation
+confidence_by_area:
+  business_model: low
+  financial_trends: high
+  customer_quality: medium
+  kpi: low
+  legal: low
+  quality_of_earnings: medium
+  forecast_support: low
+provenance:
+  agent_report_paths:
+    business_model: /Volumes/uc13_ale/analysis/reports/Clearsulting/business_model_report.yaml
+    financial_trends: /Volumes/uc13_ale/analysis/reports/Clearsulting/financial_trends_report.yaml
+    customer_quality: /Volumes/uc13_ale/analysis/reports/Clearsulting/customer_quality_report.yaml
+    kpi: /Volumes/uc13_ale/analysis/reports/Clearsulting/kpi_report.yaml
+    legal: /Volumes/uc13_ale/analysis/reports/Clearsulting/legal_report.yaml
+    quality_of_earnings: /Volumes/uc13_ale/analysis/reports/Clearsulting/quality_of_earnings_report.yaml
+  agent_delta_tables:
+    business_model: uc13_ale.analysis.business_model
+    financial_trends: uc13_ale.analysis.financial_trends
+    customer_quality: uc13_ale.analysis.customer_quality
+    kpi: uc13_ale.analysis.kpi
+    legal: uc13_ale.analysis.legal
+    quality_of_earnings: uc13_ale.analysis.quality_of_earnings
+  bundle_builder_version: 0.2.0-m2
+  synthesis_gaps:
+  - field_path: headline_metrics.ltm_revenue
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+  - field_path: revenue_quality.concentration
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+  - field_path: company_framing.thesis.bullets
+    reason: Required TL;DR field empty after populate
+    owner: orchestrator
+risks:
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: New venture practices — add back of monthly losses generated ($839, 10.6% of EBITDA) (Project Infinity - Draft
+    Financial Diligence Report - August 29, 2025_redacted.pdf
+  mitigant_or_question: 'Addback >5% of EBITDA (10.6%) with no VDR document support: New venture practices — add back of monthly
+    losses generated by four new venture practices. Source: Project Infinity - Draft Financial Diligence Report - August 29,
+    2025_redacted.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: One-time / non-recurring expenses — primarily separation pac ($486, 6.2% of EBITDA) (Project Infinity - Draft
+    Financial Diligence Report - August 29, 2025_redacted.pdf
+  mitigant_or_question: 'Addback >5% of EBITDA (6.2%) with no VDR document support: One-time / non-recurring expenses — primarily
+    separation package to founding team member and equity holder ($256 of $486 total). Source: Project Infinity - Draft Financial
+    Diligence Report - August 29, 2025_redacted.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: Employee ramp-up — fully burdened compensation during ramp-u ($501, 6.3% of EBITDA) (Project Infinity - Draft
+    Financial Diligence Report - August 29, 2025_redacted.pdf
+  mitigant_or_question: 'Addback >5% of EBITDA (6.3%) with no VDR document support: Employee ramp-up — fully burdened compensation
+    during ramp-up period for five strategic hires. Source: Project Infinity - Draft Financial Diligence Report - August 29,
+    2025_redacted.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: Business restructuring — fully burdened compensation for ter ($721, 9.1% of EBITDA) (Project Infinity - Draft
+    Financial Diligence Report - August 29, 2025_redacted.pdf
+  mitigant_or_question: 'Addback >5% of EBITDA (9.1%) with no VDR document support: Business restructuring — fully burdened
+    compensation for terminated employees. Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: large_unsupported_addback
+  severity: critical
+  evidence: Go forward bonus structure adjustment — adjustment to presen ($777, 9.8% of EBITDA) (Project Infinity - Draft
+    Financial Diligence Report - August 29, 2025_redacted.pdf
+  mitigant_or_question: 'Addback >5% of EBITDA (9.8%) with no VDR document support: Go forward bonus structure adjustment
+    — adjustment to present the Company''s go forward bonus structure. Source: Project Infinity - Draft Financial Diligence
+    Report - August 29, 2025_redacted.pdf.'
+  source_agent: quality_of_earnings
+  confidence: high
+  fill_state: filled_cited
+- risk: revenue_growth_same_store_yoy_pct
+  severity: critical
+  evidence: 3.8% (Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+  mitigant_or_question: 'Revenue growth of 3.8% is below the ~5–10% threshold, which may prompt questions on referral trends,
+    reimbursement pressure, and provider availability. Source: Project Infinity - Draft Financial Diligence Report - August
+    29, 2025_redacted.pdf.'
+  source_agent: financial_trends
+  confidence: high
+  fill_state: filled_cited
+- risk: revenue_quality_addbacks_growing_faster
+  severity: critical
+  evidence: Reported EBITDA declined from $8,247K (2023) to $6,532K (2024) to $7,899K (TTM25), while total addba (Project
+    Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+  mitigant_or_question: 'Revenue quality concern (addbacks_growing_faster): Reported EBITDA declined from $8,247K (2023) to
+    $6,532K (2024) to $7,899K (TTM25), while total addbacks were $5,753K, $4,868K, and $4,715K respectively. The addback-to-reported-EBITDA
+    ratio increased . Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+  source_agent: quality_of_earnings
+  confidence: medium
+  fill_state: filled_cited
+- risk: revenue_quality_non_recurring_in_run_rate
+  severity: critical
+  evidence: Total diligence-adjusted EBITDA addbacks of $4,715K in TTM25 represent approximately 37.4% of report (Project
+    Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf
+  mitigant_or_question: 'Revenue quality concern (non_recurring_in_run_rate): Total diligence-adjusted EBITDA addbacks of
+    $4,715K in TTM25 represent approximately 37.4% of reported EBITDA of $7,899K. Multiple addbacks (restructuring, new venture
+    losses, ramp-up costs) recurred . Source: Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf.'
+  source_agent: quality_of_earnings
+  confidence: medium
+  fill_state: filled_cited
+data_room_gaps:
+- item: people_and_org.ownership is empty — ownership structure not extracted. Key-man and equity structure assessment requires
+    this. Check retrieval of capitalization, entity structure, or transaction overview sections.
+  priority: medium
+  source_agent: business_model
+  fill_state: filled_cited
+- item: 'healthcare overlay: referral_source_breakdown is empty — customer acquisition channel mix not extracted. Referral
+    source breakdown is a primary KPI for healthcare; check retrieval of sales sections.'
+  priority: medium
+  source_agent: business_model
+  fill_state: filled_cited
+- item: 'healthcare overlay: payor_mix is empty — payor/customer type breakdown not extracted. Required for government payor
+    concentration threshold check.'
+  priority: medium
+  source_agent: business_model
+  fill_state: filled_cited
+- item: Budget vs. actual data was not found in retrieved documents. If the data room includes a management reporting package,
+    board deck, monthly controller report, or rolling forecast, confirm those files are tagged with the FINANCIAL workstream
+    and re-run the agent. Budget vs. actual is required to assess forecast credibility.
+  priority: medium
+  source_agent: financial_trends
+  fill_state: filled_cited
+- item: Top referral source/customer revenue % not stated — required for concentration threshold evaluation (healthcare)
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Termination-for-convenience terms not determinable from retrieved documents — contract review required for material
+    customers.
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Change-of-control consent terms not determinable — contract review required for all customers >20% of revenue.
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Payor mix not stated — required field for healthcare overlay; request from management
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Contract for Client 1 (Energy, Utilities and Mining) (None% of revenue) not found in VDR — high-priority information
+    request
+  priority: medium
+  source_agent: customer_quality
+  fill_state: filled_cited
+- item: Staff turnover rate not stated — required for healthcare services workforce risk assessment
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: Claims denial rate not stated — required for healthcare revenue cycle assessment.
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: Revenue per client / visit / hour not stated — required for healthcare unit economics and reimbursement rate assessment.
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Overall utilization rate (blended)]: What was the firm-wide blended billable utilization rate for FY2023,
+    FY2024, and TTM25, and how does this compare to your internal target?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Contractor % of total workforce]: What percentage of total delivery headcount (or total labor cost)
+    is attributable to subcontractors or third-party contractors, and how has this trended over the past three years?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Attrition rate (voluntary and involuntary)]: What was the firm''s voluntary and involuntary attrition
+    rate for FY2023, FY2024, and YTD2025, broken out by level (Analyst through Partner)?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Revenue per FTE]: What is the firm''s revenue per FTE for FY2023, FY2024, and TTM25, and how does management
+    track this metric internally?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Weighted pipeline total and coverage ratio]: What is the total weighted pipeline value as of September
+    2025, and what is the pipeline coverage ratio relative to the 2025E and 2026F revenue targets?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Backlog (contracted, not-yet-recognized revenue)]: What is the total contracted backlog (signed SOWs
+    with revenue not yet recognized) as of September 2025, and how many months of forward revenue does this represent?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Average contract value (ACV) or average deal size]: What is the average contract value (ACV) for new
+    engagements closed in FY2024 and YTD2025, and how does this compare to prior years?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Average sales cycle length]: What is the typical sales cycle length (in days) from initial opportunity
+    identification to signed SOW, and does this vary materially by practice or deal size?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Bench size and bench cost]: How many FTEs are currently unassigned or on bench, what is the annualized
+    cost of bench capacity, and what is the average time-to-deployment for bench staff?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Client concentration (top 5 / top 10 revenue %)]: What percentage of TTM25 revenue is attributable to
+    the top 5 and top 10 clients, and are there any clients representing more than 10% of revenue?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 'Missing KPI [Revenue mix: fixed-fee vs. T&M]: What is the current revenue split between time-and-materials and fixed-fee/outcome-based
+    engagements, and what is the target mix under the AmplifAI initiative?'
+  priority: medium
+  source_agent: kpi
+  fill_state: filled_cited
+- item: 't4c: no documents retrieved for contracts_vendors_platform pass — request Top Customer Contracts / MSAs / SOWs'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'coc: no documents retrieved for contracts_vendors_platform pass — request Top Customer Contracts / MSAs / SOWs'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'restrictive: no documents retrieved for contracts_vendors_platform pass — request Top Customer Contracts / MSAs /
+    SOWs'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'vendor: no documents retrieved for contracts_vendors_platform pass — request Vendor Contracts'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'platform: no documents retrieved for contracts_vendors_platform pass — request Referral / Channel / Platform Agreements'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'employment: no documents retrieved for employment pass — request Employment Agreements'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'founder: no documents retrieved for employment pass — request Founder / Key Employee Agreements'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'litigation: no documents retrieved for litigation pass — request Litigation Summary / Legal Matters Schedule'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'privacy: no documents retrieved for ip_privacy pass — request Privacy Policy / BAA / DPA'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'ip: no documents retrieved for ip_privacy pass — request IP Assignment / OSS Policy'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: 'insurance: no documents retrieved for insurance pass — request Insurance Certificates / Policies'
+  priority: medium
+  source_agent: legal
+  fill_state: filled_cited
+- item: Customer contracts — termination for convenience
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Change-of-control clauses
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Exclusivity, MFN, non-compete, non-solicit
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Vendor pricing / cancellation terms
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Platform / reseller / channel dependencies
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Employee, contractor, commission agreements
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Founder / key employee agreements
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Litigation exposure
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Data privacy / security obligations
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: IP ownership, assignment, OSS
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Insurance coverage gaps
+  priority: high
+  source_agent: legal
+  fill_state: gap_correct
+- item: Customer Quality Agent output present but no per-customer gross margin data (gm_pct / gm_dollars) — customer profitability
+    cross-check skipped.
+  priority: medium
+  source_agent: quality_of_earnings
+  fill_state: filled_cited
+diligence_questions:
+- category: legal
+  question: Request and review Top Customer Contracts / MSAs / SOWs
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Top Customer Contracts / MSAs / SOWs
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Top Customer Contracts / MSAs / SOWs
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Vendor Contracts
+  priority: Medium
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Referral / Channel / Platform Agreements
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Employment Agreements
+  priority: Medium
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Founder / Key Employee Agreements
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized
+- category: legal
+  question: Request and review Litigation Summary / Legal Matters Schedule
+  priority: High
+  source_agent: legal
+  fill_state: filled_synthesized

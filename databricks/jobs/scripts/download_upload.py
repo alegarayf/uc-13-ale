@@ -18,12 +18,17 @@ Dependencies:
   - Job parameters: sp_company_name, catalog, schema
 """
 
+import json
 import os
 import re
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+from cim_detection import CIM_NAME_PATTERNS  # noqa: E402 — single source of truth (plan §6)
 
 # ---------------------------------------------------------------------------
 # Secrets / params helpers
@@ -132,10 +137,7 @@ def find_repo_root(marker="agents"):
 
 # Signals are applied to the combined string "{folder_path}/{file_name}" lowercased.
 _PRIORITY_SIGNALS: list[tuple[str, list[str]]] = [
-    ("CIM", [
-        "cim", "confidential information memorandum",
-        "offering memorandum", "investment overview", r"\bom\b",
-    ]),
+    ("CIM", CIM_NAME_PATTERNS),
     ("QofE Report", [
         "quality of earnings", "qofe", "q of e",
         "financial due diligence", "sell-side qofe",
@@ -168,6 +170,19 @@ _CONTRACT_FOLDERS = {"contracts", "customer agreements", "msas"}
 
 # Extensions considered image-only (no OCR value without special handling).
 _IMAGE_ONLY_EXTENSIONS = {".jpeg", ".jpg", ".png", ".gif", ".bmp", ".tiff", ".tif"}
+
+
+def apply_file_whitelist(files: list, whitelist_json: str) -> list:
+    """Filter *files* (``FileMetadata``-like, needs only ``.name``) down to
+    ``whitelist_json`` (a JSON array of file names). Empty/``"[]"``/blank →
+    *files* unchanged (today's full-room behavior). CIM-first preview scoping
+    — plan §7 Día 2, Apéndice A.1.
+    """
+    whitelist = json.loads(whitelist_json or "[]")
+    if not whitelist:
+        return files
+    wanted = set(whitelist)
+    return [f for f in files if f.name in wanted]
 
 
 def detect_priority_tier(
@@ -274,6 +289,15 @@ def main():
     print("\n[1/3] Listing files from SharePoint...")
     files = list_files()
     print(f"  {len(files)} files after deduplication")
+
+    # Optional scoping to a specific file subset (CIM-first preview — plan
+    # §7 Día 2, Apéndice A.1). Default "[]" = every file, i.e. today's
+    # behavior unchanged. Threaded via env/get_param (not a main() arg)
+    # because main() takes no parameters — see CLAUDE.md get_param() pattern.
+    before = len(files)
+    files = apply_file_whitelist(files, get_param("file_whitelist", default="[]"))
+    if len(files) != before:
+        print(f"  file_whitelist active: {before} → {len(files)} files")
 
     # Steps 2+3: download in batches → immediately upload → free memory → repeat.
     # Processing BATCH_SIZE files at a time keeps both /tmp disk usage and peak
