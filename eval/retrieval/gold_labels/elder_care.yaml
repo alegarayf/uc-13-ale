@@ -10131,10 +10131,8 @@
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55812:2026-08-11
   confidence: low
-  notes: 'aggregate_exclude: no_citation_source (gold_exclusions.yaml; no citation
-    source)'
-  aggregate_exclude: true
-  exclude_reason: no_citation_source
+  notes: Pass 1 found zero positives
+  aggregate_exclude: false
 - intent_id: kpi.retrieve_delivery_model
   company_name: Elder Care
   catalog: uc13_ale
@@ -10199,10 +10197,8 @@
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55812:2026-08-11
   confidence: low
-  notes: 'aggregate_exclude: no_citation_source (gold_exclusions.yaml; no citation
-    source)'
-  aggregate_exclude: true
-  exclude_reason: no_citation_source
+  notes: Pass 1 found zero positives
+  aggregate_exclude: false
 - intent_id: kpi.retrieve_healthcare_labor_market
   company_name: Elder Care
   catalog: uc13_ale
@@ -10359,10 +10355,8 @@
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55812:2026-08-11
   confidence: low
-  notes: 'aggregate_exclude: no_citation_source (gold_exclusions.yaml; no citation
-    source)'
-  aggregate_exclude: true
-  exclude_reason: no_citation_source
+  notes: Pass 1 found zero positives
+  aggregate_exclude: false
 - intent_id: legal.contracts_vendors_platform
   company_name: Elder Care
   catalog: uc13_ale
