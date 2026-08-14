@@ -1701,6 +1701,36 @@ items:
   rung_assignments: {}
   assessment_metrics: {}
 
+- id: GAP-M4-1-clearsulting-bloated-filename-closure
+  title: 'Clearsulting bloated filename_closure gold — 12 intents: cqa.retrieve_revenue_type_and_renewals (1273 pos,
+    max recall@10 ≈ 0.79%); fta.ebitda.q1_financial_statements (1262, ≈ 0.79%); fta.opex.q1_financial_statements (1262,
+    ≈ 0.79%); fta.revenue.q1_financial_statements (1262, ≈ 0.79%); kpi.retrieve_delivery_model (1085, ≈ 0.92%);
+    cqa.retrieve_customer_tenure (1082, ≈ 0.92%); profiler.banked_vs_nonbanked (1082, ≈ 0.92%);
+    profiler.business_description (1082, ≈ 0.92%); profiler.deal_type (1082, ≈ 0.92%); profiler.industry_overlay (1082,
+    ≈ 0.92%); profiler.revenue_model (1082, ≈ 0.92%); profiler.vertical_subsector (1082, ≈ 0.92%). Pilot baseline
+    baseline_7174e0399e29 stands but is not per-intent interpretable for these 12.'
+  source_refs:
+  - .dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md#F-03
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/escalations/ESC-M4-1-rb-defect-t9-1-gold-corpus.md
+  source_id: null
+  disposition: accepted
+  stage: S3
+  status: n/a
+  trigger: null
+  rationale: 'ESC-M4-1 Decision 4 / charter Amendment A5: Clearsulting pilot committed 12 filename_closure intents at
+    1,082–1,273 positives (max recall@10 ≤ ~0.92%). Operator disposition accepts residual matching GAP-103 / T12-bench
+    precedent at 12× scale. Harness baseline baseline_7174e0399e29 stands — not withdrawn — but is labeled not
+    per-intent interpretable for these 12; see signoffs/T11-clearsulting-bloated-gold-disposition.md and T9 pilot
+    addendum. No fresh Tier-3 escalation.'
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - baseline_7174e0399e29
+  - .dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T9-clearsulting-pilot.md
+  rung_assignments: {}
+  assessment_metrics: {}
 - id: M4-S3-item-36-clearsulting-pilot
   title: M4 spec item 36 — Clearsulting onboarding pilot walk (T9)
   source_refs:
