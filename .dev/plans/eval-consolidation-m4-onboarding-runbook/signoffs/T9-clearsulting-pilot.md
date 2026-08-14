@@ -223,3 +223,9 @@ Bootstrap completes; overlay gaps annotated via exemption + gold notes.
 ## Post-walk addendum (2026-08-14)
 
 **RB-DEFECT-T9-3** was filed during this walk (Steps 3 and 5 serverless execution) and closed @ `6f6e9ac` via runbook serverless subsections and `.dev/onboarding_cluster_submit.py`. Closure record: `signoffs/RB-DEFECT-T9-3.md`.
+
+## Baseline interpretability label (2026-08-14, T11 / ESC-M4-1 Decision 4)
+
+Harness baseline **`baseline_7174e0399e29` stands** — it is not withdrawn or recomputed. Per audit F-03 remediation (charter Amendment A5, ESC-M4-1 Decision 4), **12 of 48 scored intents** in the committed gold use bloated `filename_closure` positive sets (1,082–1,273 positives each; max recall@10 ≤ ~0.92%). **Mean recall on this baseline is not per-intent interpretable** for those 12 intents; readers must not treat aggregate metrics as meaningful per intent for that subset.
+
+**Tracked label:** registry row `GAP-M4-1-clearsulting-bloated-filename-closure`. **Operator disposition:** `signoffs/T11-clearsulting-bloated-gold-disposition.md`. **Runbook:** Step 6 per-company baseline promotion policy caveat (bloated-gold baseline label).
