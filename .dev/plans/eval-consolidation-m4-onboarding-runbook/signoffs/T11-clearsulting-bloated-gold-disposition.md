@@ -1,6 +1,6 @@
 # T11 sign-off — Clearsulting bloated `filename_closure` disposition (audit F-03)
 
-**Plan:** eval-consolidation-m4-onboarding-runbook v1.6 · **Date:** 2026-08-14 · **Status:** operator disposition per ESC-M4-1 Decision 4 / charter Amendment A5
+**Plan:** eval-consolidation-m4-onboarding-runbook v1.6 · **Date:** 2026-08-14 · **Status:** signed — accept-residual disposition per ESC-M4-1 Decision 4 / charter Amendment A5
 
 ## Audit finding addressed
 
@@ -54,4 +54,4 @@ Pilot gold: `eval/retrieval/gold_labels/clearsulting.yaml` @ T9 snapshot `uc13_a
 | Baseline stands with explicit uninterpretability label on tracked + signoff + runbook surfaces | PASS — three surfaces cross-reference registry row and this signoff |
 | No gold or eval-code edits in T11 | PASS — records only |
 
-**Operator signature / date:** _Pending operator signature_ · disposition drafted 2026-08-14 per ESC-M4-1 §6 item 4 (orchestrator drafts; operator signs)
+**Operator signature / date:** Alejandro · 2026-08-14 (accept-residual disposition per ESC-M4-1 Decision 4; baseline `baseline_7174e0399e29` stands, 12 intents labeled not per-intent interpretable)
