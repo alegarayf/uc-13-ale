@@ -1,0 +1,192 @@
+# Elder Care S2 product backlog — claim failures tracked as product signal, not registry waivers.
+# Registry note: F-14-assessment-metrics-rung3 is an assessment_metrics waiver (M3 audit), not
+# a substitute for S2 claim-failure backlog items below.
+schema_version: 1
+items:
+  - id: PB-exec_summary-retrieval-scope-gap
+    company: elder_care
+    surface: exec_summary
+    kind: retrieval_scope_gap
+    severity: high
+    summary: >-
+      Spot-check retrieval only queries VDR chunk RAG; exec_summary claims trace to
+      analysis.diligence_report and sibling workstream tables — 28/30 drafted-unsupported
+      claims were retrieval_scope_gap, not corpus or generator defects.
+    evidence_refs:
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.m3_backlog.md
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      exec_summary spot-check evidence fetch queries analysis.diligence_report aggregation
+      fields and per-workstream tables alongside chunk RAG; re-run shows drafted-unsupported
+      rate drops materially vs 2026-08-12 baseline.
+    registry_ref: M5-S2-product-backlog-ledger
+
+  - id: PB-exec_summary-source-ref-mislabel
+    company: elder_care
+    surface: exec_summary
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      Presentation packet source_ref points at analysis.legal.executive_summary instead of
+      analysis.diligence_report.executive_summary — standing citation bug for all 53 claims.
+    evidence_refs:
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.m3_backlog.md
+    fix_lane: product
+    closes_when: >-
+      prepare_spot_check emits source://...analysis.diligence_report.executive_summary for
+      exec_summary surface in generated presentation packets.
+
+  - id: PB-exec_summary-chunk-truncation
+    company: elder_care
+    surface: exec_summary
+    kind: claim_failure
+    severity: medium
+    summary: >-
+      Correct VDR chunk retrieved but numeric evidence sits past ~1,200-char truncation boundary
+      (claims 008–010, 018); same driver as M2 WP-2 on calibration evidence fetch.
+    evidence_refs:
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+      - eval/content/calibration.py
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      exec_summary evidence fetch returns untruncated chunk_text for affected claim_ids in a
+      spot-check re-run (008, 009, 010, 018 supported without analysis-table override).
+
+  - id: PB-legal_register-extraction-depth-contracts
+    company: elder_care
+    surface: legal_register
+    kind: extraction_depth
+    severity: high
+    summary: >-
+      Contracts pass retrieves 14 chunks but termination_for_convenience and change-of-control
+      nested fields stay not_found on merged register rows — drives legal_register S2 claim
+      failures alongside trust 20/23.
+    evidence_refs:
+      - eval/LCA/presentation_summary_elder_care.md
+      - eval/LCA/poc_delta_elder_care.md
+      - eval/program/trust_statement.md
+    fix_lane: product
+    closes_when: >-
+      Elder Care legal run populates t4c and coc nested fields on contract_register rows where
+      lease/APA corpus contains those clauses; legal_register S2 supported fraction improves
+      vs 3/23 baseline.
+
+  - id: PB-legal_register-corpus-gap-platform
+    company: elder_care
+    surface: legal_register
+    kind: corpus_gap
+    severity: medium
+    summary: >-
+      No platform/reseller/channel agreements in LEGAL-tagged corpus — platform_dependency_register
+      empty despite contracts_vendors_platform pass retrieval.
+    evidence_refs:
+      - eval/LCA/presentation_summary_elder_care.md
+      - eval/LCA/poc_delta_elder_care.md
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      Platform checklist item assessable (register row or documented exemption with corpus cite)
+      OR corpus expanded with platform agreements and re-extraction yields rows.
+
+  - id: PB-legal_register-retrieval-ip
+    company: elder_care
+    surface: legal_register
+    kind: corpus_gap
+    severity: medium
+    summary: >-
+      ip_register empty while privacy_security_register has 8 BAA rows from same pass — LEGAL
+      corpus lacks IP assignment/OSS/trademark docs, not a dedupe-only miss.
+    evidence_refs:
+      - eval/LCA/presentation_summary_elder_care.md
+      - eval/LCA/poc_delta_elder_care.md
+    fix_lane: product
+    closes_when: >-
+      ip_register populated from in-corpus IP docs after ingest expansion, or item marked
+      unable_to_assess with explicit corpus_absent evidence in legal_report.yaml.
+
+  - id: PB-fta_numeric-segment-json-dedupe
+    company: elder_care
+    surface: fta_numeric
+    kind: claim_failure
+    severity: high
+    summary: >-
+      revenue_by_segment_json contains byte-identical duplicate blocks (Westchester [5]-[9] vs
+      [20]-[24], Long Island [10]-[14] vs [31]-[35]) — root cause of 33 LOW/unresolvable claims.
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+    fix_lane: product
+    closes_when: >-
+      FTA extraction writes deduplicated revenue_by_segment_json (or record_id per row) and a
+      future spot-check resolves duplicate-array claims without operator override.
+
+  - id: PB-fta_numeric-segment-source-location
+    company: elder_care
+    surface: fta_numeric
+    kind: extraction_depth
+    severity: medium
+    summary: >-
+      revenue_by_segment_json schema lacks source_location unlike sibling FTA arrays — 42 claims
+      capped at MEDIUM with no Layer-B chunk path structurally possible.
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      revenue_by_segment_json entries carry source_location populated from true source workbook/tab
+      and spot-check Layer B resolves for representative segment claims.
+
+  - id: PB-fta_numeric-broken-chunk-repoint
+    company: elder_care
+    surface: fta_numeric
+    kind: claim_failure
+    severity: medium
+    summary: >-
+      Pro Forma Income Statement citations resolve to broken vision placeholder chunk 027ec667…;
+      sibling cd9773ea… on same page confirms values — 42 claims in known_bad_chunk_family.
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      source_location to chunk_id mapping for Pro Forma Income Statement section resolves to
+      cd9773ea… (or equivalent correct chunk) in ingestion metadata and downstream tooling.
+
+  - id: PB-fta_numeric-chunk-truncation
+    company: elder_care
+    surface: fta_numeric
+    kind: claim_failure
+    severity: medium
+    summary: >-
+      ~1,200-char chunk-text cap in evidence fetch truncates numeric values needed for Layer-B
+      verification on fta_numeric spot-check paths (M2 WP-2 class).
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/calibration.py
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      fetch_chunk_metadata / retrieve_evidence returns full chunk_text for FTA numeric evidence
+      paths without 1200-char cap regression on Elder Care calibration sample.
+
+  - id: PB-fta_numeric-page46-vision-reextract
+    company: elder_care
+    surface: fta_numeric
+    kind: extraction_depth
+    severity: low
+    summary: >-
+      Chunk b1feca18 (Diligence Adjusted Income Statement p.46) has stale Pro Forma Adjusted
+      EBITDA rows for 2023A/TTM while margin row is correct — 12 claims MEDIUM via Layer A only.
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+    fix_lane: product
+    closes_when: >-
+      Re-extracted CIM page 46 chunk reconciles EBITDA dollar rows with margin row for 2023A and
+      TTM columns in ingestion.chunks.
