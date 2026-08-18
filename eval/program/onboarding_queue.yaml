@@ -1,0 +1,36 @@
+schema_version: 1
+catalog: uc13_ale
+generated_at: '2026-08-18T22:57:28+00:00'
+companies:
+- display_name: GKF
+  slug: gkf
+  chunk_count: 3107
+  ingest_completeness_ratio: 1.0
+  doc_type_diversity_score: 1.0
+  rank_score: 1.0
+  wave: W2
+  notes: ''
+- display_name: Clearsulting
+  slug: clearsulting
+  chunk_count: 2417
+  ingest_completeness_ratio: 1.0
+  doc_type_diversity_score: 1.0
+  rank_score: 1.0
+  wave: W1
+  notes: ''
+- display_name: SPG
+  slug: spg
+  chunk_count: 43602
+  ingest_completeness_ratio: 0.9862637362637363
+  doc_type_diversity_score: 1.0
+  rank_score: 0.9862637362637363
+  wave: W2
+  notes: ''
+- display_name: Elder Care
+  slug: elder_care
+  chunk_count: 55812
+  ingest_completeness_ratio: 0.9831578947368421
+  doc_type_diversity_score: 1.0
+  rank_score: 0.9831578947368421
+  wave: W0
+  notes: ''
