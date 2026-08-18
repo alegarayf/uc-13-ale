@@ -403,45 +403,81 @@ def _top10_source(
     return None, None
 
 
-def exec_claim_source(
-    claim_id: str, cache: dict[str, Any]
-) -> tuple[str | None, str | None]:
-    """Map exec_summary claim_id → (source_doc, source_location) from analysis artifacts."""
+_ELDER_CARE_STATIC_CLAIM_SOURCES: dict[str, tuple[str, str | None]] = {
+    "exec.claim.001": ("2024 Elder Care - CIM_vF.pdf", "Elder Care by the Numbers"),
+    "exec.claim.002": ("GL_0125-0325.xlsx", None),
+    "exec.claim.003": ("Company KPI Dashboard SAMPLE.xlsx", "Census or Patient Panel"),
+    "exec.claim.004": ("Company KPI Dashboard SAMPLE.xlsx", "Caregiver Headcount"),
+    "exec.claim.005": ("2024 Elder Care - CIM_vF.pdf", "Corporate Functions"),
+    "exec.claim.006": ("2024 Elder Care - CIM_vF.pdf", "Key Entity Metrics"),
+    "exec.claim.011": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+    "exec.claim.013": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+    "exec.claim.031": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+    "exec.claim.034": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
+    "exec.claim.020": (
+        "Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx",
+        "Q&A",
+    ),
+    "exec.claim.023": (
+        "April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf",
+        None,
+    ),
+    "exec.claim.024": ("Manhattan_Lease_0424.pdf", "Section 11"),
+    "exec.claim.028": (
+        "Project Orange Engagement Letter - May 1, 2025.pdf",
+        None,
+    ),
+    "exec.claim.029": ("2024 Elder Care - CIM_vF.pdf", "Services Overview"),
+    "exec.claim.030": ("2024 Elder Care - CIM_vF.pdf", "MD&A"),
+    "exec.claim.037": ("2024 Elder Care - CIM_vF.pdf", "Growth Strategy"),
+}
 
-    static: dict[str, tuple[str, str | None]] = {
-        "exec.claim.001": ("2024 Elder Care - CIM_vF.pdf", "Elder Care by the Numbers"),
-        "exec.claim.002": ("GL_0125-0325.xlsx", None),
-        "exec.claim.003": ("Company KPI Dashboard SAMPLE.xlsx", "Census or Patient Panel"),
-        "exec.claim.004": ("Company KPI Dashboard SAMPLE.xlsx", "Caregiver Headcount"),
-        "exec.claim.005": ("2024 Elder Care - CIM_vF.pdf", "Corporate Functions"),
-        "exec.claim.006": ("2024 Elder Care - CIM_vF.pdf", "Key Entity Metrics"),
-        "exec.claim.011": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
-        "exec.claim.013": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
-        "exec.claim.031": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
-        "exec.claim.034": ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
-        "exec.claim.020": (
-            "Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx",
-            "Q&A",
-        ),
-        "exec.claim.023": (
-            "April 30 2025 Fully Executed Retainer Agreement for Collection Efforts by Peter Ackerman Esq.pdf",
-            None,
-        ),
-        "exec.claim.024": ("Manhattan_Lease_0424.pdf", "Section 11"),
-        "exec.claim.028": (
-            "Project Orange Engagement Letter - May 1, 2025.pdf",
-            None,
-        ),
-        "exec.claim.029": ("2024 Elder Care - CIM_vF.pdf", "Services Overview"),
-        "exec.claim.030": ("2024 Elder Care - CIM_vF.pdf", "MD&A"),
-        "exec.claim.037": ("2024 Elder Care - CIM_vF.pdf", "Growth Strategy"),
-    }
-    if claim_id in static:
-        return static[claim_id]
+_EXEC_TOP10_RANK_MAP: dict[str, int] = {
+    "exec.claim.021": 3,
+    "exec.claim.022": 4,
+    "exec.claim.035": 2,
+    "exec.claim.036": 5,
+    "exec.claim.038": 1,
+    "exec.claim.039": 3,
+    "exec.claim.040": 4,
+    "exec.claim.041": 1,
+    "exec.claim.042": 6,
+    "exec.claim.043": 7,
+    "exec.claim.044": 8,
+    "exec.claim.045": 10,
+    "exec.claim.048": 1,
+    "exec.claim.049": 3,
+    "exec.claim.050": 6,
+    "exec.claim.051": 7,
+    "exec.claim.052": 9,
+    "exec.claim.053": 10,
+}
+
+
+def _forecast_assumption_source(
+    forecast_rows: list[dict[str, Any]] | dict[str, Any],
+) -> tuple[str | None, str | None]:
+    rows = forecast_rows if isinstance(forecast_rows, list) else []
+    for row in rows:
+        doc = str(row.get("source_doc") or "") or None
+        loc = str(row.get("source_location") or "") or None
+        if doc:
+            return doc, loc
+    return None, None
+
+
+def _exec_claim_source_from_cache(
+    claim_id: str,
+    cache: dict[str, Any],
+    *,
+    elder_care_fallbacks: bool,
+) -> tuple[str | None, str | None]:
+    """Resolve exec_summary claim sources from ``load_exec_analysis_cache`` payload."""
 
     revenue = cache.get("revenue_trend_json") or []
     ledger = cache.get("addback_ledger_json") or []
     top10 = cache.get("top_10_issues_json") or []
+    forecast = cache.get("forecast_assumptions_json") or []
 
     if claim_id in {
         "exec.claim.007",
@@ -452,10 +488,12 @@ def exec_claim_source(
     }:
         return _fta_row_source(revenue, location_contains="Historical P&L Summary")
     if claim_id in {"exec.claim.011", "exec.claim.013", "exec.claim.031", "exec.claim.034"}:
-        return _first_source(
-            ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail"),
-            _top10_source(top10, 1),
+        elder_fallback = (
+            ("2024 Elder Care - CIM_vF.pdf", "EBITDA Adjustment Detail")
+            if elder_care_fallbacks
+            else (None, None)
         )
+        return _first_source(elder_fallback, _top10_source(top10, 1))
     if claim_id == "exec.claim.014":
         return _qoe_item_source(ledger, "G")
     if claim_id == "exec.claim.015":
@@ -463,9 +501,13 @@ def exec_claim_source(
     if claim_id == "exec.claim.016":
         return _qoe_item_source(ledger, "O")
     if claim_id == "exec.claim.017":
-        return ("2024 Elder Care - CIM_vF.pdf", "Historical P&L Summary, Page 49")
+        if elder_care_fallbacks:
+            return ("2024 Elder Care - CIM_vF.pdf", "Historical P&L Summary, Page 49")
+        return _fta_row_source(revenue, location_contains="Historical P&L Summary")
     if claim_id == "exec.claim.018":
-        return ("Elder Care Projection Model_vUPLOAD.xlsx", "Forecast Assumptions")
+        if elder_care_fallbacks:
+            return ("Elder Care Projection Model_vUPLOAD.xlsx", "Forecast Assumptions")
+        return _forecast_assumption_source(forecast)
     if claim_id in {
         "exec.claim.019",
         "exec.claim.046",
@@ -473,55 +515,36 @@ def exec_claim_source(
         "exec.claim.026",
         "exec.claim.025",
     }:
-        return ("2024 Elder Care - CIM_vF.pdf", "Executive Summary")
+        if elder_care_fallbacks:
+            return ("2024 Elder Care - CIM_vF.pdf", "Executive Summary")
+        return (None, None)
     if claim_id == "exec.claim.032":
         return _qoe_item_source(ledger, "D")
     if claim_id == "exec.claim.033":
         return _qoe_item_source(ledger, "N")
-    if claim_id in {
-        "exec.claim.021",
-        "exec.claim.022",
-        "exec.claim.035",
-        "exec.claim.036",
-        "exec.claim.038",
-        "exec.claim.039",
-        "exec.claim.040",
-        "exec.claim.041",
-        "exec.claim.042",
-        "exec.claim.043",
-        "exec.claim.044",
-        "exec.claim.045",
-        "exec.claim.048",
-        "exec.claim.049",
-        "exec.claim.050",
-        "exec.claim.051",
-        "exec.claim.052",
-        "exec.claim.053",
-    }:
-        rank_map = {
-            "exec.claim.021": 3,
-            "exec.claim.022": 4,
-            "exec.claim.035": 2,
-            "exec.claim.036": 5,
-            "exec.claim.038": 1,
-            "exec.claim.039": 3,
-            "exec.claim.040": 4,
-            "exec.claim.041": 1,
-            "exec.claim.042": 6,
-            "exec.claim.043": 7,
-            "exec.claim.044": 8,
-            "exec.claim.045": 10,
-            "exec.claim.048": 1,
-            "exec.claim.049": 3,
-            "exec.claim.050": 6,
-            "exec.claim.051": 7,
-            "exec.claim.052": 9,
-            "exec.claim.053": 10,
-        }
-        return _top10_source(top10, rank_map[claim_id])
+    if claim_id in _EXEC_TOP10_RANK_MAP:
+        return _top10_source(top10, _EXEC_TOP10_RANK_MAP[claim_id])
     if claim_id == "exec.claim.027":
         return (None, None)
     return (None, None)
+
+
+def exec_claim_source(
+    claim_id: str,
+    cache: dict[str, Any],
+    *,
+    company_slug: str,
+) -> tuple[str | None, str | None]:
+    """Map exec_summary claim_id → (source_doc, source_location) from analysis artifacts."""
+
+    if company_slug == "elder_care" and claim_id in _ELDER_CARE_STATIC_CLAIM_SOURCES:
+        return _ELDER_CARE_STATIC_CLAIM_SOURCES[claim_id]
+
+    return _exec_claim_source_from_cache(
+        claim_id,
+        cache,
+        elder_care_fallbacks=(company_slug == "elder_care"),
+    )
 
 
 def _resolve_chunk_for_entry(
@@ -540,6 +563,7 @@ def _claim_from_manifest_entry(
     source: str,
     entry: dict[str, Any],
     *,
+    company_slug: str,
     chunk_index: ChunkIndex | None = None,
     exec_analysis_cache: dict[str, Any] | None = None,
 ) -> SpotCheckClaim:
@@ -550,7 +574,11 @@ def _claim_from_manifest_entry(
     source_location = entry.get("source_location")
 
     if surface == "exec_summary" and exec_analysis_cache is not None:
-        derived_doc, derived_loc = exec_claim_source(claim_id, exec_analysis_cache)
+        derived_doc, derived_loc = exec_claim_source(
+            claim_id,
+            exec_analysis_cache,
+            company_slug=company_slug,
+        )
         if derived_doc:
             source_doc = derived_doc
             source_location = derived_loc
@@ -603,6 +631,7 @@ def load_claim_enumeration(
     exec_analysis_cache: dict[str, Any] | None = None,
 ) -> tuple[SpotCheckClaim, ...]:
     """Load the whole-surface claim set from the committed rubric manifest."""
+    company_slug = canonical_company_slug(config.company)
     manifest_file = _manifest_path(config)
     payload = json.loads(manifest_file.read_text(encoding="utf-8"))
     claims = [
@@ -610,6 +639,7 @@ def load_claim_enumeration(
             config.surface,
             config.source,
             entry,
+            company_slug=company_slug,
             chunk_index=chunk_index,
             exec_analysis_cache=exec_analysis_cache,
         )
