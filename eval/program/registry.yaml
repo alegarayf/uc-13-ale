@@ -1796,3 +1796,22 @@ items:
   - eval/LCA/presentation_summary_elder_care.md
   rung_assignments: {}
   assessment_metrics: {}
+- id: HYGIENE-open-items-md-dangling-source-refs
+  title: Dangling OPEN_ITEMS.md source_refs across registry rows (Flag 8)
+  source_refs:
+  - .dev/plans/eval-multi-company-coverage-expansion/analysis/registry-hygiene-open-items-dangling-refs.md
+  source_id: null
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: Operator reconstructs tracked OPEN_ITEMS.md or retires dangling citations on affected rows
+  rationale: '49 registry rows cite OPEN_ITEMS.md anchors; no tracked OPEN_ITEMS.md in git
+    (git ls-files empty; local copy gitignored at .gitignore:235). Replacement narrative at
+    .dev/pending/eval-consolidation-open-items.md was not repointed in source_refs. Hygiene
+    finding only — does not resolve affected OI-* row dispositions. See M5 analysis doc §4b
+    for Phase 7 scorecard design-only program note.'
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-multi-company-coverage-expansion/analysis/registry-hygiene-open-items-dangling-refs.md
+  rung_assignments: {}
+  assessment_metrics: {}

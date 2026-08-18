@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -552,6 +553,30 @@ def test_assessment_metrics_trigger_requires_exactly_one_carrier_mutation_fails(
     manifest = {"schema_version": 1, "sources": [], "ratifications": [{}, {}, {}, {}]}
     errors = validate_registry_manifest(registry, manifest)
     assert any("exactly one row must carry assessment_metrics" in error for error in errors)
+
+
+def test_hygiene_open_items_dangling_refs_row_present(populated_artifacts):
+    """T8 Flag 8: hygiene row documents dangling OPEN_ITEMS.md citations without resolving OI rows."""
+    registry, _manifest = populated_artifacts
+    by_id = _registry_by_id(registry)
+    row = by_id.get("HYGIENE-open-items-md-dangling-source-refs")
+    assert row is not None, "HYGIENE-open-items-md-dangling-source-refs row missing"
+    assert row["disposition"] == "staged"
+    assert row["status"] == "pending"
+    analysis_ref = (
+        ".dev/plans/eval-multi-company-coverage-expansion/analysis/"
+        "registry-hygiene-open-items-dangling-refs.md"
+    )
+    assert analysis_ref in (row.get("source_refs") or [])
+    assert analysis_ref in (row.get("evidence_refs") or [])
+    tracked = subprocess.run(
+        ["git", "ls-files", "**/OPEN_ITEMS.md"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    assert tracked == "", "tracked OPEN_ITEMS.md exists — hygiene finding premise changed"
 
 
 def test_production_default_registry_paths_resolve_to_tracked_files() -> None:
