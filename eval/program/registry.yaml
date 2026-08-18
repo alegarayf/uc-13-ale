@@ -1774,3 +1774,25 @@ items:
   - signoffs/RB-DEFECT-T9-3.md
   rung_assignments: {}
   assessment_metrics: {}
+
+- id: M5-S2-product-backlog-ledger
+  title: M5 S2 product backlog ledger — Elder Care claim failures as product signal
+  source_refs:
+  - .dev/specs/eval-multi-company-coverage/spec.md#4
+  - .dev/plans/eval-multi-company-coverage-expansion/packets/T2.md
+  source_id: null
+  disposition: accepted
+  stage: S3
+  status: n/a
+  trigger: null
+  rationale: T2 committed eval/program/product_backlog.yaml cataloging Elder Care S2 failures
+    (legal_register 20/23, exec_summary retrieval_scope_gap and misc, fta_numeric m3_backlog
+    patterns) as product backlog items — not registry waivers.
+  tshirt: null
+  evidence_refs:
+  - eval/program/product_backlog.yaml
+  - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+  - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+  - eval/LCA/presentation_summary_elder_care.md
+  rung_assignments: {}
+  assessment_metrics: {}
