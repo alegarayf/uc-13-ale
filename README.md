@@ -84,6 +84,7 @@ npm run test:frontend         # frontend unit tests (form helpers, formatting)
 
 | Area | Documentation |
 |------|----------------|
+| **UC-13 system** | [`docs/`](docs/README.md) — ingestion/eval cross-cutting docs, [known gaps](docs/ingestion/known-gaps.md) |
 | Backend API | [`backend-api/docs/`](backend-api/docs/README.md) — architecture, [rules](backend-api/docs/api/rules.md) and [companies](backend-api/docs/api/companies.md) REST APIs, caching |
 | Frontend | [`frontend/docs/`](frontend/docs/README.md) — My Garden and Garden rules UI |
 
