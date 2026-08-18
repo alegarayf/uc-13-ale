@@ -871,11 +871,17 @@ items:
   source_id: OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg
   disposition: staged
   stage: S1
-  status: pending
+  status: closed
   trigger: null
-  rationale: null
+  rationale: 'Clearsulting W1 (T4): FTA promotion landed via pipeline run 6e1b4f5d95284b33bbd08942b3595dd6
+    (17/18 checklist, promoted over prior 16/18). GKF/SPG promotion deferred to W2 per spec D5;
+    clearsulting:global:promotion_inputs remains open for remaining agents.'
   tshirt: null
-  evidence_refs: []
+  evidence_refs:
+  - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T4-clearsulting-w1.md
+  - 6e1b4f5d95284b33bbd08942b3595dd6
+  - eval/FTA/golden_checklist_clearsulting.md
+  - eval/program/trust_statement.md
   rung_assignments: {}
   assessment_metrics: {}
 - id: OI-eval-harness-evaluate-promotion-elder-care-post-fix-full-refresh
@@ -1794,6 +1800,30 @@ items:
   - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
   - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
   - eval/LCA/presentation_summary_elder_care.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: M5-S3-clearsulting-w1-complete
+  title: Clearsulting W1 fully scored — FTA checklist + S2 partial + trust regen (spec D3)
+  source_refs:
+  - .dev/specs/eval-multi-company-coverage/spec.md#D3
+  - .dev/plans/eval-multi-company-coverage-expansion/packets/T4.md
+  source_id: null
+  disposition: accepted
+  stage: S3
+  status: n/a
+  trigger: null
+  rationale: 'Operator-attested W1 close (T4): Clearsulting retrieval attested; FTA golden checklist
+    17/18 with e2e linkage on pipeline run 6e1b4f5d95284b33bbd08942b3595dd6; S2 fta_numeric
+    and exec_summary partial (human rung); legal_register known_gap; 12 bloated-gold debt rows
+    remain open.'
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T4-clearsulting-w1.md
+  - eval/FTA/golden_checklist_clearsulting.md
+  - eval/program/trust_statement.md
+  - 6e1b4f5d95284b33bbd08942b3595dd6
+  - 20260818T231317Z-c894
+  - 20260818T231325Z-0a7e
   rung_assignments: {}
   assessment_metrics: {}
 - id: HYGIENE-open-items-md-dangling-source-refs

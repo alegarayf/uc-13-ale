@@ -1,6 +1,6 @@
 # Trust statement (generated — do not edit)
 
-Generated: 2026-08-14T13:12:07.535543+00:00
+Generated: 2026-08-18T23:14:04.561747+00:00
 Generator: v1
 Catalog: uc13_ale
 Companies: clearsulting, elder_care
@@ -42,32 +42,38 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
 - company: clearsulting
   layer: agent_fields
   surface: null
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: partial
+  reason: incomplete_agent_matrix
   method: null
   rung: null
-  evidence_refs: []
+  evidence_refs:
+  - fta:6e1b4f5d95284b33bbd08942b3595dd6
+  - legal:9d39d36f15204632b23c563305fcb916
   known_gaps: []
   manual_check: null
 - company: clearsulting
   layer: e2e
   surface: null
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: partial
+  reason: incomplete_agent_matrix
   method: null
   rung: null
-  evidence_refs: []
+  evidence_refs:
+  - fta:6e1b4f5d95284b33bbd08942b3595dd6
+  - legal:9d39d36f15204632b23c563305fcb916
   known_gaps: []
   manual_check: null
 - company: clearsulting
   layer: content_correctness
   surface: fta_numeric
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: partial
+  reason: claim_failures
   method: null
-  rung: null
-  evidence_refs: []
-  known_gaps: []
+  rung: human
+  evidence_refs:
+  - s2_scores:20260818T231325Z-0a7e
+  known_gaps:
+  - 276/276 claims failed on fta_numeric
   manual_check: null
 - company: clearsulting
   layer: content_correctness
@@ -82,12 +88,14 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
 - company: clearsulting
   layer: content_correctness
   surface: exec_summary
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: partial
+  reason: claim_failures
   method: null
-  rung: null
-  evidence_refs: []
-  known_gaps: []
+  rung: human
+  evidence_refs:
+  - s2_scores:20260818T231317Z-c894
+  known_gaps:
+  - 52/53 claims failed on exec_summary
   manual_check: null
 - company: elder_care
   layer: ingest_completeness
@@ -121,21 +129,35 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
 - company: elder_care
   layer: agent_fields
   surface: null
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: attested
+  reason: null
   method: null
   rung: null
-  evidence_refs: []
+  evidence_refs:
+  - fta:5fef915601574dc3be629546910ba71e
+  - legal:f45014f9dc7b473f8068d6695627460e
+  - bma:2855aef9c0fb46e1b2252875d843ef3a
+  - cqa:47f7f619821c445ca7161fdd97c9d3e5
+  - kpi:093d0d03181941879a18f31a29d235ac
+  - qoe:6ac6bfd73d864c3c9d038d13cb8e5be3
+  - profiler:bddb1d187b284e0a8d22d420c2463727
   known_gaps: []
   manual_check: null
 - company: elder_care
   layer: e2e
   surface: null
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: attested
+  reason: null
   method: null
   rung: null
-  evidence_refs: []
+  evidence_refs:
+  - fta:5fef915601574dc3be629546910ba71e
+  - legal:f45014f9dc7b473f8068d6695627460e
+  - bma:2855aef9c0fb46e1b2252875d843ef3a
+  - cqa:47f7f619821c445ca7161fdd97c9d3e5
+  - kpi:093d0d03181941879a18f31a29d235ac
+  - qoe:6ac6bfd73d864c3c9d038d13cb8e5be3
+  - profiler:bddb1d187b284e0a8d22d420c2463727
   known_gaps: []
   manual_check: null
 - company: elder_care
