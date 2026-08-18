@@ -40,6 +40,7 @@ LAYERS = (
 )
 CONTENT_SURFACES = ("fta_numeric", "legal_register", "exec_summary")
 LAYER_CONTENT_CORRECTNESS = "content_correctness"
+_E2E_AGENT_IDS = ("fta", "legal", "bma", "cqa", "kpi", "qoe", "profiler")
 ATTESTATIONS = frozenset({"attested", "partial", "not_attested", "known_gap"})
 WRITER_TO_RUNG: dict[str, str] = {
     "deterministic_verifier": "deterministic",
@@ -61,6 +62,7 @@ REASONS = frozenset(
         "corpus_absent",
         "corpus_thin",
         "overlay_mismatch",
+        "incomplete_agent_matrix",
     }
 )
 METHODS = frozenset({"sql_chunk_count", "doc_status", "null"})
@@ -89,6 +91,15 @@ class TrustEpochContext:
     ingestion_snapshot: str
     gold_ready_summary: str
     refresh_event_refs: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class E2eLinkageRow:
+    e2e_agent_id: str
+    run_id: str
+    e2e_checklist_score: int
+    e2e_checklist_total: int
+    linked_at: datetime
 
 
 @dataclass(frozen=True)
@@ -412,6 +423,205 @@ def _default_not_attested_row(company: str, layer: str, surface: str | None) -> 
         reason="no_completed_run",
         method=None,
         rung=None,
+    )
+
+
+def _parse_e2e_linkage_linked_at(value: str | None) -> datetime:
+    if value is None:
+        raise ValueError("linked_at must be non-null")
+    return _parse_sdk_run_ts(value)
+
+
+def _e2e_linkage_sql(*, catalog: str, company_slug: str) -> str:
+    slug = _escape_sql_literal(company_slug)
+    return f"""
+SELECT
+  e.e2e_agent_id,
+  e.run_id,
+  e.e2e_checklist_score,
+  e.e2e_checklist_total,
+  e.linked_at,
+  r.harness_status
+FROM {catalog}.ops.e2e_linkage e
+JOIN {catalog}.ops.retrieval_harness_runs r
+  ON e.run_id = r.run_id
+WHERE {catalog}.ops.canonical_company_slug(r.company_name) = '{slug}'
+"""
+
+
+def _load_e2e_linkage_context(
+    execute_sql: SqlExecutor,
+    *,
+    catalog: str,
+    company_slug: str,
+) -> tuple[list[E2eLinkageRow], dict[str, str | None]]:
+    raw_rows = execute_sql(_e2e_linkage_sql(catalog=catalog, company_slug=company_slug))
+    rows: list[E2eLinkageRow] = []
+    harness_status_by_run_id: dict[str, str | None] = {}
+    for row in raw_rows:
+        if len(row) < 6 or row[0] is None or row[1] is None:
+            raise ValueError(
+                f"e2e_linkage row has {len(row)} columns; expected 6 from projection"
+            )
+        if row[2] is None or row[3] is None or row[4] is None:
+            continue
+        parsed = E2eLinkageRow(
+            e2e_agent_id=str(row[0]),
+            run_id=str(row[1]),
+            e2e_checklist_score=int(row[2]),
+            e2e_checklist_total=int(row[3]),
+            linked_at=_parse_e2e_linkage_linked_at(row[4]),
+        )
+        rows.append(parsed)
+        harness_status_by_run_id[parsed.run_id] = str(row[5]) if row[5] is not None else None
+    return rows, harness_status_by_run_id
+
+
+def fetch_e2e_linkage_rows(
+    execute_sql: SqlExecutor,
+    *,
+    catalog: str,
+    company_slug: str,
+) -> list[E2eLinkageRow]:
+    """Load ``ops.e2e_linkage`` rows for one company via the warehouse client."""
+    rows, _ = _load_e2e_linkage_context(
+        execute_sql,
+        catalog=catalog,
+        company_slug=company_slug,
+    )
+    logger.info(
+        "fetch_e2e_linkage_rows",
+        extra={
+            "event": "fetch_e2e_linkage_rows",
+            "company": company_slug,
+            "surface": "",
+            "run_id": "",
+            "n_claims": len(rows),
+        },
+    )
+    return rows
+
+
+def _latest_linkage_per_agent(
+    rows: Sequence[E2eLinkageRow],
+) -> dict[str, E2eLinkageRow]:
+    latest: dict[str, E2eLinkageRow] = {}
+    for row in rows:
+        if row.e2e_agent_id not in _E2E_AGENT_IDS:
+            continue
+        prev = latest.get(row.e2e_agent_id)
+        if prev is None or row.linked_at > prev.linked_at:
+            latest[row.e2e_agent_id] = row
+    return latest
+
+
+def _agent_linkage_evidence_refs(
+    latest_by_agent: dict[str, E2eLinkageRow],
+) -> list[str]:
+    return [
+        f"{agent_id}:{latest_by_agent[agent_id].run_id}"
+        for agent_id in _E2E_AGENT_IDS
+        if agent_id in latest_by_agent
+    ]
+
+
+def derive_agent_fields_row(
+    company: str,
+    *,
+    latest_by_agent: dict[str, E2eLinkageRow],
+) -> TrustStatementRow:
+    """Derive the single ``agent_fields`` row per spec D1."""
+    linked_count = len(latest_by_agent)
+    evidence_refs = _agent_linkage_evidence_refs(latest_by_agent)
+    if linked_count == 0:
+        return _default_not_attested_row(company, "agent_fields", None)
+    if linked_count == len(_E2E_AGENT_IDS):
+        return TrustStatementRow(
+            company=company,
+            layer="agent_fields",
+            surface=None,
+            attestation="attested",
+            reason=None,
+            method=None,
+            rung=None,
+            evidence_refs=evidence_refs,
+        )
+    return TrustStatementRow(
+        company=company,
+        layer="agent_fields",
+        surface=None,
+        attestation="partial",
+        reason="incomplete_agent_matrix",
+        method=None,
+        rung=None,
+        evidence_refs=evidence_refs,
+    )
+
+
+def derive_e2e_row(
+    company: str,
+    *,
+    latest_by_agent: dict[str, E2eLinkageRow],
+    harness_status_by_run_id: dict[str, str | None],
+) -> TrustStatementRow:
+    """Derive the single ``e2e`` row per spec D2."""
+    linked_count = len(latest_by_agent)
+    evidence_refs = _agent_linkage_evidence_refs(latest_by_agent)
+    if linked_count == 0:
+        return _default_not_attested_row(company, "e2e", None)
+    if linked_count < len(_E2E_AGENT_IDS):
+        return TrustStatementRow(
+            company=company,
+            layer="e2e",
+            surface=None,
+            attestation="partial",
+            reason="incomplete_agent_matrix",
+            method=None,
+            rung=None,
+            evidence_refs=evidence_refs,
+        )
+    incomplete_harness = any(
+        harness_status_by_run_id.get(row.run_id) != "complete"
+        for row in latest_by_agent.values()
+    )
+    if incomplete_harness:
+        return TrustStatementRow(
+            company=company,
+            layer="e2e",
+            surface=None,
+            attestation="partial",
+            reason="incomplete_agent_matrix",
+            method=None,
+            rung=None,
+            evidence_refs=evidence_refs,
+        )
+    return TrustStatementRow(
+        company=company,
+        layer="e2e",
+        surface=None,
+        attestation="attested",
+        reason=None,
+        method=None,
+        rung=None,
+        evidence_refs=evidence_refs,
+    )
+
+
+def _derive_agent_fields_and_e2e_rows(
+    company: str,
+    linkage_rows: Sequence[E2eLinkageRow],
+    *,
+    harness_status_by_run_id: dict[str, str | None] | None = None,
+) -> tuple[TrustStatementRow, TrustStatementRow]:
+    latest = _latest_linkage_per_agent(linkage_rows)
+    status_map = harness_status_by_run_id or {}
+    return (
+        derive_agent_fields_row(company, latest_by_agent=latest),
+        derive_e2e_row(
+            company,
+            latest_by_agent=latest,
+            harness_status_by_run_id=status_map,
+        ),
     )
 
 
@@ -793,6 +1003,8 @@ def derive_rows_for_company(
     s2_rows: Iterable[Any] | None = None,
     s2_client: Any | None = None,
     exemptions: list[IntentExemption] | None = None,
+    e2e_linkage_rows: Sequence[E2eLinkageRow] | None = None,
+    harness_status_by_run_id: dict[str, str | None] | None = None,
 ) -> list[TrustStatementRow]:
     gap_titles = registry_gap_titles or []
     if domain.company == _UNNORMALIZABLE_SLUG:
@@ -834,6 +1046,12 @@ def derive_rows_for_company(
             narrows_surfaces=narrows_surfaces,
         )
 
+    agent_fields_row, e2e_row = _derive_agent_fields_and_e2e_rows(
+        domain.company,
+        e2e_linkage_rows or [],
+        harness_status_by_run_id=harness_status_by_run_id,
+    )
+
     rows: list[TrustStatementRow] = []
     for layer, surface in _rows_per_company(domain.company):
         if layer == "ingest_completeness":
@@ -849,6 +1067,10 @@ def derive_rows_for_company(
         elif layer == LAYER_CONTENT_CORRECTNESS:
             assert surface is not None
             rows.append(content_rows[surface])
+        elif layer == "agent_fields":
+            rows.append(agent_fields_row)
+        elif layer == "e2e":
+            rows.append(e2e_row)
         else:
             rows.append(_default_not_attested_row(domain.company, layer, surface))
     validate_rows(rows)
@@ -864,9 +1086,13 @@ def derive_rows(
     s2_client: Any | None = None,
     s2_rows_by_company: dict[str, Iterable[Any]] | None = None,
     exemptions: list[IntentExemption] | None = None,
+    e2e_linkage_by_company: dict[str, Sequence[E2eLinkageRow]] | None = None,
+    harness_status_by_company: dict[str, dict[str, str | None]] | None = None,
 ) -> list[TrustStatementRow]:
     gap_map = registry_gap_titles_by_company or {}
     s2_by_company = s2_rows_by_company or {}
+    linkage_by_company = e2e_linkage_by_company or {}
+    harness_by_company = harness_status_by_company or {}
     rows: list[TrustStatementRow] = []
     for entry in domain:
         company_s2_rows = s2_by_company.get(entry.company)
@@ -879,6 +1105,8 @@ def derive_rows(
                 s2_client=s2_client,
                 s2_rows=company_s2_rows,
                 exemptions=exemptions,
+                e2e_linkage_rows=linkage_by_company.get(entry.company, []),
+                harness_status_by_run_id=harness_by_company.get(entry.company, {}),
             )
         )
     validate_rows(rows)
@@ -1023,6 +1251,8 @@ def generate_trust_statement(
 
     probes: dict[str, IngestProbeResult | None] = {}
     gap_titles: dict[str, list[str]] = {}
+    e2e_linkage_by_company: dict[str, list[E2eLinkageRow]] = {}
+    harness_status_by_company: dict[str, dict[str, str | None]] = {}
     for entry in domain:
         gap_titles[entry.company] = registry_gap_titles_for_company(
             registry, company_slug=entry.company
@@ -1037,6 +1267,13 @@ def generate_trust_statement(
             catalog=entry.catalog,
             company_display=display,
         )
+        linkage_rows, harness_status = _load_e2e_linkage_context(
+            execute_sql,
+            catalog=entry.catalog,
+            company_slug=entry.company,
+        )
+        e2e_linkage_by_company[entry.company] = linkage_rows
+        harness_status_by_company[entry.company] = harness_status
 
     rows = derive_rows(
         domain,
@@ -1045,6 +1282,8 @@ def generate_trust_statement(
         epoch_context=epoch_context,
         s2_client=execute_sql,
         exemptions=exemptions,
+        e2e_linkage_by_company=e2e_linkage_by_company,
+        harness_status_by_company=harness_status_by_company,
     )
     assert_row_set_total(rows, [entry.company for entry in domain])
     return rows, epoch_context

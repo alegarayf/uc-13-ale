@@ -15,6 +15,7 @@ from eval.retrieval.exemptions import IntentExemption, load_exemptions
 from eval.retrieval.companies import canonical_company_slug
 from eval.retrieval.trust_statement import (
     CompanyDomainRow,
+    E2eLinkageRow,
     IngestProbeResult,
     LAYER_CONTENT_CORRECTNESS,
     TrustEpochContext,
@@ -23,10 +24,13 @@ from eval.retrieval.trust_statement import (
     _GOLD_READY_SUMMARY,
     _rows_per_company,
     assert_row_set_total,
+    derive_agent_fields_row,
     derive_content_rows,
+    derive_e2e_row,
     derive_rows,
     derive_rows_for_company,
     display_name_from_company_slug,
+    fetch_e2e_linkage_rows,
     fetch_s2_score_rows,
     load_epoch_context_from_baseline_report,
     merge_exemption_companies_into_domain,
@@ -146,11 +150,15 @@ def test_non_ingest_layers_default_to_no_completed_run() -> None:
         _ELDER,
         ingest_probe=_probe_measured(completeness=1.0, denominator=10),
     )
-    others = [r for r in rows if r.layer != "ingest_completeness"]
-    assert len(others) == 6
-    assert all(r.attestation == "not_attested" for r in others)
-    assert all(r.reason == "no_completed_run" for r in others)
-    assert all(r.rung is None for r in others)
+    pending = [
+        r
+        for r in rows
+        if r.layer in {"retrieval", "agent_fields", "e2e"}
+    ]
+    assert len(pending) == 3
+    assert all(r.attestation == "not_attested" for r in pending)
+    assert all(r.reason == "no_completed_run" for r in pending)
+    assert all(r.rung is None for r in pending)
 
 
 def test_validate_row_rejects_method_outside_ingest_completeness() -> None:
@@ -1090,3 +1098,137 @@ def test_run_ingest_probe_delegates_to_preflight_contract() -> None:
     assert probe.backend == "sql_chunk_count"
     assert probe.completeness == 0.8
     assert len(calls) == 2
+
+
+def _linkage_row(
+    *,
+    agent_id: str,
+    run_id: str,
+    linked_at: datetime,
+    score: int = 16,
+    total: int = 18,
+) -> E2eLinkageRow:
+    return E2eLinkageRow(
+        e2e_agent_id=agent_id,
+        run_id=run_id,
+        e2e_checklist_score=score,
+        e2e_checklist_total=total,
+        linked_at=linked_at,
+    )
+
+
+def test_fetch_e2e_linkage_rows_parses_joined_warehouse_columns() -> None:
+    ts = datetime(2026, 7, 16, 0, 3, 1, 822000, tzinfo=timezone.utc)
+
+    def _execute(_sql: str) -> list[list[str | None]]:
+        assert "ops.e2e_linkage" in _sql
+        assert "ops.retrieval_harness_runs" in _sql
+        return [
+            [
+                "fta",
+                "5fef915601574dc3be629546910ba71e",
+                "16",
+                "18",
+                "2026-07-16T00:03:01.822Z",
+                "complete",
+            ]
+        ]
+
+    rows = fetch_e2e_linkage_rows(
+        _execute,
+        catalog="uc13_ale",
+        company_slug="elder_care",
+    )
+    assert len(rows) == 1
+    assert rows[0].e2e_agent_id == "fta"
+    assert rows[0].run_id == "5fef915601574dc3be629546910ba71e"
+    assert rows[0].linked_at == ts
+
+
+def test_derive_agent_fields_partial_on_fta_and_legal_only() -> None:
+    latest = {
+        "fta": _linkage_row(
+            agent_id="fta",
+            run_id="run-fta",
+            linked_at=datetime(2026, 7, 16, tzinfo=timezone.utc),
+        ),
+        "legal": _linkage_row(
+            agent_id="legal",
+            run_id="run-legal",
+            linked_at=datetime(2026, 7, 3, tzinfo=timezone.utc),
+            score=7,
+            total=11,
+        ),
+    }
+    row = derive_agent_fields_row("elder_care", latest_by_agent=latest)
+    assert row.attestation == "partial"
+    assert row.reason == "incomplete_agent_matrix"
+    assert row.evidence_refs == ["fta:run-fta", "legal:run-legal"]
+
+
+def test_derive_agent_fields_attested_on_seven_agent_matrix() -> None:
+    latest = {
+        agent: _linkage_row(
+            agent_id=agent,
+            run_id=f"run-{agent}",
+            linked_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        )
+        for agent in ("fta", "legal", "bma", "cqa", "kpi", "qoe", "profiler")
+    }
+    row = derive_agent_fields_row("elder_care", latest_by_agent=latest)
+    assert row.attestation == "attested"
+    assert row.reason is None
+    assert len(row.evidence_refs) == 7
+
+
+def test_derive_e2e_partial_when_harness_status_not_complete() -> None:
+    latest = {
+        agent: _linkage_row(
+            agent_id=agent,
+            run_id=f"run-{agent}",
+            linked_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        )
+        for agent in ("fta", "legal", "bma", "cqa", "kpi", "qoe", "profiler")
+    }
+    status = {f"run-{agent}": "complete" for agent in latest}
+    status["run-fta"] = "running"
+    row = derive_e2e_row(
+        "elder_care",
+        latest_by_agent=latest,
+        harness_status_by_run_id=status,
+    )
+    assert row.attestation == "partial"
+    assert row.reason == "incomplete_agent_matrix"
+
+
+def test_derive_company_rows_wires_partial_agent_fields_from_linkage() -> None:
+    linkage = [
+        _linkage_row(
+            agent_id="fta",
+            run_id="run-fta",
+            linked_at=datetime(2026, 7, 16, tzinfo=timezone.utc),
+        ),
+        _linkage_row(
+            agent_id="legal",
+            run_id="run-legal",
+            linked_at=datetime(2026, 7, 3, tzinfo=timezone.utc),
+            score=7,
+            total=11,
+        ),
+    ]
+    rows = derive_rows_for_company(
+        _ELDER,
+        ingest_probe=_probe_measured(completeness=1.0, denominator=10),
+        s2_rows=_EMPTY_S2,
+        e2e_linkage_rows=linkage,
+        harness_status_by_run_id={
+            "run-fta": "complete",
+            "run-legal": "complete",
+        },
+    )
+    agent_fields = next(row for row in rows if row.layer == "agent_fields")
+    e2e = next(row for row in rows if row.layer == "e2e")
+    assert agent_fields.attestation == "partial"
+    assert agent_fields.reason == "incomplete_agent_matrix"
+    assert e2e.attestation == "partial"
+    assert e2e.reason == "incomplete_agent_matrix"
