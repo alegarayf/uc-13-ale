@@ -11,12 +11,14 @@ import pytest
 import yaml
 
 from eval.content.s2_writer import S2Writer
+from eval.retrieval.companies import canonical_company_slug
 from eval.content.spot_check import (
     ChunkIndex,
     ChunkRecord,
     LOCATION_CHUNK_OVERRIDE,
     SpotCheckConfig,
     SpotCheckIngestionError,
+    exec_claim_source,
     load_claim_enumeration,
     prepare_spot_check,
     write_spot_check_results,
@@ -104,15 +106,17 @@ def spot_check_tree(tmp_path: Path) -> Path:
 def _config(
     root: Path,
     *,
+    company: str = "Elder Care",
     surface: str = "exec_summary",
     source: str = "uc13_ale.analysis.diligence_report.executive_summary",
     output_dir: Path | None = None,
     verdicts_path: Path | None = None,
 ) -> SpotCheckConfig:
     out = output_dir or (root / ".dev/eval-program/spot-check")
-    verdicts = verdicts_path or (out / "exec_summary_elder_care.verdicts.yaml")
+    slug = canonical_company_slug(company)
+    verdicts = verdicts_path or (out / f"{surface}_{slug}.verdicts.yaml")
     return SpotCheckConfig(
-        company="Elder Care",
+        company=company,
         surface=surface,
         source=source,
         output_dir=out,
@@ -684,4 +688,74 @@ def test_fta_citation_resolves_via_general_scoring_branch(
     assert claim.cited_chunk_id == winner.chunk_id
     assert claim.cited_locator_kind == "section"
     assert claim.cited_locator_value == winner.section_header
+
+
+def test_exec_claim_source_elder_care_uses_static_map() -> None:
+    """Elder Care regression: static PDF map wins over empty cache."""
+    doc, loc = exec_claim_source("exec.claim.001", {}, company_slug="elder_care")
+    assert doc == "2024 Elder Care - CIM_vF.pdf"
+    assert loc == "Elder Care by the Numbers"
+
+
+def test_exec_claim_source_clearsulting_resolves_from_cache() -> None:
+    """Multi-company: non-Elder Care resolves from analysis cache, not static map."""
+    cache = {
+        "top_10_issues_json": [
+            {
+                "rank": 1,
+                "citations": ["Clearsulting CIM 2024.pdf"],
+            }
+        ],
+        "addback_ledger_json": [
+            {
+                "description": "[G] Management addback",
+                "source_doc": "Clearsulting QoE.xlsx",
+                "source_location": "Addbacks",
+            }
+        ],
+    }
+    doc, loc = exec_claim_source("exec.claim.038", cache, company_slug="clearsulting")
+    assert doc == "Clearsulting CIM 2024.pdf"
+    assert loc is None
+
+    doc, loc = exec_claim_source("exec.claim.014", cache, company_slug="clearsulting")
+    assert doc == "Clearsulting QoE.xlsx"
+    assert loc == "Addbacks"
+
+
+def test_exec_claim_source_non_elder_care_skips_hardcoded_elder_docs() -> None:
+    """Falsifier: non-Elder Care must not emit Elder Care-only hardcoded doc names."""
+    cache: dict[str, object] = {}
+    doc, _loc = exec_claim_source("exec.claim.001", cache, company_slug="clearsulting")
+    assert doc is None
+
+    doc, _loc = exec_claim_source("exec.claim.019", cache, company_slug="clearsulting")
+    assert doc is None
+    assert "Elder Care" not in str(doc)
+
+
+def test_load_claim_enumeration_exec_summary_uses_company_cache(
+    spot_check_tree: Path,
+) -> None:
+    """Integration: exec_summary citations derive from cache for non-Elder Care."""
+    cfg = _config(spot_check_tree, company="Clearsulting")
+    cache = {
+        "top_10_issues_json": [
+            {"rank": 1, "citations": ["Clearsulting CIM 2024.pdf"]},
+        ],
+    }
+    manifest_path = spot_check_tree / "eval/content/exec_summary_rubric_claims.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["claims"] = [
+        {
+            "section": "Issues",
+            "claim_id": "exec.claim.038",
+            "claim_text": "Top issue one.",
+        }
+    ]
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = load_claim_enumeration(cfg, exec_analysis_cache=cache)
+    assert len(claims) == 1
+    assert claims[0].source_doc == "Clearsulting CIM 2024.pdf"
 
