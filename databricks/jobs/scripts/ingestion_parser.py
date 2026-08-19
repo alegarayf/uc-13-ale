@@ -1003,6 +1003,193 @@ def _chunk_operational_sheet(
     return chunks
 
 
+def _file_starts_with_xml(path: str) -> bool:
+    with open(path, "rb") as fh:
+        head = fh.read(512).lstrip()
+    return head.startswith(b"<?xml") or head.startswith(b"\xef\xbb\xbf<?")
+
+
+def _spreadsheetml_worksheet_name(elem) -> str:
+    for key, val in elem.attrib.items():
+        if key.endswith("Name"):
+            return val
+    return "Sheet"
+
+
+def _parse_spreadsheetml_xls(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
+    """Parse Excel 2003 XML Spreadsheet files often mislabeled as .xls."""
+    import xml.etree.ElementTree as ET
+
+    chunks: list[Chunk] = []
+    chunk_index = 0
+    try:
+        root = ET.parse(file_path).getroot()
+        worksheets = [el for el in root.iter() if el.tag.endswith("Worksheet")]
+        for ws in worksheets:
+            sheet_name = _spreadsheetml_worksheet_name(ws)
+            all_rows: list[list[str]] = []
+            for row_el in ws.iter():
+                if not row_el.tag.endswith("Row"):
+                    continue
+                row: list[str] = []
+                col_idx = 0
+                for cell in row_el:
+                    if not cell.tag.endswith("Cell"):
+                        continue
+                    index_attr = None
+                    for key, val in cell.attrib.items():
+                        if key.endswith("Index"):
+                            index_attr = int(val)
+                            break
+                    if index_attr is not None:
+                        while col_idx < index_attr - 1:
+                            row.append("")
+                            col_idx += 1
+                    text_val = ""
+                    for child in cell:
+                        if child.tag.endswith("Data") and child.text:
+                            text_val = child.text.strip()
+                            break
+                    row.append(text_val)
+                    col_idx += 1
+                if any(v for v in row):
+                    all_rows.append(row)
+            if not all_rows:
+                continue
+            if _is_financial_sheet(sheet_name, file_name):
+                new_chunks = _chunk_operational_sheet(
+                    all_rows, sheet_name, file_name, doc_id, file_path, chunk_index
+                )
+            else:
+                new_chunks = _chunk_operational_sheet(
+                    all_rows, sheet_name, file_name, doc_id, file_path, chunk_index
+                )
+            chunks.extend(new_chunks)
+            chunk_index += len(new_chunks)
+        print(f"  ✓ {file_name}: {len(chunks)} Excel chunks (.xls SpreadsheetML)")
+    except Exception as exc:
+        print(f"  ✗ {file_name}: {exc}")
+    return chunks
+
+
+def _xls_sheet_to_rows(sheet) -> list[list[str]]:
+    """Convert an xlrd sheet to string rows (legacy .xls only)."""
+    rows: list[list[str]] = []
+    for rx in range(sheet.nrows):
+        row: list[str] = []
+        for cx in range(sheet.ncols):
+            cell = sheet.cell(rx, cx)
+            val = cell.value
+            if val is None or val == "":
+                row.append("")
+            elif isinstance(val, float) and val == int(val):
+                row.append(str(int(val)))
+            else:
+                row.append(str(val).strip())
+        if any(v for v in row):
+            rows.append(row)
+    return rows
+
+
+def _parse_excel_xls(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
+    """Parse legacy .xls workbooks via xlrd (openpyxl does not support BIFF)."""
+    if _file_starts_with_xml(file_path):
+        return _parse_spreadsheetml_xls(file_path, doc_id, file_name)
+
+    import xlrd
+
+    chunks: list[Chunk] = []
+    chunk_index = 0
+    try:
+        book = xlrd.open_workbook(file_path, formatting_info=False)
+        for sheet_name in book.sheet_names():
+            sheet = book.sheet_by_name(sheet_name)
+            all_rows = _xls_sheet_to_rows(sheet)
+            if not all_rows:
+                continue
+            if _is_financial_sheet(sheet_name, file_name):
+                # Reuse financial chunking by feeding rows through operational path
+                # when date headers are absent; GL/ledger sheets still chunk usefully.
+                header_idx = None
+                for i, row in enumerate(all_rows):
+                    date_matches = [v for v in row[1:] if _DATE_HEADER_RE.search(v)]
+                    if len(date_matches) >= 2:
+                        header_idx = i
+                        break
+                if header_idx is not None:
+                    period_headers = all_rows[header_idx]
+                    data_rows = all_rows[header_idx + 1:]
+                    period_label_line = "Time periods: " + " | ".join(
+                        h for h in period_headers[1:] if h
+                    )
+                    line_buffer: list[str] = []
+                    current_section = "Summary"
+
+                    def flush_xls(section_label: str) -> None:
+                        nonlocal chunk_index
+                        if not line_buffer:
+                            return
+                        prefix = (
+                            f"[Document: {file_name}] [Sheet: {sheet_name}]"
+                            f" [Section: {section_label}]"
+                        )
+                        body = period_label_line + "\n" + "\n".join(line_buffer)
+                        for ct in _split_long_text(body, prefix):
+                            if _is_valid_chunk(ct):
+                                chunks.append(
+                                    Chunk(
+                                        chunk_id=str(uuid.uuid4()),
+                                        doc_id=doc_id,
+                                        file_name=file_name,
+                                        file_type="xls",
+                                        relative_path=file_path,
+                                        chunk_index=chunk_index,
+                                        chunk_text=ct,
+                                        section_header=f"{sheet_name} — {section_label}",
+                                        tab=sheet_name,
+                                    )
+                                )
+                                chunk_index += 1
+                        line_buffer.clear()
+
+                    for row in data_rows:
+                        label = row[0] if row else ""
+                        values = row[1 : len(period_headers)]
+                        all_empty = all(not v or v in ("0", "0.0", "0.00") for v in values)
+                        if label and all_empty:
+                            flush_xls(current_section)
+                            current_section = label
+                            continue
+                        if not label and all_empty:
+                            continue
+                        period_vals = " | ".join(
+                            f"{period_headers[i + 1]}={values[i]}"
+                            for i in range(min(len(period_headers) - 1, len(values)))
+                            if values[i] and values[i] not in ("0", "0.0", "")
+                        )
+                        if period_vals:
+                            line_buffer.append(f"{label}: {period_vals}")
+                        if len(line_buffer) >= FINANCIAL_LINES_PER_CHUNK:
+                            flush_xls(current_section)
+                    flush_xls(current_section)
+                else:
+                    new_chunks = _chunk_operational_sheet(
+                        all_rows, sheet_name, file_name, doc_id, file_path, chunk_index
+                    )
+                    chunks.extend(new_chunks)
+                    chunk_index += len(new_chunks)
+            else:
+                new_chunks = _chunk_operational_sheet(
+                    all_rows, sheet_name, file_name, doc_id, file_path, chunk_index
+                )
+                chunks.extend(new_chunks)
+                chunk_index += len(new_chunks)
+        print(f"  ✓ {file_name}: {len(chunks)} Excel chunks (.xls/xlrd)")
+    except Exception as exc:
+        print(f"  ✗ {file_name}: {exc}")
+    return chunks
+
+
 def parse_excel(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
     """Parse an Excel workbook using sheet-type-aware chunking.
 
@@ -1012,6 +1199,7 @@ def parse_excel(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
     Every chunk carries [Document][Sheet][Section] prefix and respects MAX_CHUNK_CHARS.
 
     Loading notes:
+      - Legacy .xls (BIFF) uses xlrd; .xlsx/.xlsm use openpyxl below.
       - read_only=False: required to access merged_cells for _expand_merged_cells().
         read_only=True streaming mode does not expose the merged_cells attribute,
         causing merged period headers (e.g. "2020A" spanning two rows) to appear
@@ -1021,6 +1209,9 @@ def parse_excel(file_path: str, doc_id: str, file_name: str) -> list[Chunk]:
       - Performance: for typical PE financial models (<50 MB) the in-memory load
         is fast; for very large workbooks consider increasing cluster memory.
     """
+    if Path(file_name).suffix.lower() == ".xls":
+        return _parse_excel_xls(file_path, doc_id, file_name)
+
     import openpyxl
 
     chunks: list[Chunk] = []

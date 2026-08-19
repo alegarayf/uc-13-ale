@@ -35,7 +35,7 @@ Do **not** treat informational scores as equivalent-confidence to Elder Care rat
 |---------|-------------|------------|--------|------------|-------------------|------------------|------------------|
 | **Elder Care** | **16/18** | Ratified floor | 55,812 | 4 | `baseline_acf58bcc4968` (trust epoch) | Reference healthcare corpus | Baseline — field 9 OPEX basis known issue |
 | **Clearsulting** | **17/18** (Chip B) / **16/18** (e2e linkage) | Informational | 2,417 | 2 | `baseline_7174e0399e29` (12 bloated intents) | **Corpus thinness** (2 file types; 0 LEGAL docs); consulting doc mix | Score **above** Elder Care on checklist despite thin corpus — likely **doc-type alignment** with FTA rubric, not retrieval quality |
-| **SPG** | **8.5/18** (Chip B only) | Chip B informational | 43,602 | 2 | `baseline_0ec50347353a` (T6; 20 bloated intents) | Large chunk count but **ingest borderline** (0.9863 completeness per T6 signoff); sparse file-type diversity | Low checklist ⇒ investigate **corpus content** (missing financial statements?) before blaming retrieval |
+| **SPG** | **8.5/18** (Chip B only; **post-ingest gate checklist 2026-08-19**) | Chip B informational | 43,602+ | 2 | `baseline_0ec50347353a` (T6; 20 bloated intents) | Ingest **closed 1.0** (363/363); SpreadsheetML `.xls` fix landed 2026-08-19 — **8.5/18 reflects pre-rerun Chip B row**; FTA re-run pending | Low checklist on thin FTA fields — re-score after post-ingest FTA pipeline run |
 | **GKF** | **13.5/18** (Chip B only) | Chip B informational | 3,107 | 2 | `baseline_4e098a2a2252` (T6; 26 bloated intents) | Small corpus, stale profiler rows (playbook §2.1); 5× legal `corpus_thin` exemptions | Mid-pack informational — corpus thinness + **stale analysis** confound |
 
 ### E2E linkage detail (warehouse)
@@ -59,14 +59,14 @@ Ex-bloat harness (`baseline_7174e0399e29`, see report 1): mean `recall@10` **0.0
 
 | Signal | Value | Implication |
 |--------|-------|-------------|
-| Chunks | 43,602 (2nd largest) | Not a zero-corpus failure |
-| Ingest completeness | **0.9863** (359/364 per T6 signoff) | Borderline — missing doc types likely |
+| Chunks | 43,602+ (2nd largest) | Not a zero-corpus failure |
+| Ingest completeness | **1.0000** (363/363 post-T8) | **Closed** — was 0.9863 (359/364); SpreadsheetML `.xls` + projection model re-ingested |
 | File types | 2 | Low diversity — financial vs legal mix unknown |
-| FTA analysis row | 1 row present (Chip B) | Agent ran; checklist partial — **no fresh FTA re-score at T6** |
+| FTA analysis row | Chip B `2026-07-30` (pre-ingest-fix corpus) | Golden checklist **8.5/18** scored post-ingest gate; post-ingest FTA re-run pending |
 | T6 gold bootstrap | 48/57 ready/partial | 9 bootstrap_failed (fta q1_financial_statements ×3, profiler ×6) |
 | T6 harness baseline | `baseline_0ec50347353a` | Informational retrieval attestation only |
 
-**Recommended sequencing:** T6 retrieval baselines landed; **close ingest gap (0.9863 → 1.0)** and re-run FTA golden checklist **before** attributing 8.5/18 to model regression. Post-T6 harness recall interpretation deferred to ex-bloat analysis (20 bloated intents).
+**Sequencing (updated 2026-08-19):** Ingest gap **closed** (T8). FTA golden checklist scored **8.5/18** on Chip B row after gate — **do not** attribute to model until post-ingest FTA re-run completes.
 
 ## Decision matrix (operator)
 

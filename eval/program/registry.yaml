@@ -835,15 +835,21 @@ items:
   - OPEN_ITEMS.md#open--half-open
   - OPEN_ITEMS.md#data-ingest-quality
   source_id: OI-data-ingest-quality-spg-ingest-borderline
-  disposition: staged
+  disposition: accepted
   stage: S3
-  status: pending
+  status: closed
   trigger: null
-  rationale: null
+  rationale: 'Preflight 1.0000 (363/363) after SpreadsheetML .xls parser + content-driven
+    should_parse exclusion (Bowman insurance PDF). T6 borderline 0.9863 closed — see T8 signoff.'
   tshirt: null
-  evidence_refs: []
+  evidence_refs:
+  - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T8-spg-ingest-fta.md
+  - eval/FTA/golden_checklist_spg.md
+  - databricks/jobs/scripts/ingestion_parser.py
   rung_assignments: {}
-  assessment_metrics: {}
+  assessment_metrics:
+    ingest_completeness: 1.0
+    ingest_denominator: 363
 - id: OI-eval-harness-elder-care-slice-json-refresh-trigger
   title: '`elder_care_slice.json` refresh trigger'
   source_refs:
@@ -1725,7 +1731,7 @@ items:
   source_id: null
   disposition: accepted
   stage: S3
-  status: closed
+  status: n/a
   trigger: M5 Clearsulting bloated-gold re-bootstrap (gold_exclusions + cluster bootstrap)
   rationale: 'Twelve debt-cohort intents moved to aggregate_exclude/no_citation_source via company-scoped gold_exclusions.yaml
     and cluster re-bootstrap (run_id 141001781333770). Warehouse probe: no CIM for section_range; CQA/FTA/KPI citations

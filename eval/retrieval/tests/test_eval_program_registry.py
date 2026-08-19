@@ -607,6 +607,28 @@ def test_m5_s5_onboarding_queue_row_present(populated_artifacts):
         assert commit_sha in (row.get("evidence_refs") or [])
 
 
+def test_oi_spg_ingest_borderline_closed(populated_artifacts):
+    """T8: SPG ingest borderline OI closed at preflight 1.0."""
+    registry, _manifest = populated_artifacts
+    by_id = _registry_by_id(registry)
+    row = by_id.get("OI-data-ingest-quality-spg-ingest-borderline")
+    assert row is not None
+    assert row["status"] == "closed"
+    assert row["disposition"] == "accepted"
+    metrics = row.get("assessment_metrics") or {}
+    assert metrics.get("ingest_completeness") == 1.0
+    assert "T8-spg-ingest-fta.md" in " ".join(row.get("evidence_refs") or [])
+
+
+def test_spg_fta_golden_checklist_committed() -> None:
+    """T8: SPG FTA golden checklist artifact exists."""
+    path = Path(__file__).resolve().parents[2] / "FTA" / "golden_checklist_spg.md"
+    assert path.is_file()
+    text = path.read_text(encoding="utf-8")
+    assert "8.5/18" in text
+    assert "SPG" in text
+
+
 def test_production_default_registry_paths_resolve_to_tracked_files() -> None:
     """Falsifier: defaults must not depend on gitignored .dev/eval-program/."""
     from eval.content.spot_check import DEFAULT_REGISTRY_PATH
