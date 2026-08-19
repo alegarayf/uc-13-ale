@@ -190,3 +190,73 @@ items:
     closes_when: >-
       Re-extracted CIM page 46 chunk reconciles EBITDA dollar rows with margin row for 2023A and
       TTM columns in ingestion.chunks.
+
+  - id: PB-legal_register-locator-chunk-resolution
+    company: elder_care
+    surface: legal_register
+    kind: claim_failure
+    severity: high
+    summary: >-
+      Nine legal_register S2 failures are retrieval misses — source_doc/source_location did not
+      resolve to corpus chunks (COI table layout, multi-doc lease rows, page vs section locators).
+    evidence_refs:
+      - eval/content/legal_register_verifier.py
+      - eval/LCA/presentation_summary_elder_care.md
+      - eval/LCA/poc_delta_elder_care.md
+    fix_lane: product
+    closes_when: >-
+      Deterministic legal verifier resolves cited_chunk_id for the nine bucket-A claim_ids in a
+      legal_register S2 re-run (Manhattan/Long Island leases, COI rows, BAA, retainer) without
+      operator override.
+    registry_ref: M5-S2-product-backlog-ledger
+
+  - id: PB-spg-ingest-borderline-completeness
+    company: spg
+    surface: ingest
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      SPG ingest preflight 0.9863 (359/364) documented at T6 before baseline interpretation —
+      close gap to 1.0 and re-run FTA golden checklist before attributing 8.5/18 to model gap.
+    evidence_refs:
+      - eval/retrieval/gold_labels/spg.yaml
+      - eval/program/onboarding_queue.yaml
+    fix_lane: ops
+    closes_when: >-
+      ingest_preflight sql_chunk_count completeness ≥ 1.0 for SPG and a fresh FTA golden checklist
+      score recorded with pipeline run_id (replacing Chip B 8.5/18 informational only).
+    registry_ref: OI-data-ingest-quality-spg-ingest-borderline
+
+  - id: PB-gkf-retrieval-bloated-filename-closure
+    company: gkf
+    surface: retrieval
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      GKF harness baseline baseline_4e098a2a2252 includes 26 filename_closure intents with >500
+      positives each — per-intent recall@10 not interpretable; eval_debt HWM blocked new rows at T6.
+    evidence_refs:
+      - eval/retrieval/gold_labels/gkf.yaml
+      - eval/program/onboarding_queue.yaml
+    fix_lane: eval
+    closes_when: >-
+      Bloated GKF intents re-bootstrapped with citation_backfill or aggregate_exclude, or operator
+      raises eval_debt HWM and opens tracked debt rows with closes_when per Clearsulting T11 pattern.
+    registry_ref: M5-S4-gkf-spg-retrieval-onboard
+
+  - id: PB-spg-retrieval-bloated-filename-closure
+    company: spg
+    surface: retrieval
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      SPG harness baseline baseline_0ec50347353a includes 20 filename_closure intents with >500
+      positives each — per-intent recall@10 not interpretable; eval_debt HWM blocked new rows at T6.
+    evidence_refs:
+      - eval/retrieval/gold_labels/spg.yaml
+      - eval/program/onboarding_queue.yaml
+    fix_lane: eval
+    closes_when: >-
+      Bloated SPG intents re-bootstrapped with citation_backfill or aggregate_exclude, or operator
+      raises eval_debt HWM and opens tracked debt rows with closes_when per Clearsulting T11 pattern.
+    registry_ref: M5-S4-gkf-spg-retrieval-onboard
