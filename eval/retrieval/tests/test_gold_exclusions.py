@@ -38,6 +38,22 @@ ELDER_CARE_LAUNCH_EXCLUDED_KPI = frozenset(
     }
 )
 BENCH_AND_CAPACITY = "kpi.retrieve_bench_and_capacity"
+CLEARSULTING_BLOATED_EXCLUDED = frozenset(
+    {
+        "cqa.retrieve_customer_tenure",
+        "cqa.retrieve_revenue_type_and_renewals",
+        "fta.ebitda.q1_financial_statements",
+        "fta.opex.q1_financial_statements",
+        "fta.revenue.q1_financial_statements",
+        "kpi.retrieve_delivery_model",
+        "profiler.banked_vs_nonbanked",
+        "profiler.business_description",
+        "profiler.deal_type",
+        "profiler.industry_overlay",
+        "profiler.revenue_model",
+        "profiler.vertical_subsector",
+    }
+)
 RESTORED_NO_CITATION_KPI = frozenset(
     {
         "kpi.retrieve_bill_rates_and_margins",
@@ -196,7 +212,10 @@ def test_committed_exclusions_artifact_validates():
     elder = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
     assert len(elder) == 5
     assert all(reason == "no_citation_source" for reason in elder.values())
-    assert load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="clearsulting") == {}
+    pilot = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="clearsulting")
+    assert len(pilot) == 13
+    assert all(reason == "no_citation_source" for reason in pilot.values())
+    assert CLEARSULTING_BLOATED_EXCLUDED <= set(pilot)
 
 
 def test_elder_care_exclusion_population_is_five_intents():
@@ -210,7 +229,7 @@ def test_exclusions_are_company_scoped_and_do_not_leak_across_companies():
     elder = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
     pilot = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="clearsulting")
     assert len(elder) == 5
-    assert pilot == {}
+    assert len(pilot) == 13
     assert "kpi.retrieve_bill_rates_and_margins" in elder
     assert "kpi.retrieve_bill_rates_and_margins" not in pilot
 
@@ -262,6 +281,18 @@ def test_per_company_invariant_fails_on_within_company_contradiction(tmp_path):
             company_slug="elder_care",
             gold_path=ELDER_CARE_GOLD_PATH,
         )
+
+
+def test_clearsulting_bloated_gold_rows_rebootstrapped_to_aggregate_exclude():
+    """M5 — 12 debt-cohort intents must not retain bloated filename_closure positives."""
+    labels = {row.intent_id: row for row in load_gold_labels(CLEARSULTING_GOLD_PATH)}
+    for intent_id in CLEARSULTING_BLOATED_EXCLUDED:
+        label = labels[intent_id]
+        assert label.aggregate_exclude is True
+        assert label.exclude_reason == "no_citation_source"
+        assert label.gold_status == "bootstrap_failed"
+        assert label.positive_chunk_ids == []
+        assert label.gold_method == "citation_backfill"
 
 
 def test_clearsulting_claim_targets_do_not_shrink_elder_care_exclusions():

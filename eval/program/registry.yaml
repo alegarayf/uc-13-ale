@@ -1565,13 +1565,6 @@ items:
     exec_summary:
       verdict_agreement: 0.39285714285714285
       verdict_agreement_dual_source_2026_08_19: 0.8571428571428571
-      verdict_agreement_dual_source_claims_agree: 24
-      verdict_agreement_dual_source_claims_total: 28
-      verdict_agreement_dual_source_disagreements:
-      - exec.claim.001
-      - exec.claim.011
-      - exec.claim.019
-      - exec.claim.026
     fta_numeric:
       resolved_value_fraction: 1.0
       resolved_span_fraction: 1.0
@@ -1723,33 +1716,29 @@ items:
   assessment_metrics: {}
 
 - id: GAP-M4-1-clearsulting-bloated-filename-closure
-  title: 'Clearsulting bloated filename_closure gold — 12 intents: cqa.retrieve_revenue_type_and_renewals (1273 pos,
-    max recall@10 ≈ 0.79%); fta.ebitda.q1_financial_statements (1262, ≈ 0.79%); fta.opex.q1_financial_statements (1262,
-    ≈ 0.79%); fta.revenue.q1_financial_statements (1262, ≈ 0.79%); kpi.retrieve_delivery_model (1085, ≈ 0.92%);
-    cqa.retrieve_customer_tenure (1082, ≈ 0.92%); profiler.banked_vs_nonbanked (1082, ≈ 0.92%);
-    profiler.business_description (1082, ≈ 0.92%); profiler.deal_type (1082, ≈ 0.92%); profiler.industry_overlay (1082,
-    ≈ 0.92%); profiler.revenue_model (1082, ≈ 0.92%); profiler.vertical_subsector (1082, ≈ 0.92%). Pilot baseline
-    baseline_7174e0399e29 stands but is not per-intent interpretable for these 12.'
+  title: 'Clearsulting bloated filename_closure gold — 12 intents re-bootstrapped to aggregate_exclude (2026-08-19).
+    Prior state: cqa.retrieve_revenue_type_and_renewals (1273 pos); fta q1 ×3 (1262 each); kpi.retrieve_delivery_model
+    (1085); cqa.retrieve_customer_tenure + six profiler intents (1082 each) — all filename_closure, max recall@10 ≤ ~0.92%.'
   source_refs:
   - .dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md#F-03
   - .dev/plans/eval-consolidation-m4-onboarding-runbook/escalations/ESC-M4-1-rb-defect-t9-1-gold-corpus.md
   source_id: null
   disposition: accepted
   stage: S3
-  status: n/a
-  trigger: null
-  rationale: 'ESC-M4-1 Decision 4 / charter Amendment A5: Clearsulting pilot committed 12 filename_closure intents at
-    1,082–1,273 positives (max recall@10 ≤ ~0.92%). Operator disposition accepts residual matching GAP-103 / T12-bench
-    precedent at 12× scale. Harness baseline baseline_7174e0399e29 stands — not withdrawn — but is labeled not
-    per-intent interpretable for these 12; see signoffs/T11-clearsulting-bloated-gold-disposition.md and T9 pilot
-    addendum. No fresh Tier-3 escalation.'
+  status: closed
+  trigger: M5 Clearsulting bloated-gold re-bootstrap (gold_exclusions + cluster bootstrap)
+  rationale: 'Twelve debt-cohort intents moved to aggregate_exclude/no_citation_source via company-scoped gold_exclusions.yaml
+    and cluster re-bootstrap (run_id 141001781333770). Warehouse probe: no CIM for section_range; CQA/FTA/KPI citations
+    do not resolve to chunk ids on Clearsulting corpus; profiler has no analysis table. Per-intent recall@10 now interpretable
+    (skipped_bootstrap_failed). Pilot baseline baseline_7174e0399e29 stands — optional harness re-compare deferred.'
   tshirt: null
   evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
   - eval/retrieval/gold_labels/clearsulting.yaml
-  - baseline_7174e0399e29
-  - .dev/audits/eval-consolidation/M4/2026-08-14-eval-consolidation-m4-onboarding-runbook-audit.md
+  - run_id:141001781333770
+  - eval/program/eval_debt/eval_debt.yaml
   - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
-  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T9-clearsulting-pilot.md
+  - baseline_7174e0399e29
   rung_assignments: {}
   assessment_metrics: {}
 - id: M4-S3-item-36-clearsulting-pilot
