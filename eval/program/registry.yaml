@@ -1853,7 +1853,7 @@ items:
   source_id: null
   disposition: accepted
   stage: S4
-  status: complete
+  status: n/a
   trigger: null
   rationale: 'T6 retry 3 COMPLETE: GKF ingest 1.0; SPG borderline 0.9863 documented before baseline
     interpretation. Gold bootstrap + harness baselines for both companies after Excel tab fixes
