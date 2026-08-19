@@ -1,6 +1,7 @@
 # Fail-closed claim→intent mapping for analysis.kpi Excel citations (Contract T2-a).
 # Raw claim keys from uc13_ale.analysis.kpi Elder Care row (2026-07-28); exact match only.
 # Clearsulting tech-services claims appended (RB-DEFECT-T9-1 / Option A, 2026-08-14).
+# GKF education + SPG healthcare bare-key aliases (T6 retry / RB-DEFECT-T9-1 class, 2026-08-18).
 claims:
   healthcare_kpis.caregiver_headcount: kpi.retrieve_healthcare_ops
   healthcare_kpis.census_or_patient_panel: kpi.retrieve_healthcare_ops
@@ -42,6 +43,26 @@ claims:
   gross_margin_by_segment — Treasury Practice 2025E: kpi.retrieve_bill_rates_and_margins
   missing_kpis — revenue model transition note: kpi.retrieve_pipeline_backlog
   utilization_by_segment — leadership/sales-focused <50%: kpi.retrieve_bench_and_capacity
+  consumer_kpis.channel_mix_note — Revenue line items: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.channel_mix_note — Tuition fees as % of revenue: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.platform_concentration_note — Franchise fees: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.platform_concentration_note — School locations: kpi.retrieve_bench_and_capacity
+  equity — Distributions: kpi.retrieve_bill_rates_and_margins
+  equity — Ending equity balance: kpi.retrieve_bill_rates_and_margins
+  management — Named executives: kpi.retrieve_headcount_attrition
+  payroll — Salaries as % of revenue (Top Farm): kpi.retrieve_bill_rates_and_margins
+  payroll — Teachers and Staff headcount by school (2025 budget): kpi.retrieve_headcount_attrition
+  revenue — Total combined tuition fees FY23: kpi.retrieve_bill_rates_and_margins
+  revenue — Total revenue FY23/FY24/TTM25 (one entity): kpi.retrieve_bill_rates_and_margins
+  ar_aging_by_payor_note: kpi.retrieve_healthcare_revenue_per_unit
+  census_or_patient_panel: kpi.retrieve_healthcare_ops
+  collections_note: kpi.retrieve_healthcare_revenue_per_unit
+  compliance_incidents[0]: kpi.retrieve_healthcare_ops
+  compliance_incidents[1]: kpi.retrieve_healthcare_ops
+  credentialing_status_note: kpi.retrieve_healthcare_ops
+  healthcare_kpis.source_doc: kpi.retrieve_healthcare_ops
+  site_level_visibility_note: kpi.retrieve_healthcare_ops
+  utilization_or_productivity_note: kpi.retrieve_healthcare_ops
 
 intents:
   kpi.retrieve_bench_and_capacity:
