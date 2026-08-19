@@ -51,3 +51,43 @@ exemptions:
     claim_bench_note: bench_note
     pdf_branch_unresolved: Section_Other_EBITDA_considerations
   approved_by: operator
+- company: gkf
+  intent_id: legal.contracts_vendors_platform
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_thin
+  corpus_evidence:
+    legal_doc_count: 4
+  approved_by: operator
+- company: gkf
+  intent_id: legal.employment
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_thin
+  corpus_evidence:
+    legal_doc_count: 4
+  approved_by: operator
+- company: gkf
+  intent_id: legal.insurance
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_thin
+  corpus_evidence:
+    legal_doc_count: 4
+  approved_by: operator
+- company: gkf
+  intent_id: legal.ip_privacy
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_thin
+  corpus_evidence:
+    legal_doc_count: 4
+  approved_by: operator
+- company: gkf
+  intent_id: legal.litigation
+  surface: legal_register
+  coverage: eliminates
+  reason: corpus_thin
+  corpus_evidence:
+    legal_doc_count: 4
+  approved_by: operator

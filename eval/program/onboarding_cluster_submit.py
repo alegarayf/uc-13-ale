@@ -70,23 +70,23 @@ os.chdir(REPO_ROOT)
 for path in (str(DATABRICKS_ROOT), str(REPO_ROOT)):
     if path not in sys.path:
         sys.path.insert(0, path)
-os.environ["PYTHONPATH"] = f"{DATABRICKS_ROOT}:{REPO_ROOT}"
+os.environ["PYTHONPATH"] = f"{{DATABRICKS_ROOT}}:{{REPO_ROOT}}"
 
 from eval.retrieval import harness_cli
 
-rc = harness_cli.main(
-    [
-        "run",
-        "--store-backend",
-        "delta",
-        "--run-type",
-        "baseline",
-        "--company-name",
-        "{company}",
-        "--catalog",
-        "{catalog}",
-    ]
-)
+argv = [
+    "run",
+    "--store-backend",
+    "delta",
+    "--run-type",
+    "baseline",
+    "--company-name",
+    "{company}",
+    "--catalog",
+    "{catalog}",
+]
+{gold_path_argv}
+rc = harness_cli.main(argv)
 if rc != 0:
     sys.exit(rc)
 '''
@@ -227,18 +227,32 @@ def run_bootstrap(company: str, catalog: str = DEFAULT_CATALOG, *, sync: bool = 
     return rc
 
 
-def run_harness_baseline(company: str, catalog: str = DEFAULT_CATALOG, *, sync: bool = True) -> int:
+def run_harness_baseline(
+    company: str,
+    catalog: str = DEFAULT_CATALOG,
+    *,
+    gold_path: str | None = None,
+    sync: bool = True,
+) -> int:
     """Runbook Step 5: eval.retrieval.harness_cli baseline on serverless."""
     w = client()
     user = workspace_user(w)
     repo_root = ws_repo_root(user)
     if sync:
         sync_onboarding_code(w)
+    gold_path_argv = ""
+    if gold_path:
+        gold_path_argv = f'argv.extend(["--gold-path", "{gold_path}"])'
     driver = _upload_driver(
         w,
         user,
         "onboarding_harness_runner.py",
-        HARNESS_DRIVER.format(company=company, catalog=catalog, repo_root=repo_root),
+        HARNESS_DRIVER.format(
+            company=company,
+            catalog=catalog,
+            repo_root=repo_root,
+            gold_path_argv=gold_path_argv,
+        ),
     )
     run_id, logs, rc = submit_serverless(
         w,
@@ -268,8 +282,22 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--company", required=True, help='SharePoint display name (e.g. "Clearsulting")')
         p.add_argument("--catalog", default=DEFAULT_CATALOG, help=f"Unity Catalog (default: {DEFAULT_CATALOG})")
         p.add_argument("--no-sync", action="store_true", help="Skip workspace upload (use stale workspace copy)")
+        if name == "harness-baseline":
+            p.add_argument(
+                "--gold-path",
+                help="Explicit gold YAML path (required for non-Elder Care baselines)",
+            )
         p.set_defaults(
-            func=lambda a, _fn=fn: _fn(a.company, a.catalog, sync=not a.no_sync),
+            func=(
+                (lambda a, _fn=fn: _fn(
+                    a.company,
+                    a.catalog,
+                    gold_path=getattr(a, "gold_path", None),
+                    sync=not a.no_sync,
+                ))
+                if name == "harness-baseline"
+                else (lambda a, _fn=fn: _fn(a.company, a.catalog, sync=not a.no_sync))
+            ),
         )
     return ap
 
