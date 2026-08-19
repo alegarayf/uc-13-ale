@@ -16,6 +16,12 @@ import yaml
 from dotenv import load_dotenv
 
 from eval.content.agreement import compute_metrics, evaluate_thresholds, normalize_unit_magnitude
+from eval.content.spot_check import (
+    _EXEC_TOP10_RANK_MAP,
+    exec_claim_source,
+    load_exec_analysis_cache,
+)
+from eval.retrieval.companies import canonical_company_slug
 
 NUMERIC_SURFACES = frozenset({"fta_numeric"})
 NON_NUMERIC_SURFACES = frozenset({"exec_summary", "legal_register"})
@@ -25,6 +31,13 @@ VERDICT_SYSTEM_PROMPT = """You are a diligence evidence judge. Given a claim and
 return ONLY valid JSON with one key:
   "verdict": one of "supported", "contradicted", "unsupported"
 Use the §16 vocabulary exactly. Base your verdict only on the supplied evidence."""
+
+EXEC_VERDICT_SYSTEM_PROMPT = """You are a diligence evidence judge. Given a claim and retrieved evidence records,
+return ONLY valid JSON with one key:
+  "verdict": one of "supported", "contradicted", "unsupported"
+Use the §16 vocabulary exactly. Base your verdict only on the supplied evidence.
+When evidence includes source_type "analysis_table", prefer that structured analysis-table
+record over vector-retrieved VDR chunks when adjudicating."""
 
 VERDICT_USER_TEMPLATE = """Claim (verbatim):
 {claim_text}
@@ -212,6 +225,171 @@ def retrieve_evidence(
     return records
 
 
+def _fta_rows_for_location(
+    rows: list[dict[str, Any]], *, location_contains: str
+) -> list[dict[str, Any]]:
+    needle = location_contains.lower()
+    return [
+        row
+        for row in rows
+        if needle in str(row.get("source_location") or "").lower()
+    ]
+
+
+def _qoe_ledger_item(ledger: list[dict[str, Any]], letter: str) -> dict[str, Any] | None:
+    tag = f"[{letter.upper()}]"
+    for row in ledger:
+        desc = str(row.get("description") or "")
+        if desc.startswith(tag) or f" {tag}" in desc:
+            return row
+    return None
+
+
+def _top10_issue_by_rank(
+    issues: list[dict[str, Any]], rank: int
+) -> dict[str, Any] | None:
+    for issue in issues:
+        if int(issue.get("rank") or 0) == rank:
+            return issue
+    return None
+
+
+def exec_claim_analysis_evidence(
+    claim_id: str,
+    cache: dict[str, Any],
+    *,
+    company_slug: str,
+) -> dict[str, Any] | None:
+    """Return structured analysis-table evidence for exec_summary judge calibration."""
+
+    source_doc, source_location = exec_claim_source(
+        claim_id, cache, company_slug=company_slug
+    )
+    revenue = cache.get("revenue_trend_json") or []
+    ledger = cache.get("addback_ledger_json") or []
+    top10 = cache.get("top_10_issues_json") or []
+
+    table: str | None = None
+    field: str | None = None
+    payload: Any = None
+
+    if claim_id in {"exec.claim.003", "exec.claim.004", "exec.claim.020"}:
+        table, field = "kpi", "healthcare_kpis_json"
+        payload = cache.get("healthcare_kpis_json")
+        if claim_id == "exec.claim.004":
+            table, field = "business_model", "customer_operational_metrics_json"
+            payload = {
+                "healthcare_kpis_json": cache.get("healthcare_kpis_json"),
+                "customer_operational_metrics_json": cache.get(
+                    "customer_operational_metrics_json"
+                ),
+            }
+    elif claim_id in {
+        "exec.claim.007",
+        "exec.claim.008",
+        "exec.claim.009",
+        "exec.claim.010",
+        "exec.claim.012",
+    }:
+        table, field = "financial_trends", "revenue_trend_json"
+        payload = {
+            "revenue_trend_json": _fta_rows_for_location(
+                revenue, location_contains="Historical P&L Summary"
+            ),
+            "ebitda_json": cache.get("ebitda_json"),
+            "addback_pct_of_ebitda": cache.get("addback_pct_of_ebitda"),
+        }
+    elif claim_id == "exec.claim.011":
+        table, field = "quality_of_earnings", "addback_ledger_json"
+        payload = {
+            "tier4_addback_count": cache.get("tier4_addback_count"),
+            "addback_ledger_json": ledger,
+        }
+    elif claim_id == "exec.claim.013":
+        table, field = "quality_of_earnings", "addback_ledger_json"
+        payload = ledger
+    elif claim_id in {"exec.claim.014", "exec.claim.015", "exec.claim.016"}:
+        letter = {"exec.claim.014": "G", "exec.claim.015": "K", "exec.claim.016": "O"}[
+            claim_id
+        ]
+        item = _qoe_ledger_item(ledger, letter)
+        if item is None:
+            return None
+        table, field = "quality_of_earnings", "addback_ledger_json"
+        payload = item
+    elif claim_id == "exec.claim.017":
+        table, field = "diligence_report", "reconciliation_summary_json"
+        payload = cache.get("reconciliation_summary_json")
+    elif claim_id == "exec.claim.018":
+        table, field = "forecast", "forecast_assumptions_json"
+        payload = {
+            "forecast_assumptions_json": cache.get("forecast_assumptions_json"),
+            "credibility_summary_json": cache.get("credibility_summary_json"),
+        }
+    elif claim_id == "exec.claim.019":
+        table, field = "diligence_report", "section_ratings_json"
+        payload = cache.get("section_ratings_json")
+    elif claim_id in {"exec.claim.025", "exec.claim.026"}:
+        table, field = "diligence_report", "section_confidence_json"
+        payload = {
+            "section_confidence_json": cache.get("section_confidence_json"),
+            "section_ratings_json": cache.get("section_ratings_json"),
+        }
+    elif claim_id in _EXEC_TOP10_RANK_MAP:
+        rank = _EXEC_TOP10_RANK_MAP[claim_id]
+        issue = _top10_issue_by_rank(top10, rank)
+        if issue is None:
+            return None
+        table, field = "diligence_report", "top_10_issues_json"
+        payload = issue
+    elif claim_id == "exec.claim.028":
+        table, field = "quality_of_earnings", "addback_ledger_json"
+        payload = {
+            "qofe_report_present": cache.get("qofe_report_present"),
+            "tier4_addback_count": cache.get("tier4_addback_count"),
+            "addback_ledger_json": ledger,
+        }
+    elif claim_id == "exec.claim.027":
+        table, field = "kpi", "healthcare_kpis_json"
+        payload = cache.get("healthcare_kpis_json")
+
+    if payload is None:
+        return None
+
+    return {
+        "source_type": "analysis_table",
+        "analysis_table": table,
+        "field": field,
+        "source_doc": source_doc,
+        "source_location": source_location,
+        "payload": payload,
+    }
+
+
+def build_exec_dual_source_evidence(
+    w,
+    *,
+    claim_id: str,
+    claim_text: str,
+    cache: dict[str, Any],
+    company_slug: str,
+    catalog: str,
+    company: str,
+    top_k: int = 5,
+) -> list[dict[str, Any]]:
+    """Merge analysis-table evidence with vector-retrieved VDR chunks for exec_summary."""
+
+    analysis = exec_claim_analysis_evidence(
+        claim_id, cache, company_slug=company_slug
+    )
+    chunks = retrieve_evidence(
+        w, catalog=catalog, company=company, query=claim_text, top_k=top_k
+    )
+    if analysis is not None:
+        return [analysis, *chunks]
+    return chunks
+
+
 def call_llm(*, endpoint: str, system_prompt: str, user_prompt: str) -> str:
     _configure_databricks_env()
     client = mlflow.deployments.get_deploy_client("databricks")
@@ -346,9 +524,12 @@ def judge_claim(
         parsed = parse_numeric_judge_response(raw)
         return {**parsed, "raw_response": raw}
 
+    verdict_prompt = (
+        EXEC_VERDICT_SYSTEM_PROMPT if surface == "exec_summary" else VERDICT_SYSTEM_PROMPT
+    )
     raw = call_llm_with_retry(
         endpoint=endpoint,
-        system_prompt=VERDICT_SYSTEM_PROMPT,
+        system_prompt=verdict_prompt,
         user_prompt=VERDICT_USER_TEMPLATE.format(
             claim_text=claim_text,
             evidence_json=json.dumps(evidence, indent=2),
@@ -390,16 +571,43 @@ def run_calibration(
         w, catalog=catalog, company=company, chunk_ids=chunk_ids
     )
 
+    exec_analysis_cache: dict[str, Any] | None = None
+    company_slug = canonical_company_slug(company)
+    if surface == "exec_summary":
+        exec_analysis_cache = load_exec_analysis_cache(
+            lambda stmt: _sql(w, stmt),
+            catalog=catalog,
+            company=company,
+        )
+
     judge_outputs: list[dict[str, Any]] = []
     per_claim: list[dict[str, Any]] = []
     parse_failures = 0
     for idx, claim in enumerate(sample.get("claims") or [], start=1):
         query = claim.get("claim_text", "")
+        claim_id = str(claim.get("claim_id") or "")
         print(f"[{surface}] claim {idx}/{len(sample.get('claims') or [])} {claim.get('claim_id')}", flush=True)
-        evidence = retrieve_evidence(
-            w, catalog=catalog, company=company, query=query, top_k=5
+        if surface == "exec_summary" and exec_analysis_cache is not None:
+            evidence = build_exec_dual_source_evidence(
+                w,
+                claim_id=claim_id,
+                claim_text=query,
+                cache=exec_analysis_cache,
+                company_slug=company_slug,
+                catalog=catalog,
+                company=company,
+                top_k=5,
+            )
+        else:
+            evidence = retrieve_evidence(
+                w, catalog=catalog, company=company, query=query, top_k=5
+            )
+        retrieved_chunk_ids = [
+            e["chunk_id"] for e in evidence if e.get("source_type") != "analysis_table"
+        ]
+        analysis_evidence = next(
+            (e for e in evidence if e.get("source_type") == "analysis_table"), None
         )
-        retrieved_chunk_ids = [e["chunk_id"] for e in evidence]
         output = judge_claim(
             surface=surface,
             claim=claim,
@@ -415,6 +623,7 @@ def run_calibration(
                 "claim_id": claim.get("claim_id"),
                 "operator_verdict": claim.get("verdict"),
                 "retrieved_chunk_ids": retrieved_chunk_ids,
+                "analysis_evidence": analysis_evidence,
                 "judge_output": {
                     k: v
                     for k, v in output.items()
@@ -440,10 +649,15 @@ def run_calibration(
         "rung_assignment": "judge" if passed else "human",
         "prompts": {
             "numeric_system": NUMERIC_SYSTEM_PROMPT if surface in NUMERIC_SURFACES else None,
-            "verdict_system": VERDICT_SYSTEM_PROMPT
-            if surface not in NUMERIC_SURFACES
-            else None,
+            "verdict_system": (
+                EXEC_VERDICT_SYSTEM_PROMPT
+                if surface == "exec_summary"
+                else VERDICT_SYSTEM_PROMPT
+                if surface not in NUMERIC_SURFACES
+                else None
+            ),
         },
+        "evidence_mode": "dual_source" if surface == "exec_summary" else "chunk_rag",
         "parse_failures": parse_failures,
         "per_claim": per_claim,
     }

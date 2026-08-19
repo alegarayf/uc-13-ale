@@ -1533,6 +1533,9 @@ items:
     exec_summary: verdict_agreement 0.393 < 0.80 threshold ⇒ human. fta_numeric (item-23 demoted
     surface): value_agreement 0.500 < 0.90 and span_agreement 0.000 < 0.80 ⇒ human. DG-19: item 26
     rubric to be generalized to fta_numeric full claim set (demoted-surface threshold failure).
+    Dual-source re-run 2026-08-19 (analysis.* + chunk RAG in eval/content/calibration.py): exec_summary
+    verdict_agreement 0.857 ≥ 0.80 on N=28 (24/28 agree; disagreements: 001, 011, 019, 026). Rung
+    remains human pending operator authorization per playbook §6.2 steps 4–5 and ESC-T12-1 gate review.
     F-6 provenance caveat (audit rev 1): span_agreement: 0.0 and locator_labelled_fraction: 1.0 were
     recorded as judge-capability figures, but the BGE vector-retrieval leg (databricks-bge-large-en,
     uc13_ale.ingestion.embeddings_index, top_k=5) was undeclared at measurement time and supplied the
@@ -1547,7 +1550,9 @@ items:
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration.md
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration-exec_summary.json
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/signoffs/T5-calibration-fta_numeric.json
+  - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T12-calibration-exec_summary-dual-source.json
   - eval/content/calibration_samples/calibration_sample_exec_summary.yaml
+  - eval/content/calibration.py
   - eval/content/spot_check.py
   - eval/content/spot-check/exec_summary_elder_care_2026-08-12.verdicts.yaml
   - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.verdicts.yaml
@@ -1559,6 +1564,14 @@ items:
   assessment_metrics:
     exec_summary:
       verdict_agreement: 0.39285714285714285
+      verdict_agreement_dual_source_2026_08_19: 0.8571428571428571
+      verdict_agreement_dual_source_claims_agree: 24
+      verdict_agreement_dual_source_claims_total: 28
+      verdict_agreement_dual_source_disagreements:
+      - exec.claim.001
+      - exec.claim.011
+      - exec.claim.019
+      - exec.claim.026
     fta_numeric:
       resolved_value_fraction: 1.0
       resolved_span_fraction: 1.0
