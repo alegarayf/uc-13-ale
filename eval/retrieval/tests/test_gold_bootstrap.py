@@ -14,6 +14,7 @@ from eval.retrieval.gold.bootstrap import (
     BASIS_NEGATIVE_SECTION_PATTERNS,
     GoldLabelBootstrap,
     _resolved_output_path,
+    _tabs_matching_excel_candidate,
     build_parser,
     format_ingestion_snapshot,
     load_gold_exclusions,
@@ -112,6 +113,47 @@ def test_format_ingestion_snapshot_normative():
         format_ingestion_snapshot("uc13_ale", SNAPSHOT_CHUNK_COUNT, SNAPSHOT_INGESTION_DATE)
         == INGESTION_SNAPSHOT
     )
+
+
+def test_excel_tab_exact_match_preferred_over_prefix():
+    tabs = ["Revenue", "Revenue Cash Proof", "Summary"]
+    assert _tabs_matching_excel_candidate(tabs, "Revenue") == ["Revenue"]
+
+
+def test_excel_tab_prefix_match_when_no_exact_tab():
+    tabs = ["Revenue Cash Proof", "Revenue Detail"]
+    assert _tabs_matching_excel_candidate(tabs, "Revenue") == [
+        "Revenue Cash Proof",
+        "Revenue Detail",
+    ]
+
+
+def test_resolve_excel_tab_uses_exact_match_when_ambiguous_prefix_pool():
+    handlers = {
+        "COUNT(*) AS chunk_count": [{"chunk_count": 100}],
+        "DISTINCT c.tab": [
+            {"tab": "Revenue"},
+            {"tab": "Revenue Cash Proof"},
+        ],
+        "c.tab = 'Revenue'": [{"chunk_id": "chunk_rev001"}],
+        "analysis.kpi": [
+            {
+                "kpi_dashboard_json": (
+                    '{"claims": [{"claim": "retrieve_healthcare_revenue_per_unit", '
+                    '"source_doc": "Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx", '
+                    '"source_location": "Sheet: Revenue, Section: Summary"}]}'
+                ),
+                "created_at": "2026-08-19T00:00:00Z",
+            }
+        ],
+    }
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, company_name="GKF", ingestion_date=date(2026, 8, 19))
+    tab = bootstrap._resolve_excel_tab(
+        "Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx",
+        "Sheet: Revenue, Section: Summary",
+    )
+    assert tab == "Revenue"
 
 
 def test_compute_ingestion_snapshot_single_value(mock_spark_handlers):

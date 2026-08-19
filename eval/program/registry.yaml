@@ -1845,3 +1845,30 @@ items:
   - .dev/plans/eval-multi-company-coverage-expansion/analysis/registry-hygiene-open-items-dangling-refs.md
   rung_assignments: {}
   assessment_metrics: {}
+- id: M5-S4-gkf-spg-retrieval-onboard
+  title: GKF/SPG retrieval onboarding — baseline complete (T6)
+  source_refs:
+  - .dev/specs/eval-multi-company-coverage/spec.md#P2
+  - .dev/plans/eval-multi-company-coverage-expansion/packets/T6.md
+  source_id: null
+  disposition: accepted
+  stage: S4
+  status: complete
+  trigger: null
+  rationale: 'T6 retry 3 COMPLETE: GKF ingest 1.0; SPG borderline 0.9863 documented before baseline
+    interpretation. Gold bootstrap + harness baselines for both companies after Excel tab fixes
+    (exact-tab preference, / Section suffix). GKF legal corpus_thin exemptions (5). G1 floors not
+    ratified. Bloated filename_closure noted (GKF 26, SPG 20 intents >500 positives) — eval_debt HWM
+    13/14 unchanged.'
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T6-gkf-spg-retrieval.md
+  - eval/retrieval/gold_labels/gkf.yaml
+  - eval/retrieval/gold_labels/spg.yaml
+  - eval/program/onboarding_queue.yaml
+  - baseline_4e098a2a2252
+  - baseline_0ec50347353a
+  - '675267203645809'
+  - '554237868108774'
+  rung_assignments: {}
+  assessment_metrics: {}

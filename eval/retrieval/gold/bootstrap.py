@@ -91,6 +91,10 @@ _EXCEL_DATA_ROWS_RE = re.compile(
     r"Sheet:\s*([^,]+),\s*Data Rows",
     re.IGNORECASE,
 )
+_EXCEL_SECTION_SUFFIX_RE = re.compile(
+    r"\s*(?:,\s*|\s*/\s*)Section:",
+    re.IGNORECASE,
+)
 
 KPI_ITEM12_INTENT_IDS: frozenset[str] = frozenset(
     {
@@ -217,15 +221,18 @@ def _excel_tab_candidate_from_location(location: str) -> str:
     match = _EXCEL_SHEET_RE.search(location)
     if not match:
         raise PreconditionError(f"Location is not Excel-shaped: {location!r}")
-    return match.group(1).split(",", 1)[0].strip()
+    raw = match.group(1).strip()
+    section_match = _EXCEL_SECTION_SUFFIX_RE.search(raw)
+    if section_match:
+        raw = raw[: section_match.start()].strip()
+    return raw.split(",", 1)[0].strip()
 
 
 def _tabs_matching_excel_candidate(tabs: Sequence[str], candidate: str) -> list[str]:
-    return [
-        tab
-        for tab in tabs
-        if tab == candidate or tab.startswith(candidate)
-    ]
+    exact_matches = [tab for tab in tabs if tab == candidate]
+    if exact_matches:
+        return exact_matches
+    return [tab for tab in tabs if tab.startswith(candidate)]
 
 
 def load_kpi_claim_intent_map(

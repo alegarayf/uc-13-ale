@@ -128,6 +128,11 @@ def test_excel_location_form_ii_candidate_segment():
     assert _excel_tab_candidate_from_location(loc) == "Revenue Build"
 
 
+def test_excel_location_form_iii_slash_section_suffix():
+    loc = "Sheet: SUMMARY-Bonus / Section: Summary"
+    assert _excel_tab_candidate_from_location(loc) == "SUMMARY-Bonus"
+
+
 def test_prefix_resolution_unique_tab():
     matches = _tabs_matching_excel_candidate(
         ["Revenue Build", "Summary P&L"],
