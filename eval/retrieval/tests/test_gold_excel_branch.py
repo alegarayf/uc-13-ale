@@ -286,3 +286,111 @@ def test_non_kpi_agent_citation_path_unchanged():
 
 def test_mapping_artifact_path_is_tracked():
     assert KPI_CLAIM_INTENT_MAP_PATH.is_file()
+
+
+# Warehouse-verified claim keys (uc13_ale.analysis.kpi, 2026-08-18 probe).
+_GKF_WAREHOUSE_CLAIMS: tuple[tuple[str, str], ...] = (
+    (
+        "consumer_kpis.channel_mix_note — Revenue line items",
+        "kpi.retrieve_bill_rates_and_margins",
+    ),
+    (
+        "consumer_kpis.channel_mix_note — Tuition fees as % of revenue",
+        "kpi.retrieve_bill_rates_and_margins",
+    ),
+    (
+        "consumer_kpis.platform_concentration_note — Franchise fees",
+        "kpi.retrieve_bill_rates_and_margins",
+    ),
+    (
+        "consumer_kpis.platform_concentration_note — School locations",
+        "kpi.retrieve_bench_and_capacity",
+    ),
+    ("equity — Distributions", "kpi.retrieve_bill_rates_and_margins"),
+    ("equity — Ending equity balance", "kpi.retrieve_bill_rates_and_margins"),
+    ("management — Named executives", "kpi.retrieve_headcount_attrition"),
+    (
+        "payroll — Salaries as % of revenue (Top Farm)",
+        "kpi.retrieve_bill_rates_and_margins",
+    ),
+    (
+        "payroll — Teachers and Staff headcount by school (2025 budget)",
+        "kpi.retrieve_headcount_attrition",
+    ),
+    (
+        "revenue — Total combined tuition fees FY23",
+        "kpi.retrieve_bill_rates_and_margins",
+    ),
+    (
+        "revenue — Total revenue FY23/FY24/TTM25 (one entity)",
+        "kpi.retrieve_bill_rates_and_margins",
+    ),
+)
+
+_SPG_WAREHOUSE_CLAIMS: tuple[tuple[str, str], ...] = (
+    ("ar_aging_by_payor_note", "kpi.retrieve_healthcare_revenue_per_unit"),
+    ("census_or_patient_panel", "kpi.retrieve_healthcare_ops"),
+    ("collections_note", "kpi.retrieve_healthcare_revenue_per_unit"),
+    ("compliance_incidents[0]", "kpi.retrieve_healthcare_ops"),
+    ("compliance_incidents[1]", "kpi.retrieve_healthcare_ops"),
+    ("credentialing_status_note", "kpi.retrieve_healthcare_ops"),
+    ("healthcare_kpis.source_doc", "kpi.retrieve_healthcare_ops"),
+    ("site_level_visibility_note", "kpi.retrieve_healthcare_ops"),
+    ("utilization_or_productivity_note", "kpi.retrieve_healthcare_ops"),
+)
+
+
+@pytest.mark.parametrize(("claim", "intent_id"), _GKF_WAREHOUSE_CLAIMS)
+def test_gkf_warehouse_claims_resolve(claim: str, intent_id: str):
+    claim_map, _ = load_kpi_claim_intent_map()
+    assert claim_map[claim] == intent_id
+
+
+@pytest.mark.parametrize(("claim", "intent_id"), _SPG_WAREHOUSE_CLAIMS)
+def test_spg_bare_healthcare_claims_resolve(claim: str, intent_id: str):
+    claim_map, _ = load_kpi_claim_intent_map()
+    assert claim_map[claim] == intent_id
+
+
+def test_gkf_education_claim_bootstrap_excel_branch(kpi_spark_handlers):
+    gkf_claim = (
+        "consumer_kpis.channel_mix_note — Tuition fees as % of revenue"
+    )
+    handlers = dict(kpi_spark_handlers)
+    handlers["analysis.kpi"] = [
+        {
+            "citations": _kpi_citations_json(
+                [
+                    (
+                        "Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx",
+                        "Sheet: Revenue, Section: Summary — Key Metrics: As a % of Total Revenue",
+                        gkf_claim,
+                    ),
+                ]
+            ),
+            "created_at": "2026-08-18T00:00:00Z",
+        }
+    ]
+    handlers["SELECT DISTINCT c.tab"] = [{"tab": "Revenue"}]
+    handlers["c.tab = 'Revenue'"] = [{"chunk_id": "gkf_rev_chunk_1"}]
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(
+        spark,
+        ingestion_date=date(2026, 8, 18),
+        company_name="GKF",
+    )
+    intent = _sample_intent(
+        "kpi.retrieve_bill_rates_and_margins",
+        agent_id="kpi",
+    )
+    label = bootstrap.bootstrap([intent])[0]
+    assert label.gold_method == "citation_backfill"
+    assert label.positive_chunk_ids == ["gkf_rev_chunk_1"]
+
+
+def test_hyphen_dash_claim_variant_not_mapped():
+    claim_map, _ = load_kpi_claim_intent_map()
+    hyphen_variant = (
+        "consumer_kpis.channel_mix_note - Tuition fees as % of revenue"
+    )
+    assert hyphen_variant not in claim_map
