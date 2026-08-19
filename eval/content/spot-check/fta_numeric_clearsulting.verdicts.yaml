@@ -1,0 +1,834 @@
+schema_version: 1
+surface: fta_numeric
+company: Clearsulting
+operator_id: t4_executor
+status: operator_w1_pass
+claims:
+- claim_id: fta.claim.001
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.002
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.003
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.004
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.005
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.006
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.007
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.008
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.009
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.010
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.011
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.012
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.013
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.014
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.015
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.016
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.017
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.018
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.019
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.020
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.021
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.022
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.023
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.024
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.025
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.026
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.027
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.028
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.029
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.030
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.031
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.032
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.033
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.034
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.035
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.036
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.037
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.038
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.039
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.040
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.041
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.042
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.043
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.044
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.045
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.046
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.047
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.048
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.049
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.050
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.051
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.052
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.053
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.054
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.055
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.056
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.057
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.058
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.059
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.060
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.061
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.062
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.063
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.064
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.065
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.066
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.067
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.068
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.069
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.070
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.071
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.072
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.073
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.074
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.075
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.076
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.077
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.078
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.079
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.080
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.081
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.082
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.083
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.084
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.085
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.086
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.087
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.088
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.089
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.090
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.091
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.092
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.093
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.094
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.095
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.096
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.097
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.098
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.099
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.100
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.101
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.102
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.103
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.104
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.105
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.106
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.107
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.108
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.109
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.110
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.111
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.112
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.113
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.114
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.115
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.116
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.117
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.118
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.119
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.120
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.121
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.122
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.123
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.124
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.125
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.126
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.127
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.128
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.129
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.130
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.131
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.132
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.133
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.134
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.135
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.136
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.137
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.138
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.139
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.140
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.141
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.142
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.143
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.144
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.145
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.146
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.147
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.148
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.149
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.150
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.151
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.152
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.153
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.154
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.155
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.156
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.157
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.158
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.159
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.160
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.161
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.162
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.163
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.164
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.165
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.166
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.167
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.168
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.169
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.170
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.171
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.172
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.173
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.174
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.175
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.176
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.177
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.178
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.179
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.180
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.181
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.182
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.183
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.184
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.185
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.186
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.187
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.188
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.189
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.190
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.191
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.192
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.193
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.194
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.195
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.196
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.197
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.198
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.199
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.200
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.201
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.202
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.203
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.204
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.205
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.206
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.207
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.208
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.209
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.210
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.211
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.212
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.213
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.214
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.215
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.216
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.217
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.218
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.219
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.220
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.221
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.222
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.223
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.224
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.225
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.226
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.227
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.228
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.229
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.230
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.231
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.232
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.233
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.234
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.235
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.236
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.237
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.238
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.239
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.240
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.241
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.242
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.243
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.244
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.245
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.246
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.247
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.248
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.249
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.250
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.251
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.252
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.253
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.254
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.255
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.256
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.257
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.258
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.259
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.260
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.261
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.262
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.263
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.264
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.265
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.266
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.267
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.268
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.269
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.270
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.271
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.272
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.273
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.274
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.275
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)
+- claim_id: fta.claim.276
+  verdict: unsupported
+  rationale: No chunk citation or non-numeric claim under Elder Care manifest (W1)

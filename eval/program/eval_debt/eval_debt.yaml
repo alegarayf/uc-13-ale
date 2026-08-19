@@ -270,3 +270,51 @@ debts:
   - eval/retrieval/gold_labels/clearsulting.yaml
   - run_id:141001781333770
   - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: elder_care:global:post_m4_harness_baseline_corpus_drift
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: post_m4_harness_baseline_corpus_drift
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:elder_care:retrieval:null
+  - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  closes_when: fresh harness baseline stored in uc13_ale.ops with ingestion_snapshot uc13_ale:55812:2026-08-19+
+    or later; trust_statement retrieval row regenerated; mean MRR comparable only to post-M4 cohort
+- id: spg:global:post_m4_corpus_dedup_baseline_stale
+  company: spg
+  surface: null
+  layer: retrieval
+  kind: post_m4_corpus_dedup_baseline_stale
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:spg:retrieval:null
+  - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  closes_when: harness baseline baseline_0ec50347353a superseded by post-dedup run on uc13_ale:44085+
+    corpus; gold ingestion_snapshot reconciled to live chunk count; per-intent recall@10 interpretable
+- id: gkf:global:post_m4_harness_baseline_corpus_drift
+  company: gkf
+  surface: null
+  layer: retrieval
+  kind: post_m4_harness_baseline_corpus_drift
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:gkf:retrieval:null
+  - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  closes_when: harness baseline baseline_4e098a2a2252 superseded by post-M4 run with ingestion_snapshot
+    uc13_ale:3107:2026-08-19+; bloated filename_closure intents disposition unchanged until separate T11-style pass
+- id: clearsulting:global:post_m4_harness_baseline_corpus_drift
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: post_m4_harness_baseline_corpus_drift
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  closes_when: harness baseline baseline_7174e0399e29 superseded by post-M4 run on uc13_ale:2417:2026-08-19+
+    corpus after optional harness re-compare noted deferred in GAP-M4-1 closeout

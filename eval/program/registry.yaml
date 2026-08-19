@@ -790,13 +790,19 @@ items:
   - OPEN_ITEMS.md#data-ingest-quality
   - .dev/eval_state_of_affairs_2026-08-03.md#10.2
   source_id: OI-data-ingest-quality-elder-care-ingest-gap
-  disposition: staged
+  disposition: accepted
   stage: S3
-  status: pending
+  status: n/a
   trigger: null
-  rationale: null
+  rationale: 'Post-M4 parser rollout (Aug 2026): join integrity 44.5%→98.3% (450/458 should_parse
+    ingested); missing files 254→8 (LEGAL 6, FINANCIAL 2, QoE 1). Jul-17 "52% ingested / gold
+    company broken" narrative obsolete — see company-analysis diff §8.1. Residual 8 files are
+    tracked missing-by-workstream, not a parser-gap program item.'
   tshirt: null
-  evidence_refs: []
+  evidence_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  - .dev/company-analysis-regen-2026-08-19.md
+  - .dev/tmp_e2e_readiness_probe.json
   rung_assignments: {}
   assessment_metrics: {}
 - id: OI-data-ingest-quality-incremental-parser-status-table
@@ -805,13 +811,19 @@ items:
   - OPEN_ITEMS.md#open--half-open
   - OPEN_ITEMS.md#data-ingest-quality
   source_id: OI-data-ingest-quality-incremental-parser-status-table
-  disposition: staged
+  disposition: accepted
   stage: S3
-  status: pending
+  status: n/a
   trigger: null
-  rationale: null
+  rationale: 'Landed in uc13-ingestion-parser M0–M4 (Aug 2026): per-doc resumable parsing, doc_status
+    table, doc_id join keys, incremental backfill. Four-company rollout attestation 902 approved /
+    888 complete / 14 zero-chunk (2026-08-07).'
   tshirt: null
-  evidence_refs: []
+  evidence_refs:
+  - CHANGELOG.MD
+  - docs/ingestion/rollout-evidence.md
+  - databricks/jobs/scripts/ingestion_parser.py
+  - databricks/jobs/scripts/status_store.py
   rung_assignments: {}
   assessment_metrics: {}
 - id: OI-data-ingest-quality-indexsyncerror-job-exit-behavior
@@ -837,7 +849,7 @@ items:
   source_id: OI-data-ingest-quality-spg-ingest-borderline
   disposition: accepted
   stage: S3
-  status: closed
+  status: n/a
   trigger: null
   rationale: 'Preflight 1.0000 (363/363) after SpreadsheetML .xls parser + content-driven
     should_parse exclusion (Bowman insurance PDF). T6 borderline 0.9863 closed — see T8 signoff.'
@@ -847,9 +859,7 @@ items:
   - eval/FTA/golden_checklist_spg.md
   - databricks/jobs/scripts/ingestion_parser.py
   rung_assignments: {}
-  assessment_metrics:
-    ingest_completeness: 1.0
-    ingest_denominator: 363
+  assessment_metrics: {}
 - id: OI-eval-harness-elder-care-slice-json-refresh-trigger
   title: '`elder_care_slice.json` refresh trigger'
   source_refs:
@@ -1254,9 +1264,15 @@ items:
   stage: S3
   status: pending
   trigger: null
-  rationale: null
+  rationale: 'Design-only scorecard for diligence-ready data rooms. Post-M4 warehouse probe (2026-08-19)
+    supersedes Jul-17 completeness anchors: Clearsulting/GKF/SPG 100% ingest; Elder Care 98.3%
+    (8 files); SPG corpus deduped 71k→44k chunks. Scorecard must use join_integrity + missing-by-workstream,
+    not chunk/upload heuristics or pre-M4 md §2 prose (still hardcodes 52%/88.7%).'
   tshirt: null
-  evidence_refs: []
+  evidence_refs:
+  - uc13-company-data-analysis.md
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  - .dev/company-analysis-regen-2026-08-19.md
   rung_assignments: {}
   assessment_metrics: {}
 - id: OI-runbook-program-milestones-phase-9-hector-merge
@@ -1592,8 +1608,8 @@ items:
     closed Option A (caveat-and-carry, D1 2026-08-12): M2 human assignments stand as
     final; M3 does not re-decide rungs. S2 score-table storage (§8.8/§9) is built
     separately (T1); no judge-harness module or rung-2 production runs are in scope
-    this milestone. Audit trail: M2 audit rev 2 (2026-08-12-eval-consolidation-m2-audit.md);
-    calibration-disagreement audit §5 D1 (.dev/plans/eval-consolidation-m2-s2-preplan-assessments/audits/calibration-disagreement-audit-2026-08-12.md).'
+    this milestone. Post-T12 (2026-08-19): exec_summary calibration dual-source passed 0.857
+    threshold — resurrection scoped to OI-eval-content-exec-summary-judge-rung-build pending operator gate.'
   tshirt: null
   evidence_refs:
   - .dev/audits/eval-consolidation/M2/2026-08-12-eval-consolidation-m2-audit.md
@@ -1901,6 +1917,29 @@ items:
   - eval/retrieval/trust_statement.py
   rung_assignments: {}
   assessment_metrics: {}
+- id: OI-eval-content-exec-summary-judge-rung-build
+  title: exec_summary judge rung build — dual-source spot-check + CHK-27 harness
+  source_refs:
+  - eval/eval_program_playbook.md#6.2
+  - eval/program/product_backlog.yaml
+  source_id: OI-eval-content-exec-summary-judge-rung-build
+  disposition: staged
+  stage: S2
+  status: pending
+  trigger: Operator authorizes exec_summary human→judge after T12 signoff review (playbook §6.2 step 4); CHK-26a dual-source verdict_agreement 0.857 ≥ 0.80 recorded 2026-08-19
+  rationale: 'Post-T12 build slice (not full charter): (1) wire dual-source evidence in eval/content/spot_check.py
+    — closes PB-exec_summary-retrieval-scope-gap; mirror calibration.py pattern; (2) resurrect CHK-27 judge harness
+    for exec_summary — closes PB-exec_summary-chk27-judge-harness; reuse judge_claim + s2_writer; (3) update CHK-26a
+    rung_assignments.exec_summary to judge. CHK-27 remains descoped until this row closes; no auto-build on calibration pass alone.'
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T12-calibration-exec_summary-dual-source.json
+  - eval/content/calibration.py
+  - eval/content/spot_check.py
+  - eval/program/product_backlog.yaml
+  - eval/eval_program_playbook.md
+  rung_assignments: {}
+  assessment_metrics: {}
 - id: M5-S5-onboarding-queue
   title: M5 S5 company inventory + ranked onboarding queue (spec D5)
   source_refs:
@@ -1919,5 +1958,113 @@ items:
   - .dev/eval-program/build_onboarding_queue.py
   - f9cb629
   - 0e42eee
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-post-m4-retrieval-baseline-refresh
+  title: Post-M4 retrieval harness baseline refresh (all 4 companies)
+  source_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md#8.2
+  - eval/retrieval/README.md
+  source_id: OI-eval-harness-post-m4-retrieval-baseline-refresh
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: 'P0 after Aug 2026 parser rollout: pre/post MRR and recall@10 are not apples-to-apples
+    (Elder mean MRR 0.665→0.222 on expanded corpus; SPG chunk count −38%). Re-run harness baselines
+    on post-refactor uc13_ale corpus for Clearsulting, Elder Care, GKF, SPG; refresh ops latest-baseline
+    pins and trust_statement retrieval rows. Gold snapshots partially current (Elder 55812:2026-08-11;
+    SPG 43602:2026-08-19 vs live 44085) — reconcile snapshot ids before gating.'
+  tshirt: null
+  evidence_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  - .dev/tmp_deep_data_analysis.json
+  - eval/retrieval/gold_labels/elder_care.yaml
+  - eval/retrieval/gold_labels/spg.yaml
+  - eval/retrieval/gold_labels/gkf.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-data-ingest-quality-uc13-ale-vs-index-missing
+  title: uc13_ale vector search index missing
+  source_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md#6.1
+  - databricks/jobs/scripts/setup_vector_search.py
+  source_id: OI-data-ingest-quality-uc13-ale-vs-index-missing
+  disposition: staged
+  stage: S3
+  status: pending
+  trigger: null
+  rationale: 'Delta has ~105k embeddings across 4 companies but uc13_ale.ingestion.embeddings_index
+    absent in both Jul-17 and Aug-19 probes (InvalidParameterValue / ResourceDoesNotExist).
+    GKF/SPG pipeline harness historically showed fallback_rate=1.0 with provenance avg_sim=0 until
+    ingest closure; semantic retrieval on uc13_ale still blocked without Cell 2b / setup_vector_search
+    for catalog=uc13_ale. uc13 prod index exists (15,080 rows) — hybrid fallback undocumented.'
+  tshirt: null
+  evidence_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  - .dev/tmp_e2e_readiness_probe.json
+  - databricks/jobs/scripts/setup_vector_search.py
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-runbook-program-milestones-t2-exec-summary-post-m4-rerender
+  title: T2 exec summary re-render post-M4 ingest
+  source_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md#6.2
+  - .dev/t2_baseline_run_log.json
+  source_id: OI-runbook-program-milestones-t2-exec-summary-post-m4-rerender
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: 'T2 PASS artifacts unchanged since Jul-17 (word counts 847–1,325 identical) despite
+    +59% Elder chunks and SPG dedup/re-ingest. Orchestrator bundle/full_report bytes grew (+9–18 KB)
+    but tldr_one_pager.md not regenerated — exec-summary eval and Phase 7 deliverable checks may
+    understate post-M4 corpus richness.'
+  tshirt: null
+  evidence_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  - .dev/t2_baseline_run_log.json
+  - .dev/tmp_e2e_readiness_probe.json
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-agent-quality-post-m4-agent-rerun-three-companies
+  title: Agent re-run Clearsulting / Elder Care / GKF post-M4 ingest
+  source_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md#4
+  source_id: OI-agent-quality-post-m4-agent-rerun-three-companies
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: 'Parser refactor closed ingest gaps but did not trigger full agent re-runs except SPG FTA
+    (2026-08-19). Deep probe shows richer BMA exec/citations for Clearsulting/Elder/GKF vs Jul-28/30
+    rows; company-analysis HTML agent panels stale for 3/4 companies. Re-run workstream agents before
+    G1 golden checklists or content spot-checks attribute gaps to model vs corpus.'
+  tshirt: null
+  evidence_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  - .dev/tmp_deep_data_analysis.json
+  - uc13-company-data-analysis.html
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-107-pre-m4-corpus-metrics-invalidation
+  title: Pre-M4 corpus metrics invalid for eval gates
+  source_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md#8.1
+  source_id: GAP-107-pre-m4-corpus-metrics-invalidation
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: 'Jul-17 company-data-analysis anchors must not gate eval: Elder 52%/35104 chunks, SPG
+    88.7%/71010 chunks, GKF/SPG provenance avg_sim=0. Archived at uc13-company-data-analysis-2026-07-17-pre-refactor.*
+    and .dev/archive/company-analysis-2026-07-17/. Post-M4 authoritative probe: .dev/tmp_*_analysis.json
+    (2026-08-19). uc13-company-data-analysis.md §2 prose still hardcodes stale percentages — tables/HTML DATA current.'
+  tshirt: null
+  evidence_refs:
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  - uc13-company-data-analysis-2026-07-17-pre-refactor.html
+  - .dev/archive/company-analysis-2026-07-17/tmp_e2e_readiness_probe.json
   rung_assignments: {}
   assessment_metrics: {}

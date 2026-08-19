@@ -135,8 +135,8 @@ def test_committed_ledger_ratchet_passes() -> None:
     assert payload["schema_version"] == 1
     assert payload["open_debt_high_water_mark"] == 14
     debts = load_debts(_COMMITTED_LEDGER)
-    assert len(debts) == 14
-    assert open_debt_count(debts) == 1
+    assert len(debts) == 18
+    assert open_debt_count(debts) == 5
     assert_ledger_ratchet(
         _COMMITTED_LEDGER,
         repo_root=_REPO_ROOT,

@@ -2,6 +2,8 @@
 
 **What this is:** a plain-language guide to the eval system that lives under `eval/` — what it measures, what the commands do, how to read what they produce, how to bring a new company onto it, and how to use its output to make the product better. No project history, no process jargon — just the system as it exists today and how to drive it.
 
+**Companion:** [`eval_program_playbook.md`](eval_program_playbook.md) — current company coverage, trust boundaries, ledger map, open items, product backlog from signals, rollout waves, and execution order for full pipelines + baselines across SharePoint companies.
+
 ---
 
 ## 1. What problem this solves
@@ -37,7 +39,8 @@ Every company gets scored on five independent layers. A company can be strong on
 
 ```
 eval/
-├── eval_runbook.md              ← this file
+├── eval_runbook.md              ← this file (commands + layer definitions)
+├── eval_program_playbook.md     ← coverage, trust, ledger, backlog, rollout
 ├── retrieval/                   ← the retrieval measurement engine
 │   ├── intent_registry.yaml     ← the ~57 named retrieval questions ("intents")
 │   ├── gold_labels/<slug>.yaml  ← per-company hand-verified correct chunk ids

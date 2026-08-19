@@ -188,6 +188,9 @@ sources:
 - id: OI-data-ingest-quality-spg-ingest-borderline
   source_ref: OPEN_ITEMS.md#open--half-open
   title: SPG ingest borderline
+- id: OI-eval-content-exec-summary-judge-rung-build
+  source_ref: eval/eval_program_playbook.md#6.2
+  title: exec_summary judge rung build — dual-source spot-check + CHK-27 harness
 - id: OI-eval-harness-elder-care-slice-json-refresh-trigger
   source_ref: OPEN_ITEMS.md#open--half-open
   title: '`elder_care_slice.json` refresh trigger'
@@ -308,6 +311,21 @@ sources:
 - id: PREFLIGHT-DOCSTATUS-1
   source_ref: .dev/specs/eval-consolidation-program/spec.md#18
   title: doc_status preflight expected-document denominator
+- id: OI-eval-harness-post-m4-retrieval-baseline-refresh
+  source_ref: .dev/company-analysis-diff-pre-vs-post-refactor.md#8.2
+  title: Post-M4 retrieval harness baseline refresh (all 4 companies)
+- id: OI-data-ingest-quality-uc13-ale-vs-index-missing
+  source_ref: .dev/company-analysis-diff-pre-vs-post-refactor.md#6.1
+  title: uc13_ale vector search index missing
+- id: OI-runbook-program-milestones-t2-exec-summary-post-m4-rerender
+  source_ref: .dev/company-analysis-diff-pre-vs-post-refactor.md#6.2
+  title: T2 exec summary re-render post-M4 ingest
+- id: OI-agent-quality-post-m4-agent-rerun-three-companies
+  source_ref: .dev/company-analysis-diff-pre-vs-post-refactor.md#4
+  title: Agent re-run Clearsulting / Elder Care / GKF post-M4 ingest
+- id: GAP-107-pre-m4-corpus-metrics-invalidation
+  source_ref: .dev/company-analysis-diff-pre-vs-post-refactor.md#8.1
+  title: Pre-M4 corpus metrics invalid for eval gates
 ratifications:
 - subject: No pytest for g1_score_all_agents.py
   rides: GAP-105-g1-scorer-pytest

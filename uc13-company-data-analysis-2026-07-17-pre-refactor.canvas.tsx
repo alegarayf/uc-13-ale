@@ -51,63 +51,63 @@ const DATA: any = {
   "chunks": [
     {
       "company": "Clearsulting",
-      "chunks": 2417,
-      "files": 22,
-      "chars": 4084354,
-      "words": 1031975,
-      "tokens4": 1021089,
-      "avg_chars": 1689.8,
-      "p50": 271,
-      "p95": 7362
+      "chunks": 2237,
+      "files": 21,
+      "chars": 4016608,
+      "words": 1028511,
+      "tokens4": 1004152,
+      "avg_chars": 1795.5,
+      "p50": 294,
+      "p95": 7374
     },
     {
       "company": "Elder Care",
-      "chunks": 55812,
-      "files": 450,
-      "chars": 287815772,
-      "words": 50271106,
-      "tokens4": 71953943,
-      "avg_chars": 5156.9,
-      "p50": 6747,
-      "p95": 7459
+      "chunks": 35104,
+      "files": 218,
+      "chars": 179229685,
+      "words": 31813515,
+      "tokens4": 44807421,
+      "avg_chars": 5105.7,
+      "p50": 6637,
+      "p95": 7466
     },
     {
       "company": "GKF",
-      "chunks": 3107,
+      "chunks": 3038,
       "files": 40,
-      "chars": 11891579,
-      "words": 2089643,
-      "tokens4": 2972895,
-      "avg_chars": 3827.4,
-      "p50": 3528,
-      "p95": 7387
+      "chars": 11810864,
+      "words": 2072952,
+      "tokens4": 2952716,
+      "avg_chars": 3887.7,
+      "p50": 3704,
+      "p95": 7381
     },
     {
       "company": "SPG",
-      "chunks": 44100,
-      "files": 395,
-      "chars": 144560783,
-      "words": 22944358,
-      "tokens4": 36140196,
-      "avg_chars": 3278.0,
-      "p50": 1902,
-      "p95": 7402
+      "chunks": 71010,
+      "files": 355,
+      "chars": 372380130,
+      "words": 58036177,
+      "tokens4": 93095032,
+      "avg_chars": 5244.1,
+      "p50": 6864,
+      "p95": 7440
     }
   ],
   "join": [
     {
       "company": "Clearsulting",
       "should_parse": 22,
-      "ingested": 22,
-      "missing": 0,
-      "pct": 100.0
+      "ingested": 21,
+      "missing": 1,
+      "pct": 95.5
     },
     {
       "company": "Elder Care",
-      "should_parse": 458,
-      "ingested": 450,
-      "missing": 8,
-      "pct": 98.3
+      "should_parse": 379,
+      "ingested": 197,
+      "missing": 182,
+      "pct": 52.0
     },
     {
       "company": "GKF",
@@ -118,10 +118,10 @@ const DATA: any = {
     },
     {
       "company": "SPG",
-      "should_parse": 363,
-      "ingested": 363,
-      "missing": 0,
-      "pct": 100.0
+      "should_parse": 364,
+      "ingested": 323,
+      "missing": 41,
+      "pct": 88.7
     }
   ],
   "formats": {
@@ -922,9 +922,9 @@ const DATA: any = {
     },
     "SPG": {
       "BMA": {
-        "gaps": 3,
-        "exec": 1817,
-        "citations": 4071,
+        "gaps": 4,
+        "exec": 0,
+        "citations": 2,
         "extra": {
           "cim": "false",
           "flag": "Yellow",
@@ -932,44 +932,44 @@ const DATA: any = {
         }
       },
       "FTA": {
-        "gaps": 3,
-        "exec": 430,
+        "gaps": 2,
+        "exec": 334,
         "citations": 2,
         "extra": {
           "addback_pct": null
         }
       },
       "Legal": {
-        "gaps": 8,
-        "exec": 246,
-        "citations": 8550,
+        "gaps": 11,
+        "exec": 264,
+        "citations": 317,
         "extra": {
-          "section_conf": "medium",
-          "contract_chars": "2847"
+          "section_conf": "low",
+          "contract_chars": "2"
         }
       },
       "CQA": {
-        "gaps": 2,
-        "exec": 738,
-        "citations": 5971,
+        "gaps": 0,
+        "exec": 608,
+        "citations": 1249,
         "extra": {}
       },
       "KPI": {
         "gaps": 10,
-        "exec": 852,
-        "citations": 3312,
+        "exec": 648,
+        "citations": 1686,
         "extra": {
           "overlay": "healthcare_services",
-          "missing_chars": "3940"
+          "missing_chars": "4094"
         }
       },
       "QoE": {
-        "gaps": 3,
-        "exec": 654,
-        "citations": 2182,
+        "gaps": 2,
+        "exec": 1095,
+        "citations": 2365,
         "extra": {
           "qofe": "false",
-          "tier4": "2"
+          "tier4": "0"
         }
       }
     }
@@ -1529,8 +1529,8 @@ const DATA: any = {
       "company_name": "Clearsulting",
       "run_type": "pipeline",
       "harness_status": "complete",
-      "runs": "12",
-      "last_run": "2026-07-30T13:42:49.273Z",
+      "runs": "6",
+      "last_run": "2026-07-07T19:46:37.705Z",
       "avg_intents": "7",
       "avg_fallback": "0.0",
       "avg_empty": "0.0",
@@ -1540,10 +1540,10 @@ const DATA: any = {
       "company_name": "Elder Care",
       "run_type": "pipeline",
       "harness_status": "complete",
-      "runs": "52",
-      "last_run": "2026-07-28T22:38:04.528Z",
+      "runs": "19",
+      "last_run": "2026-07-16T00:03:12.115Z",
       "avg_intents": "7",
-      "avg_fallback": "0.167",
+      "avg_fallback": "0.0",
       "avg_empty": "0.0",
       "gate_pass_n": "0"
     },
@@ -1551,10 +1551,10 @@ const DATA: any = {
       "company_name": "GKF",
       "run_type": "pipeline",
       "harness_status": "complete",
-      "runs": "20",
-      "last_run": "2026-07-30T13:39:07.488Z",
+      "runs": "8",
+      "last_run": "2026-07-17T15:03:04.781Z",
       "avg_intents": "7",
-      "avg_fallback": "0.625",
+      "avg_fallback": "1.0",
       "avg_empty": "0.0",
       "gate_pass_n": "0"
     },
@@ -1562,10 +1562,10 @@ const DATA: any = {
       "company_name": "SPG",
       "run_type": "pipeline",
       "harness_status": "complete",
-      "runs": "19",
-      "last_run": "2026-08-19T12:40:31.376Z",
+      "runs": "6",
+      "last_run": "2026-07-17T20:29:50.998Z",
       "avg_intents": "7",
-      "avg_fallback": "0.316",
+      "avg_fallback": "1.0",
       "avg_empty": "0.0",
       "gate_pass_n": "0"
     }
@@ -1573,34 +1573,34 @@ const DATA: any = {
   "provenance": [
     {
       "company_name": "Clearsulting",
-      "runs": "12",
+      "runs": "6",
       "distinct_intents_in_provenance": "\u2014",
-      "provenance_rows": "1447",
-      "avg_sim": "0.522",
+      "provenance_rows": "305",
+      "avg_sim": "0.527",
       "avg_chars_alloc": "\u2014"
     },
     {
       "company_name": "Elder Care",
-      "runs": "52",
+      "runs": "19",
       "distinct_intents_in_provenance": "\u2014",
-      "provenance_rows": "10398",
-      "avg_sim": "0.514",
+      "provenance_rows": "6581",
+      "avg_sim": "0.573",
       "avg_chars_alloc": "\u2014"
     },
     {
       "company_name": "GKF",
-      "runs": "20",
+      "runs": "8",
       "distinct_intents_in_provenance": "\u2014",
-      "provenance_rows": "992",
-      "avg_sim": "0.378",
+      "provenance_rows": "218",
+      "avg_sim": "0.0",
       "avg_chars_alloc": "\u2014"
     },
     {
       "company_name": "SPG",
-      "runs": "19",
+      "runs": "6",
       "distinct_intents_in_provenance": "\u2014",
-      "provenance_rows": "1159",
-      "avg_sim": "0.377",
+      "provenance_rows": "180",
+      "avg_sim": "0.0",
       "avg_chars_alloc": "\u2014"
     }
   ],
@@ -1722,38 +1722,29 @@ const DATA: any = {
   "page": [
     {
       "company_name": "Clearsulting",
-      "chunks": "2417",
-      "with_page": "1800",
+      "chunks": "2237",
+      "with_page": "1620",
       "min_page": "1",
       "max_page": "82",
-      "distinct_sections": "588",
+      "distinct_sections": "518",
       "blank_section": "0"
     },
     {
       "company_name": "Elder Care",
-      "chunks": "55812",
-      "with_page": "7768",
+      "chunks": "35104",
+      "with_page": "4278",
       "min_page": "1",
-      "max_page": "102",
-      "distinct_sections": "2318",
+      "max_page": "74",
+      "distinct_sections": "1515",
       "blank_section": "0"
     },
     {
       "company_name": "GKF",
-      "chunks": "3107",
-      "with_page": "1306",
+      "chunks": "3038",
+      "with_page": "1237",
       "min_page": "1",
       "max_page": "484",
-      "distinct_sections": "651",
-      "blank_section": "0"
-    },
-    {
-      "company_name": "SPG",
-      "chunks": "44039",
-      "with_page": "24185",
-      "min_page": "1",
-      "max_page": "243",
-      "distinct_sections": "4519",
+      "distinct_sections": "628",
       "blank_section": "0"
     }
   ],
@@ -1764,31 +1755,31 @@ const DATA: any = {
   "embeddings_parity": [
     {
       "company": "Clearsulting",
-      "chunks": 2417,
-      "embeddings": 2417,
+      "chunks": 2237,
+      "embeddings": 2237,
       "match": true
     },
     {
       "company": "Elder Care",
-      "chunks": 55812,
-      "embeddings": 55812,
+      "chunks": 35104,
+      "embeddings": 35104,
       "match": true
     },
     {
       "company": "GKF",
-      "chunks": 3107,
-      "embeddings": 3107,
+      "chunks": 3038,
+      "embeddings": 3038,
       "match": true
     },
     {
       "company": "SPG",
-      "chunks": 44085,
-      "embeddings": 44085,
+      "chunks": 71010,
+      "embeddings": 71010,
       "match": true
     }
   ],
   "e2e": {
-    "generated_at": "2026-08-19T13:29:10.393535+00:00",
+    "generated_at": "2026-07-17T20:57:51.131157+00:00",
     "t2_status": "complete",
     "t2_verdict": "PASS",
     "vs_index_uc13_ale": "MISSING",
@@ -1798,88 +1789,88 @@ const DATA: any = {
         "orchestrator_bundle.yaml": {
           "path": "/Volumes/uc13_ale/analysis/reports/Clearsulting/orchestrator_bundle.yaml",
           "exists": true,
-          "bytes": 59716
+          "bytes": 39371
         },
         "tldr_one_pager.md": {
           "path": "/Volumes/uc13_ale/analysis/reports/Clearsulting/tldr_one_pager.md",
           "exists": true,
-          "bytes": 10253
+          "bytes": 5539
         },
         "tldr_one_pager.docx": {
           "path": "/Volumes/uc13_ale/analysis/reports/Clearsulting/tldr_one_pager.docx",
           "exists": true,
-          "bytes": 41700
+          "bytes": 40386
         },
         "full_report.md": {
           "path": "/Volumes/uc13_ale/analysis/reports/Clearsulting/full_report.md",
           "exists": true,
-          "bytes": 40624
+          "bytes": 33340
         }
       },
       "Elder Care": {
         "orchestrator_bundle.yaml": {
           "path": "/Volumes/uc13_ale/analysis/reports/Elder_Care/orchestrator_bundle.yaml",
           "exists": true,
-          "bytes": 61263
+          "bytes": 45545
         },
         "tldr_one_pager.md": {
           "path": "/Volumes/uc13_ale/analysis/reports/Elder_Care/tldr_one_pager.md",
           "exists": true,
-          "bytes": 10490
+          "bytes": 8685
         },
         "tldr_one_pager.docx": {
           "path": "/Volumes/uc13_ale/analysis/reports/Elder_Care/tldr_one_pager.docx",
           "exists": true,
-          "bytes": 41660
+          "bytes": 41892
         },
         "full_report.md": {
           "path": "/Volumes/uc13_ale/analysis/reports/Elder_Care/full_report.md",
           "exists": true,
-          "bytes": 40434
+          "bytes": 37977
         }
       },
       "GKF": {
         "orchestrator_bundle.yaml": {
           "path": "/Volumes/uc13_ale/analysis/reports/GKF/orchestrator_bundle.yaml",
           "exists": true,
-          "bytes": 41930
+          "bytes": 34044
         },
         "tldr_one_pager.md": {
           "path": "/Volumes/uc13_ale/analysis/reports/GKF/tldr_one_pager.md",
           "exists": true,
-          "bytes": 9668
+          "bytes": 7192
         },
         "tldr_one_pager.docx": {
           "path": "/Volumes/uc13_ale/analysis/reports/GKF/tldr_one_pager.docx",
           "exists": true,
-          "bytes": 41456
+          "bytes": 41001
         },
         "full_report.md": {
           "path": "/Volumes/uc13_ale/analysis/reports/GKF/full_report.md",
           "exists": true,
-          "bytes": 29277
+          "bytes": 27558
         }
       },
       "SPG": {
         "orchestrator_bundle.yaml": {
           "path": "/Volumes/uc13_ale/analysis/reports/SPG/orchestrator_bundle.yaml",
           "exists": true,
-          "bytes": 47912
+          "bytes": 32542
         },
         "tldr_one_pager.md": {
           "path": "/Volumes/uc13_ale/analysis/reports/SPG/tldr_one_pager.md",
           "exists": true,
-          "bytes": 11448
+          "bytes": 6228
         },
         "tldr_one_pager.docx": {
           "path": "/Volumes/uc13_ale/analysis/reports/SPG/tldr_one_pager.docx",
           "exists": true,
-          "bytes": 42109
+          "bytes": 40538
         },
         "full_report.md": {
           "path": "/Volumes/uc13_ale/analysis/reports/SPG/full_report.md",
           "exists": true,
-          "bytes": 29806
+          "bytes": 27093
         }
       }
     },
@@ -1897,25 +1888,60 @@ const DATA: any = {
     },
     "missing_by_workstream": [
       {
-        "company_name": "Elder Care",
-        "ws": "LEGAL",
-        "missing_files": "6"
+        "company_name": "Clearsulting",
+        "ws": "BUSINESS_MODEL",
+        "missing_files": "1"
       },
       {
         "company_name": "Elder Care",
         "ws": "FINANCIAL",
-        "missing_files": "2"
+        "missing_files": "112"
       },
       {
         "company_name": "Elder Care",
+        "ws": "LEGAL",
+        "missing_files": "38"
+      },
+      {
+        "company_name": "Elder Care",
+        "ws": "KPI_OPS",
+        "missing_files": "27"
+      },
+      {
+        "company_name": "Elder Care",
+        "ws": "BACKGROUND",
+        "missing_files": "6"
+      },
+      {
+        "company_name": "SPG",
+        "ws": "LEGAL",
+        "missing_files": "31"
+      },
+      {
+        "company_name": "SPG",
+        "ws": "BACKGROUND",
+        "missing_files": "5"
+      },
+      {
+        "company_name": "SPG",
+        "ws": "FINANCIAL",
+        "missing_files": "4"
+      },
+      {
+        "company_name": "SPG",
         "ws": "QUALITY_EARNINGS",
+        "missing_files": "2"
+      },
+      {
+        "company_name": "SPG",
+        "ws": "KPI_OPS",
         "missing_files": "1"
       }
     ],
     "legal_doc_count": [
       {
         "company_name": "Elder Care",
-        "legal_docs": "133"
+        "legal_docs": "112"
       },
       {
         "company_name": "GKF",
@@ -2054,7 +2080,7 @@ export default function Uc13CompanyDataAnalysis() {
       <Stack gap={6}>
         <H1>UC-13 company data analysis</H1>
         <Text tone="secondary">
-          Live warehouse probe of uc13_ale — uploads, classification, chunk/embedding text volume, agent richness, and Elder Care retrieval intents (baseline_1aeb0ace584a). E2E readiness refresh 2026-08-19 — post parser refactor; uc13_ale VS index missing.
+          Live warehouse probe of uc13_ale — uploads, classification, chunk/embedding text volume, agent richness, and Elder Care retrieval intents (baseline_1aeb0ace584a). E2E readiness refresh 2026-07-17 — T2 all-4 PASS; uc13_ale VS index missing.
         </Text>
       </Stack>
 
@@ -2069,7 +2095,7 @@ export default function Uc13CompanyDataAnalysis() {
         Delta has ~109k embeddings across 4 companies but `uc13_ale.ingestion.embeddings_index` does not exist. GKF and SPG pipeline harness runs show fallback_rate=1.0 and provenance avg_sim=0. Run setup_vector_search / Cell 2b for catalog=uc13_ale before trusting semantic retrieval on new companies.
       </Callout>
       <Callout tone="success" title="Wed T2 baseline — all 4 PASS">
-        All companies have orchestrator bundle + tldr_one_pager.md/.docx titled Executive Summary on uc13_ale (see `.dev/t2_baseline_run_log.json`). SPG: 44,085 chunks/embeddings, 100% should_parse ingested post-refactor.
+        All companies have orchestrator bundle + tldr_one_pager.md/.docx titled Executive Summary on uc13_ale (see `.dev/t2_baseline_run_log.json`). SPG: 71,010 chunks/embeddings, agents rendered Jul 17 salvage run.
       </Callout>
 
       <H2>Cross-company corpus</H2>

@@ -11,17 +11,39 @@ items:
     summary: >-
       Spot-check retrieval only queries VDR chunk RAG; exec_summary claims trace to
       analysis.diligence_report and sibling workstream tables — 28/30 drafted-unsupported
-      claims were retrieval_scope_gap, not corpus or generator defects.
+      claims were retrieval_scope_gap, not corpus or generator defects. T12 wired dual-source
+      in calibration.py only (CHK-26a 0.857); spot_check.py still chunk-only.
     evidence_refs:
       - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
       - eval/content/spot-check/exec_summary_elder_care_2026-08-12.m3_backlog.md
       - eval/eval_program_playbook.md
+      - eval/content/calibration.py
+      - eval/content/spot_check.py
     fix_lane: product
     closes_when: >-
       exec_summary spot-check evidence fetch queries analysis.diligence_report aggregation
-      fields and per-workstream tables alongside chunk RAG; re-run shows drafted-unsupported
-      rate drops materially vs 2026-08-12 baseline.
-    registry_ref: M5-S2-product-backlog-ledger
+      fields and per-workstream tables alongside chunk RAG (parity with calibration.py
+      dual-source); re-run shows drafted-unsupported rate drops materially vs 2026-08-12 baseline.
+    registry_ref: OI-eval-content-exec-summary-judge-rung-build
+
+  - id: PB-exec_summary-chk27-judge-harness
+    company: elder_care
+    surface: exec_summary
+    kind: measurement_caveat
+    severity: high
+    summary: >-
+      CHK-27 LLM-judge harness descoped at M3 (zero rung-2 surfaces). Post-T12 calibration
+      (verdict_agreement 0.857 ≥ 0.80) makes exec_summary judge rung viable pending operator
+      authorization — build harness reusing calibration judge_claim + s2_writer for production runs.
+    evidence_refs:
+      - eval/eval_program_playbook.md
+      - eval/content/calibration.py
+      - eval/program/registry.yaml
+    fix_lane: eval
+    closes_when: >-
+      CHK-27 judge harness executes exec_summary at scale; registry CHK-26a
+      rung_assignments.exec_summary is judge (not human); human spot_check blocked for upgraded surface.
+    registry_ref: OI-eval-content-exec-summary-judge-rung-build
 
   - id: PB-exec_summary-source-ref-mislabel
     company: elder_care
@@ -214,18 +236,96 @@ items:
     company: spg
     surface: ingest
     kind: measurement_caveat
-    severity: medium
+    severity: low
     summary: >-
-      SPG ingest preflight 0.9863 (359/364) documented at T6 before baseline interpretation —
-      close gap to 1.0 and re-run FTA golden checklist before attributing 8.5/18 to model gap.
+      SPG ingest preflight closed at 1.0000 (363/363) post-M4 SpreadsheetML parser + Aug-19 probe.
+      Remaining work is retrieval baseline refresh on deduped 44k corpus (was 71k pre-refactor) —
+      not an ingest completeness blocker.
     evidence_refs:
       - eval/retrieval/gold_labels/spg.yaml
-      - eval/program/onboarding_queue.yaml
+      - .dev/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T8-spg-ingest-fta.md
+    fix_lane: eval
+    closes_when: >-
+      Post-M4 harness baseline recorded for SPG on uc13_ale:44085+ corpus with updated ingestion_snapshot
+      ids; FTA golden checklist re-scored with pipeline run_id (replacing Chip B 8.5/18 pre-ingest-close).
+    registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
+
+  - id: PB-multi-company-retrieval-baseline-stale-post-m4
+    company: elder_care
+    surface: retrieval
+    kind: measurement_caveat
+    severity: high
+    summary: >-
+      Aug 2026 parser rollout changed corpus economics for all four companies — Elder +59% chunks
+      (35k→56k), SPG −38% dedup (71k→44k), Clearsulting/GKF minor uplift. Harness MRR/recall@10 from
+      Jul/Aug-11 baselines not comparable to post-M4 warehouse; Elder mean MRR 0.665→0.222 on expanded
+      intent set. Re-baseline before promotion gates or cross-company trust comparisons.
+    evidence_refs:
+      - .dev/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/tmp_deep_data_analysis.json
+      - eval/retrieval/gold_labels/elder_care.yaml
+    fix_lane: eval
+    closes_when: >-
+      Fresh harness baselines stored in uc13_ale.ops for all four companies with post-M4 ingestion_snapshot
+      pins; trust_statement retrieval rows regenerated; pre-M4 baseline ids documented as invalid in registry GAP-107.
+    registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
+
+  - id: PB-exec-summary-t2-artifacts-stale-post-m4
+    company: elder_care
+    surface: exec_summary
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      T2 exec-summary word counts unchanged since Jul-17 (847–1,325) despite post-M4 ingest closure
+      and larger orchestrator bundles — deliverables do not reflect +59% Elder corpus or SPG dedup.
+    evidence_refs:
+      - .dev/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/t2_baseline_run_log.json
+      - .dev/tmp_e2e_readiness_probe.json
     fix_lane: ops
     closes_when: >-
-      ingest_preflight sql_chunk_count completeness ≥ 1.0 for SPG and a fresh FTA golden checklist
-      score recorded with pipeline run_id (replacing Chip B 8.5/18 informational only).
-    registry_ref: OI-data-ingest-quality-spg-ingest-borderline
+      T2 render_only or agents_render re-run for Elder Care and SPG records new word counts and volume
+      artifact bytes in t2_baseline_run_log with post-M4 run_ids.
+    registry_ref: OI-runbook-program-milestones-t2-exec-summary-post-m4-rerender
+
+  - id: PB-agent-outputs-stale-post-m4-ingest
+    company: clearsulting
+    surface: agent
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      Workstream agent Delta rows for Clearsulting, Elder Care, and GKF last ran Jul-28/30 — before
+      full M4 ingest closure. Deep probe shows richer BMA exec/citations vs company-analysis HTML
+      panels; only SPG FTA refreshed Aug-19. G1/content eval may misattribute corpus vs model gaps.
+    evidence_refs:
+      - .dev/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/tmp_deep_data_analysis.json
+      - uc13-company-data-analysis.html
+    fix_lane: ops
+    closes_when: >-
+      Full seven-agent pipeline re-run for Clearsulting, Elder Care, and GKF with post-M4 run_ids;
+      company-analysis regen shows HTML agent panels match deep probe agent summaries.
+    registry_ref: OI-agent-quality-post-m4-agent-rerun-three-companies
+
+  - id: PB-fta_numeric-post-m4-chunk-citation-drift
+    company: elder_care
+    surface: fta_numeric
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      Post-M4 Elder corpus +59% chunks may resolve or relocate cited chunk_ids (e.g. Pro Forma broken
+      vision placeholder 027ec667…, page-46 b1feca18…) — spot-check claims from 2026-08-13 may need
+      re-verification on uc13_ale:55812+ corpus before attributing to extraction bugs.
+    evidence_refs:
+      - .dev/company-analysis-diff-pre-vs-post-refactor.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/retrieval/gold_labels/elder_care.yaml
+    fix_lane: eval
+    closes_when: >-
+      FTA numeric spot-check re-run on post-M4 corpus documents which prior claim failures persist vs
+      resolve due to chunk relocation; remaining failures re-triaged in product_backlog.
+    registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
 
   - id: PB-gkf-retrieval-bloated-filename-closure
     company: gkf

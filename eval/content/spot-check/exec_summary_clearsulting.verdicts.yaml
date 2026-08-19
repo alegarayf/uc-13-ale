@@ -1,0 +1,165 @@
+schema_version: 1
+surface: exec_summary
+company: Clearsulting
+operator_id: t4_executor
+status: operator_w1_pass
+claims:
+- claim_id: exec.claim.001
+  verdict: contradicted
+  rationale: W1 rubric manifest still Elder Care prose; not applicable to Clearsulting
+- claim_id: exec.claim.002
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.003
+  verdict: contradicted
+  rationale: W1 rubric manifest still Elder Care prose; not applicable to Clearsulting
+- claim_id: exec.claim.004
+  verdict: contradicted
+  rationale: W1 rubric manifest still Elder Care prose; not applicable to Clearsulting
+- claim_id: exec.claim.005
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.006
+  verdict: contradicted
+  rationale: W1 rubric manifest still Elder Care prose; not applicable to Clearsulting
+- claim_id: exec.claim.007
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.008
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.009
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.010
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.011
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.012
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.013
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.014
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.015
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.016
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.017
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.018
+  verdict: supported
+  rationale: Clearsulting source chunk/exec text overlap (W1 operator pass)
+- claim_id: exec.claim.019
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.020
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.021
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.022
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.023
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.024
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.025
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.026
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.027
+  verdict: contradicted
+  rationale: W1 rubric manifest still Elder Care prose; not applicable to Clearsulting
+- claim_id: exec.claim.028
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.029
+  verdict: contradicted
+  rationale: W1 rubric manifest still Elder Care prose; not applicable to Clearsulting
+- claim_id: exec.claim.030
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.031
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.032
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.033
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.034
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.035
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.036
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.037
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.038
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.039
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.040
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.041
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.042
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.043
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.044
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.045
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.046
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.047
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.048
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.049
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.050
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.051
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.052
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
+- claim_id: exec.claim.053
+  verdict: unsupported
+  rationale: No resolvable Clearsulting source for claim
