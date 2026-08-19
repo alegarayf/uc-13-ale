@@ -196,6 +196,9 @@ cython_debug/
 
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
+/_quick_*.py
+/_check_*.py
+/_*.py
 
 # Ruff stuff:
 .ruff_cache/
@@ -265,6 +268,7 @@ docs/*
 /ablation_*.csv
 
 # Root-level agent-generated reports and run artifacts
+/subagent_harness_cursor_input.md
 /CIM_STATS_from_agent.md
 /full_report.*
 /harness-baseline-*.md

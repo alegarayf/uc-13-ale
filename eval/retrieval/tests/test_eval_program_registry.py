@@ -608,15 +608,15 @@ def test_m5_s5_onboarding_queue_row_present(populated_artifacts):
 
 
 def test_oi_spg_ingest_borderline_closed(populated_artifacts):
-    """T8: SPG ingest borderline OI closed at preflight 1.0."""
+    """T8: SPG ingest borderline OI accepted at preflight 1.0."""
     registry, _manifest = populated_artifacts
     by_id = _registry_by_id(registry)
     row = by_id.get("OI-data-ingest-quality-spg-ingest-borderline")
     assert row is not None
-    assert row["status"] == "closed"
+    assert row["status"] == "n/a"
     assert row["disposition"] == "accepted"
-    metrics = row.get("assessment_metrics") or {}
-    assert metrics.get("ingest_completeness") == 1.0
+    assert "1.0000" in (row.get("rationale") or "")
+    assert "363/363" in (row.get("rationale") or "")
     assert "T8-spg-ingest-fta.md" in " ".join(row.get("evidence_refs") or [])
 
 

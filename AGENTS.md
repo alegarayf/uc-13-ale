@@ -17,6 +17,29 @@ When a task needs SQL, schema inspection, vector search, job submission, or volu
 
 For pipeline implementation rules (ingestion, notebooks, agent code), read **`databricks/CLAUDE.md`**.
 
+## Shell (Windows / pwsh)
+
+Agent shell is **PowerShell**, not bash. Do **not** write ad-hoc `_quick_*.py` / `_check_*.py` files for one-off probes.
+
+**Multi-line Python** — pipe a single-quoted here-string to stdin (preserves `"` and `'`, including SDK args like `wait_timeout="30s"`):
+
+```powershell
+@'
+import os
+from dotenv import load_dotenv
+load_dotenv()
+# ...
+'@ | python -
+```
+
+**One-liner** — wrap `-c` in **PowerShell single quotes** (not `"..."`):
+
+```powershell
+python -c 'print("ok")'
+```
+
+Forbidden: bash heredocs (`<<'EOF'`), `python -c "..."` with nested double quotes, or temp scripts when the above suffices. Reuse committed helpers (e.g. `eval/program/onboarding_cluster_submit.py`) for repeated workflows.
+
 ## Local limits
 
 - No local `pyspark` — use warehouse SQL or remote job submit.
@@ -26,3 +49,9 @@ For pipeline implementation rules (ingestion, notebooks, agent code), read **`da
 ## Safety
 
 Read-only queries by default. Do not `DROP`, truncate, or trigger full ingestion rebuilds without explicit operator approval.
+
+## Merge decisions
+
+Before merging any branch that touches `databricks/agents/workstreams/business_model_agent.py` or other pipeline files, check **`.dev/merge-decisions.md`** for standing decisions that must not be silently reverted-in.
+
+In particular: **BMA extraction must remain a single LLM call** over the full unbounded context — see `.dev/merge-decisions.md` and `databricks/CLAUDE.md` (`_call_llm()` / serving-timeout section).

@@ -16,6 +16,8 @@ Load this skill when the task needs **live workspace data or remote execution**.
 
 ## Quick start
 
+**Shell:** On Windows PowerShell, run probe code via `@' ... '@ | python -` — not bash heredocs or `python -c "..."`. See `AGENTS.md` § Shell. No `_quick_*.py` temp files.
+
 1. `load_dotenv()` from **repo root** (`.env` has `DATABRICKS_SERVER_HOSTNAME`, `DATABRICKS_TOKEN`, `DATABRICKS_HTTP_PATH`).
 2. Connect with `WorkspaceClient(host=..., token=...)`.
 3. **Reads:** `statement_execution.execute_statement` against warehouse id from `DATABRICKS_HTTP_PATH` (last path segment).
