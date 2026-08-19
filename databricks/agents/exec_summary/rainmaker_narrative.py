@@ -198,6 +198,9 @@ LENGTH DISCIPLINE (strict, do not exceed):
   tied to the revenue model, (3) the reported EBITDA figure and its behavior/trend (not a full addback \
   bridge — that belongs in Revenue Quality, not here).
 - "investment_thesis.value_drivers": at most 3 bullets — the strongest, most decision-relevant drivers only.
+- Every bullet in "company_overview", "business_model", and "investment_thesis.value_drivers" must be ONE \
+  sentence, maximum ~180 characters. Prefer the specific figure over the qualifying clause; drop hedges and \
+  restatements.
 
 Write a BALANCED AND AFFIRMATIVE investment thesis: connect the attractive elements present in the input \
 (e.g. growth, margins, recurring-revenue signals, operational strengths) into ONE coherent reason the business \
@@ -248,6 +251,8 @@ LENGTH DISCIPLINE (strict, do not exceed):
   dependent on adjustments, pro forma addbacks, or one-time synergies? \
   Instantiate each archetype using THIS business's own mechanism, terms, and nouns from the input — never a \
   generic or another company's version of the question, and never invent a mechanism the input doesn't support.
+- Every "commercial_revenue_quality[].detail" and every "diligence_priorities[]" question must be ONE sentence, \
+  maximum ~180 characters. Prefer the specific figure over the qualifying clause; drop hedges and restatements.
 
 CRITICAL — diligence question relevance: the input includes "revenue_model" (how this specific business earns \
 revenue). Every diligence question you generate MUST be relevant to that revenue model. Do NOT ask questions \

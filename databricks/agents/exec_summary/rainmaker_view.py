@@ -453,7 +453,86 @@ def _financial_table(bundle: dict[str, Any]) -> dict[str, Any]:
 
     _reconcile_margin_rows(rows, revenue_values, periods)
 
-    return {"periods": periods, "rows": rows, "currency": "$", "unit": ""}
+    # Growth column (round 3, A3) — computed AFTER margin reconciliation, so
+    # a % row's growth reads the reconciled cells, not the agent's original
+    # (possibly contradicting) stated percent.
+    growth_col_label = _apply_row_growth(rows, periods)
+
+    return {
+        "periods": periods,
+        "rows": rows,
+        "currency": "$",
+        "unit": "",
+        "growth_col_label": growth_col_label,
+    }
+
+
+# Row metric names that show a CAGR (first-to-last populated period) in the
+# growth column — dollar figures only; a CAGR on a percentage is meaningless.
+_CAGR_GROWTH_ROWS = frozenset({"Total Revenue", "Gross Profit", "EBITDA"})
+# Row metric names that show a point-delta (last minus first populated
+# period) in the growth column — the two margin rows.
+_DELTA_PTS_GROWTH_ROWS = frozenset({"% Gross Margin", "% EBITDA Margin"})
+
+
+def _populated_first_last(
+    values: list[float | None], periods: list[str]
+) -> tuple[float, float, int] | None:
+    """``(first_value, last_value, n_periods_between)`` from the first and
+    last period that actually have a value, or ``None`` when fewer than 2
+    periods are populated. Shared by the CAGR circles and the growth column
+    so "first/last populated period" means the same thing in both places."""
+    populated = [v for p, v in zip(periods, values) if v is not None]
+    if len(populated) < 2:
+        return None
+    return populated[0], populated[-1], len(populated) - 1
+
+
+def _cagr_between(first_value: float, last_value: float, n: int) -> float | None:
+    """Compound annual growth rate, or ``None`` when it can't be computed
+    (non-positive base, zero periods) — never a fabricated/zero fallback."""
+    if first_value <= 0 or n <= 0:
+        return None
+    return (last_value / first_value) ** (1 / n) - 1
+
+
+def _row_growth(metric_name: str, cells: list[str | None], periods: list[str]) -> tuple[str | None, str | None]:
+    """``(growth, growth_kind)`` for one financial-table row's growth-column
+    cell — a CAGR for $ rows, a point-delta for % margin rows, ``None`` for
+    everything else (including ``% Growth``, where a CAGR-of-growth would be
+    noise). Never fabricates: returns ``(None, None)`` when fewer than 2
+    periods have an extracted figure."""
+    if metric_name in _CAGR_GROWTH_ROWS:
+        bounds = _populated_first_last([_parse_money(c) for c in cells], periods)
+        if bounds is None:
+            return None, None
+        first_value, last_value, n = bounds
+        cagr = _cagr_between(first_value, last_value, n)
+        return (f"{cagr * 100:.0f}%", "cagr") if cagr is not None else (None, None)
+    if metric_name in _DELTA_PTS_GROWTH_ROWS:
+        bounds = _populated_first_last([_parse_percent(c) for c in cells], periods)
+        if bounds is None:
+            return None, None
+        first_value, last_value, _n = bounds
+        delta = last_value - first_value
+        sign = "+" if delta >= 0 else ""
+        return f"{sign}{delta:.1f} pts", "delta_pts"
+    return None, None
+
+
+def _apply_row_growth(rows: list[dict[str, Any]], periods: list[str]) -> str | None:
+    """Mutates each row with its ``growth``/``growth_kind`` cell; returns the
+    growth column's header label, or ``None`` (template omits the column
+    entirely) when no row produced a growth figure."""
+    any_growth = False
+    for row in rows:
+        growth, growth_kind = _row_growth(row["metric_name"], row["cells"], periods)
+        row["growth"] = growth
+        row["growth_kind"] = growth_kind
+        any_growth = any_growth or growth is not None
+    if not any_growth or len(periods) < 2:
+        return None
+    return f"CAGR / Δ {periods[0]}–{periods[-1]}"
 
 
 def _reconcile_margin_rows(
@@ -518,44 +597,22 @@ def _rows_by_metric(table: dict[str, Any]) -> dict[str, list[Any]]:
     return {row["metric_name"]: row["cells"] for row in table.get("rows") or []}
 
 
-def _cagr_from_series(values: list[float | None], periods: list[str], label: str) -> dict[str, str] | None:
-    populated = [(p, v) for p, v in zip(periods, values) if v is not None]
-    if len(populated) < 2:
-        return None
-    first_period, first_value = populated[0]
-    last_period, last_value = populated[-1]
-    n = len(populated) - 1
-    if first_value <= 0 or n <= 0:
-        return None
-    cagr = (last_value / first_value) ** (1 / n) - 1
-    return {"label": f"{label} {first_period}–{last_period}", "value": f"{cagr * 100:.0f}%"}
-
-
-def _cagr_circles(table: dict[str, Any]) -> list[dict[str, str]]:
-    """CAGR tiles (Revenue, EBITDA) computed only between periods that both
-    have an extracted ``$`` figure — never interpolated or assumed. Omits a
-    circle entirely rather than showing a fabricated/zero CAGR."""
-    periods = table.get("periods") or []
-    metrics = _rows_by_metric(table)
-    revenue_values = [_parse_money(v) for v in metrics.get("Total Revenue", [])]
-    ebitda_values = [_parse_money(v) for v in metrics.get("EBITDA", [])]
-
-    circles = []
-    for label, values in (("Revenue CAGR", revenue_values), ("EBITDA CAGR", ebitda_values)):
-        circle = _cagr_from_series(values, periods, label)
-        if circle:
-            circles.append(circle)
-    return circles
-
-
 _RULE_OF_X_CAP = 2
+
+# The standard Rule-of-40 threshold (growth% + margin% >= 40) used across the
+# industry to judge growth/profitability trade-off — not a judgment about
+# any specific company, so a tile below it is presented neutrally, never as
+# a warning (round 3, A5).
+_RULE_OF_40_BENCHMARK = 40.0
 
 
 def _rule_of_x(table: dict[str, Any]) -> list[dict[str, str]]:
     """"Rule of N" tiles (growth % + EBITDA margin %) for the most recent
     periods where both figures are available — mirrors the reference
     Rainmaker format's "Rule of 108 / Rule of 82" tiles, generalized (no
-    period names hardcoded)."""
+    period names hardcoded). Each tile also carries presentation-only fields
+    (``components``, ``benchmark``) so the template can render a highlighted
+    band (A5) without recomputing anything."""
     periods = table.get("periods") or []
     metrics = _rows_by_metric(table)
     growth = metrics.get("% Growth", [])
@@ -567,35 +624,19 @@ def _rule_of_x(table: dict[str, Any]) -> list[dict[str, str]]:
         m_num = _parse_percent(m)
         if g_num is None or m_num is None:
             continue
+        value_num = g_num + m_num
         tiles.append(
             {
-                "label": f"Rule of {g_num + m_num:.0f}",
+                "label": f"Rule of {value_num:.0f}",
                 "period_label": f"{period} growth + margin",
                 "growth": g,
                 "margin": m,
+                "value_num": value_num,
+                "components": f"{g} growth + {m} margin",
+                "benchmark": "above" if value_num >= _RULE_OF_40_BENCHMARK else "below",
             }
         )
     return tiles[-_RULE_OF_X_CAP:]
-
-
-def _snapshot_chart(table: dict[str, Any]) -> dict[str, Any]:
-    """Numeric series for the Financial Snapshot chart — the template owns
-    rendering (SVG/CSS bars); this only normalizes already-parsed values."""
-    periods = table.get("periods") or []
-    metrics = _rows_by_metric(table)
-    revenue = [_parse_money(v) for v in metrics.get("Total Revenue", [])]
-    ebitda = [_parse_money(v) for v in metrics.get("EBITDA", [])]
-    margin_pct = [_parse_percent(v) for v in metrics.get("% EBITDA Margin", [])]
-
-    all_values = [v for v in revenue + ebitda if v is not None]
-    return {
-        "periods": periods,
-        "revenue": revenue,
-        "ebitda": ebitda,
-        "margin_pct": margin_pct,
-        "max_value": max(all_values) if all_values else None,
-        "has_data": bool(all_values),
-    }
 
 
 def _metadata(bundle: dict[str, Any]) -> dict[str, Any]:
@@ -619,8 +660,12 @@ def rainmaker_view(bundle: dict[str, Any]) -> dict[str, Any]:
     Never mutates ``bundle``. Pure/deterministic — no LLM call. Returns both
     the legacy 4-page-template fields (``financial_availability``,
     ``stat_tiles``, ``confidence_rows``) and the Capa A fields for the
-    3-page reference-format template (``metadata``, ``financials``,
-    ``key_metrics``, ``cagr_circles``, ``rule_of_x``, ``snapshot``).
+    current 2-section landscape template (``metadata``, ``financials``
+    — including its per-row ``growth``/``growth_kind`` and
+    ``growth_col_label`` — ``key_metrics``, ``rule_of_x``). The financial
+    snapshot bar chart and CAGR circles (round 3, A4) were dropped in favor
+    of the financial table's own growth column (A3) and the Rule-of-X band
+    (A5); there is no replacement field for them.
     """
     financial_table = _financial_table(bundle)
     stat_tiles = _stat_tiles(bundle)
@@ -633,7 +678,5 @@ def rainmaker_view(bundle: dict[str, Any]) -> dict[str, Any]:
         "metadata": _metadata(bundle),
         "financials": financial_table,
         "key_metrics": stat_tiles,
-        "cagr_circles": _cagr_circles(financial_table),
         "rule_of_x": _rule_of_x(financial_table),
-        "snapshot": _snapshot_chart(financial_table),
     }

@@ -140,7 +140,10 @@ def _html_to_pdf(html: str, pdf_path: str) -> str | None:
 
         story = fitz.Story(html=html)
         writer = fitz.DocumentWriter(pdf_path)
-        page_rect = fitz.paper_rect("a4")
+        # Rainmaker template is landscape (round 3, A2) — PyMuPDF Story does
+        # not read the CSS @page size, so the fallback engine's page rect
+        # must be set explicitly to match.
+        page_rect = fitz.paper_rect("a4-l")
         more = 1
         while more:
             device = writer.begin_page(page_rect)

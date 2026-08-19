@@ -251,10 +251,8 @@ def test_financial_table_empty_series_yields_no_crash_and_no_fabrication():
     view = view_fn(empty_bundle)
     assert view["financials"]["periods"] == []
     assert view["financials"]["rows"][0]["cells"] == []
-    assert view["cagr_circles"] == []
+    assert view["financials"]["growth_col_label"] is None
     assert view["rule_of_x"] == []
-    assert view["snapshot"]["has_data"] is False
-    assert view["snapshot"]["max_value"] is None
 
 
 def test_financial_table_reads_dollar_figures_and_computes_growth():
@@ -307,26 +305,6 @@ def test_financial_table_dedupes_defensively_against_stale_duplicate_rows():
     assert view["financials"]["periods"] == ["2020A"]
 
 
-def test_cagr_circles_pure_arithmetic_known_values():
-    bundle = {
-        "financials": {
-            "table_rows": [
-                {"year": "Y1", "revenue": "$100", "ebitda": "$10"},
-                {"year": "Y2", "revenue": "$121", "ebitda": "$10"},
-            ]
-        }
-    }
-    view = rainmaker_view(bundle)
-    revenue_circle = next(c for c in view["cagr_circles"] if c["label"].startswith("Revenue"))
-    assert revenue_circle["value"] == "21%"  # (121/100)**(1/1) - 1 = 21%
-
-
-def test_cagr_circles_omitted_when_insufficient_data():
-    bundle = {"financials": {"table_rows": [{"year": "Y1", "revenue": "$100"}]}}
-    view = rainmaker_view(bundle)
-    assert view["cagr_circles"] == []
-
-
 def test_rule_of_x_extracts_leading_number_from_messy_percent_strings():
     bundle = {
         "financials": {
@@ -345,17 +323,40 @@ def test_rule_of_x_extracts_leading_number_from_messy_percent_strings():
     assert view["rule_of_x"][0]["label"] == "Rule of 131"  # 100% growth + leading 31.4% margin
 
 
-def test_snapshot_chart_max_value_and_has_data_flag():
+# ---------------------------------------------------------------------------
+# Round 3, A5 — Rule of 40/X presentation fields (value_num/components/benchmark).
+# ---------------------------------------------------------------------------
+
+
+def test_rule_of_x_tile_carries_presentation_fields_above_benchmark():
     bundle = {
         "financials": {
             "table_rows": [
-                {"year": "Y1", "revenue": "$5", "ebitda": "$10"},
+                {"year": "2021A", "revenue": "$1.0", "ebitda_margin_pct": "10%"},
+                {"year": "2022A", "revenue": "$2.0", "ebitda_margin_pct": "10%"},
             ]
         }
     }
     view = rainmaker_view(bundle)
-    assert view["snapshot"]["max_value"] == 10.0
-    assert view["snapshot"]["has_data"] is True
+    tile = view["rule_of_x"][0]
+    assert tile["value_num"] == 110.0  # 100% growth + 10% margin
+    assert tile["components"] == "100.0% growth + 10% margin"
+    assert tile["benchmark"] == "above"
+
+
+def test_rule_of_x_tile_below_benchmark():
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {"year": "2021A", "revenue": "$1.0", "ebitda_margin_pct": "5%"},
+                {"year": "2022A", "revenue": "$1.1", "ebitda_margin_pct": "5%"},
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    tile = view["rule_of_x"][0]
+    assert tile["value_num"] == 15.0  # 10% growth + 5% margin
+    assert tile["benchmark"] == "below"
 
 
 def test_metadata_never_leaks_company_entity_into_preparer_fields(bundle):
@@ -384,8 +385,7 @@ def test_financial_table_populates_dollar_figures_on_diverse_overlay():
     metrics = {r["metric_name"]: r["cells"] for r in table["rows"]}
     assert metrics["Total Revenue"] == ["$4.0", "$7.0", "$12.0"]
     assert metrics["EBITDA"] == ["$0.4", "$1.3", "$2.9"]
-    assert view["cagr_circles"]  # both Revenue and EBITDA CAGR computable
-    assert view["snapshot"]["has_data"] is True
+    assert table["growth_col_label"] is not None  # both Revenue and EBITDA CAGR computable
 
 
 # ---------------------------------------------------------------------------
@@ -520,3 +520,110 @@ def test_margin_reconciliation_flows_through_to_rule_of_x():
     assert view["rule_of_x"], "expected at least one Rule of N tile"
     latest_tile = view["rule_of_x"][-1]
     assert latest_tile["margin"] == "26.3%"  # the reconciled value, not the stated 19.9%
+
+
+# ---------------------------------------------------------------------------
+# Round 3, A3 — CAGR / growth column on the financial table.
+# ---------------------------------------------------------------------------
+
+
+def test_growth_column_cagr_on_dollar_rows_across_three_periods():
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {"year": "2021A", "revenue": "100", "gross_profit": "40", "ebitda": "10"},
+                {"year": "2022A", "revenue": "110", "gross_profit": "44", "ebitda": "11"},
+                {"year": "2023A", "revenue": "121", "gross_profit": "48.4", "ebitda": "12.1"},
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    rows = {r["metric_name"]: r for r in view["financials"]["rows"]}
+    assert rows["Total Revenue"]["growth"] == "10%"  # (121/100)**(1/2)-1 = 10%
+    assert rows["Total Revenue"]["growth_kind"] == "cagr"
+    assert rows["Gross Profit"]["growth"] == "10%"
+    assert rows["EBITDA"]["growth"] == "10%"
+    assert view["financials"]["growth_col_label"] == "CAGR / Δ 2021A–2023A"
+
+
+def test_growth_column_delta_pts_on_percent_margin_rows():
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {"year": "2021A", "revenue": "100", "gross_profit": "40", "gross_margin_pct": "40.0%", "ebitda": "10", "ebitda_margin_pct": "10.0%"},
+                {"year": "2023A", "revenue": "121", "gross_profit": "50.8", "gross_margin_pct": "42.0%", "ebitda": "9.68", "ebitda_margin_pct": "8.0%"},
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    rows = {r["metric_name"]: r for r in view["financials"]["rows"]}
+    assert rows["% Gross Margin"]["growth"] == "+2.0 pts"
+    assert rows["% Gross Margin"]["growth_kind"] == "delta_pts"
+    assert rows["% EBITDA Margin"]["growth"] == "-2.0 pts"
+
+
+def test_growth_column_none_on_percent_growth_row():
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {"year": "2021A", "revenue": "100"},
+                {"year": "2022A", "revenue": "110"},
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    rows = {r["metric_name"]: r for r in view["financials"]["rows"]}
+    assert rows["% Growth"]["growth"] is None
+    assert rows["% Growth"]["growth_kind"] is None
+
+
+def test_growth_column_label_is_none_when_no_row_has_growth():
+    bundle = {"financials": {"table_rows": [{"year": "2023A", "revenue": "100"}]}}
+    view = rainmaker_view(bundle)
+    assert view["financials"]["growth_col_label"] is None
+    for row in view["financials"]["rows"]:
+        assert row["growth"] is None
+
+
+def test_growth_column_reads_the_reconciled_percent_not_the_contradicting_stated_one():
+    """The growth column for a % row must use the same reconciled cells
+    _reconcile_margin_rows already produces — not the agent's original,
+    possibly-contradicting stated percent."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "2023A", "revenue": "28330", "gross_profit": "10820",
+                    "gross_margin_pct": "38.2%", "ebitda": "6677", "ebitda_margin_pct": "19.5%",
+                },
+                {
+                    "year": "TTM Aug-24", "revenue": "35136", "gross_profit": "3208",
+                    "gross_margin_pct": "36.6%",  # contradicts 3208/35136 = 9.1%
+                    "ebitda": "9239", "ebitda_margin_pct": "19.9%",  # contradicts 9239/35136 = 26.3%
+                },
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    rows = {r["metric_name"]: r for r in view["financials"]["rows"]}
+    # Gross margin: 38.2 -> 9.1 (reconciled), not 38.2 -> 36.6 (stated).
+    assert rows["% Gross Margin"]["growth"] == "-29.1 pts"
+    # EBITDA margin: 23.6 -> 26.3 (both reconciled from $, since neither
+    # stated cell matches its own $ row), not 19.5 -> 19.9 (stated).
+    assert rows["% EBITDA Margin"]["growth"] == "+2.7 pts"
+
+
+def test_growth_column_never_alters_dollar_cells():
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {"year": "2021A", "revenue": "100", "gross_profit": "40", "ebitda": "10"},
+                {"year": "2023A", "revenue": "121", "gross_profit": "48.4", "ebitda": "12.1"},
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    rows = {r["metric_name"]: r for r in view["financials"]["rows"]}
+    assert rows["Total Revenue"]["cells"] == ["100", "121"]
+    assert rows["Gross Profit"]["cells"] == ["40", "48.4"]
+    assert rows["EBITDA"]["cells"] == ["10", "12.1"]

@@ -74,14 +74,87 @@ def test_render_rainmaker_writes_html_and_returns_paths(monkeypatch, tmp_path, c
         assert marker not in html, f"removed page-4 marker {marker!r} reappeared for {company}"
 
 
-def test_render_rainmaker_has_exactly_three_pages(monkeypatch, tmp_path):
-    """Structural non-regression for F4 (Austin: "too expansive for an
-    executive summary") — the reference Rainmaker format is 3 pages."""
+def test_render_rainmaker_has_expected_html_sections(monkeypatch, tmp_path):
+    """Structural non-regression (round 3, A1): the cover page was dropped —
+    the template now has 2 HTML sections (framing, financials), not 3. The
+    real PDF page count (which is what actually matters to Austin) is
+    asserted separately in test_render_rainmaker_pdf_page_count_within_target
+    (A8), since PyMuPDF/WeasyPrint pagination doesn't map 1:1 to these divs."""
     _patch_volume(monkeypatch, tmp_path)
     bundle = _load("elder_care")
     result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
     html = Path(result["html"]).read_text(encoding="utf-8")
-    assert html.count('class="page') == 3
+    assert html.count('class="page') == 2
+
+
+def test_render_rainmaker_landscape_orientation(monkeypatch, tmp_path, company):
+    """A2: the template is landscape, not portrait."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert "size: A4 landscape" in html
+
+
+# Ceiling for the real rendered PDF page count (round 3, Part A). The
+# baseline before this round was 4/4/4/4/5 pages (session_log.md §9);
+# 3 of 5 fixtures already reach the intended 3-page target after A1-A6.
+# elder_care and b2b_saas remain at 4 — the residual gap is bullet
+# *verbosity*, not bullet count, and is addressed only by A7 (a narrative
+# prompt change gated on Hector's separate approval, not yet applied).
+_PAGE_COUNT_CEILING = 4
+
+
+@pytest.mark.parametrize("company", ["elder_care", "elder_care_cim_only", "clearsulting", "gkf", "b2b_saas"])
+def test_render_rainmaker_pdf_page_count_within_target(monkeypatch, tmp_path, company):
+    pytest.importorskip("fitz", reason="PyMuPDF not available in this env")
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    if "pdf" not in result:
+        pytest.skip("no PDF engine available in this env")
+
+    import fitz
+
+    doc = fitz.open(result["pdf"])
+    assert doc.page_count <= _PAGE_COUNT_CEILING, (
+        f"{company}: {doc.page_count} pages, expected <= {_PAGE_COUNT_CEILING}"
+    )
+
+
+def test_render_rainmaker_no_cover_page(monkeypatch, tmp_path, company):
+    """A1: the standalone cover page (logo/title/Purpose-Basis-Status
+    callouts) is gone entirely — the company name now heads the framing
+    page instead."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert 'class="page cover"' not in html
+    assert "Purpose" not in html
+    assert "callout" not in html
+
+
+def test_render_rainmaker_company_name_in_h1(monkeypatch, tmp_path, company):
+    """A1: the company name is promoted to a prominent header on page 1."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert f"<h1>{bundle['meta']['company_name']}</h1>" in html
+
+
+def test_render_rainmaker_disclaimer_survives_cover_removal(monkeypatch, tmp_path, company):
+    """A1: dropping the cover page must not drop the legal disclaimer
+    (metadata.status) — it's relocated to the last page's footer."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    status = bundle.get("meta", {}).get("disclaimer_text") or ""
+    if status:
+        assert status in html
+    assert "Synthesized from the available data room" in html
 
 
 def test_render_rainmaker_body_never_embeds_bracketed_source_citations(monkeypatch, tmp_path, company):
@@ -248,8 +321,9 @@ def test_render_rainmaker_includes_brand_logo_when_asset_present(monkeypatch, tm
 
 def test_render_rainmaker_renders_dollar_pnl_table_on_diverse_overlay(monkeypatch, tmp_path):
     """Anti-overfit (P2): a different overlay (b2b_saas) with populated $
-    figures renders the full P&L table + snapshot chart end-to-end through
-    render_rainmaker, not just through the pure rainmaker_view unit tests."""
+    figures renders the full P&L table (with its growth column, A3)
+    end-to-end through render_rainmaker, not just through the pure
+    rainmaker_view unit tests."""
     _patch_volume(monkeypatch, tmp_path)
     bundle = _load("b2b_saas")
     result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
@@ -257,7 +331,43 @@ def test_render_rainmaker_renders_dollar_pnl_table_on_diverse_overlay(monkeypatc
     assert "$4.0" in html
     assert "$12.0" in html
     assert "2022A" in html and "2024A" in html
-    assert "<svg" in html and "chart-legend" in html
+    assert "growth-col" in html
+
+
+def test_render_rainmaker_no_bar_chart_or_cagr_circles(monkeypatch, tmp_path, company):
+    """A4: the financial snapshot bar chart and the CAGR circles are gone —
+    the growth column (A3) and the Rule-of-X band (A5) replace them."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert "<svg" not in html
+    assert "cagr-circle" not in html
+    assert "chart-legend" not in html
+
+
+def test_render_rainmaker_rule_of_x_band_present_when_computable(monkeypatch, tmp_path):
+    """A5: b2b_saas has both growth and EBITDA margin extracted for
+    consecutive periods, so the Rule-of-X band must render."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("b2b_saas")
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert 'class="rule-band"' in html
+    assert "Rule of" in html
+
+
+def test_render_rainmaker_rule_of_x_band_absent_without_placeholder(monkeypatch, tmp_path):
+    """A5: no fabrication — a business without both growth and EBITDA margin
+    extracted must render no band at all, not an empty/placeholder one."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = copy.deepcopy(_load("elder_care"))
+    for row in bundle["financials"]["table_rows"]:
+        row["ebitda_margin_pct"] = ""
+        row["ebitda"] = ""
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert 'class="rule-band"' not in html
 
 
 # ---------------------------------------------------------------------------
