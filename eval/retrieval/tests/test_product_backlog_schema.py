@@ -25,6 +25,7 @@ KINDS = frozenset(
 )
 SEVERITIES = frozenset({"high", "medium", "low"})
 FIX_LANES = frozenset({"product", "eval", "ops"})
+COMPANIES = frozenset({"elder_care", "clearsulting", "gkf", "spg"})
 REQUIRED_ITEM_KEYS = frozenset(
     {
         "id",
@@ -80,8 +81,10 @@ def validate_product_backlog(backlog: dict[str, Any]) -> list[str]:
             errors.append(f"{item_id}: missing keys {sorted(missing)}")
             continue
 
-        if item["company"] != "elder_care":
-            errors.append(f"{item_id}: company must be elder_care in this ledger slice")
+        if item["company"] not in COMPANIES:
+            errors.append(
+                f"{item_id}: company {item['company']!r} not in allowed set {sorted(COMPANIES)}"
+            )
         if item["surface"] not in SURFACES:
             errors.append(f"{item_id}: invalid surface {item['surface']!r}")
         if item["kind"] not in KINDS:

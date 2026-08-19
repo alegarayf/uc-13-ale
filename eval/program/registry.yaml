@@ -1645,6 +1645,7 @@ items:
   tshirt: null
   evidence_refs:
   - .dev/audits/eval-consolidation/M3/upstream-grounding-audit-prompt.md
+  - .dev/plans/eval-multi-company-coverage-expansion/analysis/UGA-1-checklist.md
   - eval/content/spot-check/exec_summary_elder_care_2026-08-12.verdicts.yaml
   - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
   rung_assignments: {}
