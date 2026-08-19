@@ -1,6 +1,6 @@
 # Aggregate-exclusion population (Contract T3-b / T13) — company-scoped machinery.
 # Launch population: profiler (no analysis table) + zero-claim / no_citation_source KPI intents.
-# Clearsulting claim mappings (RB-DEFECT-T9-1) live in kpi_claim_intent_map.yaml; Clearsulting block is empty.
+# Clearsulting: 12 bloated filename_closure debt cohort + profiler.company_size_indicators (M5 re-bootstrap 2026-08-19).
 companies:
   elder_care:
     excluded:
@@ -15,4 +15,30 @@ companies:
       - intent_id: kpi.retrieve_pipeline_backlog
         exclude_reason: no_citation_source
   clearsulting:
-    excluded: []
+    excluded:
+      - intent_id: profiler.company_size_indicators
+        exclude_reason: no_citation_source
+      - intent_id: profiler.banked_vs_nonbanked
+        exclude_reason: no_citation_source
+      - intent_id: profiler.business_description
+        exclude_reason: no_citation_source
+      - intent_id: profiler.deal_type
+        exclude_reason: no_citation_source
+      - intent_id: profiler.industry_overlay
+        exclude_reason: no_citation_source
+      - intent_id: profiler.revenue_model
+        exclude_reason: no_citation_source
+      - intent_id: profiler.vertical_subsector
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_delivery_model
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_customer_tenure
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_revenue_type_and_renewals
+        exclude_reason: no_citation_source
+      - intent_id: fta.ebitda.q1_financial_statements
+        exclude_reason: no_citation_source
+      - intent_id: fta.opex.q1_financial_statements
+        exclude_reason: no_citation_source
+      - intent_id: fta.revenue.q1_financial_statements
+        exclude_reason: no_citation_source

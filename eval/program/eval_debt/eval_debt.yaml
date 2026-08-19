@@ -44,6 +44,12 @@ debts:
   closes_when: cqa.retrieve_revenue_type_and_renewals gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1273 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_fta_ebitda_q1_financial_statements
   company: clearsulting
   surface: null
@@ -58,6 +64,12 @@ debts:
   closes_when: fta.ebitda.q1_financial_statements gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1262 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_fta_opex_q1_financial_statements
   company: clearsulting
   surface: null
@@ -72,6 +84,12 @@ debts:
   closes_when: fta.opex.q1_financial_statements gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1262 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_fta_revenue_q1_financial_statements
   company: clearsulting
   surface: null
@@ -86,6 +104,12 @@ debts:
   closes_when: fta.revenue.q1_financial_statements gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1262 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_kpi_retrieve_delivery_model
   company: clearsulting
   surface: null
@@ -100,6 +124,12 @@ debts:
   closes_when: kpi.retrieve_delivery_model gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1085 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_cqa_retrieve_customer_tenure
   company: clearsulting
   surface: null
@@ -114,6 +144,12 @@ debts:
   closes_when: cqa.retrieve_customer_tenure gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_profiler_banked_vs_nonbanked
   company: clearsulting
   surface: null
@@ -128,6 +164,12 @@ debts:
   closes_when: profiler.banked_vs_nonbanked gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_profiler_business_description
   company: clearsulting
   surface: null
@@ -142,6 +184,12 @@ debts:
   closes_when: profiler.business_description gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_profiler_deal_type
   company: clearsulting
   surface: null
@@ -156,6 +204,12 @@ debts:
   closes_when: profiler.deal_type gold re-bootstrapped with citation_backfill or aggregate_exclude
     (no_citation_source) yielding interpretable recall@10 — not filename_closure with
     1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_profiler_industry_overlay
   company: clearsulting
   surface: null
@@ -170,6 +224,12 @@ debts:
   closes_when: profiler.industry_overlay gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_profiler_revenue_model
   company: clearsulting
   surface: null
@@ -184,6 +244,12 @@ debts:
   closes_when: profiler.revenue_model gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
 - id: clearsulting:global:bloated_fc_profiler_vertical_subsector
   company: clearsulting
   surface: null
@@ -198,3 +264,9 @@ debts:
   closes_when: profiler.vertical_subsector gold re-bootstrapped with citation_backfill
     or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
     filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
