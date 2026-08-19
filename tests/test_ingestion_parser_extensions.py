@@ -183,6 +183,15 @@ def test_parse_file_dispatches_to_extension_parser(
     assert result == stub
 
 
+def test_parse_excel_xls_uses_xlrd_path() -> None:
+    """Legacy .xls must not go through openpyxl (unsupported BIFF format)."""
+    with patch("ingestion_parser._parse_excel_xls", return_value=[_stub_chunk("legacy.xls", "xls")]) as mock_xls:
+        with patch("ingestion_parser.openpyxl", create=True):
+            result = ip.parse_excel("/tmp/legacy.xls", _DOC_ID, "legacy.xls")
+    mock_xls.assert_called_once_with("/tmp/legacy.xls", _DOC_ID, "legacy.xls")
+    assert len(result) == 1
+
+
 def test_parse_file_truncates_at_max_chunks_per_file(capsys: pytest.CaptureFixture[str]) -> None:
     file_name = "huge.csv"
     over_cap = ip.MAX_CHUNKS_PER_FILE + 7
