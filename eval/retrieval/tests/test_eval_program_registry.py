@@ -579,6 +579,34 @@ def test_hygiene_open_items_dangling_refs_row_present(populated_artifacts):
     assert tracked == "", "tracked OPEN_ITEMS.md exists — hygiene finding premise changed"
 
 
+def test_m5_s1_trust_statement_e2e_wiring_row_present(populated_artifacts):
+    """M5 housekeeping H1: T1-deferred registry row for trust-statement agent_fields/e2e wiring."""
+    registry, _manifest = populated_artifacts
+    by_id = _registry_by_id(registry)
+    row = by_id.get("M5-S1-trust-statement-g1-e2e-wiring")
+    assert row is not None, "M5-S1-trust-statement-g1-e2e-wiring row missing"
+    assert row["disposition"] == "accepted"
+    assert row["status"] == "n/a"
+    assert "eval/retrieval/trust_statement.py" in (row.get("evidence_refs") or [])
+    assert "0663d14" in (row.get("evidence_refs") or [])
+    decision_log = ".dev/decision-logs/M5-T1-trust-statement-g1-e2e-wiring.md"
+    assert decision_log in (row.get("evidence_refs") or [])
+
+
+def test_m5_s5_onboarding_queue_row_present(populated_artifacts):
+    """M5 housekeeping H2: T5-deferred registry row for ranked onboarding queue."""
+    registry, _manifest = populated_artifacts
+    by_id = _registry_by_id(registry)
+    row = by_id.get("M5-S5-onboarding-queue")
+    assert row is not None, "M5-S5-onboarding-queue row missing"
+    assert row["disposition"] == "accepted"
+    assert row["status"] == "n/a"
+    assert "eval/program/onboarding_queue.yaml" in (row.get("evidence_refs") or [])
+    assert ".dev/eval-program/build_onboarding_queue.py" in (row.get("evidence_refs") or [])
+    for commit_sha in ("f9cb629", "0e42eee"):
+        assert commit_sha in (row.get("evidence_refs") or [])
+
+
 def test_production_default_registry_paths_resolve_to_tracked_files() -> None:
     """Falsifier: defaults must not depend on gitignored .dev/eval-program/."""
     from eval.content.spot_check import DEFAULT_REGISTRY_PATH

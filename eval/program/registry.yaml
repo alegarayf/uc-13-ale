@@ -1872,3 +1872,43 @@ items:
   - '554237868108774'
   rung_assignments: {}
   assessment_metrics: {}
+- id: M5-S1-trust-statement-g1-e2e-wiring
+  title: M5 S1 trust-statement agent_fields/e2e wiring — Elder Care partial 2/7 (spec D1/D2)
+  source_refs:
+  - .dev/specs/eval-multi-company-coverage/spec.md#D1
+  - .dev/specs/eval-multi-company-coverage/spec.md#D2
+  - .dev/plans/eval-multi-company-coverage-expansion/packets/T1.md
+  source_id: null
+  disposition: accepted
+  stage: S1
+  status: n/a
+  trigger: null
+  rationale: Elder Care agent_fields/e2e wired from ops.e2e_linkage (D1/D2); partial 2/7 accepted
+    per Flag 6/GAP-102.
+  tshirt: null
+  evidence_refs:
+  - 0663d14
+  - .dev/decision-logs/M5-T1-trust-statement-g1-e2e-wiring.md
+  - eval/retrieval/trust_statement.py
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: M5-S5-onboarding-queue
+  title: M5 S5 company inventory + ranked onboarding queue (spec D5)
+  source_refs:
+  - .dev/specs/eval-multi-company-coverage/spec.md#D5
+  - .dev/plans/eval-multi-company-coverage-expansion/packets/T5.md
+  source_id: null
+  disposition: accepted
+  stage: S3
+  status: n/a
+  trigger: null
+  rationale: T5 committed ranked onboarding queue snapshot and build script for W1/W2 onboarding
+    priority per spec D5.
+  tshirt: null
+  evidence_refs:
+  - eval/program/onboarding_queue.yaml
+  - .dev/eval-program/build_onboarding_queue.py
+  - f9cb629
+  - 0e42eee
+  rung_assignments: {}
+  assessment_metrics: {}
