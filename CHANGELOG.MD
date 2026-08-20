@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-signal-foldback M1 retrieval loop — 2026-08-20
+
+- T5 (harness_cli enhancement + validate-baseline CLI integration tests): Added `test_run_enhancement_forwards_affected_intents_and_ablation_config` and `test_validate_baseline_wires_current_and_baseline_ref_run_ids` to `eval/retrieval/tests/test_harness_cli.py`, asserting `--affected-intents` / `--ablation-config` reach `EvalHarness.run` kwargs and `validate-baseline` forwards `--current-run-id` / `--baseline-ref-run-id` into `validate_baseline_ref`. Rationale: close the milestone blind spot where enhancement and validate-baseline CLI paths had no in-process wiring tests before first serverless loop runs. Adversarial gap deferred: no hermetic test that `ablation_arm_to_merge_rank_mode("merge_rank_off")` maps to the live retrieval dispatch arm — T5 mocks `EvalHarness.run`, not `dispatch_retrieval`.
+
 ## eval-multi-company-coverage-expansion — 2026-08-18
 
 - T8 (SPG ingest close + FTA golden checklist): Closed ingest gap 0.9863 → **1.0000** (363/363) — SpreadsheetML `.xls` parser in `ingestion_parser.py`, force re-parse cluster `1108843891562308`, content-driven `should_parse=false` for Bowman insurance PDF. Added `eval/FTA/golden_checklist_spg.md` (**8.5/18** on Chip B row post-ingest gate); closed registry `OI-data-ingest-quality-spg-ingest-borderline`; signoff `.dev/plans/eval-multi-company-coverage-expansion/signoffs/T8-spg-ingest-fta.md`; refreshed `cross_company_fta_variance.md`. Tests: `test_parse_excel_xls_uses_xlrd_path`, `test_oi_spg_ingest_borderline_closed`, `test_spg_fta_golden_checklist_committed`. Post-ingest FTA re-run submitted separately. Adversarial gap deferred: no fixture-backed SpreadsheetML round-trip test.

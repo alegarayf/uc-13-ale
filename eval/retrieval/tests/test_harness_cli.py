@@ -186,3 +186,89 @@ def test_validate_baseline_summary_line_names_company_slug_and_catalog(
     assert "baseline_ref validation passed" in summary
     assert "company=elder_care" in summary
     assert "catalog=uc13_ale" in summary
+
+
+@patch("eval.retrieval.harness_cli.EvalHarness")
+@patch("eval.retrieval.harness_cli._build_store")
+def test_run_enhancement_forwards_affected_intents_and_ablation_config(
+    mock_build_store,
+    mock_eval_harness,
+):
+    mock_harness = MagicMock()
+    mock_eval_harness.return_value = mock_harness
+    mock_harness.run.return_value = MagicMock(manifest=MagicMock(run_id="enh_001"))
+    mock_build_store.return_value = MagicMock()
+
+    exit_code = main(
+        [
+            "run",
+            "--store-backend",
+            "sqlite",
+            "--run-type",
+            "enhancement",
+            "--company-name",
+            "Elder Care",
+            "--catalog",
+            "uc13_ale",
+            "--baseline-ref-run-id",
+            "baseline_2fa3a9056bd0",
+            "--affected-intents",
+            "fta.opex.q1_financial_statements",
+            "bma.business_model",
+            "--ablation-config",
+            '{"arm": "merge_rank_off"}',
+        ]
+    )
+
+    assert exit_code == 0
+    mock_harness.run.assert_called_once()
+    run_kwargs = mock_harness.run.call_args.kwargs
+    assert run_kwargs["run_type"] == "enhancement"
+    assert run_kwargs["baseline_ref_run_id"] == "baseline_2fa3a9056bd0"
+    assert run_kwargs["affected_intents"] == [
+        "fta.opex.q1_financial_statements",
+        "bma.business_model",
+    ]
+    assert run_kwargs["ablation_config"] == {"arm": "merge_rank_off"}
+
+
+@patch("eval.retrieval.harness_cli.EvalHarness")
+@patch("eval.retrieval.harness_cli._build_store")
+def test_validate_baseline_wires_current_and_baseline_ref_run_ids(
+    mock_build_store,
+    mock_eval_harness,
+):
+    gated = ["fta.opex.q1_financial_statements", "bma.business_model"]
+    current_manifest = MagicMock(
+        company_name="Elder Care",
+        gated_intents=gated,
+    )
+    mock_store = MagicMock()
+    mock_store.get_run.return_value = MagicMock(manifest=current_manifest)
+    mock_build_store.return_value = mock_store
+    mock_harness = MagicMock()
+    mock_eval_harness.return_value = mock_harness
+
+    exit_code = main(
+        [
+            "validate-baseline",
+            "--store-backend",
+            "sqlite",
+            "--baseline-ref-run-id",
+            "baseline_2fa3a9056bd0",
+            "--current-run-id",
+            "enh_new",
+            "--catalog",
+            "uc13_ale",
+        ]
+    )
+
+    assert exit_code == 0
+    mock_store.get_run.assert_called_once_with("enh_new")
+    mock_eval_harness.assert_called_once_with(company_slug="elder_care")
+    mock_harness.validate_baseline_ref.assert_called_once_with(
+        mock_store,
+        "baseline_2fa3a9056bd0",
+        gated_intents=gated,
+        current_manifest=current_manifest,
+    )
