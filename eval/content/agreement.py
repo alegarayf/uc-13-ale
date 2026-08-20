@@ -3,11 +3,35 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
 NUMERIC_SURFACES = frozenset({"fta_numeric"})
 CLAIM_VERDICTS = frozenset({"supported", "contradicted", "unsupported"})
+
+MIN_SAMPLE_COUNT = 25
+MAX_MAJORITY_CLASS_FRACTION = 0.60
+MIN_DISTINCT_EXPECTED_CHUNK_IDS = 8
+DEGENERATE_FLOOR_MARGIN = 0.10
+
+_PIN_IDS = ("P1", "P2", "P3", "P4")
+_OMITTED_REASON = "omitted (sample_composition is None)"
+_NUMERIC_INAPPLICABLE_REASON = "inapplicable (numeric surface)"
+
+
+@dataclass(frozen=True)
+class SampleComposition:
+    retained_count: int
+    verdict_counts: dict[str, int]
+    distinct_expected_chunk_ids: int
+
+
+@dataclass(frozen=True)
+class ThresholdResult:
+    passed: bool
+    failure_reasons: list[str]
+    unevaluated_pins: list[str]
 
 # §16 numeric unit scale table (authoritative in spec §16).
 _UNIT_TO_BASE: dict[str, tuple[str, int]] = {
@@ -229,16 +253,42 @@ def _compute_numeric_metrics(
     return figures
 
 
-def evaluate_thresholds(
+def compute_sample_composition(sample: dict[str, Any]) -> SampleComposition:
+    """Derive P1–P4 composition fields from sample claims."""
+    claims = sample.get("claims") or []
+    verdict_counts: dict[str, int] = {}
+    chunk_ids: set[Any] = set()
+    for claim in claims:
+        verdict = claim.get("verdict")
+        if verdict in CLAIM_VERDICTS:
+            verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
+        chunk_id = (claim.get("expected_span") or {}).get("chunk_id")
+        if chunk_id is not None:
+            chunk_ids.add(chunk_id)
+    return SampleComposition(
+        retained_count=len(claims),
+        verdict_counts=verdict_counts,
+        distinct_expected_chunk_ids=len(chunk_ids),
+    )
+
+
+def _majority_class_fraction(composition: SampleComposition) -> float:
+    if composition.retained_count <= 0:
+        return 1.0
+    if not composition.verdict_counts:
+        return 1.0
+    return max(composition.verdict_counts.values()) / composition.retained_count
+
+
+def _append_c5_reasons(
     surface: str,
     figures: dict[str, float],
+    reasons: list[str],
     *,
-    verdict_threshold: float = 0.80,
-    value_threshold: float = 0.90,
-    span_threshold: float = 0.80,
-) -> tuple[bool, list[str]]:
-    """Return (pass, failure_reasons) per C5."""
-    reasons: list[str] = []
+    verdict_threshold: float,
+    value_threshold: float,
+    span_threshold: float,
+) -> None:
     if surface in NUMERIC_SURFACES:
         rvf = figures.get("resolved_value_fraction", 0.0)
         rsf = figures.get("resolved_span_fraction", 0.0)
@@ -258,10 +308,98 @@ def evaluate_thresholds(
             reasons.append(
                 f"span_agreement {figures.get('span_agreement'):.4f} < {span_threshold}"
             )
-        return len(reasons) == 0, reasons
+        return
 
     if figures.get("verdict_agreement", 0.0) < verdict_threshold:
         reasons.append(
             f"verdict_agreement {figures.get('verdict_agreement'):.4f} < {verdict_threshold}"
         )
-    return len(reasons) == 0, reasons
+
+
+def _append_composition_pin_reasons(
+    surface: str,
+    figures: dict[str, float],
+    composition: SampleComposition,
+    reasons: list[str],
+    unevaluated: list[str],
+) -> None:
+    if composition.retained_count < MIN_SAMPLE_COUNT:
+        reasons.append(
+            f"P1: retained_count {composition.retained_count} < {MIN_SAMPLE_COUNT}"
+        )
+
+    numeric = surface in NUMERIC_SURFACES
+    if numeric:
+        unevaluated.append(f"P2: {_NUMERIC_INAPPLICABLE_REASON}")
+    else:
+        majority = _majority_class_fraction(composition)
+        if majority > MAX_MAJORITY_CLASS_FRACTION:
+            reasons.append(
+                f"P2: majority class fraction {majority:.4f} > {MAX_MAJORITY_CLASS_FRACTION}"
+            )
+
+    if composition.distinct_expected_chunk_ids < MIN_DISTINCT_EXPECTED_CHUNK_IDS:
+        reasons.append(
+            f"P3: distinct_expected_chunk_ids {composition.distinct_expected_chunk_ids} "
+            f"< {MIN_DISTINCT_EXPECTED_CHUNK_IDS}"
+        )
+
+    if numeric:
+        unevaluated.append(f"P4: {_NUMERIC_INAPPLICABLE_REASON}")
+        return
+
+    majority = _majority_class_fraction(composition)
+    verdict_agreement = figures.get("verdict_agreement", 0.0)
+    floor = majority + DEGENERATE_FLOOR_MARGIN
+    if verdict_agreement < floor:
+        reasons.append(
+            f"P4: verdict_agreement {verdict_agreement:.4f} < majority baseline "
+            f"{majority:.4f} + {DEGENERATE_FLOOR_MARGIN}"
+        )
+
+
+def evaluate_thresholds(
+    surface: str,
+    figures: dict[str, float],
+    *,
+    verdict_threshold: float = 0.80,
+    value_threshold: float = 0.90,
+    span_threshold: float = 0.80,
+    sample_composition: SampleComposition | None = None,
+) -> ThresholdResult:
+    """Return ThresholdResult per C5 plus composition pins P1–P4."""
+    reasons: list[str] = []
+    unevaluated: list[str] = []
+
+    if sample_composition is None:
+        unevaluated = [f"{pin}: {_OMITTED_REASON}" for pin in _PIN_IDS]
+        _append_c5_reasons(
+            surface,
+            figures,
+            reasons,
+            verdict_threshold=verdict_threshold,
+            value_threshold=value_threshold,
+            span_threshold=span_threshold,
+        )
+        return ThresholdResult(
+            passed=False,
+            failure_reasons=list(reasons),
+            unevaluated_pins=list(unevaluated),
+        )
+
+    _append_composition_pin_reasons(
+        surface, figures, sample_composition, reasons, unevaluated
+    )
+    _append_c5_reasons(
+        surface,
+        figures,
+        reasons,
+        verdict_threshold=verdict_threshold,
+        value_threshold=value_threshold,
+        span_threshold=span_threshold,
+    )
+    return ThresholdResult(
+        passed=len(reasons) == 0,
+        failure_reasons=list(reasons),
+        unevaluated_pins=list(unevaluated),
+    )

@@ -15,7 +15,12 @@ import mlflow.deployments
 import yaml
 from dotenv import load_dotenv
 
-from eval.content.agreement import compute_metrics, evaluate_thresholds, normalize_unit_magnitude
+from eval.content.agreement import (
+    compute_metrics,
+    compute_sample_composition,
+    evaluate_thresholds,
+    normalize_unit_magnitude,
+)
 from eval.content.spot_check import (
     _EXEC_TOP10_RANK_MAP,
     exec_claim_source,
@@ -634,7 +639,11 @@ def run_calibration(
         )
 
     figures = compute_metrics(sample, judge_outputs, surface=surface)
-    passed, failure_reasons = evaluate_thresholds(surface, figures)
+    threshold_result = evaluate_thresholds(
+        surface,
+        figures,
+        sample_composition=compute_sample_composition(sample),
+    )
 
     return {
         "surface": surface,
@@ -644,9 +653,10 @@ def run_calibration(
         "sample_path": str(sample_path),
         "claim_count": len(sample.get("claims") or []),
         "figures": figures,
-        "passed": passed,
-        "failure_reasons": failure_reasons,
-        "rung_assignment": "judge" if passed else "human",
+        "passed": threshold_result.passed,
+        "failure_reasons": threshold_result.failure_reasons,
+        "unevaluated_pins": threshold_result.unevaluated_pins,
+        "rung_assignment": "judge" if threshold_result.passed else "human",
         "prompts": {
             "numeric_system": NUMERIC_SYSTEM_PROMPT if surface in NUMERIC_SURFACES else None,
             "verdict_system": (
