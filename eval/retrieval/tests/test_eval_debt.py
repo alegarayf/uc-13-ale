@@ -135,13 +135,27 @@ def test_committed_ledger_ratchet_passes() -> None:
     assert payload["schema_version"] == 1
     assert payload["open_debt_high_water_mark"] == 14
     debts = load_debts(_COMMITTED_LEDGER)
-    assert len(debts) == 18
-    assert open_debt_count(debts) == 5
+    assert len(debts) == 20
+    assert open_debt_count(debts) == 2
     assert_ledger_ratchet(
         _COMMITTED_LEDGER,
         repo_root=_REPO_ROOT,
         registry_path=_REGISTRY,
     )
+
+
+def test_spg_post_m4_corpus_dedup_debt_closed_with_d7_count() -> None:
+    """Falsifies re-closing with stale 44085 in closes_when while leaving closed_at set."""
+    debts = load_debts(_COMMITTED_LEDGER)
+    spg_row = next(
+        row for row in debts if row.id == "spg:global:post_m4_corpus_dedup_baseline_stale"
+    )
+    assert spg_row.closed_at == "2026-08-20"
+    assert "44038" in spg_row.closes_when
+    assert "44085" not in spg_row.closes_when
+    assert spg_row.closed_evidence_refs is not None
+    assert ".dev/specs/eval-signal-foldback/spec.md#D7" in spg_row.closed_evidence_refs
+    assert "baseline_3992534e412f" in spg_row.closed_evidence_refs
 
 
 def test_evidence_ref_resolution_variants() -> None:

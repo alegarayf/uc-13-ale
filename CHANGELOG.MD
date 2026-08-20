@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-signal-foldback M2 ledger truth-up — 2026-08-20
+
+- T3 (eval_debt.yaml D7 close — SPG corpus count correction): Hand-closed `spg:global:post_m4_corpus_dedup_baseline_stale` with `closes_when` corrected from falsified `44085` to live warehouse `44038`, plus `closed_at`/`closed_evidence_refs` citing D7, wave2 G1 log, and `baseline_3992534e412f`; live re-check `SELECT count(*) FROM uc13_ale.ingestion.chunks WHERE company_name='SPG'` returned **44038** at execution time. Updated `test_committed_ledger_ratchet_passes` frozen counts from stale `18`/`5` to true post-close `20`/`2` (prior drift flagged in M1 audit, not introduced by this closure). Adversarial gap covered: `test_spg_post_m4_corpus_dedup_debt_closed_with_d7_count` falsifies re-closing with wrong `44085` in `closes_when`.
+
 ## eval-signal-foldback M1 retrieval loop — 2026-08-20
 
 - T6 (Architecture folder refresh — rallyday epoch pin + CLI surfaces): Updated `eval/architecture/rallyday/known-coupling-surfaces.md` Flag 7 from stale M-RE3 single baseline `baseline_299063e87806` to D4 per-company W3 comparison epoch (`baseline_2fa3a9056bd0` + siblings `baseline_488f70f13570`, `baseline_7510d1d14449`, `baseline_3992534e412f`); added T1 `run_harness_enhancement`/`harness-run` and T2 `preflight_epoch_pins`/`check_epoch_pins` to `public-interface-inventory.md`; cited T4 evidence (`.dev/wave4-foldback-2026-08-20/m1-w3-retrieval-loop.md`) — all four `merge_rank_off` enhancements `gate_pass=false`, pinned baselines retained. Residual risk (Flag 6): charter names `.dev/architecture/uc-13-ale/` authoritative while `eval/architecture/rallyday/` is the git-tracked harness docs folder — a future M2+ pre-plan pointed at the wrong folder could re-surface stale pins until charter-level reconciliation. Rationale: close context-map Coupling Surface 13 after M1 W3 loop. `data-contract-registry.md` unchanged — T2 reuses existing `HarnessRun` `gold_snapshot`/`registry_hash` contracts.
