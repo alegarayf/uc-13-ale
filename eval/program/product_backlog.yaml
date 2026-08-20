@@ -250,6 +250,12 @@ items:
       Post-M4 harness baseline recorded for SPG on uc13_ale:44085+ corpus with updated ingestion_snapshot
       ids; FTA golden checklist re-scored with pipeline run_id (replacing Chip B 8.5/18 pre-ingest-close).
     registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
+    closed_at: '2026-08-20'
+    closed_evidence_refs:
+      - .dev/specs/eval-signal-foldback/spec.md#D7
+      - .dev/wave2-e2e-2026-08-19/g1_SPG.log
+      - baseline_3992534e412f
+      - eval/retrieval/gold_labels/spg.yaml
 
   - id: PB-multi-company-retrieval-baseline-stale-post-m4
     company: elder_care
@@ -270,6 +276,13 @@ items:
       Fresh harness baselines stored in uc13_ale.ops for all four companies with post-M4 ingestion_snapshot
       pins; trust_statement retrieval rows regenerated; pre-M4 baseline ids documented as invalid in registry GAP-107.
     registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
+    closed_at: '2026-08-20'
+    closed_evidence_refs:
+      - eval/program/trust_statement.md
+      - baseline_2fa3a9056bd0
+      - baseline_488f70f13570
+      - baseline_7510d1d14449
+      - baseline_3992534e412f
 
   - id: PB-exec-summary-t2-artifacts-stale-post-m4
     company: elder_care
@@ -343,6 +356,13 @@ items:
       Bloated GKF intents re-bootstrapped with citation_backfill or aggregate_exclude, or operator
       raises eval_debt HWM and opens tracked debt rows with closes_when per Clearsulting T11 pattern.
     registry_ref: M5-S4-gkf-spg-retrieval-onboard
+    closed_at: '2026-08-20'
+    closed_evidence_refs:
+      - .dev/specs/eval-signal-foldback/spec.md#D8
+      - baseline_7510d1d14449
+      - eval/retrieval/gold/gold_exclusions.yaml
+      - eval/retrieval/gold_labels/gkf.yaml
+      - registry:GAP-M5-2-gkf-bloated-filename-closure
 
   - id: PB-spg-retrieval-bloated-filename-closure
     company: spg
@@ -360,3 +380,13 @@ items:
       Bloated SPG intents re-bootstrapped with citation_backfill or aggregate_exclude, or operator
       raises eval_debt HWM and opens tracked debt rows with closes_when per Clearsulting T11 pattern.
     registry_ref: M5-S4-gkf-spg-retrieval-onboard
+    closed_at: '2026-08-20'
+    closed_evidence_refs:
+      - .dev/specs/eval-signal-foldback/spec.md#D8
+      - "reconciliation: 26 SPG filename_closure intents at HEAD of gold_labels/spg.yaml; 20 of those
+        exceed 500 positives (this row's entire scope) and are now citation_backfill; 13 is a distinct
+        count (gold_exclusions.yaml entries); 3 residuals at 23/23/41 positives were never in this
+        row's scope (see registry:OI-eval-harness-spg-residual-filename-closure-gold-completeness)"
+      - baseline_3992534e412f
+      - eval/retrieval/gold_labels/spg.yaml
+      - eval/retrieval/gold/gold_exclusions.yaml

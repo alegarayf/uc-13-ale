@@ -39,6 +39,37 @@ REQUIRED_ITEM_KEYS = frozenset(
         "closes_when",
     }
 )
+CLOSED_TARGET_IDS = frozenset(
+    {
+        "PB-spg-ingest-borderline-completeness",
+        "PB-gkf-retrieval-bloated-filename-closure",
+        "PB-spg-retrieval-bloated-filename-closure",
+        "PB-multi-company-retrieval-baseline-stale-post-m4",
+    }
+)
+
+
+def validate_product_backlog_closure_shape(items: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    for item in items:
+        item_id = item.get("id", "<missing-id>")
+        if "status" in item:
+            errors.append(f"{item_id}: status field is not permitted")
+        closed_at = item.get("closed_at")
+        closed_evidence_refs = item.get("closed_evidence_refs")
+        if closed_at is None:
+            if closed_evidence_refs is not None:
+                errors.append(
+                    f"{item_id}: closed_evidence_refs must be absent when closed_at is absent"
+                )
+        else:
+            if not str(closed_at).strip():
+                errors.append(f"{item_id}: closed_at must be non-empty when set")
+            if not closed_evidence_refs:
+                errors.append(
+                    f"{item_id}: closed_evidence_refs must be non-empty when closed_at is set"
+                )
+    return errors
 
 
 def _load_backlog() -> dict[str, Any]:
@@ -112,6 +143,8 @@ def validate_product_backlog(backlog: dict[str, Any]) -> list[str]:
             f"expected >=3 elder_care items with evidence_refs, got {elder_care_with_refs}"
         )
 
+    errors.extend(validate_product_backlog_closure_shape(items))
+
     return errors
 
 
@@ -129,3 +162,27 @@ def test_product_backlog_rejects_invalid_severity() -> None:
     mutated["items"] = items
     errors = validate_product_backlog(mutated)
     assert any("invalid severity" in err for err in errors)
+
+
+def test_product_backlog_exactly_four_closed_rows() -> None:
+    backlog = _load_backlog()
+    items = backlog["items"]
+    assert len(items) == 20
+    closed_ids = {item["id"] for item in items if item.get("closed_at") is not None}
+    assert closed_ids == CLOSED_TARGET_IDS
+
+
+def test_product_backlog_rejects_orphan_closed_evidence_refs() -> None:
+    backlog = _load_backlog()
+    mutated = dict(backlog)
+    items = [dict(item) for item in backlog["items"]]
+    open_item = next(item for item in items if item["id"] not in CLOSED_TARGET_IDS)
+    poisoned = dict(open_item)
+    poisoned["closed_evidence_refs"] = ["registry:orphan-closure-evidence"]
+    for index, item in enumerate(items):
+        if item["id"] == open_item["id"]:
+            items[index] = poisoned
+            break
+    mutated["items"] = items
+    errors = validate_product_backlog(mutated)
+    assert any("closed_evidence_refs must be absent when closed_at is absent" in err for err in errors)
