@@ -27,6 +27,9 @@ SURFACES = frozenset({"fta_numeric", "legal_register", "exec_summary", "null"})
 RUNGS = frozenset({"deterministic", "judge", "human", "null"})
 NUMERIC_SURFACES = frozenset({"fta_numeric"})
 JUDGE_OR_HUMAN_RUNGS = frozenset({"judge", "human"})
+TSHIRT_VALUES = frozenset({"xs", "s", "m", "l", "xl", "unsizable"})
+ACTIONABLE_STATUSES = frozenset({"pending", "in_progress"})
+FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 52
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -339,6 +342,25 @@ def test_populated_artifacts_pass_item_2a_validators(populated_artifacts):
     registry, manifest = populated_artifacts
     errors = validate_registry_manifest(registry, manifest)
     assert errors == [], "\n".join(errors)
+
+
+def test_actionable_registry_rows_have_d3_tshirt_sizes(populated_artifacts):
+    """T1 M2: every pending/in_progress registry row carries in-vocabulary D3 tshirt sizing."""
+    registry, _manifest = populated_artifacts
+    actionable = [
+        item
+        for item in registry.get("items") or []
+        if item.get("status") in ACTIONABLE_STATUSES
+    ]
+    assert len(actionable) == FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT
+    for item in actionable:
+        row_id = item.get("id", "<missing-id>")
+        tshirt = item.get("tshirt")
+        assert tshirt is not None, f"{row_id}: pending/in_progress row missing tshirt"
+        assert tshirt in TSHIRT_VALUES, f"{row_id}: tshirt {tshirt!r} not in D3 vocabulary"
+        if tshirt == "unsizable":
+            rationale = item.get("rationale")
+            assert rationale, f"{row_id}: unsizable requires non-empty rationale"
 
 
 def test_synthetic_valid_pair_passes(synthetic_valid_pair):
