@@ -42,3 +42,85 @@ companies:
         exclude_reason: no_citation_source
       - intent_id: fta.revenue.q1_financial_statements
         exclude_reason: no_citation_source
+  spg:
+    excluded:
+      - intent_id: fta.ebitda.q1_financial_statements
+        exclude_reason: no_citation_source
+      - intent_id: fta.opex.q1_financial_statements
+        exclude_reason: no_citation_source
+      - intent_id: fta.revenue.q1_financial_statements
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_bench_and_capacity
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_bill_rates_and_margins
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_headcount_attrition
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_healthcare_labor_market
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_pipeline_backlog
+        exclude_reason: no_citation_source
+      - intent_id: profiler.company_size_indicators
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_ebitda_bridge
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_owner_comp_support
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_revenue_footnotes
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_revenue_quality
+        exclude_reason: no_citation_source
+  gkf:
+    excluded:
+      - intent_id: cqa.retrieve_cohort_data
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_customer_health
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_customer_tenure
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_payor_mix
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_retention_metrics
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_revenue_type_and_renewals
+        exclude_reason: no_citation_source
+      - intent_id: fta.ebitda.q1_financial_statements
+        exclude_reason: no_citation_source
+      - intent_id: fta.opex.q1_financial_statements
+        exclude_reason: no_citation_source
+      - intent_id: fta.revenue.q1_financial_statements
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_delivery_model
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_healthcare_labor_market
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_healthcare_ops
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_healthcare_revenue_per_unit
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_pipeline_backlog
+        exclude_reason: no_citation_source
+      - intent_id: profiler.banked_vs_nonbanked
+        exclude_reason: no_citation_source
+      - intent_id: profiler.business_description
+        exclude_reason: no_citation_source
+      - intent_id: profiler.company_size_indicators
+        exclude_reason: no_citation_source
+      - intent_id: profiler.deal_type
+        exclude_reason: no_citation_source
+      - intent_id: profiler.industry_overlay
+        exclude_reason: no_citation_source
+      - intent_id: profiler.revenue_model
+        exclude_reason: no_citation_source
+      - intent_id: profiler.vertical_subsector
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_ebitda_bridge
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_owner_comp_support
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_qofe_report
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_revenue_footnotes
+        exclude_reason: no_citation_source
+      - intent_id: qoe.retrieve_revenue_quality
+        exclude_reason: no_citation_source

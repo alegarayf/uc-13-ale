@@ -1,6 +1,6 @@
 Section:      dependency-graph
-Version:      1.5.0
-Last updated: 2026-07-28
+Version:      1.6.0
+Last updated: 2026-08-20
 
 ## Internal dependencies
 
@@ -28,6 +28,12 @@ Last updated: 2026-07-28
 | `tldr_compress` | `formatters` | Rev3 template projection — removed Vertical/Top Risks sections | Template/compress drift if only one side updated |
 | `renderers` | `tldr_compress` | Render-time projection when `TLDR_RENDER_MODE=compressed` | Legacy mode bypasses compress entirely |
 | Garden app | UC13 pipeline | No code import; VDR seam is Databricks-job-driven | Accidental schema drift between `garden.*` and `uc13.*` |
+| `retrieval.py` chunks↔doc_relevance JOIN | `doc_id.make_doc_id` | Join key changed from `(file_name, company_name)` to `doc_id` (M0 refactor) | Stale/NULL `doc_id` rows silently drop from retrieval; catalog-mismatch hash collision if `doc_id_hash_catalog` guard bypassed |
+| `ingestion_parser.main` | `doc_worker.DocWorker` + `parse_manifest.ParseManifest` + `status_store` + `sync_state` | Parser no longer owns file enumeration or whole-company rebuild; per-doc resumable state machine | Skipped/incomplete runs leave `doc_status` rows PENDING; VS sync watermark drifts if `sync_state` bypassed |
+| `run_vdr_rainmaker.py` | `cim_detection.py` + `run_ingestion_pipeline()` (scoped, `uc13_preview`) + `agents.orchestration.run_pipeline(run_orchestrator=False)` + `exec_summary.rainmaker_view`/`rainmaker_narrative` | CIM-first POC composes existing ingestion/DAG functions against a sandbox catalog, not a new pipeline | Catalog isolation bug would leak preview writes into production `uc13` |
+| `eval/content/*` | `eval/retrieval/companies.py` | Only cross-package Python import from eval/content; all other coupling to eval/program and databricks/agents is via warehouse data (`analysis.*`, `eval.s2_scores`), not imports | Slug-fold drift breaks cross-referencing between S2 rows and registry/trust-statement company keys |
+| `eval/retrieval/trust_statement.py` | `eval/program/registry.yaml` + `eval_exemptions.yaml` + `eval.s2_scores` | Reads three independent stores to derive the generated trust rollup | Any of the three drifting out of sync with company/company-slug conventions silently mis-attributes a trust row |
+| `eval/retrieval/gold/bootstrap.py` | `eval/retrieval/gold/gold_exclusions.yaml` + `gold/kpi_claim_intent_map.yaml` | Company-scoped exclusion/claim-map inputs now gate bootstrap pass 1 and KPI backfill | New company onboarding without these files produces incomplete/incorrect gold labels silently (no hard fail) |
 
 ## External dependencies
 
@@ -53,4 +59,6 @@ Last updated: 2026-07-28
 | `jsonschema` | >=4.0.0 | validate_bundle against orchestrator_bundle.schema.yaml | medium |
 | `pyyaml` | >=6.0 | bundle YAML, intent registry, gold labels, test fixtures | low |
 | `python-docx` | (cluster) | md_to_word DOCX export | medium |
-| Unity Catalog | `uc13`, `uc13_ale`, `garden`, `salesforce_silver`, `rallyday_partners_llc` | All warehouse persistence + VDR volume | high |
+| Unity Catalog | `uc13`, `uc13_ale`, `uc13_preview`, `garden`, `salesforce_silver`, `rallyday_partners_llc` | All warehouse persistence + VDR volume; `uc13_preview` is the Rainmaker POC sandbox catalog | high |
+| `weasyprint` | (cluster, `vdr_rainmaker_poc_environment`) | Rainmaker HTML→PDF render (falls back to PyMuPDF Story on failure) | medium |
+| `pymupdf` | (cluster) | Vision-extracted chart/table pages; Rainmaker PDF fallback renderer | medium |

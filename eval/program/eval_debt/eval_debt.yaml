@@ -280,8 +280,16 @@ debts:
   - trust:elder_care:retrieval:null
   - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
-  closes_when: fresh harness baseline stored in uc13_ale.ops with ingestion_snapshot uc13_ale:55812:2026-08-19+
-    or later; trust_statement retrieval row regenerated; mean MRR comparable only to post-M4 cohort
+  closes_when: fresh harness baseline stored in uc13_ale.ops with ingestion_snapshot
+    uc13_ale:55812:2026-08-19+ or later; trust_statement retrieval row regenerated;
+    mean MRR comparable only to post-M4 cohort
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - baseline_2fa3a9056bd0
+  - eval/retrieval/reports/baseline_2fa3a9056bd0.json
+  - eval/program/trust_statement.md
+  - .dev/wave1.6-remediation-2026-08-19/phase1-validation.md
+  - .dev/wave1.6-remediation-2026-08-19/manifest.md
 - id: spg:global:post_m4_corpus_dedup_baseline_stale
   company: spg
   surface: null
@@ -292,8 +300,9 @@ debts:
   - trust:spg:retrieval:null
   - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
-  closes_when: harness baseline baseline_0ec50347353a superseded by post-dedup run on uc13_ale:44085+
-    corpus; gold ingestion_snapshot reconciled to live chunk count; per-intent recall@10 interpretable
+  closes_when: harness baseline baseline_0ec50347353a superseded by post-dedup run
+    on uc13_ale:44085+ corpus; gold ingestion_snapshot reconciled to live chunk count;
+    per-intent recall@10 interpretable
 - id: gkf:global:post_m4_harness_baseline_corpus_drift
   company: gkf
   surface: null
@@ -304,8 +313,16 @@ debts:
   - trust:gkf:retrieval:null
   - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
-  closes_when: harness baseline baseline_4e098a2a2252 superseded by post-M4 run with ingestion_snapshot
-    uc13_ale:3107:2026-08-19+; bloated filename_closure intents disposition unchanged until separate T11-style pass
+  closes_when: harness baseline baseline_4e098a2a2252 superseded by post-M4 run with
+    ingestion_snapshot uc13_ale:3107:2026-08-19+; bloated filename_closure intents
+    disposition unchanged until separate T11-style pass
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - baseline_7510d1d14449
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - registry:GAP-M5-2-gkf-bloated-filename-closure
+  - .dev/wave1.6-remediation-2026-08-19/gkf-bloat-remediation.md
+  - .dev/wave1.6-remediation-2026-08-19/manifest.md
 - id: clearsulting:global:post_m4_harness_baseline_corpus_drift
   company: clearsulting
   surface: null
@@ -316,5 +333,46 @@ debts:
   - trust:clearsulting:retrieval:null
   - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
-  closes_when: harness baseline baseline_7174e0399e29 superseded by post-M4 run on uc13_ale:2417:2026-08-19+
-    corpus after optional harness re-compare noted deferred in GAP-M4-1 closeout
+  closes_when: harness baseline baseline_7174e0399e29 superseded by post-M4 run on
+    uc13_ale:2417:2026-08-19+ corpus after optional harness re-compare noted deferred
+    in GAP-M4-1 closeout
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - baseline_488f70f13570
+  - .dev/wave1.6-remediation-2026-08-19/clearsulting.md
+  - .dev/wave1.6-remediation-2026-08-19/manifest.md
+- id: elder_care:global:corpus_encoding_defect
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: corpus_encoding_defect
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:elder_care:retrieval:null
+  closes_when: All affected gold_labels YAML (elder_care, clearsulting, and any re-bootstrap
+    cohort) validate as UTF-8 with zero raw 0x97 bytes; em dashes in bootstrap notes
+    use U+2014 (UTF-8 E2 80 94); confirmed by byte scan of local and workspace copies
+    post serial bootstrap; ingestion.chunks remains clean (no char(151))
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - .dev/wave1.6-remediation-2026-08-19/phase1-validation.md
+  - .dev/wave1.6-remediation-2026-08-19/clearsulting.md
+  - baseline_2fa3a9056bd0
+  - baseline_488f70f13570
+- id: elder_care:global:g1_legal_score_regression
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: g1_legal_score_regression
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:elder_care:retrieval:null
+  - registry:GAP-103-legal-score-variance-r-2
+  - .dev/wave2-e2e-2026-08-19/g1_Elder_Care.log
+  - .dev/wave2-e2e-2026-08-19/manifest.md
+  closes_when: Fresh G1 Legal checklist score (run_id 766487529692196, 2026-08-19) on a subsequent e2e run recovers to
+    >=9/11 (BASELINES['elder_care']['legal'] floor per .dev/g1_score_all_agents.py),
+    or the regression is root-caused (per-item diff vs .dev/wave2-e2e-2026-08-19/g1_Elder_Care.log
+    run 766487529692196) and either fixed, or re-ratified as an accepted variance
+    via a registry entry explicitly superseding GAP-103-legal-score-variance-r-2's
+    7/11 threshold

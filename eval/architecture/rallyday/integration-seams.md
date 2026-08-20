@@ -1,6 +1,6 @@
 Section:      integration-seams
-Version:      1.3.0
-Last updated: 2026-07-28
+Version:      1.4.0
+Last updated: 2026-08-20
 
 ```
 Seam:          Frontend → backend-api
@@ -204,4 +204,28 @@ Data received: PromotionResult; updated HarnessRun e2e_* fields on promote/boots
 Error modes:   promotion_blocked on regression; InvalidWaiverIdError on bad waiver
 Retry policy:  none — operator re-runs agent and re-scores
 Owner module:  eval/retrieval/promotion_gate.py, eval/<AGENT>/golden_checklist_elder_care.md
+```
+
+```
+Seam:          VDR UI (Rainmaker POC variant) → SharePoint CIM detection → uc13_preview sandbox
+Direction:     inbound trigger + outbound artifact copy
+Protocol:      Same companies_vdr_history trigger row as production VDR + Microsoft Graph download; run_vdr_rainmaker_job.py notebook widgets
+Auth:          cluster job identity; SharePoint MSAL client credentials (shared with main ingestion)
+Data sent:     CIM-scoped file_whitelist to download_upload/ingestion; only a Phase 3-4 subset (no orchestrator memo) runs
+Data received: companies_vdr_history status update; rainmaker_opportunity_summary.html + executive_summary.pdf copied to VDR volume
+Error modes:   No CIM found -> no-op skip with completion_status=success + explanatory error_message (not a fallback to full pipeline)
+Retry policy:  none documented — manual/POC trigger only, no UI wiring yet
+Owner module:  databricks/jobs/scripts/run_vdr_rainmaker.py, databricks/workflows/vdr_rainmaker_poc.yml
+```
+
+```
+Seam:          eval/content verification (calibration + spot-check + legal verifier) -> eval.s2_scores
+Direction:     outbound (write) + inbound (read for trust rollup)
+Protocol:      Delta append via S2Writer (SQL executor abstraction, not direct Spark writes)
+Auth:          cluster / operator warehouse credentials
+Data sent:     Per-claim verdict rows (claims-then-marker sequencing); rung: deterministic_verifier | judge_harness | human_spot_check
+Data received: eval/retrieval/trust_statement.py reads s2_scores for content_correctness tier derivation
+Error modes:   S-61 fail-closed if cited_chunk_id present but unresolved; SpotCheckIngestionError on unknown claim_id/invalid verdict vocab
+Retry policy:  none — ingestion is all-or-nothing per run_id (no partial writes)
+Owner module:  eval/content/s2_writer.py, spot_check.py, legal_register_verifier.py, eval/retrieval/trust_statement.py
 ```
