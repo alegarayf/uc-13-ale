@@ -74,7 +74,8 @@ retrieved documents before leaving revenue_trend empty.
       "revenue_pct": "<% of total revenue as stated, or null>",
       "revenue_dollars": "<$ as stated>",
       "period": "<time period>",
-      "source_doc": "<exact filename>"
+      "source_doc": "<exact filename>",
+      "source_location": "<page or section>"
     }}
   ],
 
@@ -85,13 +86,65 @@ retrieved documents before leaving revenue_trend empty.
       "revenue_dollars": "<$ as stated>",
       "revenue_pct": "<% of total as stated, or null>",
       "period": "<time period>",
-      "source_doc": "<exact filename>"
+      "source_doc": "<exact filename>",
+      "source_location": "<page or section>"
     }}
   ]
 }}\
 """
 
 _BANK_STMT_KEYWORDS = ("bank statement", "bank stmt", "eastern bank", "checking", "deposit")
+
+# Dedupe keys — prompt-schema field names in this file (frozen for T10).
+_SEGMENT_DEDUPE_KEY: tuple[str, ...] = ("segment", "period", "revenue_dollars")
+_CUSTOMER_DEDUPE_KEY: tuple[str, ...] = ("customer_name", "period", "revenue_dollars")
+
+
+def dedupe_rows_by_key(rows: list[dict], key_fields: tuple[str, ...]) -> list[dict]:
+    """Drop later rows that match an earlier row on every key field.
+
+    First-occurrence order is preserved. Rows that are not mappings, or that
+    are missing any key field, are retained unchanged rather than collapsed.
+    """
+    seen: set[tuple] = set()
+    out: list[dict] = []
+    for row in rows:
+        if not isinstance(row, dict) or any(field not in row for field in key_fields):
+            out.append(row)
+            continue
+        key = tuple(row[field] for field in key_fields)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+    return out
+
+
+def _ensure_source_location(rows: list) -> list:
+    """Guarantee ``source_location`` on dict rows; omit → None, row kept."""
+    out: list = []
+    for row in rows:
+        if isinstance(row, dict) and "source_location" not in row:
+            row = {**row, "source_location": None}
+        out.append(row)
+    return out
+
+
+def _apply_revenue_list_contracts(parsed: dict) -> dict:
+    """Dedupe segment/customer rows and fill omitted source_location."""
+    if not isinstance(parsed, dict):
+        return parsed
+    segment_rows = parsed.get("revenue_by_segment")
+    if isinstance(segment_rows, list):
+        parsed["revenue_by_segment"] = _ensure_source_location(
+            dedupe_rows_by_key(segment_rows, _SEGMENT_DEDUPE_KEY)
+        )
+    customer_rows = parsed.get("revenue_by_customer")
+    if isinstance(customer_rows, list):
+        parsed["revenue_by_customer"] = _ensure_source_location(
+            dedupe_rows_by_key(customer_rows, _CUSTOMER_DEDUPE_KEY)
+        )
+    return parsed
 
 
 class RevenueSubAgent:
@@ -124,7 +177,7 @@ class RevenueSubAgent:
             focused_chunk_text=context_text,
         )
         raw = _wa._call_llm(SYSTEM_PROMPT_BASE, user_prompt, llm_endpoint, max_tokens=_MAX_TOKENS)
-        parsed = _wa._parse_json_response(raw)
+        parsed = _apply_revenue_list_contracts(_wa._parse_json_response(raw))
         source_files = list({getattr(c, "file_name", "") for c in chunks})
         return {
             "extracted":    parsed,
