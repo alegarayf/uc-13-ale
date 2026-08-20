@@ -301,8 +301,15 @@ debts:
   - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
   closes_when: harness baseline baseline_0ec50347353a superseded by post-dedup run
-    on uc13_ale:44085+ corpus; gold ingestion_snapshot reconciled to live chunk count;
+    on uc13_ale:44038+ corpus; gold ingestion_snapshot reconciled to live chunk count;
     per-intent recall@10 interpretable
+  closed_at: '2026-08-20'
+  closed_evidence_refs:
+  - .dev/specs/eval-signal-foldback/spec.md#D7
+  - live SELECT count(*) FROM uc13_ale.ingestion.chunks WHERE company_name='SPG' -> 44038 (D7 falsification,
+    Phase 2 cycle 1; 8 consecutive SPG harness runs also report 44038, never 44085)
+  - .dev/wave2-e2e-2026-08-19/g1_SPG.log
+  - baseline_3992534e412f
 - id: gkf:global:post_m4_harness_baseline_corpus_drift
   company: gkf
   surface: null
