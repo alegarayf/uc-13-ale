@@ -99,6 +99,7 @@ Use this index when triaging failures, writing improvements, or explaining resul
 | **Master disposition hub** | [`program/registry.yaml`](program/registry.yaml) | New gap, waiver, rung assignment, or closure |
 | **Frozen source index** | [`program/source_manifest.yaml`](program/source_manifest.yaml) | Registry absorbs a new external source |
 | **Open eval debt** | [`program/eval_debt/eval_debt.yaml`](program/eval_debt/eval_debt.yaml) | Known gap with explicit `closes_when` |
+| **Product-signal backlog** | [`program/product_backlog.yaml`](program/product_backlog.yaml) | S2/eval measurement caveat or product defect surfaced, or closed with `closed_at` + `closed_evidence_refs` |
 | **Corpus exemptions** | [`program/eval_exemptions.yaml`](program/eval_exemptions.yaml) | Intent/surface cannot be honestly measured |
 | **Trust rollup** | [`program/trust_statement.md`](program/trust_statement.md) | After any layer changes — `trust_statement generate` |
 | **Cross-milestone open items** | [`.dev/pending/eval-consolidation-open-items.md`](../.dev/pending/eval-consolidation-open-items.md) | Auditor handoffs; priority queue §Cross-milestone |
@@ -440,7 +441,7 @@ python -m eval.retrieval.eval_debt list --company "<Name>"
 | After calibration attempt | registry rung_assignments + assessment_metrics (CHK-26a pattern) |
 | After major program closeout | This playbook §2 matrix and §7 queue |
 
-**Last consolidated:** 2026-08-18 (from eval program state through M4 Clearsulting pilot + M3 S2 Elder Care).
+**Last consolidated:** 2026-08-18 (from eval program state through M4 Clearsulting pilot + M3 S2 Elder Care), updated 2026-08-20 for eval-signal-foldback M2/W0 ledger truth-up (registry `tshirt` sizing pass, `GAP-109` created, 4 `product_backlog.yaml` measurement-caveat closures, SPG `44038` correction).
 
 ---
 
