@@ -393,11 +393,13 @@ def _extract_block(html: str, start_marker: str, end_marker: str = "</div>\n    
 
 
 def test_render_rainmaker_bullet_counts_stay_within_stakeholder_caps(monkeypatch, tmp_path):
-    """Stakeholder feedback (round 1): Company Overview <=5, Product & Revenue
-    Model exactly <=3, Investment Thesis/Key Watchouts <=4 each, Revenue
-    Quality <=5, Diligence Questions <=6 (round 2, Part B/B3 — one question
-    per thesis-testing archetype, see rainmaker_narrative.py) — regardless of
-    how many bullets the LLM or the bundle fallback would otherwise produce."""
+    """Stakeholder feedback (round 1 + round 3 Austin re-tightening): Company
+    Overview/Key Watchouts <=3 each, Product & Revenue Model exactly <=3,
+    Investment Thesis <=3 total (why_special + up to 2 value_drivers when
+    why_special is present), Revenue Quality <=5, Diligence Questions <=6
+    (round 2, Part B/B3 — one question per thesis-testing archetype, see
+    rainmaker_narrative.py) — regardless of how many bullets the LLM or the
+    bundle fallback would otherwise produce."""
     _patch_volume(monkeypatch, tmp_path)
     bundle = _load("elder_care")
     narrative = {
@@ -414,13 +416,14 @@ def test_render_rainmaker_bullet_counts_stay_within_stakeholder_caps(monkeypatch
     html = Path(result["html"]).read_text(encoding="utf-8")
 
     overview_block = _extract_block(html, "Company Overview")
-    assert overview_block.count("Overview bullet") == 5
+    assert overview_block.count("Overview bullet") == 3
 
     business_model_block = _extract_block(html, "Product &amp; Revenue Model")
     assert business_model_block.count("Business model bullet") == 3
 
     thesis_block = _extract_block(html, "Initial Investment Thesis &amp; Fit")
-    assert thesis_block.count("Driver ") == 3
+    assert thesis_block.count("Driver ") == 2  # why_special present -> +2 drivers, 3 lines total
+    assert "Why special." in thesis_block
 
     revqual_block = _extract_block(html, "Revenue Quality &amp; Customer Base")
     assert revqual_block.count("Topic ") == 5
@@ -429,13 +432,34 @@ def test_render_rainmaker_bullet_counts_stay_within_stakeholder_caps(monkeypatch
     assert diligence_block.count("Question ") == 6
 
 
-def test_render_rainmaker_key_watchouts_capped_at_four(monkeypatch, tmp_path):
+def test_render_rainmaker_investment_thesis_caps_at_three_without_why_special(monkeypatch, tmp_path):
+    """When the LLM omits why_special, the card falls back to exactly 3
+    value_drivers (still 3 lines total, matching the with-why_special path)."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    narrative = {
+        "one_liner": "One liner.",
+        "company_overview": ["A", "B", "C"],
+        "business_model": ["A", "B", "C"],
+        "investment_thesis": {"value_drivers": [f"Driver {i}" for i in range(10)], "why_special": ""},
+        "recommendation": "Recommendation sentence.",
+        "commercial_revenue_quality": [{"topic": "T", "detail": "D."}],
+        "diligence_priorities": ["Q?"],
+        "synthesis_status": "success",
+    }
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], narrative=narrative)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    thesis_block = _extract_block(html, "Initial Investment Thesis &amp; Fit")
+    assert thesis_block.count("Driver ") == 3
+
+
+def test_render_rainmaker_key_watchouts_capped_at_three(monkeypatch, tmp_path):
     """Key Watchouts is bundle-sourced (not LLM), so it needs its own cap
-    independent of narrative — verified against a bundle with >4 watchouts."""
+    independent of narrative — verified against a bundle with >3 watchouts."""
     _patch_volume(monkeypatch, tmp_path)
     bundle = copy.deepcopy(_load("elder_care"))
     bundle["executive"]["key_watchouts"] = [f"Watchout number {i}" for i in range(10)]
     result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], narrative=None)
     html = Path(result["html"]).read_text(encoding="utf-8")
     watchouts_block = _extract_block(html, "Key Watchouts")
-    assert watchouts_block.count("Watchout number") == 4
+    assert watchouts_block.count("Watchout number") == 3

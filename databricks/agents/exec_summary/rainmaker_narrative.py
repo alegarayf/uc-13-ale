@@ -187,8 +187,9 @@ belongs in the underlying workstream reports, not here.
 
 {_NON_FABRICATION_RULE}
 
-LENGTH DISCIPLINE (strict, do not exceed):
-- "company_overview": at most 5 bullets, HIGH-LEVEL only — what the company does, its market/footprint, its \
+LENGTH DISCIPLINE (strict, do not exceed — every section on this page must fit on ONE physical page, so brevity \
+here is not optional):
+- "company_overview": EXACTLY 3 bullets, HIGH-LEVEL only — what the company does, its market/footprint, its \
   scale and growth in aggregate terms. Do NOT include granular operational detail such as specific hourly \
   rates, per-location billed hours/week, individual location-by-location pricing, or other line-item \
   operating metrics — those are workstream-report detail, not first-pass framing. Generalize: e.g. write \
@@ -196,11 +197,15 @@ LENGTH DISCIPLINE (strict, do not exceed):
 - "business_model": EXACTLY 3 bullets, covering — in this order — (1) where the revenue comes from (the \
   revenue model itself), (2) one notable change or signal in gross margin, or the single most relevant KPI \
   tied to the revenue model, (3) the reported EBITDA figure and its behavior/trend (not a full addback \
-  bridge — that belongs in Revenue Quality, not here).
-- "investment_thesis.value_drivers": at most 3 bullets — the strongest, most decision-relevant drivers only.
-- Every bullet in "company_overview", "business_model", and "investment_thesis.value_drivers" must be ONE \
-  sentence, maximum ~180 characters. Prefer the specific figure over the qualifying clause; drop hedges and \
-  restatements.
+  bridge — that belongs in Revenue Quality, not here). Use these as the model for how terse every other \
+  bullet on this page should be — one clean fact per bullet, no stacked clauses.
+- "investment_thesis.why_special": REQUIRED, exactly 1 sentence, the single most compelling reason this could \
+  be special. "investment_thesis.value_drivers": EXACTLY 2 supporting bullets (why_special + these 2 bullets \
+  is the full card — do not pad beyond that).
+- Every bullet in "company_overview", "business_model", "investment_thesis.value_drivers", and \
+  "investment_thesis.why_special" must be ONE short sentence, maximum 140 characters — as terse as the \
+  "business_model" bullets above. Lead with the specific figure or fact; drop qualifying clauses, hedges, and \
+  restatements. If you cannot fit the point in 140 characters, cut detail rather than run past the limit.
 
 Write a BALANCED AND AFFIRMATIVE investment thesis: connect the attractive elements present in the input \
 (e.g. growth, margins, recurring-revenue signals, operational strengths) into ONE coherent reason the business \
@@ -214,9 +219,9 @@ recommendation to a single financial metric — ground it in the thesis as a who
 Respond with ONLY a JSON object, no markdown fences, with these exact keys:
 {{
   "one_liner": "<1 sentence — what the business is and why it could be interesting>",
-  "company_overview": ["<bullet>", "..."],
+  "company_overview": ["<bullet>", "<bullet>", "<bullet>"],
   "business_model": ["<revenue source bullet>", "<gross margin/KPI signal bullet>", "<reported EBITDA status bullet>"],
-  "investment_thesis": {{"value_drivers": ["<bullet>", "..."], "why_special": "<1-2 sentences connecting the drivers>"}},
+  "investment_thesis": {{"value_drivers": ["<bullet>", "<bullet>"], "why_special": "<1 sentence connecting the drivers>"}},
   "recommendation": "<the recommendation sentence, exact structure above>"
 }}"""
 

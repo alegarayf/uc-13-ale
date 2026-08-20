@@ -1,8 +1,22 @@
 {
-  "_comment": "Round 3 (docs/plans/rainmaker-format-round3.md) golden-render baseline. html_sha256 is environment-independent (no wall-clock/system-font dependency) and asserted exactly. pdf_pages reflects a real WeasyPrint render (Homebrew cairo/pango) and is only asserted when WeasyPrint is importable, mirroring test_render_rainmaker_uses_pdf_engine_when_available's skip pattern. Regenerate deliberately (via the A0 golden_render scratch script) whenever the template/view intentionally changes — a silent diff here means an unintentional formatting regression, not a test to 'fix' by updating blindly.",
-  "elder_care": {"html_sha256": "5c285d846ab95b7b6369e2ebe3917c4343545f52af19135f1c4be44a3038f235", "pdf_pages": 4},
-  "elder_care_cim_only": {"html_sha256": "746f0ada117ebd0c423dafd71a26f2dc4b801008e871efe4328ea29545f48a90", "pdf_pages": 3},
-  "clearsulting": {"html_sha256": "5113a9856a84c74f9f8a8182ea0336432fd9d404632d9fcd975ba32fc7c801f6", "pdf_pages": 3},
-  "gkf": {"html_sha256": "cd59e1921e131ffeb9427a504e0d75033e7c2cd245b907b4bfbd39caefcf67b0", "pdf_pages": 3},
-  "b2b_saas": {"html_sha256": "a1783ef4999a4783e864f18e994e30dda6949b8f9abf9570473bd088654bbfcc", "pdf_pages": 4}
+  "elder_care": {
+    "html_sha256": "311181a44c00335ca82969d75bd57792d470f9b04b8f6e8d3bd0c1c16b2cf00f",
+    "pdf_pages": 2
+  },
+  "elder_care_cim_only": {
+    "html_sha256": "6112fd652cd6fc023b5058a326f0ce1392e94d1ca3dfc323ec5fc01daf646458",
+    "pdf_pages": 3
+  },
+  "clearsulting": {
+    "html_sha256": "3da84d3b2e12631ac72e587cc28239b1f47e32b78433b546596174d3bfd626bd",
+    "pdf_pages": 3
+  },
+  "gkf": {
+    "html_sha256": "eaf1f36b4b8f927abc51c1665516345f28b624fa8652010560864fe696492948",
+    "pdf_pages": 3
+  },
+  "b2b_saas": {
+    "html_sha256": "9980bd11b6749a1a48ab1fe3131f3af49f90105065f8f0923da187e49407610c",
+    "pdf_pages": 3
+  }
 }
