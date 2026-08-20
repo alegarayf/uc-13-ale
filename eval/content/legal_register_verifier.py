@@ -36,6 +36,10 @@ REGISTER_COLUMNS: tuple[tuple[str, str], ...] = (
 
 _PAGE_RE = re.compile(r"(?:page|p\.?)\s*(\d+)", re.IGNORECASE)
 _SECTION_PREFIX_RE = re.compile(r"^section:\s*", re.IGNORECASE)
+_SOURCE_DOC_JOIN = " | "
+_CASCADE_TIER_SECTION_AND_PAGE = "section_and_page"
+_CASCADE_TIER_FILE_AND_SECTION = "file_and_section"
+_CASCADE_TIER_FILE_ONLY = "file_only"
 
 
 @dataclass(frozen=True)
@@ -109,6 +113,65 @@ def section_value_from_location(location: str | None) -> str | None:
         text = text.split(";", 1)[0].strip()
     text = _SECTION_PREFIX_RE.sub("", text).strip()
     return text or None
+
+
+def _split_joined_source_docs(source_doc: str) -> tuple[str, ...]:
+    """Split ``source_doc`` values joined with ``" | "`` into independent file names."""
+    text = str(source_doc or "").strip()
+    if not text:
+        return ()
+    return tuple(part.strip() for part in text.split(_SOURCE_DOC_JOIN) if part.strip())
+
+
+def _file_name_match_sql(source_doc_part: str) -> str:
+    doc_lit = f"'{_sql_str(source_doc_part)}'"
+    doc_suffix = source_doc_part[-40:] if len(source_doc_part) > 40 else source_doc_part
+    suffix_lit = f"'{_sql_str('%' + doc_suffix + '%')}'"
+    return f"(c.file_name = {doc_lit} OR c.file_name ILIKE {suffix_lit})"
+
+
+def _section_match_sql(section_pattern: str) -> str:
+    section_lit = f"'{_sql_str('%' + section_pattern[:80] + '%')}'"
+    return f"c.section_header ILIKE {section_lit}"
+
+
+def _cascade_tier_clauses(
+    *,
+    page: int | None,
+    section_pattern: str | None,
+) -> tuple[tuple[str, str], ...]:
+    """Return (tier_name, extra_where_sql) in C8 order: section+page, file+section, file only."""
+    tiers: list[tuple[str, str]] = []
+    if page is not None and section_pattern:
+        tiers.append(
+            (
+                _CASCADE_TIER_SECTION_AND_PAGE,
+                f"AND c.page_start = {page} AND {_section_match_sql(section_pattern)}",
+            )
+        )
+    if section_pattern:
+        tiers.append(
+            (
+                _CASCADE_TIER_FILE_AND_SECTION,
+                f"AND {_section_match_sql(section_pattern)}",
+            )
+        )
+    tiers.append((_CASCADE_TIER_FILE_ONLY, ""))
+    return tuple(tiers)
+
+
+def _first_ordered_chunk_row(rows: list[list[Any]]) -> list[Any] | None:
+    """Pick one row by ``page_start NULLS LAST, chunk_id`` — not by result-set position."""
+    if not rows:
+        return None
+
+    def sort_key(row: list[Any]) -> tuple[int, str]:
+        page = row[2] if len(row) > 2 else None
+        page_key = int(page) if page is not None else 2**31 - 1
+        chunk_id = str(row[0] or "")
+        return (page_key, chunk_id)
+
+    return min(rows, key=sort_key)
 
 
 def derive_locator(*, chunk: ChunkResolution) -> tuple[str | None, str | None]:
@@ -282,32 +345,45 @@ def make_warehouse_chunk_resolver(
     company_lit = f"'{_sql_str(company_display)}'"
 
     def resolve(source_doc: str, source_location: str, _raw_quote: str) -> ChunkResolution | None:
-        doc_lit = f"'{_sql_str(source_doc)}'"
-        doc_suffix = source_doc[-40:] if len(source_doc) > 40 else source_doc
-        suffix_lit = f"'{_sql_str('%' + doc_suffix + '%')}'"
+        parts = _split_joined_source_docs(source_doc)
+        if not parts:
+            return None
         page = parse_page_from_location(source_location)
         section_pattern = section_value_from_location(source_location)
-        page_clause = f"AND c.page_start = {page}" if page is not None else ""
-        section_clause = ""
-        if section_pattern:
-            section_lit = f"'{_sql_str('%' + section_pattern[:80] + '%')}'"
-            section_clause = f"AND c.section_header ILIKE {section_lit}"
+        tiers = _cascade_tier_clauses(page=page, section_pattern=section_pattern)
 
-        query = f"""
-            SELECT c.chunk_id, c.chunk_text, c.page_start, c.section_header
-            FROM {catalog}.ingestion.chunks c
-            WHERE c.company_name = {company_lit}
-              AND (c.file_name = {doc_lit} OR c.file_name ILIKE {suffix_lit})
-              {page_clause}
-              {section_clause}
-            ORDER BY c.page_start NULLS LAST, c.chunk_id
-            LIMIT 1
-        """
-        result = sql_executor(query)
-        if not result:
-            return None
-        row = result[0]
-        return _chunk_row_to_resolution(row)
+        for tier_name, extra_clause in tiers:
+            for part in parts:
+                query = f"""
+                    SELECT c.chunk_id, c.chunk_text, c.page_start, c.section_header
+                    FROM {catalog}.ingestion.chunks c
+                    WHERE c.company_name = {company_lit}
+                      AND {_file_name_match_sql(part)}
+                      {extra_clause}
+                    ORDER BY c.page_start NULLS LAST, c.chunk_id
+                    LIMIT 1
+                """
+                result = sql_executor(query)
+                if not result:
+                    continue
+                row = _first_ordered_chunk_row(list(result))
+                if row is None:
+                    continue
+                resolution = _chunk_row_to_resolution(row)
+                if resolution is None:
+                    continue
+                logger.info(
+                    "legal_register_chunk_resolved",
+                    extra={
+                        "event": "legal_register_chunk_resolved",
+                        "cascade_tier": tier_name,
+                        "source_doc_part": part,
+                        "chunk_id": resolution.chunk_id,
+                        "company": company_display,
+                    },
+                )
+                return resolution
+        return None
 
     return resolve
 
