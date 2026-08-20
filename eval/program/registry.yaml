@@ -13,7 +13,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: l
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -28,7 +28,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -43,7 +43,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -186,8 +186,8 @@ items:
   status: pending
   trigger: null
   rationale: 'Operator-ratified acceptance (briefing §8.4): Clearsulting KPI 1/3 overlay conflict A-09 is a corpus/overlay
-    mismatch, not agent failure.'
-  tshirt: null
+    mismatch, not agent failure. This entry''s title also asserts Clearsulting G1 Legal 0/11 is attributable to the same 0-LEGAL-classified-docs corpus gap; that Legal claim is not separately investigated by this rationale and is carried here only as a hygiene note (see GAP-109 for the cross-company Legal/KPI root-cause investigation that supersedes any conclusion this row implies about Legal).'
+  tshirt: l
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -202,7 +202,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -217,7 +217,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -232,7 +232,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -247,7 +247,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -354,7 +354,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -555,7 +555,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -570,7 +570,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -585,7 +585,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -600,7 +600,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -615,7 +615,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -649,7 +649,7 @@ items:
   status: in_progress
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs:
   - signoffs/S-50-evidence.md
   - signoffs/fold-vectors.md
@@ -683,8 +683,8 @@ items:
   stage: S1
   status: pending
   trigger: null
-  rationale: null
-  tshirt: null
+  rationale: 'Unsizable until operator defines Genie chatbot keep/kill/integrate decision and acceptance criteria for any retained surface.'
+  tshirt: unsizable
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -698,8 +698,8 @@ items:
   stage: S1
   status: pending
   trigger: null
-  rationale: null
-  tshirt: null
+  rationale: 'Unsizable: OPEN_ITEMS phv4 NEW-1 cites no scoped deliverable, falsifier, or acceptance criterion beyond the opaque id.'
+  tshirt: unsizable
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -731,8 +731,8 @@ items:
   stage: S1
   status: pending
   trigger: null
-  rationale: null
-  tshirt: null
+  rationale: 'Unsizable: row title is an audit anchor only — no scoped work, falsifier, or closure criterion is recorded in registry fields.'
+  tshirt: unsizable
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -764,7 +764,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -779,7 +779,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -837,7 +837,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -947,7 +947,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -981,7 +981,7 @@ items:
   status: in_progress
   trigger: null
   rationale: Clearsulting pilot gold landed at T9; Elder Care remains canonical; GKF/SPG pending.
-  tshirt: null
+  tshirt: l
   evidence_refs:
   - eval/retrieval/gold_labels/clearsulting.yaml
   - baseline_7174e0399e29
@@ -999,7 +999,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1014,7 +1014,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: xs
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1079,7 +1079,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: xs
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1094,7 +1094,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1145,7 +1145,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1160,7 +1160,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1175,7 +1175,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: xl
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1190,7 +1190,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1205,7 +1205,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1220,7 +1220,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: s
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1235,7 +1235,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: xl
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1250,7 +1250,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: xs
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1268,7 +1268,7 @@ items:
     supersedes Jul-17 completeness anchors: Clearsulting/GKF/SPG 100% ingest; Elder Care 98.3%
     (8 files); SPG corpus deduped 71k→44k chunks. Scorecard must use join_integrity + missing-by-workstream,
     not chunk/upload heuristics or pre-M4 md §2 prose (still hardcodes 52%/88.7%).'
-  tshirt: null
+  tshirt: l
   evidence_refs:
   - uc13-company-data-analysis.md
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
@@ -1286,7 +1286,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: l
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1301,7 +1301,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1316,7 +1316,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1331,7 +1331,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: l
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1346,7 +1346,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: l
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1361,7 +1361,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1376,7 +1376,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1391,7 +1391,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1406,7 +1406,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: m
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1421,7 +1421,7 @@ items:
   status: pending
   trigger: null
   rationale: null
-  tshirt: null
+  tshirt: xl
   evidence_refs: []
   rung_assignments: {}
   assessment_metrics: {}
@@ -1865,7 +1865,7 @@ items:
     .dev/pending/eval-consolidation-open-items.md was not repointed in source_refs. Hygiene
     finding only — does not resolve affected OI-* row dispositions. See M5 analysis doc §4b
     for Phase 7 scorecard design-only program note.'
-  tshirt: null
+  tshirt: s
   evidence_refs:
   - .dev/plans/eval-multi-company-coverage-expansion/analysis/registry-hygiene-open-items-dangling-refs.md
   rung_assignments: {}
@@ -1931,7 +1931,7 @@ items:
     — closes PB-exec_summary-retrieval-scope-gap; mirror calibration.py pattern; (2) resurrect CHK-27 judge harness
     for exec_summary — closes PB-exec_summary-chk27-judge-harness; reuse judge_claim + s2_writer; (3) update CHK-26a
     rung_assignments.exec_summary to judge. CHK-27 remains descoped until this row closes; no auto-build on calibration pass alone.'
-  tshirt: null
+  tshirt: l
   evidence_refs:
   - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T12-calibration-exec_summary-dual-source.json
   - eval/content/calibration.py
@@ -1974,8 +1974,8 @@ items:
     (Elder mean MRR 0.665→0.222 on expanded corpus; SPG chunk count −38%). Re-run harness baselines
     on post-refactor uc13_ale corpus for Clearsulting, Elder Care, GKF, SPG; refresh ops latest-baseline
     pins and trust_statement retrieval rows. Gold snapshots partially current (Elder 55812:2026-08-11;
-    SPG 43602:2026-08-19 vs live 44085) — reconcile snapshot ids before gating.'
-  tshirt: null
+    SPG 43602:2026-08-19 vs live 44038) — reconcile snapshot ids before gating.'
+  tshirt: l
   evidence_refs:
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
   - .dev/tmp_deep_data_analysis.json
@@ -2000,7 +2000,7 @@ items:
     GKF/SPG pipeline harness historically showed fallback_rate=1.0 with provenance avg_sim=0 until
     ingest closure; semantic retrieval on uc13_ale still blocked without Cell 2b / setup_vector_search
     for catalog=uc13_ale. uc13 prod index exists (15,080 rows) — hybrid fallback undocumented.'
-  tshirt: null
+  tshirt: m
   evidence_refs:
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
   - .dev/tmp_e2e_readiness_probe.json
@@ -2021,7 +2021,7 @@ items:
     +59% Elder chunks and SPG dedup/re-ingest. Orchestrator bundle/full_report bytes grew (+9–18 KB)
     but tldr_one_pager.md not regenerated — exec-summary eval and Phase 7 deliverable checks may
     understate post-M4 corpus richness.'
-  tshirt: null
+  tshirt: m
   evidence_refs:
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
   - .dev/t2_baseline_run_log.json
@@ -2041,7 +2041,7 @@ items:
     (2026-08-19). Deep probe shows richer BMA exec/citations for Clearsulting/Elder/GKF vs Jul-28/30
     rows; company-analysis HTML agent panels stale for 3/4 companies. Re-run workstream agents before
     G1 golden checklists or content spot-checks attribute gaps to model vs corpus.'
-  tshirt: null
+  tshirt: l
   evidence_refs:
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
   - .dev/tmp_deep_data_analysis.json

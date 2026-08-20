@@ -23,7 +23,7 @@ Top-level `schema_version: 1` plus an `items` list. Each item tracks one eval-pr
 | `status` | Lifecycle status; must match disposition per §7.1 matrix (`n/a` when not staged). |
 | `trigger` | Required when `deferred` — what must become true to revisit. |
 | `rationale` | Required when `rejected` or `accepted`; may record a ratification on staged rows. |
-| `tshirt` | Gate-time estimate (`S` \| `M` \| `L`). |
+| `tshirt` | D3 sizing estimate — `xs` \| `s` \| `m` \| `l` \| `xl` \| `unsizable` (orchestrator-plan-denominated; see spec §D3). `unsizable` requires a rationale sentence naming the missing scope/falsifier/acceptance criterion. |
 | `evidence_refs` | Run ids, SHAs, paths; required non-empty when `status: closed`. |
 | `rung_assignments` | Map `surface → rung` from S2 pre-plan (items 23/23a/26a). |
 | `assessment_metrics` | Map `surface → {figure: float}` calibration outcomes for judge/human gates. |
