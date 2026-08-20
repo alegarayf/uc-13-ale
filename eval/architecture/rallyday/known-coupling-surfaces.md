@@ -1,6 +1,6 @@
 Section:      known-coupling-surfaces
-Version:      2.4.0
-Last updated: 2026-07-28
+Version:      2.6.0
+Last updated: 2026-08-20
 
 ```
 Surface:      OPPORTUNITY_SILVER_FIELDS / Company type field list
@@ -377,7 +377,7 @@ Confirmed:    yes — T3 registered fallback.py; T6 runbook requires omitting --
 Surface:      baseline_ref_run_id authority / retrieval_harness_latest_baseline (Flag 7)
 Shared by:    EvalHarness.validate_baseline_ref ↔ retrieval_harness_latest_baseline view ↔ ablation baseline_ref_run_id pins ↔ local eval/retrieval/reports/*.json exports
 Failure mode: Incomplete or fixture baseline promoted as authoritative; ablation HarnessDelta computed against wrong reference; multiple baseline run_ids without operator designation
-Confirmed:    yes — **Authoritative baseline:** `baseline_299063e87806` (M-RE3 post-hardening, operator-promoted per `retrieval_harness_latest_baseline`, 2026-07-03/2026-07-06); supersedes M-RE1 `baseline_f0f4f68ac7af`. Incomplete local reports (e.g. `baseline_fb7118e87dad`) not promoted per T6 runbook
+Confirmed:    yes — **W3 comparison epoch (D4, per-company):** Elder Care `baseline_2fa3a9056bd0`, Clearsulting `baseline_488f70f13570`, GKF `baseline_7510d1d14449`, SPG `baseline_3992534e412f` — operator-pinned M1 multi-company baselines; T4 evidence (`.dev/wave4-foldback-2026-08-20/m1-w3-retrieval-loop.md`) records all four `merge_rank_off` enhancements `gate_pass=false` → reject (successor `baseline_ref_run_id` unchanged). Supersedes single-baseline M-RE3 pin `baseline_299063e87806` for W3 loop compare authority. Incomplete local reports not promoted per runbook
 ```
 
 ```
@@ -476,4 +476,60 @@ Surface:      Profiler not in DAG AGENT_REGISTRY
 Shared by:    PipelineOrchestrator AGENT_REGISTRY (9 agents, no profiler) ↔ classification.company_profile table ↔ Profiler golden checklist scorecard
 Failure mode: Stale company_profile row when only DAG e2e run; Profiler checklist scored against old created_at
 Confirmed:    yes — post_merge_regressions.md; profiler runs via separate company_profiler.py job only
+```
+
+```
+Surface:      doc_id join key migration (chunks/doc_relevance/doc_status) — M0 ingestion refactor
+Shared by:    doc_id.make_doc_id() ↔ retrieval.py _hydrate_chunks_sql JOIN ↔ document_classifier._backfill_missing_doc_ids ↔ status_store.py doc_status
+Failure mode: NULL doc_id on either side of the JOIN silently drops chunks from retrieval and gold bootstrap (pre-M0 join key was file_name+company_name); doc_id_hash_catalog mismatch produces a differently-hashed, orphaned doc_id if catalog name changes between classification and parsing
+Confirmed:    yes — 2026-08-06 M0-M4 rollout; company-analysis-diff-pre-vs-post-refactor.md documents Elder Care 44.5%→98.3%, SPG 88.7%→100% completeness after this migration
+```
+
+```
+Surface:      Whole-company rebuild retired — per-doc resumable state (doc_status, sync_state) replaces DELETE+APPEND
+Shared by:    ingestion_parser.main() ↔ parse_manifest.ParseManifest ↔ doc_worker.DocWorker ↔ status_store.py ↔ sync_state.py
+Failure mode: Operator running old mental model (full rebuild) may expect DELETE+APPEND semantics; force/coverage_per_workstream/skip_sync/sync_only knobs must be understood before re-running a partial ingest
+Confirmed:    yes — M0-M4 program; workflow YAML wires force/coverage_per_workstream/skip_sync/sync_only as job params
+```
+
+```
+Surface:      Rainmaker uc13_preview sandbox catalog isolation
+Shared by:    run_vdr_rainmaker.py PREVIEW_CATALOG constant ↔ run_ingestion_pipeline() scoped call ↔ run_pipeline(run_orchestrator=False) ↔ production uc13 catalog convention
+Failure mode: If PREVIEW_CATALOG hardcoding is ever removed or the widget/env override bypasses it, CIM-scoped POC ingest could write into production uc13 tables
+Confirmed:    yes — run_vdr_rainmaker.py hardcodes PREVIEW_CATALOG = "uc13_preview"; deliberate sandbox per exploration finding
+```
+
+```
+Surface:      rainmaker_view dict shape ↔ rainmaker_opportunity_summary.html.j2 template contract
+Shared by:    rainmaker_view._financial_table() (`cells` key, not `values`) ↔ rainmaker_narrative._financials_summary() (_FINANCIAL_TABLE_ROW_SPECS metric names) ↔ template `{% for val in row.cells %}` / narrative JSON keys (one_liner, investment_thesis.value_drivers, commercial_revenue_quality items)
+Failure mode: `row.values` in Jinja would silently resolve to the dict .values() method and render empty columns; narrative key rename breaks template branch silently (fail-open produces blank sections, not an error)
+Confirmed:    yes — exploration confirmed `cells` naming convention and exact key list; template does not reference rainmaker.risks/financial_availability/confidence_rows (dead fields, not wired)
+```
+
+```
+Surface:      eval.s2_scores writer vocabulary ↔ trust_statement content-correctness tier derivation
+Shared by:    eval/content/s2_writer.py WRITERS vocabulary (deterministic_verifier | judge_harness | human_spot_check) ↔ eval/retrieval/trust_statement.py derive_content_rows ↔ verification rung model (deterministic → judge → human)
+Failure mode: A new writer value added to S2Writer without updating trust_statement's rung mapping produces an unattributed or misclassified trust row
+Confirmed:    yes — trust_statement.py imports S2Writer.WRITERS / S2ScoreRow directly (not a duplicated string list)
+```
+
+```
+Surface:      eval/program/registry.yaml is a work-item ledger, NOT a company registry (naming collision risk)
+Shared by:    eval/program/registry.yaml (decisions/waivers/debt) ↔ eval/retrieval/intent_registry.yaml (57 retrieval intents) — distinct artifacts, same "registry" name
+Failure mode: Operator or new contributor edits the wrong "registry.yaml" expecting intent/gold-label semantics, or a script defaults to the wrong path
+Confirmed:    yes — onboarding_runbook.md explicitly disambiguates the two; test_onboarding_runbook.py asserts CLI paths reference the correct one
+```
+
+```
+Surface:      eval_debt.yaml high-water-mark ratchet
+Shared by:    eval/program/eval_debt/eval_debt.yaml open_debt_high_water_mark ↔ eval_debt.assert_ledger_ratchet ↔ CI/onboarding gate
+Failure mode: A new open debt pushes the open count above HWM without a corresponding HWM bump — ratchet must be raised deliberately, not silently, or the gate blocks
+Confirmed:    yes — test_eval_debt.py asserts committed ledger (5 open / 18 total, HWM 14) passes ratchet; HWM is a manual, reviewed field
+```
+
+```
+Surface:      Company slug canon (companies.py) as cross-package join key
+Shared by:    eval/retrieval/companies.canonical_company_slug ↔ gold_labels/{slug}.yaml filenames ↔ eval/program/onboarding_queue.yaml `slug` field ↔ eval/content/* company params ↔ trust_statement company rows
+Failure mode: A company added via one path (e.g. manual gold bootstrap) without going through canonical_company_slug produces a differently-folded slug, splitting one company's evidence across two identities
+Confirmed:    yes — companies.py is the widest import hub in eval/retrieval per exploration; require_folded_company_slug() rejects unfolded display names at call sites that must not silently accept them
 ```
