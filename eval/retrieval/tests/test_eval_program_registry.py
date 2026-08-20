@@ -29,7 +29,8 @@ NUMERIC_SURFACES = frozenset({"fta_numeric"})
 JUDGE_OR_HUMAN_RUNGS = frozenset({"judge", "human"})
 TSHIRT_VALUES = frozenset({"xs", "s", "m", "l", "xl", "unsizable"})
 ACTIONABLE_STATUSES = frozenset({"pending", "in_progress"})
-FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 52
+FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 54
+GAP_109_ID = "GAP-109-cross-company-legal-kpi-g1-weakness"
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -361,6 +362,21 @@ def test_actionable_registry_rows_have_d3_tshirt_sizes(populated_artifacts):
         if tshirt == "unsizable":
             rationale = item.get("rationale")
             assert rationale, f"{row_id}: unsizable requires non-empty rationale"
+
+
+def test_gap_109_cross_company_legal_kpi_g1_weakness_row_exists():
+    """T2 M2: GAP-109 distillation-era row exists with D3 tshirt and rationale marker."""
+    registry = _load_yaml(REGISTRY_PATH)
+    items = registry.get("items") or []
+    row = next((item for item in items if item.get("id") == GAP_109_ID), None)
+    assert row is not None, f"{GAP_109_ID} missing from registry.yaml"
+    tshirt = row.get("tshirt")
+    assert tshirt is not None, f"{GAP_109_ID}: missing tshirt"
+    assert tshirt in TSHIRT_VALUES, f"{GAP_109_ID}: tshirt {tshirt!r} not in D3 vocabulary"
+    rationale = row.get("rationale") or ""
+    assert "Distillation-only finding" in rationale, (
+        f"{GAP_109_ID}: rationale missing distillation-era marker"
+    )
 
 
 def test_synthetic_valid_pair_passes(synthetic_valid_pair):

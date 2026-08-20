@@ -2171,3 +2171,64 @@ items:
   - .dev/wave1.6-remediation-2026-08-19/gkf-bloat-remediation.md
   rung_assignments: {}
   assessment_metrics: {}
+- id: GAP-109-cross-company-legal-kpi-g1-weakness
+  title: 'Cross-company G1 weakness — Legal and KPI agents score materially lower on Clearsulting/GKF/SPG
+    than Elder Care, informational only (no ratified floors). Legal: Clearsulting 0/11, GKF 8/11, SPG 1/11
+    (Elder Care floor 9/11). KPI: Clearsulting 1/3, GKF 1/3, SPG 2/3 (Elder Care floor 3/3, met). BMA/CQA/QoE
+    comparatively stable across all four companies in the same run.'
+  source_refs:
+  - .dev/wave2-e2e-2026-08-19/manifest.md
+  - .dev/wave2-e2e-2026-08-19/g1_Clearsulting.log
+  - .dev/wave2-e2e-2026-08-19/g1_GKF.log
+  - .dev/wave2-e2e-2026-08-19/g1_SPG.log
+  source_id: null
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: Wave 2 pipeline E2E + G1 scoring (2026-08-19) — first simultaneous fresh G1 run across all
+    4 companies
+  rationale: 'Distillation-only finding (Wave 3) — root cause NOT investigated, explicitly deferred.
+    Clearsulting Legal 0/11 is partially explained by GAP-102-corpus-specific-gold-bootstrap-holes
+    (0 LEGAL-classified docs), though that entry''s rationale text discusses KPI A-09, not Legal — a
+    title/rationale mismatch flagged separately (see HYGIENE note). GKF (8/11) and SPG (1/11) Legal
+    weakness, and GKF/SPG KPI weakness (1/3, 2/3), are not explained by any existing registry entry.
+    GKF Profiler 4/7 and SPG FTA 11.0/18 are informational data points folded in here rather than
+    given separate entries; GKF Profiler note: all 4 companies'' Profiler runs in this G1 pass carry
+    stale (pre-Wave-2) timestamps, already tracked by GAP-102-profiler-not-in-chip-b-e2e — not a new
+    finding. Candidate root causes to investigate next wave (not concluded here): per-company corpus/overlay
+    gaps (same class as A-09), scoring-rubric drift, or genuine model generalization gaps — BMA/CQA/QoE
+    holding steady across companies in the same run makes a blanket "model can''t generalize" explanation
+    less likely on its face, but this is not a conclusion.'
+  tshirt: l
+  evidence_refs:
+  - .dev/wave2-e2e-2026-08-19/manifest.md
+  - .dev/wave2-e2e-2026-08-19/g1_Clearsulting.log
+  - .dev/wave2-e2e-2026-08-19/g1_Elder_Care.log
+  - .dev/wave2-e2e-2026-08-19/g1_GKF.log
+  - .dev/wave2-e2e-2026-08-19/g1_SPG.log
+  - registry:GAP-102-corpus-specific-gold-bootstrap-holes
+  - registry:GAP-102-profiler-not-in-chip-b-e2e
+  - registry:A-09
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: OI-eval-harness-spg-residual-filename-closure-gold-completeness
+  title: SPG residual filename_closure intents lack citation_backfill/aggregate_exclude gold method
+  source_refs:
+  - .dev/specs/eval-signal-foldback/spec.md#D8
+  source_id: null
+  disposition: staged
+  stage: S1
+  status: pending
+  trigger: null
+  rationale: D8 reconciliation — 3 residual SPG filename_closure intents (kpi.retrieve_delivery_model,
+    kpi.retrieve_kpi_dashboard, qoe.retrieve_qofe_report) at 23/23/41 positives were never in scope of
+    PB-spg-retrieval-bloated-filename-closure (that row's scope was >500-positive intents only). These
+    3 remain gold_method:filename_closure / gold_status:partial in gold_labels/spg.yaml and need their
+    own gold-bootstrap pass; small enough positive sets that per-intent recall@10 would be interpretable
+    once re-bootstrapped. Falsifier — all three carry gold_method:citation_backfill or aggregate_exclude:true.
+  tshirt: m
+  evidence_refs:
+  - eval/retrieval/gold_labels/spg.yaml
+  - .dev/specs/eval-signal-foldback/spec.md#D8
+  rung_assignments: {}
+  assessment_metrics: {}
