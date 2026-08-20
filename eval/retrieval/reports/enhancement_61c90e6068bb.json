@@ -1,0 +1,3662 @@
+{
+  "deltas": [
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.detect_cim_presence",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.detect_cim_presence",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.07407407407407407,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.07407407407407407,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_business_overview",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.5,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 1.0,
+      "delta": -0.5,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_business_overview",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.037037037037037035,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.037037037037037035,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_model_changes_and_dependencies",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.25,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.25,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_model_changes_and_dependencies",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.037037037037037035,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.07407407407407407,
+      "delta": -0.037037037037037035,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_people_and_org",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.1111111111111111,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.2,
+      "delta": -0.0888888888888889,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_people_and_org",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_pricing_and_margins",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_pricing_and_margins",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.07407407407407407,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.07407407407407407,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_revenue_by_location_and_metrics",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.5,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.5,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_revenue_by_location_and_metrics",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_revenue_visibility",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_revenue_visibility",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_sales_and_customers",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_sales_and_customers",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_workforce_and_capacity",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "bma.retrieve_workforce_and_capacity",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_account_size",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_account_size",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_cohort_data",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_cohort_data",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_contract_terms",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_contract_terms",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_customer_concentration",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_customer_concentration",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_customer_health",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_customer_health",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_customer_tenure",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_customer_tenure",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_payor_mix",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_payor_mix",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_retention_metrics",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_retention_metrics",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.1,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.1,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_revenue_type_and_renewals",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.25,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.5,
+      "delta": -0.25,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "cqa.retrieve_revenue_type_and_renewals",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.3333333333333333,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.3333333333333333,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q1_financial_statements",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.2,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.2,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q1_financial_statements",
+      "metric": "precision_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.14285714285714285,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.25,
+      "delta": -0.10714285714285715,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q1_financial_statements",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.16666666666666666,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.16666666666666666,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q2_ebitda_and_margins",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.2,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 1.0,
+      "delta": -0.8,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q2_ebitda_and_margins",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q3_working_capital",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q3_working_capital",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.16666666666666666,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.16666666666666666,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q4_addback_schedule",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 1.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.5,
+      "delta": 0.5,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.ebitda.q4_addback_schedule",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.opex.q1_financial_statements",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.125,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.125,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.opex.q1_financial_statements",
+      "metric": "precision_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.opex.q1_financial_statements",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.opex.q2_working_capital",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.opex.q2_working_capital",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.opex.q3_projected_financials",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.opex.q3_projected_financials",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.3333333333333333,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.3333333333333333,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q1_financial_statements",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.3,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.3,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q1_financial_statements",
+      "metric": "precision_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.1,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.3333333333333333,
+      "delta": -0.2333333333333333,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q1_financial_statements",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q2_revenue_by_segment",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q2_revenue_by_segment",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q3_revenue_by_geography",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q3_revenue_by_geography",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q4_customer_concentration",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q4_customer_concentration",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q4_customer_concentration_fallback",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q4_customer_concentration_fallback",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.16666666666666666,
+      "delta": -0.16666666666666666,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q5_quickbooks_pl",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.5,
+      "delta": -0.5,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "fta.revenue.q5_quickbooks_pl",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0020512820512820513,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.002735042735042735,
+      "delta": -0.0006837606837606838,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_bench_and_capacity",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 1.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 1.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_bench_and_capacity",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_delivery_model",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_delivery_model",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.05,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.05,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_healthcare_ops",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.5,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 1.0,
+      "delta": -0.5,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_healthcare_ops",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.1509433962264151,
+      "delta": -0.1509433962264151,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_healthcare_revenue_per_unit",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 1.0,
+      "delta": -1.0,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_healthcare_revenue_per_unit",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_kpi_dashboard",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "kpi.retrieve_kpi_dashboard",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "legal.contracts_vendors_platform",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "legal.contracts_vendors_platform",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.13333333333333333,
+      "delta": -0.13333333333333333,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "legal.employment",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 1.0,
+      "delta": -1.0,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "legal.employment",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "legal.insurance",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "legal.insurance",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "legal.ip_privacy",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "legal.ip_privacy",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "legal.litigation",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "legal.litigation",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.banked_vs_nonbanked",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.banked_vs_nonbanked",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.business_description",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.business_description",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.deal_type",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.deal_type",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.industry_overlay",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.industry_overlay",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.revenue_model",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.revenue_model",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.vertical_subsector",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "profiler.vertical_subsector",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.013888888888888888,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.013888888888888888,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_ebitda_bridge",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.5,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 1.0,
+      "delta": -0.5,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_ebitda_bridge",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_owner_comp_support",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_owner_comp_support",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.013888888888888888,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.013888888888888888,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_qofe_report",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 1.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 1.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_qofe_report",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_revenue_footnotes",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.0,
+      "delta": 0.0,
+      "gate_pass": true,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_revenue_footnotes",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.027777777777777776,
+      "delta": -0.027777777777777776,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_revenue_quality",
+      "metric": "recall_at_10",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "after": 0.0,
+      "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+      "before": 0.5,
+      "delta": -0.5,
+      "gate_pass": false,
+      "in_gated_scope": true,
+      "intent_id": "qoe.retrieve_revenue_quality",
+      "metric": "mrr",
+      "run_id": "enhancement_61c90e6068bb"
+    }
+  ],
+  "intent_gates": [
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "bma.detect_cim_presence",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "bma.retrieve_business_overview",
+      "metric_results": {
+        "mrr": {
+          "after": 0.5,
+          "before": 1.0,
+          "delta": -0.5,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.07407407407407407,
+          "before": 0.07407407407407407,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "bma.retrieve_model_changes_and_dependencies",
+      "metric_results": {
+        "mrr": {
+          "after": 0.25,
+          "before": 0.25,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.037037037037037035,
+          "before": 0.037037037037037035,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": false,
+      "intent_id": "bma.retrieve_people_and_org",
+      "metric_results": {
+        "mrr": {
+          "after": 0.1111111111111111,
+          "before": 0.2,
+          "delta": -0.0888888888888889,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.037037037037037035,
+          "before": 0.07407407407407407,
+          "delta": -0.037037037037037035,
+          "gate_pass": false
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "bma.retrieve_pricing_and_margins",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "bma.retrieve_revenue_by_location_and_metrics",
+      "metric_results": {
+        "mrr": {
+          "after": 0.5,
+          "before": 0.5,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.07407407407407407,
+          "before": 0.07407407407407407,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "bma.retrieve_revenue_visibility",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "bma.retrieve_sales_and_customers",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "bma.retrieve_workforce_and_capacity",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_account_size",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_cohort_data",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_contract_terms",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_customer_concentration",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_customer_health",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_customer_tenure",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_payor_mix",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_retention_metrics",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "cqa.retrieve_revenue_type_and_renewals",
+      "metric_results": {
+        "mrr": {
+          "after": 0.25,
+          "before": 0.5,
+          "delta": -0.25,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.1,
+          "before": 0.1,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.ebitda.q1_financial_statements",
+      "metric_results": {
+        "mrr": {
+          "after": 0.14285714285714285,
+          "before": 0.25,
+          "delta": -0.10714285714285715,
+          "gate_pass": false
+        },
+        "precision_at_10": {
+          "after": 0.2,
+          "before": 0.2,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.3333333333333333,
+          "before": 0.3333333333333333,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.ebitda.q2_ebitda_and_margins",
+      "metric_results": {
+        "mrr": {
+          "after": 0.2,
+          "before": 1.0,
+          "delta": -0.8,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.16666666666666666,
+          "before": 0.16666666666666666,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.ebitda.q3_working_capital",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.ebitda.q4_addback_schedule",
+      "metric_results": {
+        "mrr": {
+          "after": 1.0,
+          "before": 0.5,
+          "delta": 0.5,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.16666666666666666,
+          "before": 0.16666666666666666,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.opex.q1_financial_statements",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "precision_at_10": {
+          "after": 0.125,
+          "before": 0.0,
+          "delta": 0.125,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.opex.q2_working_capital",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.opex.q3_projected_financials",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.revenue.q1_financial_statements",
+      "metric_results": {
+        "mrr": {
+          "after": 0.1,
+          "before": 0.3333333333333333,
+          "delta": -0.2333333333333333,
+          "gate_pass": false
+        },
+        "precision_at_10": {
+          "after": 0.3,
+          "before": 0.3,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.3333333333333333,
+          "before": 0.3333333333333333,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.revenue.q2_revenue_by_segment",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.revenue.q3_revenue_by_geography",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.revenue.q4_customer_concentration",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "fta.revenue.q4_customer_concentration_fallback",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": false,
+      "intent_id": "fta.revenue.q5_quickbooks_pl",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.5,
+          "delta": -0.5,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.16666666666666666,
+          "delta": -0.16666666666666666,
+          "gate_pass": false
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": false,
+      "intent_id": "kpi.retrieve_bench_and_capacity",
+      "metric_results": {
+        "mrr": {
+          "after": 1.0,
+          "before": 1.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0020512820512820513,
+          "before": 0.002735042735042735,
+          "delta": -0.0006837606837606838,
+          "gate_pass": false
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "kpi.retrieve_delivery_model",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "kpi.retrieve_healthcare_ops",
+      "metric_results": {
+        "mrr": {
+          "after": 0.5,
+          "before": 1.0,
+          "delta": -0.5,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.05,
+          "before": 0.05,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": false,
+      "intent_id": "kpi.retrieve_healthcare_revenue_per_unit",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 1.0,
+          "delta": -1.0,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.1509433962264151,
+          "delta": -0.1509433962264151,
+          "gate_pass": false
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "kpi.retrieve_kpi_dashboard",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "legal.contracts_vendors_platform",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": false,
+      "intent_id": "legal.employment",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 1.0,
+          "delta": -1.0,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.13333333333333333,
+          "delta": -0.13333333333333333,
+          "gate_pass": false
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "legal.insurance",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "legal.ip_privacy",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "legal.litigation",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "profiler.banked_vs_nonbanked",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "profiler.business_description",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "profiler.deal_type",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "profiler.industry_overlay",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "profiler.revenue_model",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "profiler.vertical_subsector",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "qoe.retrieve_ebitda_bridge",
+      "metric_results": {
+        "mrr": {
+          "after": 0.5,
+          "before": 1.0,
+          "delta": -0.5,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.013888888888888888,
+          "before": 0.013888888888888888,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "qoe.retrieve_owner_comp_support",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "qoe.retrieve_qofe_report",
+      "metric_results": {
+        "mrr": {
+          "after": 1.0,
+          "before": 1.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.013888888888888888,
+          "before": 0.013888888888888888,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": true,
+      "intent_id": "qoe.retrieve_revenue_footnotes",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.0,
+          "delta": 0.0,
+          "gate_pass": true
+        }
+      }
+    },
+    {
+      "eval_status": "evaluated",
+      "in_gated_scope": true,
+      "intent_gate_pass": false,
+      "intent_id": "qoe.retrieve_revenue_quality",
+      "metric_results": {
+        "mrr": {
+          "after": 0.0,
+          "before": 0.5,
+          "delta": -0.5,
+          "gate_pass": false
+        },
+        "recall_at_10": {
+          "after": 0.0,
+          "before": 0.027777777777777776,
+          "delta": -0.027777777777777776,
+          "gate_pass": false
+        }
+      }
+    }
+  ],
+  "manifest": {
+    "ablation_arm": null,
+    "ablation_config": {
+      "arm": "merge_rank_off"
+    },
+    "affected_intents": [
+      "bma.detect_cim_presence",
+      "bma.retrieve_business_overview",
+      "bma.retrieve_model_changes_and_dependencies",
+      "bma.retrieve_people_and_org",
+      "bma.retrieve_pricing_and_margins",
+      "bma.retrieve_revenue_by_location_and_metrics",
+      "bma.retrieve_revenue_visibility",
+      "bma.retrieve_sales_and_customers",
+      "bma.retrieve_workforce_and_capacity",
+      "cqa.retrieve_account_size",
+      "cqa.retrieve_cohort_data",
+      "cqa.retrieve_contract_terms",
+      "cqa.retrieve_customer_concentration",
+      "cqa.retrieve_customer_health",
+      "cqa.retrieve_customer_tenure",
+      "cqa.retrieve_payor_mix",
+      "cqa.retrieve_retention_metrics",
+      "cqa.retrieve_revenue_type_and_renewals",
+      "fta.ebitda.q1_financial_statements",
+      "fta.ebitda.q2_ebitda_and_margins",
+      "fta.ebitda.q3_working_capital",
+      "fta.ebitda.q4_addback_schedule",
+      "fta.opex.q1_financial_statements",
+      "fta.opex.q2_working_capital",
+      "fta.opex.q3_projected_financials",
+      "fta.revenue.q1_financial_statements",
+      "fta.revenue.q2_revenue_by_segment",
+      "fta.revenue.q3_revenue_by_geography",
+      "fta.revenue.q4_customer_concentration",
+      "fta.revenue.q4_customer_concentration_fallback",
+      "fta.revenue.q5_quickbooks_pl",
+      "kpi.retrieve_bench_and_capacity",
+      "kpi.retrieve_delivery_model",
+      "kpi.retrieve_healthcare_ops",
+      "kpi.retrieve_healthcare_revenue_per_unit",
+      "kpi.retrieve_kpi_dashboard",
+      "legal.contracts_vendors_platform",
+      "legal.employment",
+      "legal.insurance",
+      "legal.ip_privacy",
+      "legal.litigation",
+      "profiler.banked_vs_nonbanked",
+      "profiler.business_description",
+      "profiler.deal_type",
+      "profiler.industry_overlay",
+      "profiler.revenue_model",
+      "profiler.vertical_subsector",
+      "qoe.retrieve_ebitda_bridge",
+      "qoe.retrieve_owner_comp_support",
+      "qoe.retrieve_qofe_report",
+      "qoe.retrieve_revenue_footnotes",
+      "qoe.retrieve_revenue_quality"
+    ],
+    "baseline_ref_run_id": "baseline_2fa3a9056bd0",
+    "catalog": "uc13_ale",
+    "company_name": "Elder Care",
+    "completed_at": null,
+    "created_at": "2026-08-20T13:46:17.886691Z",
+    "e2e_agent_id": null,
+    "e2e_checklist_score": null,
+    "e2e_checklist_total": null,
+    "e2e_snapshot_table": null,
+    "empty_rate": null,
+    "fallback_rate": null,
+    "gate_pass": null,
+    "gated_intents": [
+      "bma.detect_cim_presence",
+      "bma.retrieve_business_overview",
+      "bma.retrieve_model_changes_and_dependencies",
+      "bma.retrieve_people_and_org",
+      "bma.retrieve_pricing_and_margins",
+      "bma.retrieve_revenue_by_location_and_metrics",
+      "bma.retrieve_revenue_visibility",
+      "bma.retrieve_sales_and_customers",
+      "bma.retrieve_workforce_and_capacity",
+      "cqa.retrieve_account_size",
+      "cqa.retrieve_cohort_data",
+      "cqa.retrieve_contract_terms",
+      "cqa.retrieve_customer_concentration",
+      "cqa.retrieve_customer_health",
+      "cqa.retrieve_customer_tenure",
+      "cqa.retrieve_payor_mix",
+      "cqa.retrieve_retention_metrics",
+      "cqa.retrieve_revenue_type_and_renewals",
+      "fta.ebitda.q1_financial_statements",
+      "fta.ebitda.q2_ebitda_and_margins",
+      "fta.ebitda.q3_working_capital",
+      "fta.ebitda.q4_addback_schedule",
+      "fta.opex.q1_financial_statements",
+      "fta.opex.q2_working_capital",
+      "fta.opex.q3_projected_financials",
+      "fta.revenue.q1_financial_statements",
+      "fta.revenue.q2_revenue_by_segment",
+      "fta.revenue.q3_revenue_by_geography",
+      "fta.revenue.q4_customer_concentration",
+      "fta.revenue.q4_customer_concentration_fallback",
+      "fta.revenue.q5_quickbooks_pl",
+      "kpi.retrieve_bench_and_capacity",
+      "kpi.retrieve_delivery_model",
+      "kpi.retrieve_healthcare_ops",
+      "kpi.retrieve_healthcare_revenue_per_unit",
+      "kpi.retrieve_kpi_dashboard",
+      "legal.contracts_vendors_platform",
+      "legal.employment",
+      "legal.insurance",
+      "legal.ip_privacy",
+      "legal.litigation",
+      "profiler.banked_vs_nonbanked",
+      "profiler.business_description",
+      "profiler.deal_type",
+      "profiler.industry_overlay",
+      "profiler.revenue_model",
+      "profiler.vertical_subsector",
+      "qoe.retrieve_ebitda_bridge",
+      "qoe.retrieve_owner_comp_support",
+      "qoe.retrieve_qofe_report",
+      "qoe.retrieve_revenue_footnotes",
+      "qoe.retrieve_revenue_quality"
+    ],
+    "git_branch": null,
+    "git_sha": null,
+    "gold_snapshot": "2144c2f61a8d821e67d74f9553e246690dc3887d567248fce92741d705bb8992",
+    "harness_status": "incomplete",
+    "hypothesis": null,
+    "ingestion_snapshot": "uc13_ale:55812:2026-08-19",
+    "intent_count": 52,
+    "pipeline_thread_id": null,
+    "pr_url": null,
+    "registry_hash": "6cff2533a3509e131bab100bf8b149f2006006e557e3410c5fff421a292054b7",
+    "run_id": "enhancement_61c90e6068bb",
+    "run_type": "enhancement",
+    "store_backend": "delta"
+  },
+  "provenance_sample": [
+    {
+      "chars_allocated": null,
+      "chunks": [
+        {
+          "chunk_id": "3e61a538-8042-4eec-9c7f-ea65b4469293",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.6791342,
+          "rank": 1,
+          "section_header": "Financial Overview",
+          "sim_score": 0.6791342,
+          "source_type": "text",
+          "tier": 2
+        },
+        {
+          "chunk_id": "6246f377-7de3-4a88-8728-32e119980f67",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.66668564,
+          "rank": 2,
+          "section_header": "Location Detail",
+          "sim_score": 0.66668564,
+          "source_type": "table",
+          "tier": 2
+        },
+        {
+          "chunk_id": "6f41c0a4-90fb-4b85-bbc5-2b03b0ca93b0",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.67239,
+          "rank": 3,
+          "section_header": "Sales / Marketing",
+          "sim_score": 0.67239,
+          "source_type": "vision",
+          "tier": 2
+        }
+      ],
+      "company_name": "Elder Care",
+      "context_section": null,
+      "intent_id": "bma.detect_cim_presence",
+      "mode": "semantic",
+      "query": "confidential information memorandum offering memorandum investment overview executive summary business overview financial highlights deal overview transaction overview management presentation",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "chars_allocated": null,
+      "chunks": [
+        {
+          "chunk_id": "1f68b8d3-7cc8-4e83-8e58-bd31574f4e1a",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.55203253,
+          "rank": 1,
+          "section_header": "Expansion into New Markets",
+          "sim_score": 0.55203253,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "7511fa34-090d-4d5f-b20a-e948bd06dfcf",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.55547786,
+          "rank": 2,
+          "section_header": "Attractive Financial Profile",
+          "sim_score": 0.55547786,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "f3e08bed-4391-465d-b771-5705597ac2d9",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.5542371,
+          "rank": 3,
+          "section_header": "Impressive Revenue Growth Driven by Strategic Initiatives",
+          "sim_score": 0.5542371,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "169a533e-8afd-47a8-aebd-854fcda9f8c3",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.5484481,
+          "rank": 4,
+          "section_header": "Margin Trends",
+          "sim_score": 0.5484481,
+          "source_type": "text",
+          "tier": 2
+        },
+        {
+          "chunk_id": "9d7e48d0-84ab-43e5-be9c-8e243e6a1e77",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.5510533,
+          "rank": 5,
+          "section_header": "Key Investment Considerations",
+          "sim_score": 0.5510533,
+          "source_type": "text",
+          "tier": 2
+        }
+      ],
+      "company_name": "Elder Care",
+      "context_section": null,
+      "intent_id": "bma.retrieve_business_overview",
+      "mode": "semantic",
+      "query": "company overview what does this company do products services offerings geographic footprint locations markets business description revenue streams what the company sells how it makes money",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "chars_allocated": null,
+      "chunks": [
+        {
+          "chunk_id": "54808fde-cb50-444f-b93e-adf4e98209d7",
+          "file_name": "Elder Care - Diligence Workbook - vSHARE_6.6.25.xlsx",
+          "merge_score": 0.5718746,
+          "rank": 1,
+          "section_header": "12. General - Rallyday \u2014 Data",
+          "sim_score": 0.5718746,
+          "source_type": "text",
+          "tier": 2
+        },
+        {
+          "chunk_id": "210225d4-77ba-40fd-a805-e0b40484df7b",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.57297444,
+          "rank": 2,
+          "section_header": "5 30 Days Pre-Close",
+          "sim_score": 0.57297444,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "e1471ed4-5f28-4a6f-a359-750e8cfd8774",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.59300554,
+          "rank": 3,
+          "section_header": "Operational Excellence Drives Scalable Quality for All Stakeholders",
+          "sim_score": 0.59300554,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "9d7e48d0-84ab-43e5-be9c-8e243e6a1e77",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.56812555,
+          "rank": 4,
+          "section_header": "Key Investment Considerations",
+          "sim_score": 0.56812555,
+          "source_type": "text",
+          "tier": 2
+        }
+      ],
+      "company_name": "Elder Care",
+      "context_section": null,
+      "intent_id": "bma.retrieve_model_changes_and_dependencies",
+      "mode": "semantic",
+      "query": "business model change pricing change go to market change recent initiative ERP CRM EMR payroll HR software scheduling platform technology system outsourcing offshore remote team global staffing third-party operations acquisition M&A history strategic initiative timeline milestones launched expanded hired opened acquired transitioned implemented automated key dependency concentration risk single vendor platform tool new product new service new geography new channel new pricing model digital transformation process improvement technology adoption",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "chars_allocated": null,
+      "chunks": [
+        {
+          "chunk_id": "e8b110dc-947b-42b0-a16d-7c710e9d2bb5",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.5906166,
+          "rank": 1,
+          "section_header": "Department-Specific Organizational Charts (Cont.)",
+          "sim_score": 0.5906166,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "7ae5eb33-4ce5-45b1-b7f7-3973d78cc94e",
+          "file_name": "Org Chart Sept 2024 - for PPT.pdf",
+          "merge_score": 0.5655863,
+          "rank": 2,
+          "section_header": "Office Operating Model\n\n\n\n\n\n\n\n\n\nDirector",
+          "sim_score": 0.5655863,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "0be09fc5-e44c-4141-adba-2f00d2052a8f",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.563794,
+          "rank": 3,
+          "section_header": "Location-Specific Organizational Charts (Cont.)",
+          "sim_score": 0.563794,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "25a0c267-6d06-486c-95c2-73be5945c335",
+          "file_name": "Org Chart Sept 2024 - for PPT.pdf",
+          "merge_score": 0.56383497,
+          "rank": 4,
+          "section_header": "Office Operating Model\n\n\n\n\n\n\n\n\n\nDirector",
+          "sim_score": 0.56383497,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "28de7976-38a1-41f2-b606-96a42d892c23",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.5931642,
+          "rank": 5,
+          "section_header": "Organizational Chart",
+          "sim_score": 0.5931642,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "0daa4514-fd05-4965-88e9-18dbb98fd69b",
+          "file_name": "Org Chart Sept 2024 - for PPT.pdf",
+          "merge_score": 0.57114786,
+          "rank": 6,
+          "section_header": "Office Operating Model\n\n\n\n\n\n\n\n\n\nDirector",
+          "sim_score": 0.57114786,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "5f012c66-31c2-4183-b72c-8c54358d9375",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.612661,
+          "rank": 7,
+          "section_header": "Seasoned Executive Team with a Deep Bench of Senior Leaders",
+          "sim_score": 0.612661,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "ef140547-b6c5-4239-af12-91430648f1a0",
+          "file_name": "Org Chart Sept 2024 - for PPT.pdf",
+          "merge_score": 0.5646438,
+          "rank": 8,
+          "section_header": "Office Operating Model\n\n\n\n\n\n\n\n\n\nDirector",
+          "sim_score": 0.5646438,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "bed7163f-b795-48b9-9e7a-f5d396c82fd1",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.5728071,
+          "rank": 9,
+          "section_header": "Proposed Transaction Overview & Entity Structure",
+          "sim_score": 0.5728071,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "96fa9e60-6261-4858-adfe-620a9b1caddf",
+          "file_name": "Org Chart Sept 2024 - for PPT.pdf",
+          "merge_score": 0.566279,
+          "rank": 10,
+          "section_header": "Office Operating Model\n\n\n\n\n\n\n\n\n\nDirector",
+          "sim_score": 0.566279,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "6f41c0a4-90fb-4b85-bbc5-2b03b0ca93b0",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.57030034,
+          "rank": 11,
+          "section_header": "Sales / Marketing",
+          "sim_score": 0.57030034,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "985d052f-3013-48d3-a413-f6a55e9a80a0",
+          "file_name": "Org Chart Sept 2024 - for PPT.pdf",
+          "merge_score": 0.56419486,
+          "rank": 12,
+          "section_header": "Office Operating Model\n\n\n\n\n\n\n\n\n\nDirector",
+          "sim_score": 0.56419486,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "46c0e0f5-bdd3-4680-a241-467083eccf5e",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.56075126,
+          "rank": 13,
+          "section_header": "Administrative HR",
+          "sim_score": 0.56075126,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "bb03a397-d73e-414b-b2e1-1cafca253a52",
+          "file_name": "Org Chart Sept 2024 - for PPT.pdf",
+          "merge_score": 0.5660878,
+          "rank": 14,
+          "section_header": "Office Operating Model\n\n\n\n\n\n\n\n\n\nDirector",
+          "sim_score": 0.5660878,
+          "source_type": "vision",
+          "tier": 2
+        },
+        {
+          "chunk_id": "8d85506a-892e-454a-9fe0-1c1c58396539",
+          "file_name": "2024 Elder Care - CIM_vF.pdf",
+          "merge_score": 0.5645764,
+          "rank": 15,
+          "section_header": "Corporate and Caregiver Recruiting",
+          "sim_score": 0.5645764,
+          "source_type": "vision",
+          "tier": 2
+        }
+      ],
+      "company_name": "Elder Care",
+      "context_section": null,
+      "intent_id": "bma.retrieve_people_and_org",
+      "mode": "semantic",
+      "query": "management team key executives CEO founder CTO COO VP president director ownership structure capitalization shareholder equity ownership percentage organizational chart org chart key personnel management depth bench entity structure subsidiary holding company operating entity executive biography background experience years tenure key man risk leadership team senior management",
+      "run_id": "enhancement_61c90e6068bb"
+    },
+    {
+      "chars_allocated": null,
+      "chunks": [
+        {
+          "chunk_id": "9d1a3d98-410f-4eb4-b5bc-2921f8713258",
+          "file_name": "Elder Care Projection Model Refresh_vF.xlsx",
+          "merge_score": 0.57787085,
+          "rank": 1,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.57787085,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "1a72b5cb-31b4-40cf-b191-93c373d0fa02",
+          "file_name": "Elder Care Projection Model_vUPLOAD.xlsx",
+          "merge_score": 0.58177,
+          "rank": 2,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.58177,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "1fe25226-2b42-4452-a251-24010f3f5eab",
+          "file_name": "2023 Profit and Loss by Month Cash Basis V2.xlsx",
+          "merge_score": 0.57281744,
+          "rank": 3,
+          "section_header": "Profit and Loss \u2014 Expenses",
+          "sim_score": 0.57281744,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "5e07fe7d-6b44-4ff2-b094-65dc3ce8e780",
+          "file_name": "2023 Profit and Loss by Month Cash Basis V2.xlsx",
+          "merge_score": 0.57281744,
+          "rank": 4,
+          "section_header": "Profit and Loss \u2014 Expenses",
+          "sim_score": 0.57281744,
+          "source_type": "text",
+          "tier": 2
+        },
+        {
+          "chunk_id": "39cfe7da-1b3d-433a-950d-85d5bf8f95ad",
+          "file_name": "Elder Care Projection Model Refresh_vF.xlsx",
+          "merge_score": 0.58058774,
+          "rank": 5,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.58058774,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "afe7b56a-f6cf-46ae-925b-0cfb7dee2174",
+          "file_name": "Elder Care Projection Model_vUPLOAD.xlsx",
+          "merge_score": 0.5811857,
+          "rank": 6,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.5811857,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "7fd5a2fd-3839-416e-809e-1aa7ae7f929c",
+          "file_name": "Elder Care Projection Model Refresh_vF.xlsx",
+          "merge_score": 0.5765704,
+          "rank": 7,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.5765704,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "2af88aec-48f3-42c3-a29f-2e4e5e990b48",
+          "file_name": "Elder Care Projection Model_vUPLOAD.xlsx",
+          "merge_score": 0.57514924,
+          "rank": 8,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.57514924,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "e50a13d3-5eb8-4002-96d4-c651d43670a9",
+          "file_name": "Elder Care Projection Model Refresh_vF.xlsx",
+          "merge_score": 0.58287495,
+          "rank": 9,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.58287495,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "c45ad5d9-8597-4b8c-89f3-4732ded6d71b",
+          "file_name": "Elder Care Projection Model_vUPLOAD.xlsx",
+          "merge_score": 0.57470864,
+          "rank": 10,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.57470864,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "22ea7de0-ada4-40fb-a825-9ee2247dde5b",
+          "file_name": "Elder Care Projection Model Refresh_vF.xlsx",
+          "merge_score": 0.5760425,
+          "rank": 11,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.5760425,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "3955cb53-53df-4cce-9d7a-36d3c899a6cc",
+          "file_name": "Elder Care Projection Model_vUPLOAD.xlsx",
+          "merge_score": 0.5773877,
+          "rank": 12,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.5773877,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "af98314c-ffb4-423f-be2e-1f82bf44aa96",
+          "file_name": "Elder Care Projection Model Refresh_vF.xlsx",
+          "merge_score": 0.57392037,
+          "rank": 13,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.57392037,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "c02d18f2-fef0-4819-af62-e57b166a8d82",
+          "file_name": "Elder Care Projection Model_vUPLOAD.xlsx",
+          "merge_score": 0.57271504,
+          "rank": 14,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.57271504,
+          "source_type": "text",
+          "tier": 1
+        },
+        {
+          "chunk_id": "cfa217a8-2a36-42d6-8aae-6a2c4e7fcca1",
+          "file_name": "Elder Care Projection Model Refresh_vF.xlsx",
+          "merge_score": 0.5790323,
+          "rank": 15,
+          "section_header": "Corporate Adj. P&L \u2014 Summary",
+          "sim_score": 0.5790323,
+          "source_type": "text",
+          "tier": 1
+        }
+      ],
+      "company_name": "Elder Care",
+      "context_section": null,
+      "intent_id": "bma.retrieve_pricing_and_margins",
+      "mode": "semantic",
+      "query": "pricing gross margin by product service offering bill rate price per unit margin by service type average selling price ASP revenue per offering contribution margin by product line pricing table rate card",
+      "run_id": "enhancement_61c90e6068bb"
+    }
+  ],
+  "report_md_path": null,
+  "results": [
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 3,
+      "eval_k": 3,
+      "eval_status": "evaluated",
+      "intent_id": "bma.detect_cim_presence",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 3
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 5,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "bma.retrieve_business_overview",
+      "mode": "semantic",
+      "mrr": 0.5,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.07407407407407407,
+      "result_count": 5
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 4,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "bma.retrieve_model_changes_and_dependencies",
+      "mode": "semantic",
+      "mrr": 0.25,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.037037037037037035,
+      "result_count": 4
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "bma.retrieve_people_and_org",
+      "mode": "semantic",
+      "mrr": 0.1111111111111111,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.037037037037037035,
+      "result_count": 15
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "bma.retrieve_pricing_and_margins",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 15
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "bma.retrieve_revenue_by_location_and_metrics",
+      "mode": "semantic",
+      "mrr": 0.5,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.07407407407407407,
+      "result_count": 10
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 9,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "bma.retrieve_revenue_visibility",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 9
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 7,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "bma.retrieve_sales_and_customers",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 7
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "bma.retrieve_workforce_and_capacity",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 15
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_account_size",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_cohort_data",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_contract_terms",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 10
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 2,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_customer_concentration",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 2
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_customer_health",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 1,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_customer_tenure",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 1
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 6,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_payor_mix",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 6
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_retention_metrics",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "cqa.retrieve_revenue_type_and_renewals",
+      "mode": "semantic",
+      "mrr": 0.25,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.1,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "fta.ebitda.q1_financial_statements",
+      "mode": "semantic",
+      "mrr": 0.14285714285714285,
+      "negatives_in_top_3": 3,
+      "precision_at_10": 0.2,
+      "recall_at_10": 0.3333333333333333,
+      "result_count": 10
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "fta.ebitda.q2_ebitda_and_margins",
+      "mode": "semantic",
+      "mrr": 0.2,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.16666666666666666,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 4,
+      "eval_k": 4,
+      "eval_status": "evaluated",
+      "intent_id": "fta.ebitda.q3_working_capital",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 4
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 6,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "fta.ebitda.q4_addback_schedule",
+      "mode": "semantic",
+      "mrr": 1.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.16666666666666666,
+      "result_count": 6
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "fta.opex.q1_financial_statements",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": 2,
+      "precision_at_10": 0.125,
+      "recall_at_10": 0.0,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 4,
+      "eval_k": 4,
+      "eval_status": "evaluated",
+      "intent_id": "fta.opex.q2_working_capital",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 4
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "fta.opex.q3_projected_financials",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "fta.revenue.q1_financial_statements",
+      "mode": "semantic",
+      "mrr": 0.1,
+      "negatives_in_top_3": 1,
+      "precision_at_10": 0.3,
+      "recall_at_10": 0.3333333333333333,
+      "result_count": 10
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 5,
+      "eval_k": 5,
+      "eval_status": "evaluated",
+      "intent_id": "fta.revenue.q2_revenue_by_segment",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 5
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 6,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "fta.revenue.q3_revenue_by_geography",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 6
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 4,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "fta.revenue.q4_customer_concentration",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 4
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 6,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "fta.revenue.q4_customer_concentration_fallback",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 6
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "fta.revenue.q5_quickbooks_pl",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "kpi.retrieve_bench_and_capacity",
+      "mode": "semantic",
+      "mrr": 1.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0020512820512820513,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 3,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "kpi.retrieve_delivery_model",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 3
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "kpi.retrieve_healthcare_ops",
+      "mode": "semantic",
+      "mrr": 0.5,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.05,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "kpi.retrieve_healthcare_revenue_per_unit",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "kpi.retrieve_kpi_dashboard",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 12
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "legal.contracts_vendors_platform",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 14
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "legal.employment",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 10
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 6,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "legal.insurance",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 6
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "legal.ip_privacy",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "legal.litigation",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 8
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 5,
+      "eval_status": "evaluated",
+      "intent_id": "profiler.banked_vs_nonbanked",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 5,
+      "eval_status": "evaluated",
+      "intent_id": "profiler.business_description",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 5,
+      "eval_status": "evaluated",
+      "intent_id": "profiler.deal_type",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 5,
+      "eval_status": "evaluated",
+      "intent_id": "profiler.industry_overlay",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 5,
+      "eval_status": "evaluated",
+      "intent_id": "profiler.revenue_model",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 0,
+      "eval_k": 5,
+      "eval_status": "evaluated",
+      "intent_id": "profiler.vertical_subsector",
+      "mode": "empty",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 0
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 10,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "qoe.retrieve_ebitda_bridge",
+      "mode": "semantic",
+      "mrr": 0.5,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.013888888888888888,
+      "result_count": 10
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 6,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "qoe.retrieve_owner_comp_support",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 6
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 1,
+      "eval_k": 10,
+      "eval_status": "evaluated",
+      "intent_id": "qoe.retrieve_qofe_report",
+      "mode": "semantic",
+      "mrr": 1.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.013888888888888888,
+      "result_count": 1
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 6,
+      "eval_k": 6,
+      "eval_status": "evaluated",
+      "intent_id": "qoe.retrieve_revenue_footnotes",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 6
+    },
+    {
+      "ablation_arm": null,
+      "basis_conflict_at_10": null,
+      "effective_k": 8,
+      "eval_k": 8,
+      "eval_status": "evaluated",
+      "intent_id": "qoe.retrieve_revenue_quality",
+      "mode": "semantic",
+      "mrr": 0.0,
+      "negatives_in_top_3": null,
+      "precision_at_10": null,
+      "recall_at_10": 0.0,
+      "result_count": 8
+    }
+  ],
+  "rollup_by_agent": {
+    "bma": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 0.0,
+      "fallback_rate": 0.0,
+      "intent_count": 9,
+      "precision_at_10_avg": null,
+      "recall_at_10_avg": 0.024691358024691357
+    },
+    "cqa": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 0.2222222222222222,
+      "fallback_rate": 0.0,
+      "intent_count": 9,
+      "precision_at_10_avg": null,
+      "recall_at_10_avg": 0.011111111111111112
+    },
+    "fta.ebitda": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 0.0,
+      "fallback_rate": 0.0,
+      "intent_count": 4,
+      "precision_at_10_avg": 0.2,
+      "recall_at_10_avg": 0.16666666666666666
+    },
+    "fta.opex": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 0.0,
+      "fallback_rate": 0.0,
+      "intent_count": 3,
+      "precision_at_10_avg": 0.125,
+      "recall_at_10_avg": 0.0
+    },
+    "fta.revenue": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 0.0,
+      "fallback_rate": 0.0,
+      "intent_count": 6,
+      "precision_at_10_avg": 0.3,
+      "recall_at_10_avg": 0.05555555555555555
+    },
+    "kpi": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 0.0,
+      "fallback_rate": 0.0,
+      "intent_count": 5,
+      "precision_at_10_avg": null,
+      "recall_at_10_avg": 0.01041025641025641
+    },
+    "legal": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 0.2,
+      "fallback_rate": 0.0,
+      "intent_count": 5,
+      "precision_at_10_avg": null,
+      "recall_at_10_avg": 0.0
+    },
+    "profiler": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 1.0,
+      "fallback_rate": 0.0,
+      "intent_count": 6,
+      "precision_at_10_avg": null,
+      "recall_at_10_avg": 0.0
+    },
+    "qoe": {
+      "basis_conflict_at_10_avg": null,
+      "empty_rate": 0.0,
+      "fallback_rate": 0.0,
+      "intent_count": 5,
+      "precision_at_10_avg": null,
+      "recall_at_10_avg": 0.005555555555555555
+    }
+  }
+}
