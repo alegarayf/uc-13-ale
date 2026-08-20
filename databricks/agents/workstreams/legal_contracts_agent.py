@@ -610,7 +610,7 @@ _DOMAIN_PASS_EXTRACT: dict[str, dict] = {
 
 _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
     "contracts_vendors_platform": {
-        "top_k": 14,
+        "top_k": 24,
         "min_chunk_length": 150,
         "max_chars": 20_000,
         "max_tokens": 12_000,
@@ -665,11 +665,15 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
 }
 
 # Per-pass semantic queries — tuned from A0 corpus decomposition (§5.6.3 / B2).
-_DOMAIN_PASS_QUERIES: dict[str, str] = {
+# contracts_vendors_platform is a query list: generic pass plus t4c/coc clause-targeted
+# queries so those term families are not starved by the generic ranking (C5).
+_DOMAIN_PASS_QUERIES: dict[str, str | tuple[str, ...]] = {
     "contracts_vendors_platform": (
         "material customer contract MSA master service agreement statement of work "
         "change of control termination vendor supplier platform reseller channel "
-        "staffing agreement lease sublease asset purchase marketing contract"
+        "staffing agreement lease sublease asset purchase marketing contract",
+        "termination for convenience terminate without cause for convenience of either party notice of termination cancel at any time",
+        "change of control change in control consent to assignment assignment and subletting landlord consent shall not assign ownership transfer",
     ),
     "employment": (
         "employment agreement offer letter contractor commission plan founder key employee "
@@ -1061,29 +1065,53 @@ class LegalContractsAgent(WorkstreamAgent):
     def _domain_retrieve_pass(self, spark, pass_id: str) -> "ToolResult":  # noqa: F821
         """Run semantic retrieval for one domain pass using §5.6.3 budgets."""
         budget = _DOMAIN_PASS_BUDGETS[pass_id]
-        query = _DOMAIN_PASS_QUERIES[pass_id]
+        raw_query = _DOMAIN_PASS_QUERIES[pass_id]
+        queries = (raw_query,) if isinstance(raw_query, str) else tuple(raw_query)
         file_name_filter = budget["file_name_filter"]
         filter_preview = ", ".join(file_name_filter[:6])
         if len(file_name_filter) > 6:
             filter_preview += ", …"
 
         workstream_filter = budget.get("workstream_filter", ["LEGAL"])
-        chunks = self._semantic_search_with_fallback(
-            spark=spark,
-            query=query,
-            workstream_filter=workstream_filter,
-            top_k=budget["top_k"],
-            file_name_filter=file_name_filter,
-            min_chunk_length=budget["min_chunk_length"],
-        ).chunks
+        top_k = budget["top_k"]
+        per_query_hits: list[list] = [
+            self._semantic_search_with_fallback(
+                spark=spark,
+                query=query,
+                workstream_filter=workstream_filter,
+                top_k=top_k,
+                file_name_filter=file_name_filter,
+                min_chunk_length=budget["min_chunk_length"],
+            ).chunks
+            for query in queries
+        ]
+        # Round-robin unique-by-chunk_id so a generic query that fills top_k
+        # cannot starve clause-targeted hits (C5). Other passes have one query.
+        seen: set = set()
+        chunks: list = []
+        cursors = [0] * len(per_query_hits)
+        progressed = True
+        while progressed and len(chunks) < top_k:
+            progressed = False
+            for i, hits in enumerate(per_query_hits):
+                while cursors[i] < len(hits) and len(chunks) < top_k:
+                    chunk = hits[cursors[i]]
+                    cursors[i] += 1
+                    key = getattr(chunk, "chunk_id", None) or id(chunk)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    chunks.append(chunk)
+                    progressed = True
+                    break
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         ws_preview = ",".join(workstream_filter)
         return self._tool_call(
             tool_name=f"domain_retrieve_{pass_id}",
             input_summary=(
-                f"pass={pass_id} | workstream={ws_preview} | top_k={budget['top_k']} | "
-                f"file_name_filter=[{filter_preview}]"
+                f"pass={pass_id} | workstream={ws_preview} | top_k={top_k} | "
+                f"queries={len(queries)} | file_name_filter=[{filter_preview}]"
             ),
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
