@@ -615,9 +615,12 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "max_chars": 20_000,
         "max_tokens": 12_000,
         # A0: broaden beyond generic MSA tokens — lease/SA/staffing dominate Elder Care LEGAL
+        # C6: add platform/channel filenames the A0 list missed (ClearCare SaaS, Veta,
+        # Senior Care Authority, Advance Placement) so those docs are reachable.
         "file_name_filter": [
             "Contract", "MSA", "Agreement", "SOW", "Customer", "Client", "Vendor", "Supplier",
             "SA", "Lease", "Sublease", "Staffing", "Purchase", "Temp", "Marketing", "Engagement",
+            "SaaS", "ClearCare", "Senior Care Authority", "Advance Placement", "Veta",
         ],
     },
     "employment": {
@@ -647,8 +650,11 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "min_chunk_length": 150,
         "max_chars": 15_000,
         "max_tokens": 10_000,
+        # C6: HIPAA/BAA tokens already hit privacy docs; add NDA / restricted-stock /
+        # ClearCare SaaS tokens so IP-assignment and platform-license files are reachable.
         "file_name_filter": [
             "IP", "Privacy", "GDPR", "HIPAA", "OSS", "Data Processing", "BAA",
+            "Non-Disclosure", "ND Agreement", "SaaS", "ClearCare", "Restricted Stock",
         ],
     },
     "insurance": {
@@ -1510,12 +1516,14 @@ class LegalContractsAgent(WorkstreamAgent):
             chunk_count = pass_chunk_counts.get(pass_id, 0)
 
             if chunk_count >= 1:
-                self._add_gap(f"{item_id}: chunks retrieved but no extractable terms")
+                self._add_gap(
+                    f"{item_id}: chunks retrieved but no extractable terms — retrieved_no_terms"
+                )
                 self._unable_to_assess_items.append(req["display_name"])
             else:
                 self._add_gap(
                     f"{item_id}: no documents retrieved for {pass_id} pass — "
-                    f"request {req['doc_type']}"
+                    f"request {req['doc_type']} — no_chunks_retrieved"
                 )
                 self._unable_to_assess_items.append(req["display_name"])
                 self._recommended_diligence.append({
