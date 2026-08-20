@@ -71,7 +71,7 @@ eval/
 │   ├── trust_statement.md       ← the current, generated trust report (regenerate — don't hand-edit)
 │   ├── eval_exemptions.yaml     ← the exemption store (see above)
 │   └── eval_debt/eval_debt.yaml ← the eval-debt ledger (see above)
-├── BMA/, CQA/, KPI/, QOE/, PROFILER/, LCA/   ← per-agent golden checklists (Elder Care) + baselines
+├── FTA/, BMA/, CQA/, KPI/, QOE/, PROFILER/, LCA/   ← per-agent golden checklists + baselines
 └── architecture/rallyday/       ← standing reference docs on the wider repo (not eval-specific)
 ```
 
@@ -112,7 +112,7 @@ This needs a live Spark session (it queries the corpus directly), so from a lapt
 | `positive_chunk_ids` | the correct answers |
 | `aggregate_exclude` / `exclude_reason` | if true, this intent is deliberately left out of aggregate/rollup recall numbers (currently only reason in use: `no_citation_source`) — it still exists and can be read per-intent, it's just not folded into the summary |
 
-**Watch for "bloated" gold:** `filename_closure` gold can produce thousands of positives for one intent if the whole matched file is huge (e.g. a full financial statement PDF). When that happens, recall@10 becomes mathematically incapable of exceeding ~1% even for a perfect retriever — it's not a retrieval failure, it's a measurement artifact. `eval/program/eval_debt/eval_debt.yaml` names any intent currently in this state per company (see §4.6). Treat a bloated intent's recall number as not-interpretable, not as "broken retrieval."
+**Watch for "bloated" gold:** `filename_closure` gold can produce thousands of positives for one intent if the whole matched file is huge (e.g. a full financial statement PDF). When that happens, recall@10 becomes mathematically incapable of exceeding ~1% even for a perfect retriever — it's not a retrieval failure, it's a measurement artifact. `eval/program/eval_debt/eval_debt.yaml` names any intent currently in this state per company (see §4.7). Treat a bloated intent's recall number as not-interpretable, not as "broken retrieval."
 
 ### 4.3 Intent exemptions — "this can't be honestly gold-labeled"
 
@@ -193,7 +193,68 @@ This checks that the baseline you're about to compare against shares the same in
 
 **Comparing two runs (`HarnessDelta` rows):** each row is one intent × one metric, with `before`, `after`, `delta`, and whether that delta passed or failed the gate for that intent. This is what an ablation or enhancement run's real payload looks like — read the deltas, not just the aggregate.
 
-### 4.5 Promotion gate — "does this pipeline run's checklist score count as an improvement?"
+### 4.5 Golden checklists — all seven agents
+
+Every diligence agent (FTA, Legal/LCA, BMA, CQA, KPI, QoE, Profiler) has a hand-written **golden checklist**: a git-tracked markdown rubric an operator scores after a pipeline run. Checklists measure **structural extraction fidelity** — did the agent populate the fields it should, with citation-backed grounding — not claim-by-claim content correctness (that is the separate S2 layer in §2 for FTA numeric, legal register, and exec summary only).
+
+**Canonical path:** `eval/<AGENT>/golden_checklist_<slug>.md` (Elder Care → `golden_checklist_elder_care.md`). FTA also has Clearsulting and SPG checklists on disk; the other six agents are Elder Care–only today.
+
+#### Shared file shape
+
+| Section | Contents |
+|---|---|
+| Metadata table | `catalog`, `company`, source table or YAML path, `spec ref`, pipeline `run_id` / git SHA / E2E timestamp when scored |
+| Verdict key | Per-agent legend — see table below |
+| Checklist table | `item_id` · `display_name` · `verdict` · `notes` — one row per rubric item |
+| Summary | Pass counts and the integer `N/M` score used as `candidate_score` / `candidate_total` at promotion time |
+
+Scoring is **manual**: a human reads the agent's live output against the rubric. It is not an automated LLM-judge step. Structural contract (row count vs in-code `GOLDEN_CHECKLIST_COVERAGE`) is enforced by `tests/test_golden_checklist_elder_care.py` (parameterized hub for BMA/CQA/KPI/QoE/Profiler/LCA) and `tests/test_golden_checklist_fta.py` for FTA.
+
+#### Verdict vocabulary (agent layer)
+
+| Verdict | Meaning | Scoring weight |
+|---|---|---|
+| `pass` | Field meets rubric threshold | Counts toward numerator (all agents) |
+| `partial` | Thin or incomplete extraction | **FTA only:** 0.5 in weighted score. **All others:** documented for legend parity; **no half-credit** — integer pass-count only |
+| `gap-correct` | Agent correctly reported its own limitation (`data_room_gaps`, structured nulls, `unable_to_assess`) | Stays in denominator; credited as a pass-row for Legal-style agents; counts as pass for promotion numerator where the checklist Summary says so |
+| `n/a` | Not applicable — two distinct cases: **corpus-inapplicable** (Legal convention; stays in denominator per that rubric) vs **precondition-exclusion** (QoE only — item removed from both numerator and denominator; see QoE quirks below) |
+| `miss` | **FTA only** — field absent or fails threshold | 0 in weighted score |
+
+The promotion gate always compares **integer** `candidate_score` values. FTA's weighted points (pass=1, partial=0.5, miss=0) are rounded/summed to an integer before linkage (e.g. 16/18).
+
+#### Per-agent reference
+
+| Agent | Folder | `e2e_agent_id` | Checklist rows (`candidate_total`) | Elder Care regression floor | Output source | Linkage |
+|---|---|---|---:|---|---|---|
+| **FTA** (Financial Trends) | `eval/FTA/` | `fta` | 18 | ≥ **16/18** weighted points | `uc13_ale.analysis.financial_trends` | `evaluate_promotion(...)` **or** direct `record_e2e_linkage` CLI (§4.6) |
+| **Legal / LCA** | `eval/LCA/` | `legal` | 11 | ≥ **7/11** `pass` rows (4 `gap-correct` rows stay in denominator) | `uc13_ale.analysis.legal` + `legal_report.yaml` | same as FTA |
+| **BMA** | `eval/BMA/` | `bma` | 7 | No fixed floor — beat prior promoted baseline | `uc13_ale.analysis.business_model` | `evaluate_promotion(...)` |
+| **CQA** | `eval/CQA/` | `cqa` | 6 | same | `uc13_ale.analysis.customer_quality` | `evaluate_promotion(...)` |
+| **KPI** | `eval/KPI/` | `kpi` | 3 | same | `uc13_ale.analysis.kpi` | `evaluate_promotion(...)` |
+| **QoE** | `eval/QOE/` | `qoe` | **6 or 5** (precondition-adjusted — see below) | same | `uc13_ale.analysis.quality_of_earnings` | `evaluate_promotion(...)` |
+| **Profiler** | `eval/PROFILER/` | `profiler` | 7 | same | `uc13_ale.classification.company_profile` | `evaluate_promotion(...)` |
+
+For BMA/CQA/KPI/QoE/Profiler, the **first** scored run for a company hits `baseline_bootstrap` (§4.6) — there is no prior baseline to regress against. After that, any score below the last **promoted** baseline blocks unless waived.
+
+Deterministic rule/flag logic (BMA revenue-durability, CQA thresholds, KPI overlay selection, QoE downstream addback math) lives in **pytest fixtures**, not checklist rows — checklists judge LLM extraction fidelity only.
+
+#### Agent-specific quirks (still accurate)
+
+| Agent | Quirk |
+|---|---|
+| **FTA** | Weighted scoring (`partial`=0.5); floor ≥16/18 is the operational bar, separate from the promotion gate's "beat last promoted score" rule |
+| **Legal / LCA** | Canonical checklist is **`eval/LCA/golden_checklist_elder_care.md`** (git-tracked). A gitignored `.dev/legal_agent/eval/` copy may exist for structural tests — score against the tracked path only |
+| **BMA** | `revenue_durability_flag` rule correctness is unit-test owned, not a checklist row |
+| **CQA** | `contract_trigger_list` → Legal handoff is documented in the checklist header as an integration note, **not** a scored row |
+| **KPI** | Overlay-selection **rule** is unit-test owned; checklist checks whether the LLM's overlay-relevant extraction matched the corpus |
+| **QoE** | **Precondition gate:** tier-classification item (`tier_classification_fidelity`) is scorable only when FTA's `addback_schedule_json` parses to a **non-empty** array for the company (same bar QoE's `_load_addback_passthrough` applies at run time). On failure, mark that row precondition-exclusion `n/a` and pass **`candidate_total=5`** (exclude 1 item) instead of 6. At manual re-score time, re-derive the presence check from FTA's latest `financial_trends` row — the passthrough value is not persisted on QoE's output table |
+| **Profiler** | Requires `open_agent_run`/`close_agent_run` in `company_profiler.py` so a pipeline manifest `run_id` exists before linkage — instrumentation is shipped. **Notebook path only** for eval: headless workflow runs may write manifests to a different catalog unless `RE2_CATALOG` and `set_pipeline_thread` match the eval notebook setup |
+
+**Do not invent scores.** If a company lacks a scored checklist or a real pipeline `run_id`, skip promotion for that agent and open an eval-debt row (§4.7) instead.
+
+### 4.6 Promotion gate — "does this pipeline run's checklist score count as an improvement?"
+
+The promotion gate applies to **all seven agents** (§4.5). It decides whether a newly scored checklist `N/M` becomes the next **promoted baseline** in `uc13_ale.ops.retrieval_harness_runs`, or is rejected as a regression. FTA and Legal may also call `record_e2e_linkage` directly via CLI (bypasses this gate — use only when you intentionally skip regression checking; see `eval/retrieval/README.md`).
 
 This is a Python function, not a CLI (there is no `promotion_gate` command):
 
@@ -224,9 +285,45 @@ print(result.status)
 | `promotion_blocked` | Score regressed against the prior baseline, and no waiver was supplied |
 | `promotion_waived` | Score regressed, but an operator-supplied `waiver_id` (format `W<number>`) explicitly accepted the regression |
 
-**Do not invent `candidate_score`/`candidate_total`/`run_id` values.** If a company doesn't have a scored golden checklist yet, don't call this function for that agent — open an eval-debt row instead (§4.6) and move on. A missing promotion input is a documented gap, not a blocker to work around with made-up numbers.
+**Do not invent `candidate_score`/`candidate_total`/`run_id` values.** If a company doesn't have a scored golden checklist yet, don't call this function for that agent — open an eval-debt row instead (§4.7) and move on. A missing promotion input is a documented gap, not a blocker to work around with made-up numbers.
 
-### 4.6 Eval debt — "known gaps, tracked, with a defined closing condition"
+#### State machine (all agents)
+
+```
+pipeline run completes (run_id in manifest)
+        │
+        ▼
+operator scores golden checklist → candidate_score / candidate_total
+        │
+        ▼
+evaluate_promotion(...) compares candidate vs prior promoted baseline
+        │
+   ┌────┴────────────────────────────────────────────┐
+   │ no prior row with non-null e2e_checklist_score │ prior promoted baseline exists
+   ▼                                                 ▼
+baseline_bootstrap ──────────────► promoted    candidate >= prior ?
+(auto-accept)    record_e2e_linkage writes          │              │
+                 score to manifest                  yes            no
+                                                    ▼              ▼
+                                              promoted      promotion_blocked
+                                              (writes)      (NO manifest write —
+                                                             score stays NULL)
+                                                                   │
+                                                     waiver_id=W<number> supplied
+                                                                   ▼
+                                                          promotion_waived
+                                                          (writes score)
+```
+
+**Write-on-promote invariant:** `record_e2e_linkage` persists `e2e_checklist_score` to the manifest **only** on `baseline_bootstrap`, `promoted`, or `promotion_waived`. A blocked regression leaves the manifest score **NULL**, so it can never silently become the next comparison bar.
+
+**Prior-baseline selection:** the gate queries the most-recent `retrieval_harness_runs` row where `run_type='pipeline'`, `harness_status='complete'`, `e2e_checklist_score IS NOT NULL`, matching `e2e_agent_id` + `company_name` + `catalog`, ordered by `completed_at DESC` — excluding the run being scored. Combined with write-on-promote, "most-recent non-null score" equals "last promoted baseline."
+
+**Waiver escape hatch:** when `candidate_score < prior_score`, pass `waiver_id="W<number>"` (regex `^W\d+$`) to accept the regression anyway. Waivers must be documented (regression amount + rationale) in the registry/scorecard — same convention as other program waivers. Malformed waiver IDs raise `InvalidWaiverIdError`.
+
+Per-agent `candidate_total` values and QoE's precondition-adjusted denominator are in §4.5.
+
+### 4.7 Eval debt — "known gaps, tracked, with a defined closing condition"
 
 ```bash
 python -m eval.retrieval.eval_debt open --company "<Display Name>" --surface <surface|null> --kind <kind> --closes-when "<condition>"
@@ -237,7 +334,7 @@ Every open row must cite at least one piece of evidence that resolves to a real 
 
 Read the current ledger directly (`eval/program/eval_debt/eval_debt.yaml`) to see what's open right now, per company — this file is the live source of truth and will have moved since this runbook was written.
 
-### 4.7 Trust statement — the one-page rollup
+### 4.8 Trust statement — the one-page rollup
 
 ```bash
 python -m eval.retrieval.trust_statement generate --catalog uc13_ale --registry eval/program/registry.yaml
@@ -253,11 +350,11 @@ Regenerates `eval/program/trust_statement.md` from live warehouse state, the exe
 | `attestation` | `attested` (fully checked, no caveats), `partial` (checked, with named gaps), `not_attested` (nothing to report yet — usually `no_completed_run`), `known_gap` (deliberately excluded, with a reason — see exemptions) |
 | `reason` | Why the attestation is what it is, when not `attested` (e.g. `no_completed_run`, `claim_failures`, `incomplete_corpus`) |
 | `method` | How the measurement was taken, where applicable (e.g. `sql_chunk_count` for ingest) |
-| `rung` | For `content_correctness` rows only — see §4.8 |
+| `rung` | For `content_correctness` rows only — see §4.9 |
 | `evidence_refs` | Pointers to the actual run ids / files backing this row — always traceable, never just an assertion |
 | `known_gaps` | Human-readable notes on what's missing or caveated |
 
-### 4.8 Rungs — how much a content-correctness surface is trusted to check itself
+### 4.9 Rungs — how much a content-correctness surface is trusted to check itself
 
 A "rung" says who/what is allowed to verify claims on a given surface, based on how well that method has been shown to agree with a human:
 
@@ -282,9 +379,9 @@ This is the exact, runnable sequence — the same one `eval/program/onboarding_r
 3. **Gold bootstrap** (§4.2) — generate the correct-answer set for retrieval. Needs a cluster; submit as a job from the laptop.
 4. **Exemptions** (§4.3) — for any intent the corpus genuinely can't support (e.g. no legal documents at all), record why instead of forcing bad gold.
 5. **Harness baseline** (§4.4, `--run-type baseline`) — establish the retrieval reference point for this company.
-6. **Promotion** (§4.5) — link agent checklist scores to this baseline, per agent, only when a real scored checklist and a real pipeline run exist. Skip agents that don't have both yet.
-7. **Eval debt** (§4.6) — for anything skipped in step 6, or any other known shortfall, open a debt row naming exactly what would close it.
-8. **Regenerate the trust statement** (§4.7) — confirm the new company's rows look right: expected `known_gap` entries from step 4, ingest status from step 2.
+6. **Golden checklists + promotion** (§4.5, §4.6) — score each agent's checklist against live output, then link via `evaluate_promotion` (or FTA/Legal direct CLI). Skip agents that don't have both a scored checklist and a real pipeline `run_id` yet.
+7. **Eval debt** (§4.7) — for anything skipped in step 6, or any other known shortfall, open a debt row naming exactly what would close it.
+8. **Regenerate the trust statement** (§4.8) — confirm the new company's rows look right: expected `known_gap` entries from step 4, ingest status from step 2.
 
 **If any step requires a judgment call that isn't covered above** — a new metric, a fabricated label, an improvised flag that doesn't exist in any command's `--help` — stop. That's a real gap in this runbook, not something to work around. Note it in the registry and resolve it before continuing that company's walk.
 
@@ -310,7 +407,7 @@ The eval system is a **measurement loop**, not a pass/fail gate you clear once. 
 
 **For getting a surface onto `judge` rung** (so an LLM, not a human, can check it going forward): run `eval/content/calibration.py` against a labeled sample for that surface. If judge-vs-human agreement clears the threshold, the surface can be recorded as `judge` rung. If it doesn't, that's an honest measurement of the current judge/prompt/retrieval stack for that surface — improving the judge prompt, model, or the retrieval feeding it and re-calibrating is the path forward, not lowering the threshold.
 
-**After any of the above**, regenerate the trust statement (§4.7) — it's your before/after scorecard across every company and layer at once.
+**After any of the above**, regenerate the trust statement (§4.8) — it's your before/after scorecard across every company and layer at once.
 
 ---
 
@@ -326,7 +423,7 @@ The eval system is a **measurement loop**, not a pass/fail gate you clear once. 
 | Measure the effect of a specific change | `... --run-type enhancement --affected-intents <id> [<id> ...] --baseline-ref-run-id <id>` |
 | Run a comparative ablation arm | `... --run-type ablation --ablation-config '{"arm": "<name>"}' --baseline-ref-run-id <id>` |
 | Sanity-check a baseline before comparing against it | `python -m eval.retrieval.harness_cli validate-baseline --store-backend <b> --catalog uc13_ale --baseline-ref-run-id <id> --current-run-id <id>` |
-| Link a checklist score to a pipeline run | `evaluate_promotion(...)` — Python only, see §4.5 |
+| Link a checklist score to a pipeline run | `evaluate_promotion(...)` — Python only, see §4.5–§4.6 |
 | Open/list a known-gap ledger row | `python -m eval.retrieval.eval_debt open|list --company "<Name>" ...` |
 | Regenerate the one-page trust rollup | `python -m eval.retrieval.trust_statement generate --catalog uc13_ale --registry eval/program/registry.yaml` |
 
@@ -349,4 +446,10 @@ The eval system is a **measurement loop**, not a pass/fail gate you clear once. 
 | **Attestation** | The trust-statement's status word for a layer/row: `attested`, `partial`, `not_attested`, `known_gap`. |
 | **Exemption** | A recorded, approved reason why an intent/surface can't be honestly measured for a company. |
 | **Eval debt** | A tracked, named gap with an explicit condition for when it closes — the alternative to silently skipping something. |
-| **Promotion** | The decision of whether a new checklist score for an agent+company counts as a kept improvement over the prior one. |
+| **Promotion** | The decision of whether a new checklist score for an agent+company counts as a kept improvement over the prior one — see §4.5–§4.6. |
+| **Golden checklist** | Per-agent hand-written rubric (`eval/<AGENT>/golden_checklist_<slug>.md`) scored manually after a pipeline run; feeds the agent-fields layer (§2). |
+| **Write-on-promote** | Manifest `e2e_checklist_score` is written only when promotion succeeds (`baseline_bootstrap`, `promoted`, or `promotion_waived`); blocked regressions stay NULL. |
+
+---
+
+Sources: `.dev/specs/uc13-eval-harness-all-agents-spec.md` (verified against on-disk checklists under `eval/{FTA,BMA,CQA,KPI,QOE,PROFILER,LCA}/`, `eval/retrieval/promotion_gate.py`, `eval/retrieval/README.md` § record_e2e_linkage / promotion gate invocation, agent `GOLDEN_CHECKLIST_COVERAGE` constants).

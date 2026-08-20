@@ -1,6 +1,6 @@
 Section:      failure-taxonomy
-Version:      1.4.0
-Last updated: 2026-07-28
+Version:      1.5.0
+Last updated: 2026-08-20
 
 **Layer framework:**
 
@@ -14,8 +14,8 @@ L5  Infrastructure    — failures in external systems or environment
 **Additional layers:** none declared.
 
 ```
-Taxonomy version: 1.4.0
-Last updated:     2026-07-28
+Taxonomy version: 1.5.0
+Last updated:     2026-08-20
 
 L0.retrieval_wrong_document_set — Metadata or keyword routing selects chunks from the wrong subsidiary, period, or document class for the target company. Evidence: RT7 Route A on Elder Care returned Guided Living 2022 subsidiary monthly P&L (1/18 golden fields). **Route A removed M-RE1 T3** — class retained for historical RT7 evidence only.
 
@@ -42,6 +42,16 @@ L2.extraction_truncation_haiku — Haiku/Llama 8192 output cap silently truncate
 L3.flags_json_string — Delta flags column read as dict without json.loads when SQL returns serialized JSON string. Evidence: BMA generate_business_model_assessment R-3 crash; json.loads guard added.
 
 L3.promotion_regression — Golden checklist score drops below prior e2e baseline; evaluate_promotion returns promotion_blocked. Evidence: M3 test_promotion_gate.py; scorecards in .dev/scorecards/.
+
+L0.doc_id_join_orphan — chunks or doc_relevance rows with NULL/mismatched doc_id silently drop out of the retrieval JOIN after the M0 file_name→doc_id key migration. Evidence: measure_join_orphan_rate.py G4 gate; document_classifier._backfill_missing_doc_ids MERGE remediation; historical Elder Care baseline ~47.6% orphan by filename, refactor target 0%.
+
+L5.incremental_ingest_partial_state — A per-doc ingestion run halts mid-way (crash, timeout, manual interrupt) leaving doc_status rows PENDING/PARSING/EMBEDDING; VS sync watermark in sync_state.py must not advance past incomplete state. Evidence: M0-M4 status_store.py state machine design; DocWorker resumability is the mitigation, not a guarantee — operator must re-run to drain PENDING rows.
+
+L3.content_correctness_calibration_fail — Judge-vs-human calibration (CHK-26a) fails the C5 agreement threshold (verdict<0.80 exec_summary; value<0.90 or span<0.80 fta_numeric), keeping a surface pinned to the human rung instead of promoting to judge. Evidence: eval/content/agreement.evaluate_thresholds; RATIONALE.md M2 Option A — failed metrics are evidence-of-record only, no upgrade without fresh post-remediation calibration.
+
+L3.spot_check_incomplete_enumeration — A rung-3 human spot-check run closes without a verdict for every enumerated claim in the committed rubric manifest (HALT-15 whole-surface rule). Evidence: eval/content/spot_check.SpotCheckIngestionError fail-closed on missing/unknown claim_ids; test_spot_check.py.
+
+L0.rainmaker_no_cim_found — Rainmaker POC run finds no CIM (or CIM-equivalent) document in the SharePoint data room subset; run no-ops with completion_status=success and an explanatory error_message rather than falling back to full-pipeline ingestion. Evidence: cim_detection.py CIM_NAME_PATTERNS/CIM_EXCLUDE_PATTERNS; run_vdr_rainmaker.py skip branch.
 ```
 
 Code-observed failure modes not yet registered as cause classes:

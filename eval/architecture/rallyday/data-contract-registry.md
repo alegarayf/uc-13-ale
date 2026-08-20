@@ -1,6 +1,6 @@
 Section:      data-contract-registry
-Version:      1.12.0
-Last updated: 2026-07-28
+Version:      1.13.0
+Last updated: 2026-08-20
 
 ```
 Contract:       Rule (API entity)
@@ -685,5 +685,166 @@ Fields:
 Validators:     tests/test_golden_checklist_elder_care.py CHECKLIST_CASES hub — row count vs GOLDEN_CHECKLIST_COVERAGE
 Consumers:      evaluate_promotion operator workflow, .dev/scorecards/
 Last changed:   2026-07-21
+```
+
+```
+Contract:       doc_id (canonical document identity)
+Module:         databricks/jobs/scripts/doc_id.py
+Serialization:  Python function → md5 string; persisted as `doc_id STRING` column
+Version:        unversioned — tracked by git blame (M0 ingestion refactor)
+Purpose:        Single join key across ingestion tables, replacing the (file_name, company_name) composite key
+Fields:
+  - make_doc_id(catalog, schema, company, folder_path, file_name) -> str  (md5 hex digest)
+  - doc_id column added to: {catalog}.ingestion.chunks, {catalog}.ingestion.doc_relevance (classification), doc_status
+Validators:     document_classifier._backfill_missing_doc_ids MERGE fills NULL doc_id; doc_id_hash_catalog widget guards catalog-mismatch orphaning
+Consumers:      retrieval.py chunks↔doc_relevance JOIN, parse_manifest.py, ensure_coverage.py, ingestion_parser._resolve_force(), download_upload.py
+Last changed:   2026-08-06
+```
+
+```
+Contract:       doc_status (per-document ingestion state)
+Module:         databricks/jobs/scripts/status_store.py
+Serialization:  Delta table {catalog}.ingestion.doc_status
+Version:        unversioned — tracked by git blame (M0 ingestion refactor)
+Purpose:        Per-(company_name, doc_id) resumable ingestion state machine, replacing whole-company DELETE+APPEND
+Fields:
+  - company_name, doc_id, status: PENDING | PARSING | EMBEDDING | COMPLETE | FAILED | ZERO_CHUNKS
+  - updated_at, error_reason (on FAILED)
+Validators:     status_store.ensure_doc_status() DDL; DocWorker state transitions; tests/test_docworker_state_transitions.py
+Consumers:      doc_worker.DocWorker, ingestion_parser.main() (skip-if-COMPLETE), sync_state.py (has_newer_complete_than), measure_attestation.py (G5 gate)
+Last changed:   2026-08-06
+```
+
+```
+Contract:       sync_state (vector-index SyncGate watermark)
+Module:         databricks/jobs/scripts/sync_state.py
+Serialization:  Delta table {catalog}.ingestion.sync_state
+Version:        unversioned — tracked by git blame (M0 ingestion refactor)
+Purpose:        Gate VS Delta Sync so it only re-triggers after new COMPLETE doc rows since the last watermark
+Fields:
+  - catalog_scope, last_synced_at (or max COMPLETE doc updated_at at last advance)
+Validators:     ensure_sync_state() DDL; read_watermark/advance_watermark round-trip
+Consumers:      ingestion_parser.main() (skip_sync / sync_only operator knobs)
+Last changed:   2026-08-06
+```
+
+```
+Contract:       companies_vdr_history (VDR trigger/status row)
+Module:         rallyday_partners_llc.default.companies_vdr_history (no DDL in repo — table pre-exists)
+Serialization:  Delta table row
+Version:        unversioned — tracked by git blame; shared by run_vdr_pipeline.py and run_vdr_rainmaker.py
+Purpose:        Operator-submitted VDR trigger + lifecycle status for both the production docx pipeline and the Rainmaker POC
+Fields:
+  - processing_status: submitted → processing → done | error
+  - completion_status, error_message, results_location, updated_at, last_updated_by ("vdr-backend-ai" | "vdr-rainmaker-poc")
+Validators:     none automated — operator-observed; Rainmaker sets completion_status=success with explanatory error_message on no-CIM skip
+Consumers:      run_vdr_pipeline.py, run_vdr_rainmaker.py, VDR UI
+Last changed:   2026-08-19
+```
+
+```
+Contract:       eval.s2_scores (content-correctness append-only store)
+Module:         databricks/ddl/s2_scores.sql; eval/content/s2_writer.py
+Serialization:  Delta table {catalog}.eval.s2_scores
+Version:        spec §8.8/§9 (eval-consolidation program)
+Purpose:        Append-only claim-verdict + completion-marker rows for the three-rung content-correctness model (deterministic | judge | human)
+Fields:
+  - company, surface, run_id (YYYYMMDDTHHMMSSZ-<suffix>), run_ts, row_type: claim | completion_marker
+  - claim_id, verdict, rationale, writer: deterministic_verifier | judge_harness | human_spot_check
+  - magnitude/unit fields (rung-scoped), citation locator fields, judge_verdict_advisory
+Validators:     S2Writer claims-then-marker write ordering; S-61 fail-closed cited-chunk resolution; tests/test_s2_writer.py
+Consumers:      eval/content/legal_register_verifier.py, eval/content/spot_check.py, eval/retrieval/trust_statement.py (content_correctness tier derivation)
+Last changed:   2026-08-13
+```
+
+```
+Contract:       exec_summary_rubric_claims.json / fta_numeric_rubric_claims.json (whole-surface claim manifests)
+Module:         eval/content/exec_summary_rubric_claims.json, eval/content/fta_numeric_rubric_claims.json
+Serialization:  JSON, schema_version: 1
+Version:        1
+Purpose:        Committed whole-surface claim enumeration used by calibration and spot-check as the closed claim universe
+Fields:
+  - exec: 53 claims (exec.claim.001–053); source_query, created_at, generator, calibration_sample pointer, claims[{section, claim_id, claim_text, origin}]
+  - fta_numeric: 276 claims (fta.claim.001–276); surface, source_query, probe_report, claims[{claim_id, claim_text, source_doc, source_location}]
+Validators:     tests/test_exec_summary_spot_check_rubric.py — rubric ↔ manifest ↔ calibration sample ↔ source fixture alignment (HALT-15 coverage)
+Consumers:      spot_check.load_claim_enumeration, calibration.py, extract_rubric_manifests.py (regenerates from rubric markdown)
+Last changed:   2026-08-13
+```
+
+```
+Contract:       calibration_samples (*.yaml) — CHK-26a judge calibration input
+Module:         eval/content/calibration_samples/calibration_sample_exec_summary.yaml, calibration_sample_fta_numeric.yaml
+Serialization:  YAML, schema_version: 1 (Decimal-safe custom loader)
+Version:        1
+Purpose:        Operator-labeled samples used to calibrate the LLM judge against human verdicts (subset of the full claim manifest)
+Fields:
+  - exec_summary: N=28 — claim_id, claim_text, source_ref, verdict (supported | contradicted | unsupported)
+  - fta_numeric: N=30 — adds expected_value {magnitude: decimal string, unit}, expected_span {chunk_id, locator?}
+Validators:     agreement.evaluate_thresholds (verdict≥0.80 exec; value≥0.90, span≥0.80 fta_numeric); tests/test_calibration_dual_source.py, test_calibration_locator.py
+Consumers:      calibration.run_calibration
+Last changed:   2026-08-13
+```
+
+```
+Contract:       spot-check artifact family (*.presentation.yaml / *.verdicts.yaml / *.draft_audit.json / *.review_queue.md / *.escalations.md / *.failure_modes.md / *.m3_backlog.md / *.backfill.yaml)
+Module:         eval/content/spot-check/ (FORMAT.md is the authoritative contract doc)
+Serialization:  Mixed — YAML (schema_version: 1) for presentation/verdicts/backfill; JSON (schema_version: 1) for draft_audit; Markdown for review_queue/escalations/failure_modes/m3_backlog
+Version:        spot_check_presentation_v1 / spot_check_backfill_v1 (format tags); schema_version: 1
+Purpose:        Human rung-3 spot-check lifecycle artifacts — claim packet → operator adjudication → S2 write → audit trail
+Fields:
+  - presentation.yaml: enumerated claims + citations for operator review
+  - verdicts.yaml: operator verdicts, optional status: operator_approved
+  - draft_audit.json: agent draft verdicts + confidence + retrieval metadata (status: draft)
+  - backfill.yaml: historical citation backfill audit trail (supersedes prior run_id)
+Validators:     spot_check.write_spot_check_results — fail-closed on unknown claim_id / invalid verdict vocab / missing required rationale; tests/test_spot_check.py
+Consumers:      eval/content/spot_check.py prepare/ingest pipeline; operator review workflow
+Last changed:   2026-08-13
+```
+
+```
+Contract:       eval/program governance artifacts (registry.yaml, product_backlog.yaml, eval_debt.yaml, eval_exemptions.yaml, onboarding_queue.yaml, source_manifest.yaml)
+Module:         eval/program/registry.yaml, product_backlog.yaml, eval_debt/eval_debt.yaml, eval_exemptions.yaml, onboarding_queue.yaml, source_manifest.yaml
+Serialization:  YAML, schema_version: 1 (all six)
+Version:        1 (source_manifest.yaml additionally carries frozen_at; onboarding_queue.yaml carries generated_at)
+Purpose:        Durable cross-company program governance ledgers — work-item decisions/waivers (registry), Elder Care product signals (product_backlog), tracked-gap ledger with high-water-mark ratchet (eval_debt), intent-level corpus-gap annotations (eval_exemptions), ranked SharePoint onboarding queue (onboarding_queue), import-time provenance join partner for registry (source_manifest)
+Fields:
+  - registry: items[] {id, title, source_refs, source_id, disposition, stage, status, trigger, rationale, tshirt, evidence_refs, rung_assignments, assessment_metrics}
+  - product_backlog: items[] {id, company, surface, kind, severity, summary, evidence_refs, fix_lane, closes_when, registry_ref?}
+  - eval_debt: open_debt_high_water_mark, debts[] {id: "{company}:{surface|global}:{kind}", opened_at, evidence_refs, closes_when, closed_at?, closed_evidence_refs?}
+  - eval_exemptions: exemptions[] {company, intent_id, surface, coverage: eliminates|narrows|null, reason, corpus_evidence, approved_by}
+  - onboarding_queue: catalog, generated_at, companies[] {display_name, slug, chunk_count, ingest_completeness_ratio, doc_type_diversity_score, rank_score, wave, notes}
+  - source_manifest: frozen_at, sources[] {id, source_ref, title}
+Validators:     test_eval_program_registry.py, test_product_backlog_schema.py, test_eval_debt.py (HWM ratchet), test_onboarding_queue_schema.py
+Consumers:      eval_debt.py, exemptions.py, trust_statement.py, onboarding_cluster_submit.py, .dev/eval-program/build_onboarding_queue.py
+Last changed:   2026-08-19
+```
+
+```
+Contract:       gold_exclusions.yaml / kpi_claim_intent_map.yaml (company-scoped gold bootstrap inputs)
+Module:         eval/retrieval/gold/gold_exclusions.yaml, eval/retrieval/gold/kpi_claim_intent_map.yaml
+Serialization:  YAML
+Version:        unversioned — tracked by git blame
+Purpose:        gold_exclusions pre-populates per-intent aggregate_exclude/exclude_reason for company-specific corpus gaps; kpi_claim_intent_map is a fail-closed claim↔intent totality map for 7 KPI intents across four companies' industry-specific claim shapes (Excel/PDF backfill)
+Fields:
+  - gold_exclusions: companies.{slug}.excluded[] {intent_id, exclude_reason}
+  - kpi_claim_intent_map: claims{}, intents{} totality block
+Validators:     GoldLabelBootstrap._bootstrap_pass1 consumption; test_gold_exclusions.py
+Consumers:      eval/retrieval/gold/bootstrap.py, scope_resolver.is_gate_eligible
+Last changed:   2026-08-18
+```
+
+```
+Contract:       gold_labels/{clearsulting,gkf,spg}.yaml (multi-company gold coverage)
+Module:         eval/retrieval/gold_labels/clearsulting.yaml, gkf.yaml, spg.yaml (new; elder_care.yaml pre-existing)
+Serialization:  YAML — same schema as elder_care.yaml (GoldLabel per intent)
+Version:        unversioned — tracked by git blame
+Purpose:        Extends gold-label coverage from Elder Care only to four companies, all 57 intents, per eval-multi-company-coverage-expansion (M5)
+Fields:
+  - clearsulting: 28 ready, 9 partial, 20 bootstrap_failed, 13 aggregate_exclude
+  - gkf: 22 ready, 35 bootstrap_failed, 26 aggregate_exclude
+  - spg: 35 ready, 3 partial, 19 bootstrap_failed, 13 aggregate_exclude
+Validators:     tests/test_gold_bootstrap.py (registry-id parity, ingestion_snapshot consistency)
+Consumers:      harness.py compare/baseline, trust_statement.py (28-row domain = 4 companies × 7 layer/surface rows)
+Last changed:   2026-08-18
 ```
 

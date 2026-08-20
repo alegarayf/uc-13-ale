@@ -1,12 +1,12 @@
 # Trust statement (generated — do not edit)
 
-Generated: 2026-08-18T23:14:04.561747+00:00
+Generated: 2026-08-19T19:04:27.870847+00:00
 Generator: v1
 Catalog: uc13_ale
-Companies: clearsulting, elder_care
-Row count: 14
-Comparison epoch baseline: baseline_acf58bcc4968
-Ingestion snapshot: uc13_ale:55812:2026-08-11
+Companies: clearsulting, elder_care, gkf, spg
+Row count: 28
+Comparison epoch baseline: baseline_2fa3a9056bd0
+Ingestion snapshot: uc13_ale:55812:2026-08-19
 Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_source)
 
 ## Rows
@@ -30,14 +30,14 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
   method: null
   rung: null
   evidence_refs:
-  - baseline_acf58bcc4968
-  - uc13_ale:55812:2026-08-11
+  - baseline_2fa3a9056bd0
+  - uc13_ale:55812:2026-08-19
   - signoffs/T4-refresh.md
   - signoffs/T5-baseline.md
-  - eval/retrieval/reports/baseline_acf58bcc4968.json
+  - eval/retrieval/reports/baseline_2fa3a9056bd0.json
   known_gaps:
   - 'Gold epoch: 52 ready/partial + 5 annotated exclusions (no_citation_source) (@
-    uc13_ale:55812:2026-08-11)'
+    uc13_ale:55812:2026-08-19)'
   manual_check: null
 - company: clearsulting
   layer: agent_fields
@@ -107,7 +107,7 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
   evidence_refs: []
   known_gaps:
   - ingest completeness 98% (467/475 expected docs with chunks)
-  - Elder Care ingest gap
+  - Agent re-run Clearsulting / Elder Care / GKF post-M4 ingest
   manual_check: null
 - company: elder_care
   layer: retrieval
@@ -117,14 +117,14 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
   method: null
   rung: null
   evidence_refs:
-  - baseline_acf58bcc4968
-  - uc13_ale:55812:2026-08-11
+  - baseline_2fa3a9056bd0
+  - uc13_ale:55812:2026-08-19
   - signoffs/T4-refresh.md
   - signoffs/T5-baseline.md
-  - eval/retrieval/reports/baseline_acf58bcc4968.json
+  - eval/retrieval/reports/baseline_2fa3a9056bd0.json
   known_gaps:
   - 'Gold epoch: 52 ready/partial + 5 annotated exclusions (no_citation_source) (@
-    uc13_ale:55812:2026-08-11)'
+    uc13_ale:55812:2026-08-19)'
   manual_check: null
 - company: elder_care
   layer: agent_fields
@@ -194,5 +194,160 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
   - s2_scores:20260813T185002Z-5a1b
   known_gaps:
   - 3/53 claims failed on exec_summary
+  manual_check: null
+- company: gkf
+  layer: ingest_completeness
+  surface: null
+  attestation: attested
+  reason: null
+  method: sql_chunk_count
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: gkf
+  layer: retrieval
+  surface: null
+  attestation: attested
+  reason: null
+  method: null
+  rung: null
+  evidence_refs:
+  - baseline_2fa3a9056bd0
+  - uc13_ale:55812:2026-08-19
+  - signoffs/T4-refresh.md
+  - signoffs/T5-baseline.md
+  - eval/retrieval/reports/baseline_2fa3a9056bd0.json
+  known_gaps:
+  - 'Gold epoch: 52 ready/partial + 5 annotated exclusions (no_citation_source) (@
+    uc13_ale:55812:2026-08-19)'
+  manual_check: null
+- company: gkf
+  layer: agent_fields
+  surface: null
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: gkf
+  layer: e2e
+  surface: null
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: gkf
+  layer: content_correctness
+  surface: fta_numeric
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: gkf
+  layer: content_correctness
+  surface: legal_register
+  attestation: known_gap
+  reason: corpus_thin
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: gkf
+  layer: content_correctness
+  surface: exec_summary
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: spg
+  layer: ingest_completeness
+  surface: null
+  attestation: partial
+  reason: incomplete_corpus
+  method: sql_chunk_count
+  rung: null
+  evidence_refs: []
+  known_gaps:
+  - ingest completeness 100% (362/363 expected docs with chunks)
+  manual_check: null
+- company: spg
+  layer: retrieval
+  surface: null
+  attestation: attested
+  reason: null
+  method: null
+  rung: null
+  evidence_refs:
+  - baseline_2fa3a9056bd0
+  - uc13_ale:55812:2026-08-19
+  - signoffs/T4-refresh.md
+  - signoffs/T5-baseline.md
+  - eval/retrieval/reports/baseline_2fa3a9056bd0.json
+  known_gaps:
+  - 'Gold epoch: 52 ready/partial + 5 annotated exclusions (no_citation_source) (@
+    uc13_ale:55812:2026-08-19)'
+  manual_check: null
+- company: spg
+  layer: agent_fields
+  surface: null
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: spg
+  layer: e2e
+  surface: null
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: spg
+  layer: content_correctness
+  surface: fta_numeric
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: spg
+  layer: content_correctness
+  surface: legal_register
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
+  manual_check: null
+- company: spg
+  layer: content_correctness
+  surface: exec_summary
+  attestation: not_attested
+  reason: no_completed_run
+  method: null
+  rung: null
+  evidence_refs: []
+  known_gaps: []
   manual_check: null
 ```

@@ -1,6 +1,6 @@
 Section:      external-input-sources
-Version:      1.1.0
-Last updated: 2026-07-28
+Version:      1.2.0
+Last updated: 2026-08-20
 
 ```
 Source:               SharePoint data room folders (per company)
@@ -84,6 +84,18 @@ Surfaces NOT extracted: Raw VDR source files (ingestion uses SharePoint path sep
 Volume:               Low — on-demand per VDR submission
 Sensitivity:          Client-facing diligence package delivery
 Owner module:         databricks/jobs/scripts/run_vdr_pipeline.py
+```
+
+```
+Source:               SharePoint data room CIM subset (Rainmaker POC scoping)
+Format:               Same PDF/Excel/Word/CSV as full data room, but filtered to CIM-only via cim_detection.py filename heuristics
+Parser:               download_upload.apply_file_whitelist -> ingestion_parser.py (scoped to file_whitelist), against sandbox catalog uc13_preview
+Trust level:          partially trusted — same as full data room; scoping does not change trust, only volume
+Surfaces extracted:   Same extraction surfaces as full ingestion, restricted to CIM document(s) only
+Surfaces NOT extracted: Non-CIM data room files (Teaser/IOI/NDA explicitly excluded by CIM_EXCLUDE_PATTERNS); triggers no-op skip if no CIM found
+Volume:               Low — one document (or small CIM set) per Rainmaker POC run
+Sensitivity:          Same as full data room — confidential PE diligence material
+Owner module:         databricks/jobs/scripts/cim_detection.py, run_vdr_rainmaker.py
 ```
 
 ```

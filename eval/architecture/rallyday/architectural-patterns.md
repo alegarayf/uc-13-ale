@@ -1,6 +1,6 @@
 Section:      architectural-patterns
-Version:      1.5.0
-Last updated: 2026-07-28
+Version:      1.6.0
+Last updated: 2026-08-20
 
 ```
 Pattern:      FTA retrieval adapter boundary
@@ -90,6 +90,36 @@ Falsifier:    DATA_STORE=databricks with missing DATABRICKS_* env still construc
 Pattern:      UC13 ingestion mode separation
 Description:  Full rebuild (ingestion_parser.main DELETE+APPEND) vs append-only gap fill (ensure_coverage.ingest_missing) must never be mixed in the same remediation step.
 Falsifier:    ensure_coverage called without prior get_coverage_report showing gaps
+```
+
+```
+Pattern:      Per-doc resumable ingestion (M0 incremental refactor)
+Description:  ingestion_parser.main() must never DELETE+APPEND a whole company's chunks/embeddings. Work is enumerated by parse_manifest.ParseManifest.build(), executed one doc at a time by doc_worker.DocWorker, and state tracked per (company_name, doc_id) in status_store.py. VS Delta Sync is gated behind sync_state.py's watermark, not run unconditionally every parse.
+Falsifier:    rg 'DELETE FROM.*chunks|DELETE FROM.*embeddings' databricks/jobs/scripts/ingestion_parser.py — should not match on the default path; tests/test_docworker_state_transitions.py
+```
+
+```
+Pattern:      doc_id as the sole chunks↔doc_relevance join key
+Description:  All new code joining chunk rows to classification/coverage rows must use doc_id (from doc_id.make_doc_id), not (file_name, company_name). Classifiers must backfill doc_id via MERGE, not leave it NULL.
+Falsifier:    rg 'file_name.*=.*filename|c\.file_name = r\.filename' databricks/agents/shared/retrieval.py — should not match on the production JOIN path; tests/test_measure_join_orphan_rate.py
+```
+
+```
+Pattern:      Rainmaker POC catalog sandboxing
+Description:  run_vdr_rainmaker.py must scope all ingestion and DAG calls to PREVIEW_CATALOG ("uc13_preview"), never the production catalog default. CIM-first scoping (file_whitelist) must be threaded through download_upload/ingestion_parser, not silently widened to the full data room.
+Falsifier:    rg 'catalog\s*=\s*"uc13"' databricks/jobs/scripts/run_vdr_rainmaker.py — should not match; PREVIEW_CATALOG constant must be the sole catalog value used
+```
+
+```
+Pattern:      eval/content writes only through S2Writer (append-only, claims-then-marker)
+Description:  Any new content-correctness verifier (deterministic, judge, or human) must write via eval/content/s2_writer.S2Writer, never with a bespoke INSERT. Claim rows are written before the completion marker for a given run_id; no partial/duplicate run_id writes.
+Falsifier:    rg 'INSERT INTO.*s2_scores' eval/ — matches should appear only inside s2_writer.py; tests/test_s2_writer.py completion-marker sequencing test
+```
+
+```
+Pattern:      eval/program governance ledgers are hand-authored except trust_statement.md
+Description:  registry.yaml, product_backlog.yaml, eval_debt.yaml, eval_exemptions.yaml, onboarding_queue.yaml, source_manifest.yaml are operator/PR-edited; trust_statement.md is the one generated artifact in eval/program/ and must be regenerated via `python -m eval.retrieval.trust_statement generate`, never hand-edited.
+Falsifier:    Manual edit to trust_statement.md diverges from a fresh `generate` run with no other inputs changed
 ```
 
 Code-derived candidates still requiring user-supplied falsifiers:

@@ -277,3 +277,67 @@ If any step during a walk requires **design judgement** — choosing a new metri
 3. Resume the walk only after the registry disposition is resolved and this runbook is updated in a follow-on subtask.
 
 Program-wide deferrals belong in the program registry. Company-scoped onboarding shortfalls with a trust-row citation belong in the eval-debt ledger (step 7).
+
+---
+
+## Multi-company onboarding lessons
+
+Operator-facing lessons from the Clearsulting pilot (M4), Chip B 4-company agent validation, and gold-bootstrap handoff work. These complement the step-by-step walk above; they do not replace any step.
+
+### INFO vs gated G1 scoring vocabulary
+
+Three different "bootstrap" labels appear in this repo. Do not conflate them:
+
+| Term | What it is | Where |
+|------|------------|-------|
+| **Retrieval gold bootstrap** | Citation-backed `positive_chunk_ids` per `intent_id` for the harness | Step 3 — `eval.retrieval.gold.bootstrap` → `gold_labels/{slug}.yaml` |
+| **G1 `INFO (baseline_bootstrap)`** | Golden-checklist score with **no PASS/REGRESSION gate** — first post-merge evidence only | `.dev/g1_score_all_agents.py` when `BASELINES[company_slug][agent]` is `None` |
+| **Agent `baseline_bootstrap`** | First scored checklist accepted by `evaluate_promotion` when no prior ops-store baseline exists | Step 6 — `PromotionResult.status == "baseline_bootstrap"` |
+
+**G1 gate semantics:** When a company has a declared golden floor (Elder Care today), the scorer emits **PASS** or **REGRESSION** against that floor. When no floor is configured (`None`), the scorer emits **`INFO (baseline_bootstrap)`** — the score is recorded for evidence, but there is no pass/fail verdict. That is expected for a company with no prior golden checklist, not a failure mode.
+
+**Why it matters:** A Chip B scorecard showing `INFO (baseline_bootstrap)` for GKF or SPG is correct first-run labeling. It is **not** evidence that retrieval gold bootstrap (step 3) failed or leaked into agent validation.
+
+### No floor without a prior baseline
+
+**Rule:** Do not invent a comparison bar. Absence of a prior baseline is an explicit design decision — informational scores, not fabricated PASS/FAIL.
+
+1. **Do not compare against Elder Care.** The scorer previously hardcoded Elder Care golden floors; running another company's rows through those floors produces false PASS/REGRESSION verdicts against the wrong company's bar.
+2. **Smoke-tier scorecards are not golden floors.** Clearsulting's 2026-07-07 smoke-tier `3/3` INDEX rows pre-date post-merge fixes and a different evidence tier. Treat them as historical smoke evidence, not as `evaluate_promotion` priors.
+3. **Skip `evaluate_promotion` when inputs are missing.** Step 6 already defers promotion when `candidate_score`, `candidate_total`, or a pipeline `run_id` cannot be supplied honestly. The same principle applies to G1 scoring: no valid prior → document-only scorecards with `INFO` gate, not gated PASS/REGRESSION.
+4. **Open eval-debt instead of reusing another company's scores.** Missing per-company golden checklists are onboarding shortfalls (step 7), not reasons to borrow Elder Care numbers.
+
+When baseline evidence tiers differ across companies (golden vs smoke vs none), default to **no gate** until an operator explicitly promotes a floor.
+
+### Company-scoped gold exclusions
+
+**Rationale:** Gold exclusion and exemption machinery operates in **`(intent_id × company)`** space — bootstrap, disjointness tests, harness rollups, and claim-map resolution all consume per-company gold. A config artifact keyed by `intent_id` alone is a coupling surface: changing exclusion for one company can silently rewrite another company's committed gold annotations.
+
+**Structural fix:** `eval/retrieval/gold/gold_exclusions.yaml` is company-scoped (`companies.{slug}.excluded[]`). Step 4 exemptions in `eval/program/eval_exemptions.yaml` are also keyed per company. Do not add global intent-only exclusion rows.
+
+**Clearsulting illustrations:**
+
+| Defect class | What happened | Honest handling |
+|--------------|---------------|-----------------|
+| **Bloated `filename_closure`** | Twelve intents with 1,000+ positives each — aggregate recall@10 looks green while per-intent max recall@10 is ~1% and not interpretable | Registry disposition (`GAP-M4-1-clearsulting-bloated-filename-closure`), eval-debt rows, baseline labelling at promotion — not re-bootstrap or pretend the metric is meaningful per intent |
+| **KPI PDF corpus gap** | Warehouse citations use `Section: {title}[, Page N]` while chunk `section_header` stores title only; some cited sections (e.g. `Other EBITDA considerations`) have no matching parsed header — content lives under `Overview` / `Description of adjustment` | `overlay_mismatch` exemption (step 4), not a bootstrap bug; resolve what format allows, degrade honestly what overlay forbids |
+
+When a shared hub artifact looks "transitive" but is consumed in a two-dimensional context, treat it as a coupling surface regardless of import depth.
+
+### Chip A (gold bootstrap) vs Chip B (4-company e2e smoke)
+
+Historical program chips map onto this runbook as follows:
+
+| | **Chip A — retrieval gold bootstrap** | **Chip B — 4-company agent e2e smoke** |
+|---|--------------------------------------|----------------------------------------|
+| **Purpose** | Citation-backed gold labels + harness baseline for retrieval eval | Post-merge pipeline agent validation on thin/large corpora |
+| **Runbook equivalent** | Steps 2–5 (preflight → gold bootstrap → exemptions → harness baseline) | **Not in this runbook** — separate DAG e2e + `g1_score_all_agents.py --company` |
+| **Commits** | `eval/retrieval/gold_labels/{slug}.yaml`, harness baseline evidence | Scorecards under `.dev/scorecards/`; no gold YAML unless escalated |
+| **Required for new company eval onboarding?** | **Yes** — steps 3 and 5 are the parameterized Chip A path | **No** — optional unless validating merged agent code (CQA/KPI/QoE depth), refreshing `analysis.*` citation rows before citation backfill, or operator explicitly wants post-merge smoke evidence |
+| **Prerequisite link** | CQA/KPI analysis rows should be post-merge if citation backfill depends on them | Fresh analysis rows per company enable future gold bootstrap but do not require it |
+
+**When to run Chip B work for a new company:** After ingestion is stable, when merge-validation confidence is needed across corpus shapes (thin Clearsulting, LEGAL-heavy SPG scale), or when step 3 citation backfill requires fresh agent runs. Chip B does **not** substitute for steps 3–5; conversely, completing steps 3–5 does **not** close Chip B agent-validation debt.
+
+**Phase C escalation (optional):** Multi-company committed gold YAML beyond the company being onboarded requires explicit operator escalation — infrastructure supports `default_gold_path(company_slug)`, but CI coverage tests and promotion policy apply per committed file.
+
+Sources: `.dev/retrospectives/learning/2026-08-15-eval-consolidation-m4-onboarding-runbook.md`, `.dev/retrospectives/learning/2026-08-13-chip-b-4company-agent-validation.md`, `.dev/archive/GOLD_LABEL_BOOTSTRAP_HANDOFF.md`

@@ -1,6 +1,6 @@
 Section:      open-questions
-Version:      1.5.0
-Last updated: 2026-07-28
+Version:      1.6.0
+Last updated: 2026-08-20
 
 ```
 Question:     Will Garden rules (python_source) be executed at runtime against opportunity_silver, and if so where?
@@ -80,11 +80,29 @@ Note:         sqlite Phase 3 closed on store_backend=delta; pipeline_thread wiri
 Question:     G6 gold-label bootstrap for 8 new CQA/KPI retrieval intents — when to re-run elder_care.yaml bootstrap?
 Impact:       intent_registry.yaml (57 intents), harness baseline compare, RegistryHashMismatchError risk
 Closes when:  Operator completes GOLD_LABEL_BOOTSTRAP_HANDOFF.md procedure and promotes updated gold snapshot
-Note:         elder_care.yaml reverted at hector-merge e2e stop; G6 explicitly deferred.
+Note:         elder_care.yaml reverted at hector-merge e2e stop; G6 explicitly deferred. Update 2026-08-20: gold_labels/ now covers all 57 intents for elder_care, clearsulting, gkf, spg via GoldLabelBootstrap CLI + company-scoped gold_exclusions.yaml — bootstrap mechanism itself is current, but whether the specific 8 hector-merge intents are fully clean in elder_care.yaml is unconfirmed.
 ```
 
 ```
 Question:     Should Profiler be added to AGENT_REGISTRY or remain a separate pre-DAG job?
 Impact:       DAG e2e freshness of company_profile; Profiler golden checklist vs pipeline run_id linkage
 Closes when:  Product/operator decision on profiler-in-DAG vs manual Cell run
+```
+
+```
+Question:     When (if ever) does the Rainmaker POC (run_vdr_rainmaker.py, vdr_rainmaker_poc.yml) move from manual/no-UI-trigger to a wired VDR UI path, and does it replace or coexist with the production run_vdr_pipeline.py (.docx) flow?
+Impact:       databricks/workflows/vdr_rainmaker_poc.yml, VDR UI trigger wiring, companies_vdr_history last_updated_by convention, module-map dual-VDR-path note
+Closes when:  Product decision on Rainmaker POC promotion path is made and documented; job name vs notebook path divergence noted in databricks/CLAUDE.md (job 617196299594076) is resolved
+```
+
+```
+Question:     Should GKF and SPG (smoke-tier per eval/eval_program_playbook.md) receive full retrieval harness baselines in trust_statement.md before any promotion decision, or remain gold-label-only indefinitely?
+Impact:       eval/retrieval/trust_statement.py e2e/agent_fields row derivation, eval/program/onboarding_queue.yaml wave sequencing, product_backlog.yaml scope
+Closes when:  eval-multi-company-coverage-expansion (M5) charter or a successor explicitly schedules GKF/SPG retrieval baseline runs
+```
+
+```
+Question:     Who owns lowering eval_debt.yaml's open_debt_high_water_mark as tracked debts close, and on what cadence?
+Impact:       eval/program/eval_debt/eval_debt.yaml ratchet semantics, eval_debt.assert_ledger_ratchet gate behavior
+Closes when:  Onboarding runbook or a program charter documents an explicit HWM review cadence/owner (currently a manual, undocumented field per exploration)
 ```

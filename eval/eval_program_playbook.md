@@ -31,6 +31,8 @@ Trust is **layered**, not a single score. A company can have strong retrieval an
 
 ### 1.2 Verification rungs (content correctness only)
 
+Historical rationale for these assignments: [`eval/content/RATIONALE.md`](content/RATIONALE.md).
+
 | Rung | Meaning | Surfaces today |
 |------|---------|----------------|
 | **deterministic** | Code verifier, no LLM judgment | `legal_register` |
@@ -439,3 +441,129 @@ python -m eval.retrieval.eval_debt list --company "<Name>"
 | After major program closeout | This playbook §2 matrix and §7 queue |
 
 **Last consolidated:** 2026-08-18 (from eval program state through M4 Clearsulting pilot + M3 S2 Elder Care).
+
+---
+
+## Reading retrieval metrics honestly
+
+Retrieval numbers are easy to misread if you treat them like a single product KPI. This section is operator guidance before you interpret a harness report, compare baselines, or explain recall to stakeholders.
+
+### Gold epoch is a first-class boundary
+
+Gold labels are not patchable metadata — they are pinned to a **corpus epoch**. An epoch is the triple `catalog:chunk_count:run_date` (e.g. `uc13_ale:55812:2026-08-11`). The chunk count is a hard assertion against live warehouse state; the date is provenance from the refresh run, not something you guess ahead of time.
+
+| Event | Why epoch matters |
+|-------|-------------------|
+| Ingestion rebuild (e.g. 2026-08-05 Elder Care) | ~98% of committed positive chunk ids can dangle overnight — incremental yaml edits do not repair this |
+| Full gold refresh (M1 / Amendment A2) | All intents re-ground in **one** event; manifest, fixture, baseline, and trust artifacts must share one snapshot pin |
+| Partial rebootstrap (e.g. "just the 8 bloated intents") | Leaves other intents on stale closure/citation mixes — epoch coherence becomes unprovable |
+
+`compare()` against a baseline from a different ingestion snapshot correctly raises `IngestionSnapshotMismatchError`. That is not a harness bug — it is the guard doing its job.
+
+**Rule:** When the corpus moves, assume a chartered full refresh and re-pin everything. Do not hand-edit positives to "fix" a drifted epoch.
+
+### Cross-epoch baseline comparison is invalid
+
+Control baselines are valid **only within the same registry hash + gold snapshot + ingestion snapshot**. Promoting a new baseline supersedes the prior pin — it does not retro-compare recall@10 across eras.
+
+| Baseline transition | Why cross-compare fails |
+|---------------------|-------------------------|
+| `baseline_299063e87806` → `baseline_1aeb0ace584a` (2026-07-15) | Registry change (`legal.insurance` workstream filter) → `RegistryHashMismatchError` if you try Jul 3 vs post-fix |
+| `baseline_1aeb0ace584a` → `baseline_544eb3f2a0e2` (2026-07-30) | 49 → 57 intents **and** T2 full-registry rebootstrap reworked ground truth for 41/49 pre-existing intents |
+| Chip A → M1 comparison epoch (`baseline_acf58bcc4968`) | Post-2026-08-05 corpus + citation_backfill epoch — not comparable to closure-heavy pre-M1 gold |
+
+Attempting retro-compare across these boundaries produces misleading drift narratives. Enhancement and ablation runs must pin `baseline_ref_run_id` to a baseline promoted **under the current registry hash** — omit `--baseline-ref-run-id` only when establishing a fresh control baseline, not when diagnosing regression.
+
+**Do not attribute aggregate recall shifts to ranker quality alone.** T2 rebootstrap alone cut total positive chunk ids ~54% (51,987 → 23,721) by replacing broad `filename_closure` with `citation_backfill` — a precision upgrade, not a yaml typo.
+
+### Bloated gold and the bench recall ceiling
+
+Some intents are **mathematically capped** regardless of retriever quality. When gold positives come from `filename_closure` at O(1000+) chunks, recall@10 ≈ 10/N — a perfect retriever that returns only cited chunks can score ~0% against that gold. That is eval theater, not product signal.
+
+| Pattern | Symptom | Correct response |
+|---------|---------|------------------|
+| `filename_closure` with 1k+ positives | Per-intent recall@10 not interpretable | Re-bootstrap with `citation_backfill`, or file `aggregate_exclude` in [`retrieval/gold/gold_exclusions.yaml`](retrieval/gold/gold_exclusions.yaml) |
+| KPI item-12 intents unmappable to claims | Positive chain falls through to closure fallback | Intent must be claim-mapped **or** excluded before gold write — no third state |
+| `kpi.retrieve_bench_and_capacity` (bench) | 2,925 closure positives → recall@10 ceiling ≈ **0.34%** | Operator disposition **(a)** at T12: Tier-3 spec note + accepted residual; gold row unchanged; **not** in aggregate KPI recall |
+
+Seven of eight KPI item-12 intents were resolved (two `citation_backfill`, five `aggregate_exclude`). Bench is the documented exception pending Tier-3 spec absorption (`ESC-T12-1`). Per-intent rows for bench in `baseline_acf58bcc4968` were computed against closure gold — expected until an explicit operator re-baseline after spec change.
+
+**When reading aggregate recall:** exclude `aggregate_exclude` intents and bloated closure rows. Read **per-intent** deltas on gate-eligible intents only (see §4.5, §7.2).
+
+### Baseline promotion and recovery when numbers look wrong
+
+| Step | Action |
+|------|--------|
+| **Establish control** | `harness_cli run --run-type baseline` with **no** `--baseline-ref-run-id`; record new `run_id` |
+| **Validate before compare** | `validate-baseline` on the pinned control |
+| **Enhancement loop** | Pin same-epoch `baseline_ref_run_id`; read per-intent deltas, not aggregate alone |
+| **Promote successor** | New baseline supersedes old — document waiver; do not cross-compare recall@10 across registry/gold epochs |
+
+When a baseline run fails gates or per-intent recall looks impossibly low, check infrastructure before blaming the ranker:
+
+1. **Stale vector search index** — Delta has embeddings but VS does not serve them (symptom: wrong doc types returned, sim scores ~0.25 vs ~0.45). Fix: **sync-only** index wait (`ingestion_parser._wait_for_index_sync`) — not a full parser rebuild.
+2. **Registry vs classifier mismatch** — e.g. COI tagged `BACKGROUND` but intent filter is `LEGAL` only → positives filtered out even when index is healthy. Fix intent registry / extractor / agent filter alignment, then promote a **new** baseline (registry hash changed — prior baseline not cross-comparable).
+
+Red herrings: `gate_pass: null` on baseline manifests is normal; empty `retrieval_harness_deltas` after manual `compare()` means deltas were not persisted — use `store.append_deltas()` if you need them in ops.
+
+Sources: `.dev/retrospectives/learning/2026-08-13-eval-consolidation-m1-metric-guardrail-hardening.md`, `signoffs/T12-bench-disposition.md`, `.dev/archive/harness-baseline-2026-07-15.md`, `.dev/archive/harness-baseline-2026-07-30.md`
+
+---
+
+## Why these rubrics
+
+Golden checklists (G1) score **field presence and structure** against client product intent — not deal verdicts. When you design a checklist for the next agent, ground it in Rallyday's associate model and the workstream contracts below rather than inventing pass/fail semantics.
+
+### What the client is buying
+
+Austin's bar (Rallyday / PE diligence): an **associate doing first-pass diligence** — orient to the business, test whether data supports the story, surface red flags, generate diligence questions, help form an initial underwriting view. Analysis beats download automation; every fact needs source-linked provenance with confidence.
+
+Golden checklists mirror **Phase 3 workstream output contracts**, not Phase 4/5 synthesis (Cross-Analysis and Orchestrator are not built). Each checklist row asks: did the agent populate the structured facts, flags, citations, and gaps the spec expects for that diligence category?
+
+### Flags, not verdicts
+
+| Design rule | Implication for rubrics |
+|-------------|-------------------------|
+| Threshold breach = **flag with context**, presented neutrally | Checklist items verify flag **presence** and field shape — not whether the deal should proceed |
+| **Never block a deal** | No rubric row should encode go/no-go; Red/Yellow/Green are directional signals |
+| No composite deal scores | G1 pass counts are per-agent structural floors, not a rolled-up trust score |
+| Phase 1: **stated metrics as truth** | Rubrics check extraction of what documents say — not recomputed NRR, DSO, cohort math |
+| Prefer diligence questions over heavy compute | Missing data → `_data_room_gaps` / information requests, not inferred fills |
+
+Negative vocabulary in product: Red/Yellow flags, data room gaps, reconciliation mismatches, reduced confidence (e.g. non-banked without CIM). Positive vocabulary: Green flags, Supported assumptions, corroborated citations — evidence for the deal team, not automated approval.
+
+### Austin categories → agents → checklist files
+
+Austin's nine diligence categories map to PE spec workstream agents. G1 golden checklists exist per built agent (Elder Care reference today):
+
+| Austin § | Category | Agent | Eval checklist path |
+|----------|----------|-------|---------------------|
+| 1 | Business model overview | Business Model (BMA) | `eval/BMA/golden_checklist_<slug>.md` |
+| 2 | Customer quality & concentration | Customer Quality (CQA) | `eval/CQA/...` |
+| 3 | Financial trend analysis | Financial Trends (FTA + sub-agents) | `eval/FTA/...` |
+| 4 | KPI & operating metrics | KPI | `eval/KPI/...` |
+| 5 | Contract & legal risk | Legal & Contracts (LCA) | `eval/LCA/...` |
+| 6 | Quality of revenue & earnings | Quality of Earnings (QoE) | `eval/QOE/...` |
+| 7 | Forecast & underwriting | *(partial — FTA `opex_sub_agent`)* | Forecast rows live under FTA rubric scope |
+| 2 (parallel) | Company / industry context | Company Profiler | `eval/PROFILER/...` |
+| — | Retrieval-facing probes | *(harness intents, not a Phase 3 agent)* | Separate retrieval layer — do not conflate with G1 |
+
+Categories 8–9 (consolidated red flags, IC deliverables) defer to future Cross-Analysis / Orchestrator — **not** current golden checklist scope. Per-agent flags and gaps are in scope; consolidated top-10 issues and memo assembly are not.
+
+### Shaping checklist rows for a new agent
+
+When extending G1 to a new company or agent, align rows to the spec contract:
+
+| Output element | What to check in G1 | What G1 does **not** prove |
+|----------------|---------------------|----------------------------|
+| Structured facts (JSON tables, registers) | Expected fields populated vs floor | Values are correct vs source documents |
+| `flags` (`Flag`: metric, value, threshold, severity, note, source_doc, confidence) | Flag objects present where thresholds apply | Materiality judgment |
+| `citations` (document, location, quote, confidence) | Citation coverage on key claims | Claim-level S2 correctness (human/judge rung) |
+| `data_room_gaps` | Missing expected docs surfaced | Seller will provide them |
+| Extraction discipline | Null when absent; no invented reconciliation | Cross-document reconciliation (deferred) |
+
+Industry overlays (`tech_services`, `healthcare`, etc.) change **which thresholds and KPI sets apply** — checklist variants should follow `company_profiler` overlay, not a single generic template. Agent hand-offs (e.g. CQA `contract_trigger_list` → Legal, FTA addbacks → QoE) inform **cross-agent consistency expectations** in registry notes, not single-checklist pass/fail.
+
+**Full authority** — thresholds, clause rules, addback tiers, forecast credibility rubric, build sequence, and runtime `Flag`/`Citation` schema: see [`.dev/uc13-client-guidelines-distillation.md`](../.dev/uc13-client-guidelines-distillation.md) (primary sources: `databricks/Guidelines/Austin_email_guidelines.txt`, `PE_Diligence_Agent_Spec_v2.pdf`).
+
+Sources: `.dev/uc13-client-guidelines-distillation.md`

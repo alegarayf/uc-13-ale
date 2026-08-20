@@ -2068,3 +2068,106 @@ items:
   - .dev/archive/company-analysis-2026-07-17/tmp_e2e_readiness_probe.json
   rung_assignments: {}
   assessment_metrics: {}
+- id: GAP-M5-1-onboarding-driver-race-condition
+  title: 'Onboarding cluster driver-path race condition — concurrent bootstrap/harness-baseline
+    lanes silently contaminated each other via a shared, non-company-scoped workspace
+    driver path. Fixed 2026-08-19 by scoping driver filenames per company slug.'
+  source_refs:
+  - .dev/wave1-rebaseline-2026-08-19/CRITICAL-race-condition-finding.md
+  - .dev/wave1-rebaseline-2026-08-19/manifest.md
+  - .dev/wave1.5-remediation-2026-08-19/manifest.md
+  source_id: null
+  disposition: resolved
+  stage: S3
+  status: n/a
+  trigger: Wave 1 measurement-reset session (2026-08-19) — 4 concurrent onboarding lanes
+    triggered silent cross-company contamination in _upload_driver()
+  rationale: 'Root cause: eval/program/onboarding_cluster_submit.py _upload_driver()
+    wrote bootstrap/harness driver scripts to a fixed path (/Users/{user}/onboarding_bootstrap_runner.py,
+    /Users/{user}/onboarding_harness_runner.py) with no company scoping. Concurrent
+    lanes overwrote each other before serverless cold-start read the file, causing
+    jobs to silently execute against the wrong company while run_name/DATABRICKS_RUN_ID
+    still displayed the intended company. Confirmed via direct log inspection: Round
+    2 bootstrap (2026-08-19 14:27-14:37) showed 3 of 4 concurrent lanes (elder_care,
+    clearsulting, gkf) executing as spg. Fix: driver filenames now scoped by
+    _slug(company), e.g. onboarding_bootstrap_runner_{slug}.py / onboarding_harness_runner_{slug}.py
+    (two call sites in run_bootstrap()/run_harness_baseline()). Verified fix in
+    Wave 1.5: GKF and Clearsulting bootstrap lanes ran concurrently post-fix with
+    no contamination (GKF harness verified company_name=GKF; Clearsulting bootstrap
+    company-scoped path confirmed on both attempts).'
+  tshirt: null
+  evidence_refs:
+  - eval/program/onboarding_cluster_submit.py
+  - .dev/wave1-rebaseline-2026-08-19/CRITICAL-race-condition-finding.md
+  - .dev/wave1-rebaseline-2026-08-19/manifest.md
+  - .dev/wave1.5-remediation-2026-08-19/manifest.md
+  - .dev/wave1.5-remediation-2026-08-19/gkf.md
+  - .dev/wave1.5-remediation-2026-08-19/clearsulting.md
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-M5-3-onboarding-export-gold-encoding-fix
+  title: 'Onboarding export-gold encoding-safe download — local gold YAML pulled from workspace
+    via binary write_bytes(), eliminating Windows cp1252 0x97 corruption of U+2014 em dashes
+    in bootstrap notes. Fixed 2026-08-19.'
+  source_refs:
+  - .dev/wave1.5-remediation-2026-08-19/0x97-byte-investigation.md
+  - .dev/wave1.6-remediation-2026-08-19/phase1-validation.md
+  - .dev/wave1.6-remediation-2026-08-19/clearsulting.md
+  source_id: null
+  disposition: resolved
+  stage: S3
+  status: n/a
+  trigger: Wave 1.5 harness HALT — UnicodeDecodeError on byte 0x97 in elder_care.yaml and
+    clearsulting.yaml; root-caused as text-mode local write without encoding=utf-8 pin
+  rationale: 'Root cause: no encoding-safe local download path existed in onboarding_cluster_submit.py
+    prior to Wave 1.6. Ad-hoc per-lane workspace→laptop pulls (documented operationally for SPG in
+    Wave 1.5) used text-mode writes that mis-encoded U+2014 em dashes from KPI citation claim labels
+    as raw byte 0x97 (Windows-1252). Bootstrap writer (write_gold_labels) was already correct
+    (encoding=utf-8); ingestion.chunks confirmed clean (no char(151)). Fix: added export_gold()
+    subcommand using workspace.export() + base64 decode + Path.write_bytes() with UTF-8 validation
+    before and after write. Verified on Elder Care (0 raw 0x97, 13 UTF-8 em dashes, harness
+    baseline_2fa3a9056bd0 complete) and Clearsulting (0 raw 0x97, 18 UTF-8 em dashes, harness
+    baseline_488f70f13570 complete). GKF export also clean (0×0x97 per Lane B). Pair with
+    harness-baseline --no-sync to avoid stale local gold overwriting workspace copy.'
+  tshirt: null
+  evidence_refs:
+  - eval/program/onboarding_cluster_submit.py
+  - .dev/wave1.5-remediation-2026-08-19/0x97-byte-investigation.md
+  - .dev/wave1.6-remediation-2026-08-19/phase1-validation.md
+  - .dev/wave1.6-remediation-2026-08-19/clearsulting.md
+  - baseline_2fa3a9056bd0
+  - baseline_488f70f13570
+  - eval/program/eval_debt/eval_debt.yaml
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-M5-2-gkf-bloated-filename-closure
+  title: 'GKF bloated filename_closure gold — 26 intents re-bootstrapped to aggregate_exclude (2026-08-19).
+    Prior state: cqa/kpi/profiler/qoe/fta intents with 576–1991 filename_closure positives each;
+    citation_backfill not viable on GKF corpus (pass-2 negatives zero FTA survivors; CQA/KPI/QoE
+    citation_backfill returned 0 positives; no profiler analysis table).'
+  source_refs:
+  - .dev/wave1.5-remediation-2026-08-19/gkf.md
+  - .dev/wave1.6-remediation-2026-08-19/gkf-bloat-remediation.md
+  source_id: null
+  disposition: accepted
+  stage: S3
+  status: n/a
+  trigger: Wave 1.6 GKF bloat remediation — 26 intents exceeded 500-positive filename_closure
+    threshold discovered in Wave 1.5 manifest
+  rationale: 'Twenty-six debt-cohort intents moved to aggregate_exclude/no_citation_source via
+    company-scoped gold_exclusions.yaml and cluster re-bootstrap (Databricks job 1095489743746111).
+    Warehouse probe: CIM exists but section_range/FTA pass-2 negatives dominate; CQA/KPI/QoE
+    citation_backfill returns 0 positives; profiler has no analysis table. Per-intent recall@10
+    now interpretable (skipped_bootstrap_failed). Post-remediation baseline baseline_7510d1d14449
+    supersedes pre-bloat baseline_1a3b1b0c926b (avg_mrr 0.594→0.206 reflects denominator
+    correction, not retrieval regression). Zero eval-debt rows opened — fully resolved by
+    construction, mirroring SPG Wave 1.5 disposition.'
+  tshirt: null
+  evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/gkf.yaml
+  - run_id:1095489743746111
+  - baseline_7510d1d14449
+  - .dev/wave1.6-remediation-2026-08-19/gkf-bloat-remediation.md
+  rung_assignments: {}
+  assessment_metrics: {}
