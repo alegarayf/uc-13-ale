@@ -136,6 +136,7 @@ def _build_narrative_digest(
         "in_one_line": str(executive.get("in_one_line") or ""),
         "thesis_bullets": _string_list(executive.get("thesis_bullets")),
         "overview_bullets": _string_list(company_framing.get("overview_bullets")),
+        "key_watchouts": _string_list(executive.get("key_watchouts")),
         "revenue_model": {
             "tag": str(revenue_model.get("tag") or ""),
             "quality_flag": str(revenue_model.get("quality_flag") or ""),
@@ -189,23 +190,32 @@ belongs in the underlying workstream reports, not here.
 
 LENGTH DISCIPLINE (strict, do not exceed — every section on this page must fit on ONE physical page, so brevity \
 here is not optional):
-- "company_overview": EXACTLY 3 bullets, HIGH-LEVEL only — what the company does, its market/footprint, its \
+- "company_overview": EXACTLY 4 bullets, HIGH-LEVEL only — what the company does, its market/footprint, its \
   scale and growth in aggregate terms. Do NOT include granular operational detail such as specific hourly \
   rates, per-location billed hours/week, individual location-by-location pricing, or other line-item \
   operating metrics — those are workstream-report detail, not first-pass framing. Generalize: e.g. write \
   "operates across N markets with private-pay pricing" rather than listing each market's rate card.
-- "business_model": EXACTLY 3 bullets, covering — in this order — (1) where the revenue comes from (the \
+- "business_model": EXACTLY 4 bullets, covering — in this order — (1) where the revenue comes from (the \
   revenue model itself), (2) one notable change or signal in gross margin, or the single most relevant KPI \
   tied to the revenue model, (3) the reported EBITDA figure and its behavior/trend (not a full addback \
-  bridge — that belongs in Revenue Quality, not here). Use these as the model for how terse every other \
-  bullet on this page should be — one clean fact per bullet, no stacked clauses.
+  bridge — that belongs in Revenue Quality, not here), (4) one additional customer/growth/retention signal \
+  already present in the input (e.g. customer count, tenure/stickiness, segment mix) — pick whichever real \
+  figure is most decision-relevant, never a restatement of bullets 1-3. Use bullets 1-3 as the model for how \
+  terse every other bullet on this page should be — one clean fact per bullet, no stacked clauses.
 - "investment_thesis.why_special": REQUIRED, exactly 1 sentence, the single most compelling reason this could \
-  be special. "investment_thesis.value_drivers": EXACTLY 2 supporting bullets (why_special + these 2 bullets \
+  be special. "investment_thesis.value_drivers": EXACTLY 3 supporting bullets (why_special + these 3 bullets \
   is the full card — do not pad beyond that).
-- Every bullet in "company_overview", "business_model", "investment_thesis.value_drivers", and \
-  "investment_thesis.why_special" must be ONE short sentence, maximum 140 characters — as terse as the \
-  "business_model" bullets above. Lead with the specific figure or fact; drop qualifying clauses, hedges, and \
-  restatements. If you cannot fit the point in 140 characters, cut detail rather than run past the limit.
+- "key_watchouts": the input's "key_watchouts" field already lists this business's key risks — your job here \
+  is COMPACTION, not new analysis: rewrite it into EXACTLY 3 bullets, each ONE short sentence, preserving the \
+  single most decision-relevant risk and its most important figure from the original bullet. Do not add a \
+  risk that isn't already in the input, and do not drop the concrete figure to save space — cut connective \
+  narration instead (e.g. "X is elevated at Y%, driven by Z" → "X is elevated at Y% in Z"). If the input has \
+  fewer than 3 watchouts, return that many — never pad with a generic or duplicate point.
+- Every bullet in "company_overview", "business_model", "investment_thesis.value_drivers", \
+  "investment_thesis.why_special", and "key_watchouts" must be ONE short sentence, maximum 140 characters — \
+  as terse as the "business_model" bullets above. Lead with the specific figure or fact; drop qualifying \
+  clauses, hedges, and restatements. If you cannot fit the point in 140 characters, cut detail rather than \
+  run past the limit.
 
 Write a BALANCED AND AFFIRMATIVE investment thesis: connect the attractive elements present in the input \
 (e.g. growth, margins, recurring-revenue signals, operational strengths) into ONE coherent reason the business \
@@ -219,9 +229,10 @@ recommendation to a single financial metric — ground it in the thesis as a who
 Respond with ONLY a JSON object, no markdown fences, with these exact keys:
 {{
   "one_liner": "<1 sentence — what the business is and why it could be interesting>",
-  "company_overview": ["<bullet>", "<bullet>", "<bullet>"],
-  "business_model": ["<revenue source bullet>", "<gross margin/KPI signal bullet>", "<reported EBITDA status bullet>"],
-  "investment_thesis": {{"value_drivers": ["<bullet>", "<bullet>"], "why_special": "<1 sentence connecting the drivers>"}},
+  "company_overview": ["<bullet>", "<bullet>", "<bullet>", "<bullet>"],
+  "business_model": ["<revenue source bullet>", "<gross margin/KPI signal bullet>", "<reported EBITDA status bullet>", "<additional customer/growth signal bullet>"],
+  "investment_thesis": {{"value_drivers": ["<bullet>", "<bullet>", "<bullet>"], "why_special": "<1 sentence connecting the drivers>"}},
+  "key_watchouts": ["<compacted watchout bullet>", "<compacted watchout bullet>", "<compacted watchout bullet>"],
   "recommendation": "<the recommendation sentence, exact structure above>"
 }}"""
 
@@ -272,7 +283,14 @@ Respond with ONLY a JSON object, no markdown fences, with these exact keys:
   "diligence_priorities": ["<growth-engine conversion question>", "<demand durability question>", "<unit economics vs. cost inflation question>", "<quality/consistency at scale question>", "<replicability question>", "<earnings quality question>"]
 }}"""
 
-_FRAMING_RESULT_KEYS = ("one_liner", "company_overview", "business_model", "investment_thesis", "recommendation")
+_FRAMING_RESULT_KEYS = (
+    "one_liner",
+    "company_overview",
+    "business_model",
+    "investment_thesis",
+    "key_watchouts",
+    "recommendation",
+)
 _REVQUAL_RESULT_KEYS = ("commercial_revenue_quality", "diligence_priorities")
 
 _DEGRADED_FRAMING_FIELDS: dict[str, Any] = {key: None for key in _FRAMING_RESULT_KEYS}
@@ -288,6 +306,7 @@ def _framing_user_payload(digest: dict[str, Any]) -> dict[str, Any]:
         "revenue_model": digest["revenue_model"],
         "kpi_highlights": digest["kpi_highlights"],
         "financials_summary": digest["financials_summary"],
+        "key_watchouts": digest["key_watchouts"],
     }
 
 

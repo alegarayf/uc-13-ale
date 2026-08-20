@@ -126,7 +126,7 @@
       <h3 class="block-header">Company Overview</h3>
       <div class="card-body">
         <ul class="bullets">
-          {% for bullet in (narrative.company_overview if (narrative and narrative.company_overview) else (bundle.company_framing.overview_bullets or []))[:3] %}
+          {% for bullet in (narrative.company_overview if (narrative and narrative.company_overview) else (bundle.company_framing.overview_bullets or []))[:4] %}
           <li>{{ bullet }}</li>
           {% else %}
           <li>Not yet assessed in this preview.</li>
@@ -140,7 +140,7 @@
       <div class="card-body">
         <ul class="bullets">
           {% if narrative and narrative.business_model %}
-          {% for bullet in narrative.business_model[:3] %}
+          {% for bullet in narrative.business_model[:4] %}
           <li>{{ bullet }}</li>
           {% endfor %}
           {% elif bundle.company_framing.revenue_model.note %}
@@ -159,16 +159,16 @@
           {% if narrative and narrative.investment_thesis and narrative.investment_thesis.value_drivers %}
           {% if narrative.investment_thesis.why_special %}
           <li><strong>{{ narrative.investment_thesis.why_special }}</strong></li>
-          {% for bullet in narrative.investment_thesis.value_drivers[:2] %}
+          {% for bullet in narrative.investment_thesis.value_drivers[:3] %}
           <li>{{ bullet }}</li>
           {% endfor %}
           {% else %}
-          {% for bullet in narrative.investment_thesis.value_drivers[:3] %}
+          {% for bullet in narrative.investment_thesis.value_drivers[:4] %}
           <li>{{ bullet }}</li>
           {% endfor %}
           {% endif %}
           {% else %}
-          {% for bullet in (bundle.executive.thesis_bullets or bundle.company_framing.thesis.bullets or [])[:3] %}
+          {% for bullet in (bundle.executive.thesis_bullets or bundle.company_framing.thesis.bullets or [])[:4] %}
           <li>{{ bullet }}</li>
           {% else %}
           <li>Not yet assessed in this preview.</li>
@@ -182,7 +182,7 @@
       <h3 class="block-header watchouts">Key Watchouts / Areas to Prove</h3>
       <div class="card-body">
         <ul class="bullets">
-          {% for watchout in (bundle.executive.key_watchouts or [])[:3] %}
+          {% for watchout in (narrative.key_watchouts if (narrative and narrative.key_watchouts) else (bundle.executive.key_watchouts or []))[:3] %}
           <li>{{ watchout }}</li>
           {% else %}
           <li>Not yet assessed in this preview.</li>
