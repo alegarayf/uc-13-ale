@@ -62,7 +62,7 @@ Transcribe units from evidence headers; do not convert magnitudes across scales.
 NUMERIC_USER_TEMPLATE = """Claim (verbatim):
 {claim_text}
 
-Retrieved evidence chunks (include chunk_id, file_name, page_start, section_header, excerpt):
+Retrieved evidence chunks (include chunk_id, file_name, page_start, section_header, chunk_text):
 {evidence_json}
 
 Return JSON with extracted_value and cited_span only."""
@@ -154,7 +154,7 @@ def fetch_chunk_metadata(
         w,
         f"""
         SELECT chunk_id, file_name, page_start, section_header,
-               SUBSTRING(chunk_text, 1, 1200) AS excerpt
+               chunk_text
         FROM {catalog}.ingestion.chunks
         WHERE company_name = '{company.replace("'", "''")}'
           AND chunk_id IN ({in_list})
@@ -167,7 +167,7 @@ def fetch_chunk_metadata(
             "file_name": row[1],
             "page_start": int(row[2]) if row[2] not in (None, "") else None,
             "section_header": row[3],
-            "excerpt": row[4],
+            "chunk_text": row[4],
         }
     return out
 
@@ -205,7 +205,7 @@ def retrieve_evidence(
         w,
         f"""
         SELECT c.chunk_id, c.file_name, c.page_start, c.section_header,
-               SUBSTRING(c.chunk_text, 1, 1200) AS excerpt,
+               c.chunk_text,
                r.workstream
         FROM {catalog}.ingestion.chunks c
         LEFT JOIN {catalog}.classification.doc_relevance r
@@ -222,7 +222,7 @@ def retrieve_evidence(
             "file_name": row[1],
             "page_start": int(row[2]) if row[2] not in (None, "") else None,
             "section_header": row[3],
-            "excerpt": row[4],
+            "chunk_text": row[4],
             "workstream": row[5],
         }
         records.append(record)
