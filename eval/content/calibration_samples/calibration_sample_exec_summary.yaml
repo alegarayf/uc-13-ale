@@ -1,112 +1,164 @@
 schema_version: 1
 surface: exec_summary
 assessed_by: operator
-assessed_at: '2026-08-12'
+assessed_at: '2026-08-13'
 claims:
 - claim_id: exec.claim.001
   claim_text: Elder Care Homecare is a private-pay home care company operating across six locations in the Tri-State region (NY, NJ, CT, and MA).
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Business Overview
   verdict: supported
+  expected_span:
+    chunk_id: 0352086f-6ed8-499a-b4f5-851d26b8b72f
 - claim_id: exec.claim.002
   claim_text: The company generates revenue by billing private-pay clients for caregiver hours delivered.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Business Overview
   verdict: supported
+  expected_span:
+    chunk_id: 0627823e-a4ec-4b12-9e49-6ec5474bcd68
 - claim_id: exec.claim.003
   claim_text: Elder Care had approximately 352 active clients as of Q2 2025.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Business Overview
   verdict: supported
+  expected_span:
+    chunk_id: 03580592-95c0-4456-b4b3-c244b0d78f7f
 - claim_id: exec.claim.004
   claim_text: Elder Care had 2,123 registered caregivers across markets including NYC, Long Island, Westchester, NJ, MA, and CT as of Q2 2025.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Business Overview
   verdict: supported
+  expected_span:
+    chunk_id: 03580592-95c0-4456-b4b3-c244b0d78f7f
 - claim_id: exec.claim.005
   claim_text: The platform completed at least two transactions — Guided Living and Unicity — within the recent historical window.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Business Overview
   verdict: supported
+  expected_span:
+    chunk_id: ffdfd9cb-4057-4344-814b-72570f9ebc44
 - claim_id: exec.claim.006
   claim_text: Elder Care is currently ramping a Connecticut de novo location.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Business Overview
   verdict: supported
+  expected_span:
+    chunk_id: 103e99ea-2b24-4074-a0b2-e95d565ef05b
 - claim_id: exec.claim.007
   claim_text: Pro Forma Adjusted Revenue reached $46.4M on a TTM Aug-24 basis per the Historical P&L Summary workstream.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
 - claim_id: exec.claim.008
   claim_text: Revenue grew from $8,955K in 2020A to $46,423K TTM Aug-24.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
 - claim_id: exec.claim.009
   claim_text: Pro Forma Adjusted EBITDA was $9,239K representing a 19.9% margin on a pro forma basis.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
 - claim_id: exec.claim.010
   claim_text: Reported (pre-addback) EBITDA margin is approximately 7.9%, below the ~10% healthcare services threshold.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
 - claim_id: exec.claim.011
   claim_text: The addback schedule contains 17 discrete Tier 4 items totaling approximately $7.3M in gross adjustments.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
 - claim_id: exec.claim.012
   claim_text: Gross addbacks represent approximately 247% of reported EBITDA.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
 - claim_id: exec.claim.013
   claim_text: Every addback item has been classified Tier 4 because no supporting documents are referenced in the addback schedule within the VDR.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
 - claim_id: exec.claim.014
   claim_text: Run-rate executive compensation addback is $2,490K.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
 - claim_id: exec.claim.015
   claim_text: Unicity pre-acquisition results addback is $1,077K.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
 - claim_id: exec.claim.016
   claim_text: Unicity synergies addback is $909K.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
 - claim_id: exec.claim.017
   claim_text: The reconciliation workstream flagged one mismatch and was unable to verify nine items.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
 - claim_id: exec.claim.018
   claim_text: The forecast projects revenue growing from $47.2M (2024E) to $197.8M (2029P) — a 4.2x increase.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 000ca3cd-4dde-4541-97a1-aa072fa3cbae
 - claim_id: exec.claim.019
   claim_text: The Forecast workstream rates the five-year revenue trajectory Red given aggressive assumptions.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: supported
+  expected_span:
+    chunk_id: 0ad97a98-edca-44fa-b2f2-329ad4bae382
 - claim_id: exec.claim.020
   claim_text: The company received adverse NYSDOH survey citations in May 2023 related to HCR Profile maintenance, background-check consent procedures, and Home Care Registry credentialing timelines.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Top Risks
   verdict: supported
+  expected_span:
+    chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
 - claim_id: exec.claim.021
   claim_text: Written DOH confirmation of closure of the May 2023 NYSDOH citations has not been confirmed.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Top Risks
   verdict: supported
+  expected_span:
+    chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
 - claim_id: exec.claim.022
   claim_text: Verification that no agreements exist with OIG/SAM-excluded individuals or entities has not been cleared.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Top Risks
   verdict: supported
+  expected_span:
+    chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
 - claim_id: exec.claim.023
   claim_text: Outside counsel was retained as recently as April 30, 2025 to pursue collection of patient receivables.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Top Risks
   verdict: supported
+  expected_span:
+    chunk_id: 53d46d8e-274c-4e27-a10e-fcade23c1f5a
 - claim_id: exec.claim.024
   claim_text: The Manhattan office lease contains an anti-assignment covenant that may require landlord consent as a closing condition.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Top Risks
   verdict: supported
+  expected_span:
+    chunk_id: 0ccb095f-a7b6-4a2b-934c-1de1fb32c0cb
 - claim_id: exec.claim.025
   claim_text: Overall analytical confidence across all seven workstreams is rated Medium.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Confidence
   verdict: supported
+  expected_span:
+    chunk_id: 0ad97a98-edca-44fa-b2f2-329ad4bae382
 - claim_id: exec.claim.026
   claim_text: Five of seven workstreams carry at least one Red or Yellow rating on a material dimension.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Confidence
   verdict: supported
+  expected_span:
+    chunk_id: 0ad97a98-edca-44fa-b2f2-329ad4bae382
 - claim_id: exec.claim.027
   claim_text: Elder Care operates zero Medicare-certified or Medicaid-reimbursed locations.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Business Overview
@@ -115,3 +167,5 @@ claims:
   claim_text: The Quality of Earnings workstream validated every Tier 4 addback against audited standalone financials.
   source_ref: source://uc13_ale.analysis.diligence_report.executive_summary#Financial Picture
   verdict: contradicted
+  expected_span:
+    chunk_id: 35d4aa00-0a13-4ae6-94d0-c6349147ad76
