@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -190,11 +190,21 @@ class ChunkRecord:
 class ChunkIndex:
     """In-memory index over ``ingestion.chunks`` for direct citation lookup."""
 
-    def __init__(self, records: list[ChunkRecord]) -> None:
+    def __init__(
+        self,
+        records: list[ChunkRecord],
+        *,
+        sql_executor: SqlExecutor | None = None,
+        catalog: str | None = None,
+        company: str | None = None,
+    ) -> None:
         self._by_id = {r.chunk_id: r for r in records}
         self._by_file: dict[str, list[ChunkRecord]] = {}
         for rec in records:
             self._by_file.setdefault(rec.file_name, []).append(rec)
+        self._sql_executor = sql_executor
+        self._catalog = catalog
+        self._company = company
 
     @classmethod
     def from_sql(
@@ -223,7 +233,48 @@ class ChunkIndex:
             for row in (rows or [])
             if row and row[0]
         ]
-        return cls(records)
+        return cls(
+            records,
+            sql_executor=sql_executor,
+            catalog=catalog,
+            company=company,
+        )
+
+    def fetch_text(self, chunk_ids: frozenset[str]) -> dict[str, str]:
+        """Load full ``chunk_text`` for resolved ids; bulk ``from_sql`` stays metadata-only."""
+        if not chunk_ids or self._sql_executor is None:
+            return {}
+        if not self._catalog or not self._company:
+            return {}
+        in_list = ", ".join(f"'{_sql_str(cid)}'" for cid in sorted(chunk_ids))
+        rows = self._sql_executor(
+            f"""
+            SELECT chunk_id, chunk_text
+            FROM {self._catalog}.ingestion.chunks
+            WHERE company_name = '{_sql_str(self._company)}'
+              AND chunk_id IN ({in_list})
+            """
+        )
+        fetched: dict[str, str] = {}
+        for row in rows or []:
+            if not row or not row[0]:
+                continue
+            cid = str(row[0])
+            text = str(row[1] or "")
+            fetched[cid] = text
+            existing = self._by_id.get(cid)
+            if existing is None:
+                continue
+            updated = replace(existing, chunk_text=text)
+            self._by_id[cid] = updated
+            file_recs = self._by_file.get(updated.file_name)
+            if file_recs is None:
+                continue
+            for idx, rec in enumerate(file_recs):
+                if rec.chunk_id == cid:
+                    file_recs[idx] = updated
+                    break
+        return fetched
 
     def exists(self, chunk_id: str) -> bool:
         return chunk_id in self._by_id
@@ -402,6 +453,27 @@ def _top10_source(
                 return str(citations[0]), None
     return None, None
 
+
+# Cache-free locators for the exec_summary truncation row (008/009/010/018). Used only
+# when exec_analysis_cache is None so the FTA/analysis citation path stays unchanged.
+_CACHE_FREE_TRUNCATION_SOURCES: dict[str, tuple[str, str]] = {
+    "exec.claim.008": (
+        "2024 Elder Care - CIM_vF.pdf",
+        "Pro Forma Income Statement & Projection",
+    ),
+    "exec.claim.009": (
+        "2024 Elder Care - CIM_vF.pdf",
+        "Diligence Adjusted Income Statement",
+    ),
+    "exec.claim.010": (
+        "2024 Elder Care - CIM_vF.pdf",
+        "EBITDA Adjustment Detail",
+    ),
+    "exec.claim.018": (
+        "2024 Elder Care - CIM_vF.pdf",
+        "Pro Forma Income Statement & Projection",
+    ),
+}
 
 _ELDER_CARE_STATIC_CLAIM_SOURCES: dict[str, tuple[str, str | None]] = {
     "exec.claim.001": ("2024 Elder Care - CIM_vF.pdf", "Elder Care by the Numbers"),
@@ -582,6 +654,14 @@ def _claim_from_manifest_entry(
         if derived_doc:
             source_doc = derived_doc
             source_location = derived_loc
+    elif (
+        surface == "exec_summary"
+        and exec_analysis_cache is None
+        and chunk_index is not None
+        and company_slug == "elder_care"
+        and claim_id in _CACHE_FREE_TRUNCATION_SOURCES
+    ):
+        source_doc, source_location = _CACHE_FREE_TRUNCATION_SOURCES[claim_id]
 
     source_ref: str | None
     if source_doc and source_location:
@@ -647,6 +727,10 @@ def load_claim_enumeration(
     ]
     if not claims:
         raise ValueError(f"claim manifest {manifest_file} is empty")
+    if chunk_index is not None:
+        cited = frozenset(c.cited_chunk_id for c in claims if c.cited_chunk_id)
+        if cited:
+            chunk_index.fetch_text(cited)
     return tuple(claims)
 
 
