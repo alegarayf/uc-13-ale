@@ -105,6 +105,18 @@ def _cluster_submit_parser_factory():
     return module.build_parser
 
 
+def _cluster_submit_module():
+    assert _CLUSTER_SUBMIT.is_file(), f"missing cluster helper: {_CLUSTER_SUBMIT}"
+    spec = importlib.util.spec_from_file_location(
+        "onboarding_cluster_submit",
+        _CLUSTER_SUBMIT,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _parse_cluster_submit_command(command: str) -> None:
     normalized = _substitute_placeholders(command)
     tokens = shlex.split(normalized, posix=False)
@@ -157,6 +169,89 @@ def test_runbook_documents_serverless_cluster_path() -> None:
     assert "mlflow" in text
     assert "eval/retrieval/" in text
     assert "databricks/agents" in text
+
+
+def test_harness_run_enhancement_parser_parses_required_flags() -> None:
+    args = _cluster_submit_parser_factory()().parse_args(
+        [
+            "harness-run",
+            "--company",
+            "Clearsulting",
+            "--run-type",
+            "enhancement",
+            "--baseline-ref-run-id",
+            "baseline_2fa3a9056bd0",
+            "--affected-intents",
+            "legal.evidence,legal.register",
+        ]
+    )
+    assert args.command == "harness-run"
+    assert args.company == "Clearsulting"
+    assert args.run_type == "enhancement"
+    assert args.baseline_ref_run_id == "baseline_2fa3a9056bd0"
+    assert args.affected_intents == "legal.evidence,legal.register"
+    assert args.catalog == "uc13_ale"
+    assert args.no_sync is False
+    assert args.gold_path is None
+
+
+def test_harness_run_ablation_parser_parses_ablation_config() -> None:
+    args = _cluster_submit_parser_factory()().parse_args(
+        [
+            "harness-run",
+            "--company",
+            "Elder Care",
+            "--run-type",
+            "ablation",
+            "--baseline-ref-run-id",
+            "baseline_2fa3a9056bd0",
+            "--ablation-config",
+            '{"arm": "merge_rank_off"}',
+            "--no-sync",
+            "--gold-path",
+            "/tmp/gold.yaml",
+        ]
+    )
+    assert args.command == "harness-run"
+    assert args.run_type == "ablation"
+    assert args.ablation_config == '{"arm": "merge_rank_off"}'
+    assert args.affected_intents is None
+    assert args.no_sync is True
+    assert args.gold_path == "/tmp/gold.yaml"
+
+
+def test_harness_run_cluster_submit_command_parses() -> None:
+    command = (
+        'python eval/program/onboarding_cluster_submit.py harness-run '
+        '--company "Clearsulting" --run-type enhancement '
+        '--baseline-ref-run-id baseline_2fa3a9056bd0 '
+        '--affected-intents legal.evidence'
+    )
+    _parse_cluster_submit_command(command)
+
+
+def test_run_harness_enhancement_rejects_enhancement_without_intents() -> None:
+    mod = _cluster_submit_module()
+    with pytest.raises(ValueError, match="enhancement requires --affected-intents"):
+        mod.run_harness_enhancement(
+            "Clearsulting",
+            run_type="enhancement",
+            baseline_ref_run_id="baseline_2fa3a9056bd0",
+            affected_intents=None,
+            sync=False,
+        )
+
+
+def test_run_harness_enhancement_rejects_ablation_with_intents() -> None:
+    mod = _cluster_submit_module()
+    with pytest.raises(ValueError, match="ablation must not include --affected-intents"):
+        mod.run_harness_enhancement(
+            "Clearsulting",
+            run_type="ablation",
+            baseline_ref_run_id="baseline_2fa3a9056bd0",
+            affected_intents=["legal.evidence"],
+            sync=False,
+        )
 
 
 @pytest.mark.parametrize(
