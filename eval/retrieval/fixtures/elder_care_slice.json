@@ -1,10 +1,10 @@
 {
   "catalog": "uc13_ale",
   "company_name": "Elder Care",
-  "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+  "ingestion_snapshot": "uc13_ale:55819:2026-08-20",
   "chunks": [
     {
-      "chunk_id": "027ec667-fb72-4eb6-b723-3d6a68e5789d",
+      "chunk_id": "aee7745d-e270-4abf-8fc5-c60dd4f13bcc",
       "file_name": "2024 Elder Care - CIM_vF.pdf",
       "section_header": "Pro Forma Income Statement & Projection",
       "page_start": 47,
@@ -13,7 +13,7 @@
       "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Figure]  Five bla..."
     },
     {
-      "chunk_id": "9a0697ee-f741-4bc8-a672-bfdbaf85f181",
+      "chunk_id": "2c068a9c-3fc6-42d2-b3b4-1b6682070dff",
       "file_name": "2024 Elder Care - CIM_vF.pdf",
       "section_header": "Pro Forma Income Statement & Projection",
       "page_start": 47,
@@ -22,16 +22,16 @@
       "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Figure]  A styliz..."
     },
     {
-      "chunk_id": "3d95d7bf-bc70-41b4-85fb-6a8accc0a559",
+      "chunk_id": "945d61eb-c7c7-492e-b854-a67120786062",
       "file_name": "2024 Elder Care - CIM_vF.pdf",
       "section_header": "Pro Forma Income Statement & Projection",
       "page_start": 47,
       "source_type": "vision",
       "priority_tier": 2,
-      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Figure]  A radial..."
+      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Figure]  A blue, ..."
     },
     {
-      "chunk_id": "cd9773ea-0a3c-460d-869a-bc963a15cd1f",
+      "chunk_id": "2d238ee0-4136-4818-bb18-201b82990479",
       "file_name": "2024 Elder Care - CIM_vF.pdf",
       "section_header": "Pro Forma Income Statement & Projection",
       "page_start": 47,
@@ -40,16 +40,16 @@
       "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Pro Forma Income Statement & Projection] [Page: 47] [Source..."
     },
     {
-      "chunk_id": "0d820bf2-0624-489c-a931-3059ce0861b2",
+      "chunk_id": "2ec461eb-1af7-4399-9dd3-04cd461e2ef7",
       "file_name": "2024 Elder Care - CIM_vF.pdf",
-      "section_header": "EBITDA Adjustment Detail",
+      "section_header": "Commentary",
       "page_start": 50,
       "source_type": "vision",
       "priority_tier": 2,
-      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: EBITDA Adjustment Detail] [Figure]  Five vertically-oriente..."
+      "chunk_text_preview": "[Document: Confidential Information Memorandum] [Section: Commentary] [Figure]  A blue diamond shape features radiati..."
     },
     {
-      "chunk_id": "5fa7f39b-cef6-4674-b74c-6d9277e14602",
+      "chunk_id": "a5000b0b-ecd4-466f-a9ad-1a5f888b73af",
       "file_name": "2024 Elder Care - CIM_vF.pdf",
       "section_header": "EBITDA Adjustment Detail",
       "page_start": 50,
@@ -290,18 +290,18 @@
       "catalog": "uc13_ale",
       "gold_status": "ready",
       "positive_chunk_ids": [
-        "027ec667-fb72-4eb6-b723-3d6a68e5789d",
-        "9a0697ee-f741-4bc8-a672-bfdbaf85f181",
-        "3d95d7bf-bc70-41b4-85fb-6a8accc0a559",
-        "cd9773ea-0a3c-460d-869a-bc963a15cd1f",
-        "0d820bf2-0624-489c-a931-3059ce0861b2",
-        "5fa7f39b-cef6-4674-b74c-6d9277e14602"
+        "aee7745d-e270-4abf-8fc5-c60dd4f13bcc",
+        "2c068a9c-3fc6-42d2-b3b4-1b6682070dff",
+        "945d61eb-c7c7-492e-b854-a67120786062",
+        "2d238ee0-4136-4818-bb18-201b82990479",
+        "2ec461eb-1af7-4399-9dd3-04cd461e2ef7",
+        "a5000b0b-ecd4-466f-a9ad-1a5f888b73af"
       ],
       "negative_chunk_ids": null,
       "negative_rule": null,
       "negative_method": null,
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+      "ingestion_snapshot": "uc13_ale:55819:2026-08-20",
       "confidence": "high",
       "negative_confidence": null,
       "notes": null,
@@ -334,7 +334,7 @@
       "negative_rule": null,
       "negative_method": null,
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+      "ingestion_snapshot": "uc13_ale:55819:2026-08-20",
       "confidence": "high",
       "negative_confidence": null,
       "notes": null,
@@ -362,7 +362,7 @@
       "negative_rule": null,
       "negative_method": null,
       "gold_method": "citation_backfill",
-      "ingestion_snapshot": "uc13_ale:55812:2026-08-11",
+      "ingestion_snapshot": "uc13_ale:55819:2026-08-20",
       "confidence": "high",
       "negative_confidence": null,
       "notes": null,
@@ -372,11 +372,11 @@
   ],
   "mock_vs_scores": {
     "fta.opex.q3_projected_financials": {
-      "027ec667-fb72-4eb6-b723-3d6a68e5789d": 0.92,
-      "9a0697ee-f741-4bc8-a672-bfdbaf85f181": 0.9,
-      "3d95d7bf-bc70-41b4-85fb-6a8accc0a559": 0.88,
-      "cd9773ea-0a3c-460d-869a-bc963a15cd1f": 0.86,
-      "0d820bf2-0624-489c-a931-3059ce0861b2": 0.84
+      "aee7745d-e270-4abf-8fc5-c60dd4f13bcc": 0.92,
+      "2c068a9c-3fc6-42d2-b3b4-1b6682070dff": 0.9,
+      "945d61eb-c7c7-492e-b854-a67120786062": 0.88,
+      "2d238ee0-4136-4818-bb18-201b82990479": 0.86,
+      "2ec461eb-1af7-4399-9dd3-04cd461e2ef7": 0.84
     },
     "legal.contracts_vendors_platform": {
       "54572acb-edbf-4c97-9ca3-567db58f4ea3": 0.92,
