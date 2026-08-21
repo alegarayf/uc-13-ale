@@ -50,8 +50,8 @@ _FTA_CLAIM_RE = re.compile(
 )
 
 # M2 audit D2 / m3_backlog #3: broken vision-extraction placeholder → sibling chunk.
-BROKEN_CHUNK_ID = "027ec667-fb72-4eb6-b723-3d6a68e5789d"
-SIBLING_CHUNK_ID = "cd9773ea-0a3c-460d-869a-bc963a15cd1f"
+BROKEN_CHUNK_ID = "aee7745d-e270-4abf-8fc5-c60dd4f13bcc"
+SIBLING_CHUNK_ID = "2d238ee0-4136-4818-bb18-201b82990479"
 LOCATION_CHUNK_OVERRIDE: dict[str, str] = {
     "Pro Forma Income Statement & Projection": SIBLING_CHUNK_ID,
 }
