@@ -1,43 +1,43 @@
 ingestion_snapshot: uc13_ale:55812:2026-08-11
-total_positive_chunk_ids: 4089
+total_positive_chunk_ids: 4080
 row_count: 57
 intents:
   bma.detect_cim_presence:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   bma.retrieve_business_overview:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   bma.retrieve_model_changes_and_dependencies:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   bma.retrieve_people_and_org:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   bma.retrieve_pricing_and_margins:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   bma.retrieve_revenue_by_location_and_metrics:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   bma.retrieve_revenue_visibility:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   bma.retrieve_sales_and_customers:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   bma.retrieve_workforce_and_capacity:
     gold_status: ready
     gold_method: citation_backfill
-    positive_count: 27
+    positive_count: 26
   cqa.retrieve_account_size:
     gold_status: ready
     gold_method: citation_backfill
