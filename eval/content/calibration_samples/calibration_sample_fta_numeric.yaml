@@ -11,7 +11,7 @@ claims:
     magnitude: '2104'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -23,7 +23,7 @@ claims:
     magnitude: '0.235'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -35,7 +35,7 @@ claims:
     magnitude: '3157'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -47,7 +47,7 @@ claims:
     magnitude: '0.223'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -59,7 +59,7 @@ claims:
     magnitude: '4016'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -71,7 +71,7 @@ claims:
     magnitude: '0.193'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -83,7 +83,7 @@ claims:
     magnitude: '6677'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -95,7 +95,7 @@ claims:
     magnitude: '0.195'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -107,7 +107,7 @@ claims:
     magnitude: '9239'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -119,7 +119,7 @@ claims:
     magnitude: '0.199'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -131,7 +131,7 @@ claims:
     magnitude: '2104'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -143,7 +143,7 @@ claims:
     magnitude: '0.235'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -155,7 +155,7 @@ claims:
     magnitude: '3157'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -167,7 +167,7 @@ claims:
     magnitude: '0.223'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -179,7 +179,7 @@ claims:
     magnitude: '4016'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -191,7 +191,7 @@ claims:
     magnitude: '0.193'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -203,7 +203,7 @@ claims:
     magnitude: '6677'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -215,7 +215,7 @@ claims:
     magnitude: '0.195'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -227,7 +227,7 @@ claims:
     magnitude: '9239'
     unit: USD_k
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -239,7 +239,7 @@ claims:
     magnitude: '0.199'
     unit: ratio
   expected_span:
-    chunk_id: b1feca18-d10a-4c4b-9a1b-af382f6d2f21
+    chunk_id: 2b04d076-cfc0-49e3-9862-ef419f669c75
     locator:
       kind: section
       value: Diligence Adjusted Income Statement
@@ -251,7 +251,7 @@ claims:
     magnitude: '8955'
     unit: USD_k
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -263,7 +263,7 @@ claims:
     magnitude: '14176'
     unit: USD_k
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -275,7 +275,7 @@ claims:
     magnitude: '0.583'
     unit: ratio
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -287,7 +287,7 @@ claims:
     magnitude: '20846'
     unit: USD_k
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -299,7 +299,7 @@ claims:
     magnitude: '0.471'
     unit: ratio
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -311,7 +311,7 @@ claims:
     magnitude: '33700'
     unit: USD_k
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -323,7 +323,7 @@ claims:
     magnitude: '0.617'
     unit: ratio
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -335,7 +335,7 @@ claims:
     magnitude: '44735'
     unit: USD_k
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -347,7 +347,7 @@ claims:
     magnitude: '47198'
     unit: USD_k
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
@@ -359,7 +359,7 @@ claims:
     magnitude: '0.302'
     unit: ratio
   expected_span:
-    chunk_id: cd9773ea-0a3c-460d-869a-bc963a15cd1f
+    chunk_id: 2d238ee0-4136-4818-bb18-201b82990479
     locator:
       kind: section
       value: Pro Forma Income Statement & Projection
