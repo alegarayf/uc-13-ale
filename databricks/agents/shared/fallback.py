@@ -20,6 +20,7 @@ def semantic_search_with_fallback(
     source_type_priority: bool = False,
     source_type_filter: list[str] | None = None,
     intent_id: str | None = None,
+    vs_metadata_filters: bool = False,
 ) -> tuple[RouteResult, bool]:
     """Semantic search with automatic fallback when the filename filter is too narrow.
 
@@ -39,6 +40,7 @@ def semantic_search_with_fallback(
         source_type_priority=source_type_priority,
         source_type_filter=source_type_filter,
         intent_id=intent_id,
+        vs_metadata_filters=vs_metadata_filters,
     )
     result = semantic_search(**search_kwargs)
 

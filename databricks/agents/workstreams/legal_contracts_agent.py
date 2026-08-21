@@ -656,6 +656,9 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
             "IP", "Privacy", "GDPR", "HIPAA", "OSS", "Data Processing", "BAA",
             "Non-Disclosure", "ND Agreement", "SaaS", "ClearCare", "Restricted Stock",
         ],
+        # C6 R5: push workstream_filter into the VS ANN query so LEGAL-tagged
+        # IP/privacy docs are in the candidate window, not only post-filtered.
+        "vs_metadata_filters": True,
     },
     "insurance": {
         "top_k": 6,
@@ -680,6 +683,8 @@ _DOMAIN_PASS_QUERIES: dict[str, str | tuple[str, ...]] = {
         "staffing agreement lease sublease asset purchase marketing contract",
         "termination for convenience terminate without cause for convenience of either party notice of termination cancel at any time",
         "change of control change in control consent to assignment assignment and subletting landlord consent shall not assign ownership transfer",
+        "SaaS software as a service subscription software license hosting agreement "
+        "platform dependency reseller channel marketplace exclusivity termination impact",
     ),
     "employment": (
         "employment agreement offer letter contractor commission plan founder key employee "
@@ -1027,6 +1032,7 @@ class LegalContractsAgent(WorkstreamAgent):
         file_name_filter,
         min_chunk_length: int = 150,
         min_results: int = 3,
+        vs_metadata_filters: bool = False,
     ) -> "RouteResult":
         """Semantic search with filename-filter retry; always passes catalog=self._catalog (D3a).
 
@@ -1047,6 +1053,7 @@ class LegalContractsAgent(WorkstreamAgent):
             min_chunk_length=min_chunk_length,
             min_results=min_results,
             catalog=self._catalog,
+            vs_metadata_filters=vs_metadata_filters,
         )
         if used_fallback:
             step = len(self._trace) + 1
@@ -1079,6 +1086,7 @@ class LegalContractsAgent(WorkstreamAgent):
             filter_preview += ", …"
 
         workstream_filter = budget.get("workstream_filter", ["LEGAL"])
+        vs_metadata_filters = budget.get("vs_metadata_filters", False)
         top_k = budget["top_k"]
         per_query_hits: list[list] = [
             self._semantic_search_with_fallback(
@@ -1088,6 +1096,7 @@ class LegalContractsAgent(WorkstreamAgent):
                 top_k=top_k,
                 file_name_filter=file_name_filter,
                 min_chunk_length=budget["min_chunk_length"],
+                vs_metadata_filters=vs_metadata_filters,
             ).chunks
             for query in queries
         ]
