@@ -45,8 +45,17 @@ CLOSED_TARGET_IDS = frozenset(
         "PB-gkf-retrieval-bloated-filename-closure",
         "PB-spg-retrieval-bloated-filename-closure",
         "PB-multi-company-retrieval-baseline-stale-post-m4",
+        "PB-exec_summary-chunk-truncation",
+        "PB-fta_numeric-chunk-truncation",
+        "PB-fta_numeric-broken-chunk-repoint",
+        "PB-fta_numeric-page46-vision-reextract",
+        "PB-fta_numeric-segment-json-dedupe",
+        "PB-fta_numeric-segment-source-location",
+        "PB-legal_register-corpus-gap-platform",
+        "PB-legal_register-locator-chunk-resolution",
     }
 )
+OPEN_HANDOFF_ID = "PB-exec_summary-008-locator-mismatch"
 
 
 def validate_product_backlog_closure_shape(items: list[dict[str, Any]]) -> list[str]:
@@ -164,12 +173,15 @@ def test_product_backlog_rejects_invalid_severity() -> None:
     assert any("invalid severity" in err for err in errors)
 
 
-def test_product_backlog_exactly_four_closed_rows() -> None:
+def test_product_backlog_closed_row_set() -> None:
     backlog = _load_backlog()
     items = backlog["items"]
-    assert len(items) == 20
+    assert len(items) == 21
     closed_ids = {item["id"] for item in items if item.get("closed_at") is not None}
     assert closed_ids == CLOSED_TARGET_IDS
+    open_008 = next(item for item in items if item["id"] == OPEN_HANDOFF_ID)
+    assert open_008.get("closed_at") is None
+    assert OPEN_HANDOFF_ID not in CLOSED_TARGET_IDS
 
 
 def test_product_backlog_rejects_orphan_closed_evidence_refs() -> None:
