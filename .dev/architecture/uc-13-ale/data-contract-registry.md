@@ -1,6 +1,6 @@
 Section:      data-contract-registry
-Version:      1.2.0
-Last updated: 2026-08-20
+Version:      1.4.0
+Last updated: 2026-08-21
 
 > **Cross-reference:** Retrieval-specific contracts live in [`eval/architecture/rallyday/data-contract-registry.md`](../../eval/architecture/rallyday/data-contract-registry.md). This folder is the charter-named program-wide standing reference; it does not supersede the rallyday tree.
 
@@ -13,11 +13,11 @@ Purpose:        Cross-company program governance ledgers — work-item decisions
 Fields:
   - registry items[]: id, title, source_refs, source_id, disposition, stage, status, trigger, rationale, tshirt, evidence_refs, rung_assignments, assessment_metrics
   - registry tshirt vocabulary (D3): xs | s | m | l | xl | unsizable — enforced on actionable (pending/in_progress) rows; unsizable requires rationale naming missing scope/falsifier
-  - product_backlog items[]: id, company, surface, kind, severity, summary, evidence_refs, fix_lane, closes_when, registry_ref?, closed_at? (optional), closed_evidence_refs? (optional) — no status field
+  - product_backlog items[]: id, company, surface, kind, severity, summary, evidence_refs, fix_lane, closes_when, registry_ref?, closed_at? (optional), closed_evidence_refs? (optional) — no status field. M4/W4: 21 items; 12 closed (`closed_at` 2026-08-20 ×4 caveat + 2026-08-21 ×8 product); open M4 leftovers `PB-legal_register-extraction-depth-contracts`, `PB-legal_register-retrieval-ip`; new open `PB-exec_summary-008-locator-mismatch`
   - eval_debt: open_debt_high_water_mark (14), debts[] {id: "{company}:{surface|global}:{kind}", opened_at, evidence_refs, closes_when, closed_at?, closed_evidence_refs?} — post-M2/W0: 20 total / 2 open
-Validators:     test_eval_program_registry.py (TSHIRT_VALUES, FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT=54, GAP-109 row), test_product_backlog_schema.py (validate_product_backlog_closure_shape), test_eval_debt.py (ratchet + SPG 44038 closure)
+Validators:     test_eval_program_registry.py (TSHIRT_VALUES, FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT=54, GAP-109 row), test_product_backlog_schema.py (validate_product_backlog_closure_shape, test_product_backlog_closed_row_set), test_eval_debt.py (ratchet + SPG 44038 closure)
 Consumers:      eval_debt.py, trust_statement.py, eval/eval_program_playbook.md §3.1
-Last changed:   2026-08-20 (eval-signal-foldback M2/W0 ledger truth-up)
+Last changed:   2026-08-21 (eval-signal-foldback M4/W4 T12 closures; M2/W0 ledger truth-up retained)
 ```
 
 ```
@@ -270,3 +270,99 @@ Validators:     eval/retrieval/tests/test_calibration_samples.py (item 23b)
 Consumers:      eval/content/calibration.py (item 26a), G5 gate presence half
 Last changed:   2026-08-12
 ```
+
+> **M3/T5:** The D9 `exec_summary` sample is the git-tracked file `eval/content/calibration_samples/calibration_sample_exec_summary.yaml` (T2), not the gitignored `.dev/eval-program/` path above. No `calibration_sample*.yaml` files exist under `.dev/` at T5 execution. `fta_numeric` sample path remains `eval/content/calibration_samples/calibration_sample_fta_numeric.yaml` (frozen adjacent this wave). See the M3 contracts below.
+
+```
+Contract:       SampleComposition
+Module:         eval/content/agreement.py:SampleComposition
+Serialization:  frozen dataclass (in-memory); not a persisted table
+Version:        unversioned — tracked by git blame (landed T1 `214d5a76`)
+Purpose:        P1–P4 sample-composition summary passed into evaluate_thresholds
+Fields:
+  - retained_count: int — len(sample["claims"]) including unlabeled rows
+  - verdict_counts: dict[str, int] — keys ⊆ CLAIM_VERDICTS {supported, contradicted, unsupported}
+  - distinct_expected_chunk_ids: int — distinct non-null (expected_span or {}).chunk_id
+Validators:     test_agreement.py::test_compute_sample_composition_round_trip / test_compute_sample_composition_empty_claims; test_calibration_sample_power.py::test_exec_summary_sample_composition_pins
+Consumers:      evaluate_thresholds, calibration.py:run_calibration
+Last changed:   2026-08-20 (eval-signal-foldback M3/W1 T1)
+```
+
+```
+Contract:       ThresholdResult / unevaluated_pins channel
+Module:         eval/content/agreement.py:ThresholdResult ; eval/content/calibration.py:run_calibration `--out` dict
+Serialization:  frozen dataclass → JSON keys on calibration `--out`
+Version:        unversioned — tracked by git blame (landed T1 `214d5a76`; live JSON key proven T3/T4)
+Purpose:        Replaces the retired evaluate_thresholds 2-tuple. Fail-closed composition pins and C5 figure failures share one result object; unevaluated_pins records pins that were not scored (omitted composition or numeric-inapplicable), never a pin that also appears in failure_reasons.
+Fields:
+  - passed: bool — False when sample_composition is None; else len(failure_reasons)==0
+  - failure_reasons: list[str] — evaluated-and-failed pins prefixed "P1:"–"P4:"; C5 / HALT-29 strings unprefixed
+  - unevaluated_pins: list[str] — "P{n}: omitted (sample_composition is None)" or "P{n}: inapplicable (numeric surface)"
+Validators:     test_evaluate_thresholds_omitted_composition_fail_closed_verdict / _numeric; test_evaluate_thresholds_numeric_pins_skipped_not_defaulted; test_evaluate_thresholds_channel_disjointness_matrix; T4 post-check on T3 JSON unevaluated_pins==[]
+Consumers:      calibration.py --out; T3 signoffs JSON; T4 wave note
+Last changed:   2026-08-20 (eval-signal-foldback M3/W1 T1+T3)
+```
+
+```
+Contract:       calibration_sample_exec_summary (tracked D9 sample)
+Module:         eval/content/calibration_samples/calibration_sample_exec_summary.yaml
+Serialization:  YAML (schema_version: 1)
+Version:        1
+Purpose:        Operator-labelled exec_summary calibration sample after T2 maximal honest rebalance
+Fields:
+  - surface: exec_summary; assessed_by: operator; assessed_at: '2026-08-13'
+  - claims[]: claim_id exec.claim.001–028, claim_text, source_ref, verdict, expected_span?: {chunk_id} only (no locator; 027 unlabeled)
+  - Post-rebalance composition (re-read at T5 via agreement.py:compute_sample_composition): retained_count=28; verdict_counts={supported: 26, unsupported: 1, contradicted: 1}; distinct_expected_chunk_ids=13
+  - P3 met (13 ≥ MIN_DISTINCT_EXPECTED_CHUNK_IDS=8) with zero additions from the dual-source-covered 16-claim set
+  - 001/012/020 remain supported (no flips). No-relabel set 003/004/017/019/025/026 stay supported (026 sample supported vs backfill contradicted — drift recorded, not resolved)
+Validators:     test_calibration_sample_power.py (composition pins, honest-instrument P2 fail, unlabeled 027, no-relabel); test_exec_summary_spot_check_rubric.py::test_calibration_sample_ids_001_028_match_rubric_verbatim
+Consumers:      calibration.py --sample; D9 T3 run; T4 wave note
+Last changed:   2026-08-20 (eval-signal-foldback M3/W1 T2)
+```
+
+**D9 evidence-of-record (T4 wave note; do not rephrase the T3 figures):** `passed=false`; `failure_reasons=["P2: majority class fraction 0.9286 > 0.6", "P4: verdict_agreement 0.8214 < majority baseline 0.9286 + 0.1"]`; `unevaluated_pins=[]`; `claim_count=28`; `figures.verdict_agreement=0.8214285714285714`. Promotion inadmissible this wave (`exec_summary` stays `human`). W3 waives the runnable checkpoint's P2 component only; P2 enforcement in `evaluate_thresholds` is unwaived (`test_exec_summary_sample_honest_instrument_fails_p2`). Follow-up `m3-exec-summary-discriminative-probe-build`. No write to `eval/program/registry.yaml`.
+
+```
+Contract:       gold_labels_elder_care (M4/W4 epoch re-pin)
+Module:         eval/retrieval/gold_labels/elder_care.yaml
+Serialization:  YAML
+Version:        unversioned — tracked by git blame (T7-bis `699e682`)
+Purpose:        Elder Care retrieval gold; CIM pins remapped after T6 re-parse; all labels share one ingestion_snapshot
+Fields:
+  - ingestion_snapshot: uc13_ale:55819:2026-08-20 (57/57 labels; validate_ingestion_snapshot_consistency)
+  - positive_chunk_ids / negative_chunk_ids: remapped via T6-quater mapping (72 unique old pins; splits + many-to-one disclosed in T7-bis)
+  - gold_method / gold_status / aggregate_exclude: unchanged (C9 magnitude contract)
+Validators:     test_gold_bootstrap.py (snapshot string still pinned to pre-M4 epoch in the test constant — FU-M4-GATE); test_elder_care_slice_ready_intents_match_committed_gold
+Consumers:      eval harness, elder_care_slice.json, gold_positive_counts.yaml
+Last changed:   2026-08-21 (M4/W4 T7-bis)
+```
+
+```
+Contract:       FTA revenue_by_segment / revenue_by_customer parse rows (M4/W4)
+Module:         databricks/agents/subagents/workstream/financial/revenue_sub_agent.py
+Serialization:  JSON → analysis.financial_trends revenue_by_segment_json / revenue_by_customer_json
+Version:        unversioned — tracked by git blame (T2 `00e3583`)
+Purpose:        Deduped, located revenue arrays after LLM parse
+Fields:
+  - segment/customer identity keys used in live T2 wiring: ("segment", "period", "revenue_dollars") / ("customer_name", "period", "revenue_dollars") — C3's planning-time names differed; landed keys are the contract
+  - source_location: str | None — required schema key; None when the model omits it; row kept
+Validators:     tests/test_revenue_sub_agent.py (closes D-M4-E for C3); T10 warehouse 0 duplicate groups, 40/40 nonempty source_location on segments
+Consumers:      financial_trends_agent merge, basis_cross_check, fta_numeric spot-check
+Last changed:   2026-08-21 (M4/W4 T2+T10)
+```
+
+```
+Contract:       legal coverage-gap reason vocabulary (M4/W4 C7)
+Module:         databricks/agents/workstreams/legal_contracts_agent.py::_assess_coverage_gaps
+Serialization:  reason strings in analysis.legal data_room_gaps
+Version:        unversioned — tracked by git blame (T4 `ca98e9b`)
+Purpose:        Distinguish zero retrieved chunks from chunks-with-no-terms
+Fields:
+  - no_chunks_retrieved: zero chunks retrieved
+  - retrieved_no_terms: chunks retrieved, no extractable terms
+  - existing gap prose retained (additive vocabulary)
+Validators:     T9-bis warehouse payload (no no_chunks_retrieved on the two widened passes)
+Consumers:      product_backlog closes_when, T12
+Last changed:   2026-08-21 (M4/W4 T4+T9-bis)
+```
+
