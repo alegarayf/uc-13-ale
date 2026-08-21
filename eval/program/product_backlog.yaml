@@ -76,7 +76,33 @@ items:
     fix_lane: product
     closes_when: >-
       exec_summary evidence fetch returns untruncated chunk_text for affected claim_ids in a
-      spot-check re-run (008, 009, 010, 018 supported without analysis-table override).
+      spot-check re-run (009, 010, 018 supported without analysis-table override; claim 008 is tracked
+      separately under PB-exec_summary-008-locator-mismatch as a citation/locator defect, not
+      truncation).
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-bis-spotcheck-note.md
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-spotcheck-note.md
+
+  - id: PB-exec_summary-008-locator-mismatch
+    company: elder_care
+    surface: exec_summary
+    kind: claim_failure
+    severity: medium
+    summary: >-
+      Claim 008's citation resolves (cache-free, full chunk text) to the Pro Forma Income Statement
+      vision chunk, which reports TTM Aug-24 revenue 44,735, not the claimed 46,423. The claimed
+      figure is the Pro Forma Adjusted Revenue TTM value in the Diligence Adjusted Income Statement
+      chunk (page 46). Discovered while adjudicating PB-exec_summary-chunk-truncation (T11, M4/W4);
+      not truncation (the resolved chunk returned in full) and not the M7 dual-source retrieval gap
+      (both chunks are reachable via the same chunk-only retrieval path).
+    evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-spotcheck-note.md
+    fix_lane: product
+    closes_when: >-
+      exec_summary claim 008 cites the Diligence Adjusted Income Statement chunk (or an equivalent
+      correct locator) and its resolved chunk text supports the claimed TTM Aug-24 revenue value of
+      46,423 without requiring the analysis-table override.
 
   - id: PB-legal_register-extraction-depth-contracts
     company: elder_care
@@ -113,6 +139,9 @@ items:
     closes_when: >-
       Platform checklist item assessable (register row or documented exemption with corpus cite)
       OR corpus expanded with platform agreements and re-extraction yields rows.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T9-bis-legal-rerun-note.md
 
   - id: PB-legal_register-retrieval-ip
     company: elder_care
@@ -145,6 +174,9 @@ items:
     closes_when: >-
       FTA extraction writes deduplicated revenue_by_segment_json (or record_id per row) and a
       future spot-check resolves duplicate-array claims without operator override.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T10-fta-rerun-note.md
 
   - id: PB-fta_numeric-segment-source-location
     company: elder_care
@@ -162,6 +194,9 @@ items:
     closes_when: >-
       revenue_by_segment_json entries carry source_location populated from true source workbook/tab
       and spot-check Layer B resolves for representative segment claims.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T10-fta-rerun-note.md
 
   - id: PB-fta_numeric-broken-chunk-repoint
     company: elder_care
@@ -179,6 +214,9 @@ items:
     closes_when: >-
       source_location to chunk_id mapping for Pro Forma Income Statement section resolves to
       cd9773ea… (or equivalent correct chunk) in ingestion metadata and downstream tooling.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-bis-spotcheck-note.md
 
   - id: PB-fta_numeric-chunk-truncation
     company: elder_care
@@ -196,6 +234,10 @@ items:
     closes_when: >-
       fetch_chunk_metadata / retrieve_evidence returns full chunk_text for FTA numeric evidence
       paths without 1200-char cap regression on Elder Care calibration sample.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-bis-spotcheck-note.md
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-fta-evidence-lengths.json
 
   - id: PB-fta_numeric-page46-vision-reextract
     company: elder_care
@@ -212,6 +254,10 @@ items:
     closes_when: >-
       Re-extracted CIM page 46 chunk reconciles EBITDA dollar rows with margin row for 2023A and
       TTM columns in ingestion.chunks.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-bis-spotcheck-note.md
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-spotcheck-note.md
 
   - id: PB-legal_register-locator-chunk-resolution
     company: elder_care
@@ -231,6 +277,9 @@ items:
       legal_register S2 re-run (Manhattan/Long Island leases, COI rows, BAA, retainer) without
       operator override.
     registry_ref: M5-S2-product-backlog-ledger
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T9-bis-legal-rerun-note.md
 
   - id: PB-spg-ingest-borderline-completeness
     company: spg
