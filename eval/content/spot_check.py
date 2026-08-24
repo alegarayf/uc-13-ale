@@ -97,6 +97,7 @@ class SpotCheckClaim:
     cited_locator_value: str | None = None
     asserted_magnitude: Decimal | None = None
     asserted_unit: str | None = None
+    chunk_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -704,6 +705,22 @@ def _claim_from_manifest_entry(
     )
 
 
+def _attach_fetched_chunk_text(
+    claims: list[SpotCheckClaim],
+    chunk_index: ChunkIndex,
+) -> list[SpotCheckClaim]:
+    """Copy post-``fetch_text`` index text onto each resolved claim."""
+    attached: list[SpotCheckClaim] = []
+    for claim in claims:
+        text: str | None = None
+        if claim.cited_chunk_id:
+            rec = chunk_index.record(claim.cited_chunk_id)
+            if rec is not None and rec.chunk_text:
+                text = rec.chunk_text
+        attached.append(replace(claim, chunk_text=text))
+    return attached
+
+
 def load_claim_enumeration(
     config: SpotCheckConfig,
     *,
@@ -731,6 +748,7 @@ def load_claim_enumeration(
         cited = frozenset(c.cited_chunk_id for c in claims if c.cited_chunk_id)
         if cited:
             chunk_index.fetch_text(cited)
+        claims = _attach_fetched_chunk_text(claims, chunk_index)
     return tuple(claims)
 
 
@@ -745,11 +763,15 @@ def _generate_run_id(ts: datetime | None = None) -> tuple[str, datetime]:
     return run_id, run_ts
 
 
-def prepare_spot_check(config: SpotCheckConfig) -> SpotCheckPrepareResult:
+def prepare_spot_check(
+    config: SpotCheckConfig,
+    *,
+    chunk_index: ChunkIndex | None = None,
+) -> SpotCheckPrepareResult:
     """Enumerate claims, validate registry guard-rail, write presentation packet YAML."""
     _assert_human_spot_check_allowed(config.surface, config.registry_path)
     company_slug = canonical_company_slug(config.company)
-    claims = load_claim_enumeration(config)
+    claims = load_claim_enumeration(config, chunk_index=chunk_index)
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     packet_name = f"{config.surface}_{company_slug}_presentation.yaml"
@@ -776,6 +798,7 @@ def prepare_spot_check(config: SpotCheckConfig) -> SpotCheckPrepareResult:
                 "cited_chunk_id": claim.cited_chunk_id,
                 "cited_locator_kind": claim.cited_locator_kind,
                 "cited_locator_value": claim.cited_locator_value,
+                "chunk_text": claim.chunk_text,
                 "verdict": None,
                 "rationale": None,
             }

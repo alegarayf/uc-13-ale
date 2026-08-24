@@ -18,6 +18,7 @@ from eval.content.spot_check import (
     LOCATION_CHUNK_OVERRIDE,
     SpotCheckConfig,
     SpotCheckIngestionError,
+    _CACHE_FREE_TRUNCATION_SOURCES,
     exec_claim_source,
     load_claim_enumeration,
     prepare_spot_check,
@@ -758,4 +759,122 @@ def test_load_claim_enumeration_exec_summary_uses_company_cache(
     claims = load_claim_enumeration(cfg, exec_analysis_cache=cache)
     assert len(claims) == 1
     assert claims[0].source_doc == "Clearsulting CIM 2024.pdf"
+
+
+_CLAIM_009_CHUNK_ID = "chunk-009-diligence-adjusted"
+_FETCHED_CHUNK_BODY = (
+    "Diligence Adjusted Income Statement full numeric body including 9239 and 19.9%."
+)
+
+
+class _FetchTextSqlExecutor:
+    """Warehouse stub that answers ``fetch_text`` with full ``chunk_text``."""
+
+    def __init__(self, texts: dict[str, str]) -> None:
+        self._texts = texts
+        self.statements: list[str] = []
+
+    def __call__(self, statement: str) -> list[list[str]]:
+        self.statements.append(statement)
+        return [
+            [cid, text] for cid, text in self._texts.items() if cid in statement
+        ]
+
+
+def _write_truncation_row_manifest(root: Path) -> None:
+    """exec.claim.009 (in the cache-free table) plus unresolved exec.claim.001."""
+    payload = {
+        "schema_version": 1,
+        "claim_count": 2,
+        "claims": [
+            {
+                "section": "Financial Picture",
+                "claim_id": "exec.claim.009",
+                "claim_text": (
+                    "Pro Forma Adjusted EBITDA was $9,239K representing a "
+                    "19.9% margin on a pro forma basis."
+                ),
+            },
+            {
+                "section": "Business Overview",
+                "claim_id": "exec.claim.001",
+                "claim_text": "Example claim one.",
+            },
+        ],
+    }
+    (root / "eval/content/exec_summary_rubric_claims.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+
+def _claim_009_index(
+    *,
+    sql_executor: _FetchTextSqlExecutor | None = None,
+    chunk_text: str = "",
+) -> ChunkIndex:
+    return ChunkIndex(
+        [
+            ChunkRecord(
+                chunk_id=_CLAIM_009_CHUNK_ID,
+                file_name="2024 Elder Care - CIM_vF.pdf",
+                section_header="Diligence Adjusted Income Statement",
+                page_start=42,
+                chunk_text=chunk_text,
+            )
+        ],
+        sql_executor=sql_executor,
+        catalog="uc13_ale",
+        company="Elder Care",
+    )
+
+
+def test_prepare_spot_check_packet_carries_fetched_chunk_text(
+    spot_check_tree: Path,
+) -> None:
+    """F-6: prepared YAML carries post-fetch_text chunk_text for a resolved claim."""
+    _write_truncation_row_manifest(spot_check_tree)
+    cfg = _config(spot_check_tree)
+    executor = _FetchTextSqlExecutor({_CLAIM_009_CHUNK_ID: _FETCHED_CHUNK_BODY})
+    index = _claim_009_index(sql_executor=executor, chunk_text="")
+
+    result = prepare_spot_check(cfg, chunk_index=index)
+    payload = yaml.safe_load(result.packet_path.read_text(encoding="utf-8"))
+    by_id = {row["claim_id"]: row for row in payload["claims"]}
+
+    resolved = by_id["exec.claim.009"]
+    assert resolved["cited_chunk_id"] == _CLAIM_009_CHUNK_ID
+    assert resolved["chunk_text"] == _FETCHED_CHUNK_BODY
+    assert any("SELECT" in stmt and "chunk_text" in stmt for stmt in executor.statements)
+    assert _CLAIM_009_CHUNK_ID in executor.statements[0]
+
+    unresolved = by_id["exec.claim.001"]
+    assert unresolved["cited_chunk_id"] is None
+    assert unresolved["chunk_text"] is None
+
+
+def test_cache_free_truncation_sources_reachable_on_prepare_without_cache(
+    spot_check_tree: Path,
+) -> None:
+    """F-5: prepare(chunk_index=..., no cache) consults _CACHE_FREE_TRUNCATION_SOURCES."""
+    assert frozenset(_CACHE_FREE_TRUNCATION_SOURCES) == frozenset(
+        {
+            "exec.claim.008",
+            "exec.claim.009",
+            "exec.claim.010",
+            "exec.claim.018",
+        }
+    )
+    _write_truncation_row_manifest(spot_check_tree)
+    cfg = _config(spot_check_tree)
+    index = _claim_009_index(chunk_text="preloaded body")
+
+    result = prepare_spot_check(cfg, chunk_index=index)
+    claim = next(c for c in result.claims if c.claim_id == "exec.claim.009")
+    expected_doc, expected_loc = _CACHE_FREE_TRUNCATION_SOURCES["exec.claim.009"]
+    assert claim.source_doc == expected_doc
+    assert claim.source_location == expected_loc
+    assert claim.cited_chunk_id == _CLAIM_009_CHUNK_ID
+    unresolved = next(c for c in result.claims if c.claim_id == "exec.claim.001")
+    assert unresolved.source_doc is None
+    assert unresolved.cited_chunk_id is None
 
