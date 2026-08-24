@@ -1388,7 +1388,7 @@ class BusinessModelAgent:
             deal_type_context=deal_type_context,
             combined_chunk_text=combined_chunk_text,
         )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=16_000)
+        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=12_000)
         extracted = self._parse_json_response(raw_response)
 
         # ── Source doc validation: reject records sourced from the company profile ──
