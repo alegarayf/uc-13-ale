@@ -1,5 +1,9 @@
 # Changelog
 
+## cim-vs-full-vdr-fair-experiment — 2026-08-24
+
+- T1 (Experiment driver, run-card schema, submit helper, hermetic tests): Added gitignored `.dev/analysis/cim-vs-vdr/run_fair_experiment_arm.py` with `RunCard` JSON round-trip, `FairExperimentArmConfig` fail-closed catalog/arm pairing, `run_arm` composition (`reset_token_counter` → catalog env mirror → `run_pipeline(..., run_orchestrator=True)` → `build_exec_summary`), and sibling `.dev/analysis/cim-vs-vdr/submit_fair_experiment.py` serverless submit with `SERVERLESS_DEPS` (`pyyaml`, `pydantic>=2.0`, `mlflow`, `jsonschema`, `python-docx`). Rationale: freeze fair-arm call order and typed run-card keys before T2 preflight and T3 cluster submits. + added `tests/test_run_fair_experiment_arm.py` (skip guard when driver absent). Adversarial gap deferred: wet cluster proof that ingest passes `vision_endpoint=""` into the live ingest env — C7 operator-verified landing gate T3 cluster run (observable ingest args / env in job logs), not hermetic pytest alone.
+
 ## M4 / W4
 
 - T1 (Remove chunk-text truncation from both evidence-fetch paths): `fetch_chunk_metadata` / `retrieve_evidence` now project full `chunk_text` (retired `SUBSTRING(..., 1, 1200) AS excerpt`); `ChunkIndex.from_sql` stays metadata-only (`CAST(NULL AS STRING)`) and `ChunkIndex.fetch_text` loads text for resolved ids so exec_summary claims 008/009/010/018 resolve without `exec_analysis_cache`. Rationale: the WP-2 truncation still sat on the live path, and the spot-check index never carried chunk text at all, so calibration and exec_summary Layer-B could not see numeric evidence past 1,200 characters. Decision log: `.dev/plans/eval-signal-foldback-m4-product-fixes/decision-logs/T1.md`. Adversarial gap deferred: no hermetic pytest that `from_sql` still emits `CAST(NULL)` and that `fetch_text` is the second SQL — D-M4-E / C16; landing gate FU-M4-TESTS (M6), observable a pytest that spies both SQL strings.
