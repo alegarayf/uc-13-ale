@@ -164,10 +164,11 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
             # The mlflow deploy client's HTTP read timeout defaults to 120s
             # (MLFLOW_HTTP_REQUEST_TIMEOUT) — the earlier DATABRICKS_HTTP_TIMEOUT
             # name was not honored, so long generations died at 120s and retried
-            # until the outer 10-min budget. Raise the correct knob before the
-            # client is constructed.
-            os.environ.setdefault("MLFLOW_HTTP_REQUEST_TIMEOUT", "600")
-            os.environ.setdefault("DATABRICKS_HTTP_TIMEOUT", "600")
+            # until the outer 10-min budget. Assign 1800s (not setdefault("600"))
+            # so a cluster-preset 600 cannot win. This raises the client HTTP
+            # timeout; it does not claim to defeat a serving ~120s floor.
+            os.environ["MLFLOW_HTTP_REQUEST_TIMEOUT"] = "1800"
+            os.environ["DATABRICKS_HTTP_TIMEOUT"] = "1800"
             self._llm_client = mlflow.deployments.get_deploy_client("databricks")
         return self._llm_client
 
