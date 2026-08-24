@@ -103,8 +103,10 @@ _CUSTOMER_DEDUPE_KEY: tuple[str, ...] = ("customer_name", "period", "revenue_dol
 def dedupe_rows_by_key(rows: list[dict], key_fields: tuple[str, ...]) -> list[dict]:
     """Drop later rows that match an earlier row on every key field.
 
-    First-occurrence order is preserved. Rows that are not mappings, or that
-    are missing any key field, are retained unchanged rather than collapsed.
+    First-occurrence order is preserved. Rows that are not mappings, that
+    are missing any key field, or whose present key-field values are
+    unhashable (list/dict from raw LLM JSON), are retained unchanged rather
+    than collapsed.
     """
     seen: set[tuple] = set()
     out: list[dict] = []
@@ -113,6 +115,11 @@ def dedupe_rows_by_key(rows: list[dict], key_fields: tuple[str, ...]) -> list[di
             out.append(row)
             continue
         key = tuple(row[field] for field in key_fields)
+        try:
+            hash(key)
+        except TypeError:
+            out.append(row)
+            continue
         if key in seen:
             continue
         seen.add(key)
