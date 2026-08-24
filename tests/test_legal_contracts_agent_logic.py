@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import inspect
+from types import SimpleNamespace
+
 import pytest
 
 from agents.workstreams.legal_contracts_agent import (
     LegalContractsAgent,
     STAKEHOLDER_COVERAGE_REQUIREMENTS,
+    _DOMAIN_PASS_BUDGETS,
     _DOMAIN_PASS_IDS,
+    _DOMAIN_PASS_QUERIES,
     _eq_str,
     _is_not_found,
     _is_true,
+    _merge_query_hits,
     _merge_register_records,
     _pred_restrictive,
     _reconcile_register_from_citations,
@@ -330,3 +336,54 @@ def test_compute_section_confidence_band_edges(
 ):
     agent._assessed_coverage_count = assessed_count
     assert agent._compute_section_confidence() == expected
+
+
+def _hits(prefix: str, n: int) -> list[SimpleNamespace]:
+    return [SimpleNamespace(chunk_id=f"{prefix}{i:02d}") for i in range(n)]
+
+
+def test_merge_query_hits_reserves_generic_slots_without_dropping_targeted():
+    """C5 Landed (R9): targeted hits survive the merge without starving the generic query.
+
+    F-8 mechanism: four unique-hit queries round-robin under top_k=24 keep 6 slots
+    each and drop generic ranks 6–23. Mutation: ignore ``merge_slot_allocation``
+    and round-robin instead — generic kept count falls to 6 and this assertion
+    fails.
+    """
+    budget = _DOMAIN_PASS_BUDGETS["contracts_vendors_platform"]
+    allocation = budget["merge_slot_allocation"]
+    top_k = budget["top_k"]
+    queries = _DOMAIN_PASS_QUERIES["contracts_vendors_platform"]
+    assert allocation == (14, 4, 3, 3)
+    assert top_k == 24
+    assert isinstance(queries, tuple) and len(queries) == 4
+    assert len(allocation) == len(queries)
+    assert sum(allocation) == top_k
+    assert budget.get("vs_metadata_filters", False) is False
+
+    generic = _hits("G", 24)
+    t4c = [SimpleNamespace(chunk_id="G05")] + _hits("T", 8)
+    coc = _hits("C", 8)
+    platform = _hits("P", 8)
+    per_query = [generic, t4c, coc, platform]
+
+    starved_chunks, starved_kept = _merge_query_hits(per_query, top_k, None)
+    assert starved_kept[0] == 6
+    assert all(kept >= 1 for kept in starved_kept[1:])
+    assert len(starved_chunks) == top_k
+
+    chunks, kept = _merge_query_hits(per_query, top_k, allocation)
+    assert kept == (14, 4, 3, 3)
+    ids = [chunk.chunk_id for chunk in chunks]
+    assert ids[:14] == [f"G{i:02d}" for i in range(14)]
+    assert "G05" in ids[:14]
+    assert ids[14:18] == [f"T{i:02d}" for i in range(4)]
+    assert ids[18:21] == [f"C{i:02d}" for i in range(3)]
+    assert ids[21:24] == [f"P{i:02d}" for i in range(3)]
+    assert "G05" not in ids[14:]
+
+    retrieve_src = inspect.getsource(LegalContractsAgent._domain_retrieve_pass)
+    assert "_merge_query_hits" in retrieve_src
+    assert 'budget.get("merge_slot_allocation")' in retrieve_src
+    helper_src = inspect.getsource(_merge_query_hits)
+    assert "slot_allocation" in helper_src

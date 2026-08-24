@@ -622,6 +622,10 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
             "SA", "Lease", "Sublease", "Staffing", "Purchase", "Temp", "Marketing", "Engagement",
             "SaaS", "ClearCare", "Senior Care Authority", "Advance Placement", "Veta",
         ],
+        # C5 Landed (R9) / F-8: per-query reserved merge slots so clause-targeted
+        # queries keep a floor without starving the generic query (index 0).
+        # Order matches _DOMAIN_PASS_QUERIES["contracts_vendors_platform"].
+        "merge_slot_allocation": (14, 4, 3, 3),
     },
     "employment": {
         "top_k": 10,
@@ -719,6 +723,70 @@ _DOMAIN_PASSES: list[tuple[str, dict]] = [
 ]
 
 _DOMAIN_PASS_IDS: frozenset[str] = frozenset(pass_id for pass_id, _ in _DOMAIN_PASSES)
+
+
+def _chunk_merge_key(chunk) -> object:
+    return getattr(chunk, "chunk_id", None) or id(chunk)
+
+
+def _merge_query_hits(
+    per_query_hits: list[list],
+    top_k: int,
+    slot_allocation: tuple[int, ...] | None = None,
+) -> tuple[list, tuple[int, ...]]:
+    """Unique-by-chunk_id merge of per-query hit lists, capped at ``top_k``.
+
+    With ``slot_allocation``, query *i* is reserved up to ``slot_allocation[i]``
+    unique slots (generic / index 0 first) before a round-robin remainder fill.
+    Without it, the merge is round-robin unique — the pre-T16 contracts behaviour
+    and the single-query passes.
+    """
+    n_queries = len(per_query_hits)
+    seen: set = set()
+    chunks: list = []
+    kept = [0] * n_queries
+    cursors = [0] * n_queries
+
+    def _take_next_unique(query_idx: int) -> bool:
+        hits = per_query_hits[query_idx]
+        while cursors[query_idx] < len(hits) and len(chunks) < top_k:
+            chunk = hits[cursors[query_idx]]
+            cursors[query_idx] += 1
+            key = _chunk_merge_key(chunk)
+            if key in seen:
+                continue
+            seen.add(key)
+            chunks.append(chunk)
+            kept[query_idx] += 1
+            return True
+        return False
+
+    if slot_allocation is not None:
+        if len(slot_allocation) != n_queries:
+            raise ValueError(
+                "merge_slot_allocation length "
+                f"{len(slot_allocation)} != query count {n_queries}"
+            )
+        if any(n < 0 for n in slot_allocation):
+            raise ValueError("merge_slot_allocation values must be non-negative")
+        if sum(slot_allocation) > top_k:
+            raise ValueError(
+                f"merge_slot_allocation sum {sum(slot_allocation)} exceeds top_k {top_k}"
+            )
+        for query_idx, reserved in enumerate(slot_allocation):
+            taken = 0
+            while taken < reserved and _take_next_unique(query_idx):
+                taken += 1
+
+    progressed = True
+    while progressed and len(chunks) < top_k:
+        progressed = False
+        for query_idx in range(n_queries):
+            if _take_next_unique(query_idx):
+                progressed = True
+                if len(chunks) >= top_k:
+                    break
+    return chunks, tuple(kept)
 
 
 def _has_source_doc(record: dict) -> bool:
@@ -1100,33 +1168,28 @@ class LegalContractsAgent(WorkstreamAgent):
             ).chunks
             for query in queries
         ]
-        # Round-robin unique-by-chunk_id so a generic query that fills top_k
-        # cannot starve clause-targeted hits (C5). Other passes have one query.
-        seen: set = set()
-        chunks: list = []
-        cursors = [0] * len(per_query_hits)
-        progressed = True
-        while progressed and len(chunks) < top_k:
-            progressed = False
-            for i, hits in enumerate(per_query_hits):
-                while cursors[i] < len(hits) and len(chunks) < top_k:
-                    chunk = hits[cursors[i]]
-                    cursors[i] += 1
-                    key = getattr(chunk, "chunk_id", None) or id(chunk)
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    chunks.append(chunk)
-                    progressed = True
-                    break
+        raw_allocation = budget.get("merge_slot_allocation")
+        slot_allocation = tuple(raw_allocation) if raw_allocation is not None else None
+        # Reserved-slot merge when the budget names merge_slot_allocation (C5
+        # Landed R9 / F-8); otherwise round-robin unique (single-query passes).
+        chunks, merged_slots = _merge_query_hits(
+            per_query_hits, top_k, slot_allocation
+        )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         ws_preview = ",".join(workstream_filter)
+        alloc_note = ""
+        if slot_allocation is not None:
+            alloc_note = (
+                f" | merge_slot_allocation={list(slot_allocation)}"
+                f" | merged_slots={list(merged_slots)}"
+            )
         return self._tool_call(
             tool_name=f"domain_retrieve_{pass_id}",
             input_summary=(
                 f"pass={pass_id} | workstream={ws_preview} | top_k={top_k} | "
                 f"queries={len(queries)} | file_name_filter=[{filter_preview}]"
+                f"{alloc_note}"
             ),
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
