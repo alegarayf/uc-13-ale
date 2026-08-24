@@ -77,6 +77,40 @@ def test_dedupe_rows_by_key_collapses_present_none_values():
     assert out == [a]
 
 
+def test_dedupe_rows_by_key_retains_unhashable_key_values():
+    """C3 Landed (R9): a present unhashable key field must retain the row, not raise.
+
+    Audit F-7 / A-8: ``{"segment": ["NYC","LI"], ...}`` raised
+    ``TypeError: unhashable type: 'list'`` at ``seen.add(key)`` and aborted
+    ``RevenueSubAgent.run``. If this guard is removed, this test fails with
+    that TypeError. Hashable-but-wrong values (e.g. an int where a string is
+    expected) still participate in dedupe — only the TypeError path is amended.
+    """
+    list_valued = {
+        "segment": ["NYC", "LI"],
+        "period": "2023A",
+        "revenue_dollars": "1",
+    }
+    dict_valued = {
+        "segment": {"name": "NYC"},
+        "period": "2023A",
+        "revenue_dollars": "1",
+    }
+    list_valued_dup = {
+        "segment": ["NYC", "LI"],
+        "period": "2023A",
+        "revenue_dollars": "1",
+        "source_doc": "other.xlsx",
+    }
+    numeric_a = {"segment": 1, "period": "2023A", "revenue_dollars": "1"}
+    numeric_b = {"segment": 1, "period": "2023A", "revenue_dollars": "1"}
+    out = dedupe_rows_by_key(
+        [list_valued, dict_valued, list_valued_dup, numeric_a, numeric_b],
+        ("segment", "period", "revenue_dollars"),
+    )
+    assert out == [list_valued, dict_valued, list_valued_dup, numeric_a]
+
+
 def test_apply_contracts_fills_omitted_source_location_without_dropping():
     parsed = _apply_revenue_list_contracts(
         {
