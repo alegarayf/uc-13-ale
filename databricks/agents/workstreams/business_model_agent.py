@@ -778,6 +778,22 @@ def _two_pass_skeletons() -> tuple[str, str]:
 
 _COMMERCIAL_SKELETON, _ORGANIZATIONAL_SKELETON = _two_pass_skeletons()
 
+# C39: two-pass commercial output bound. Concatenated only when
+# group == "commercial". Organizational and C36 single-call prompts
+# must stay byte-identical to C38.
+_C39_COMMERCIAL_BREVITY = (
+    "C39_BREVITY: Bound products_services, people_and_org, and workforce_capacity "
+    "so this commercial JSON finishes inside 8K output tokens. "
+    "products_services: at most 8 items; each prose field at most 40 words; "
+    "keep numeric literals short; omit duplicate service lines. "
+    "people_and_org: at most 8 key_executives and 8 ownership rows; "
+    "background_note, management_depth_note, and entity_structure_note at most 25 words each. "
+    "workforce_capacity: at most 10 headcount_by_function rows; "
+    "workforce_model and hiring_and_growth notes at most 40 words each. "
+    "Prefer the highest-revenue or named items. Do not expand executive_summary, "
+    "revenue_model, or revenue_by_location to compensate.\n"
+)
+
 
 def _format_two_pass_user_prompt(
     *,
@@ -800,9 +816,11 @@ def _format_two_pass_user_prompt(
         deal_type_context=deal_type_context,
         combined_chunk_text=combined_chunk_text,
     )
+    brevity = _C39_COMMERCIAL_BREVITY if group == "commercial" else ""
     return (
         f"{preamble}\n"
         f"C37_FIELD_GROUP={group}\n"
+        f"{brevity}"
         f"Emit ONLY these top-level keys: {keys}. "
         "The retrieved document context above is the full unbounded context; "
         "do not reduce, filter, or cap it.\n"
