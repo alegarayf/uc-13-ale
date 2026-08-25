@@ -1,6 +1,6 @@
 # Trust statement (generated — do not edit)
 
-Generated: 2026-08-24T21:39:36.325449+00:00
+Generated: 2026-08-25T15:06:01.496242+00:00
 Generator: v1
 Catalog: uc13_ale
 Companies: clearsulting, elder_care, gkf, spg
@@ -235,21 +235,35 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
 - company: gkf
   layer: agent_fields
   surface: null
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: attested
+  reason: null
   method: null
   rung: null
-  evidence_refs: []
+  evidence_refs:
+  - fta:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - legal:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - bma:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - cqa:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - kpi:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - qoe:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - profiler:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
   known_gaps: []
   manual_check: null
 - company: gkf
   layer: e2e
   surface: null
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: attested
+  reason: null
   method: null
   rung: null
-  evidence_refs: []
+  evidence_refs:
+  - fta:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - legal:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - bma:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - cqa:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - kpi:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - qoe:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
+  - profiler:cd3abe7b4c3b4b9a91ffa977c5d2c1ce
   known_gaps: []
   manual_check: null
 - company: gkf
