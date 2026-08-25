@@ -1,0 +1,260 @@
+# MPS (Minimum Pursuit Score) rubric — POC, v0.1.0.
+#
+# Anchors are derived from a single reference artifact (Elder Care, one vertical,
+# one outcome — a deal that closed). This is a starting hypothesis, not a
+# validated standard. See docs/plans/mps_score/mps_score_1st_draft.md §2.4.
+# Do not present this version as validated in any downstream copy.
+#
+# `definition` fields are VERBATIM from docs/checklist/checklist_template.md
+# §A.2 — do not shorten, paraphrase, or reflow them. That file is gitignored,
+# so this YAML is the only place these definitions are committed.
+rubric_version: "0.1.0-poc"
+threshold: 15
+scale: {min: 1, max: 5}
+
+# Anchors are authored only for 1/3/5. 2 and 4 are not authored per-category —
+# they are interpolated once, globally: "between the adjacent anchors, closer
+# to the lower/upper one". Authoring five anchors per category invites
+# overfitting on the single reference deal above.
+interpolation_rule: >
+  Scores of 2 and 4 are not separately anchored. They sit between the adjacent
+  1/3/5 anchors: a 2 is closer to the 1 anchor than to the 3 anchor for this
+  category, and a 4 is closer to the 5 anchor than to the 3 anchor.
+
+# R-A..R-E — anti-hedging calibration rules. See
+# docs/plans/mps_score/mps_score_1st_draft.md §2.3 (F-2, F-3).
+calibration_rules:
+  - key: R-A
+    text: >
+      3 is not a neutral or default score. 3 means you can name a specific,
+      material concern a partner would argue about. If you cannot name that
+      concern, the score is not 3.
+  - key: R-B
+    text: >
+      Absence of evidence is not evidence of weakness. If a category cannot be
+      assessed from the available material, do not lower the score to hedge —
+      score against the proxies available, and state the evidence limitation
+      in the rationale.
+  - key: R-C
+    text: "Do not restate the category definition as the rationale."
+  - key: R-D
+    text: >
+      Every rationale must name at least one concrete anchor from the digest —
+      a figure, a named mechanism, a named document class, or a named proxy.
+  - key: R-E
+    text: >
+      The model is never told the threshold or the total formula. It scores 7
+      categories independently. This prevents the model from
+      reverse-engineering scores to land on a desired verdict.
+
+categories:
+  - key: magical_business_model
+    display_name: "Magical business model"
+    # VERBATIM from checklist_template.md §A.2 — do not shorten, paraphrase, or reflow.
+    definition: >
+      Does the company do something unique or differentiated for its
+      customers? Does that show up in strong revenue growth, durable gross
+      margins, customer stickiness or other evidence of business model
+      quality? How scalable and institutionalised is the "magic"?
+    evidence_basis: document_derived
+    anchors:
+      "5": >
+        Differentiation is named, structural, and shows up in the numbers:
+        durable gross margins, customer stickiness, or growth that
+        outperforms the category, with a concrete mechanism the company
+        controls (proprietary process, network effect, brand, switching
+        cost) — not just a claim of quality.
+      "3": >
+        A plausible differentiation story exists but is asserted rather than
+        evidenced in the numbers — name the specific gap (e.g. margins in
+        line with generic competitors, no stickiness metric, no evidence the
+        "magic" survives a founder's departure).
+      "1": >
+        Undifferentiated; competes on price/availability; no mechanism named
+        that a competitor could not replicate; margins and growth track the
+        commodity segment of the category.
+    required_commentary:
+      sub_axes: []
+      min_bullets: 1
+      max_bullets: 4
+
+  - key: growth_mindset
+    display_name: "Growth mindset"
+    # VERBATIM from checklist_template.md §A.2 — do not shorten, paraphrase, or reflow.
+    definition: >
+      Does the founder/leadership team show ambition, humility and a desire
+      to elevate their industry? Can they articulate a compelling growth
+      strategy? Seeking a true partner or a liquidity event? Hardest to
+      assess from a data room — use proxies: prior M&A execution, investment
+      ahead of growth, senior hires, repeatable systems, willingness to
+      professionalise.
+    evidence_basis: contact_dependent
+    anchors:
+      "5": >
+        Multiple concrete proxies point the same direction — prior M&A
+        execution, investment ahead of growth, senior/professional hires
+        already made, repeatable systems already built — and nothing in the
+        record reads as pure liquidity-seeking.
+      "3": >
+        Proxies are mixed or thin — name which specific proxy is present and
+        which is missing (e.g. one senior hire but no evidence of investment
+        ahead of growth) — not "leadership seems capable."
+      "1": >
+        Proxies point toward a liquidity event or caretaker management: no
+        senior hires, no reinvestment ahead of growth, no repeatable systems,
+        or explicit signals the goal is an exit rather than partnership.
+    required_commentary:
+      sub_axes: []
+      min_bullets: 1
+      max_bullets: 4
+
+  - key: growth_characteristics
+    display_name: "Growth characteristics"
+    # VERBATIM from checklist_template.md §A.2 — do not shorten, paraphrase, or reflow.
+    definition: >
+      Is the company growing at an attractive rate (ideally ≥15% annually)?
+      What drives the growth, and is it sustainable? Strong unit economics,
+      high ROIC, evidence that "bigger is better" in this market.
+    evidence_basis: document_derived
+    anchors:
+      "5": >
+        Growth is at or above the ≥15% annual bar, the driver is named and
+        sustainable (not a one-time contract or price increase), and unit
+        economics/ROIC improve or hold as the company scales — "bigger is
+        better" is evidenced, not asserted.
+      "3": >
+        Growth is below the ≥15% bar, or the bar is met but the driver is
+        one-time/unsustainable, or unit economics degrade with scale — name
+        which of these is true and by how much.
+      "1": >
+        Growth is flat or declining, or the growth that exists is dilutive
+        to unit economics — "bigger" makes the business structurally worse,
+        not better.
+    required_commentary:
+      sub_axes: []
+      min_bullets: 1
+      max_bullets: 4
+
+  - key: manageable_systemic_risk
+    display_name: "Manageable systemic risk"
+    # VERBATIM from checklist_template.md §A.2 — do not shorten, paraphrase, or reflow.
+    definition: >
+      What could structurally impair the company's future? Customer
+      concentration, channel dependence, cyclicality, regulatory/reimbursement
+      risk, technology risk, vendor dependence, execution risk,
+      discretionary-vs-mission-critical positioning.
+    evidence_basis: document_derived
+    anchors:
+      "5": >
+        No structural risk rises above manageable: concentration is
+        diversified, channel/payor exposure is not existential, regulatory
+        and vendor dependence are named and mitigated, the offering is
+        mission-critical rather than discretionary.
+      "3": >
+        At least one axis carries a real, named structural risk (e.g.
+        material customer or payor concentration, meaningful regulatory
+        exposure) that is not yet mitigated — name the axis and the specific
+        exposure, not "some risk exists."
+      "1": >
+        A single axis is severe enough to structurally impair the business on
+        its own — e.g. a customer/payor concentration or regulatory trigger
+        that could remove a material share of revenue with no mitigation in
+        evidence.
+    # Generalized axis set (F-6) — home-care-flavored originals in parens.
+    # The prompt must cover only the axes that apply to this business, name
+    # each one covered, and skip ones that do not apply. Never pad with an
+    # inapplicable axis.
+    required_commentary:
+      sub_axes:
+        - "Industry/Competitive"
+        - "Workforce/Talent"      # (Employee)
+        - "Customer/Demand"       # (Customer)
+        - "Channel-or-Payor"      # (Payor)
+        - "Regulatory"
+        - "Vendor/Technology"
+      min_bullets: 1
+      max_bullets: 4
+
+  - key: untapped_growth_opportunities
+    display_name: "Untapped growth opportunities"
+    # VERBATIM from checklist_template.md §A.2 — do not shorten, paraphrase, or reflow.
+    definition: >
+      What growth/value creation is not yet exploited? Organic growth,
+      pricing, new products, new geographies, cross-sell, operating leverage,
+      cost savings, add-on M&A, multiple expansion.
+    evidence_basis: document_derived
+    anchors:
+      "5": >
+        Multiple concrete, named levers are visible and not yet pulled
+        (pricing headroom, an addressable adjacent segment, a specific
+        cross-sell or add-on M&A target, clear operating leverage) — each
+        grounded in something specific to this business, not a generic list.
+      "3": >
+        Levers are generic or unverified — name which lever is asserted but
+        not evidenced (e.g. "could raise prices" with no comparable, "could
+        expand geographies" with no named market).
+      "1": >
+        No credible unexploited lever is visible; the business appears to be
+        running near its ceiling on pricing, product, geography, and
+        operating leverage simultaneously.
+    required_commentary:
+      sub_axes: []
+      min_bullets: 1
+      max_bullets: 4
+
+  - key: transformational_equity
+    display_name: "Transformational equity"
+    # VERBATIM from checklist_template.md §A.2 — do not shorten, paraphrase, or reflow.
+    definition: >
+      Can Rallyday capital be meaningfully transformational? Clear use of
+      funds? Can the team be built, growth accelerated, M&A supported, systems
+      improved — enough to materially change trajectory?
+    evidence_basis: judgment_over_context
+    anchors:
+      "5": >
+        A specific, credible use of funds is named (team build-out, M&A
+        pipeline, systems investment) that plausibly changes the company's
+        trajectory, not just its size — and the business does not already
+        look capable of getting there without a capital partner.
+      "3": >
+        A use of funds exists but its transformational impact is uncertain —
+        name the specific counter-argument (e.g. the business could likely
+        continue at a similar trajectory without a capital partner, or the
+        use of funds is more "more of the same" than trajectory-changing).
+      "1": >
+        No credible use of funds is transformational; capital would fund
+        incremental growth the business could likely achieve on its own, or
+        no use of funds is articulated at all.
+    required_commentary:
+      sub_axes: []
+      min_bullets: 1
+      max_bullets: 4
+
+  - key: financeable
+    display_name: "Financeable"
+    # VERBATIM from checklist_template.md §A.2 — do not shorten, paraphrase, or reflow.
+    definition: >
+      Are valuation expectations reasonable relative to market/risk/growth
+      profile? Can the business access credit markets as it scales? Any
+      structural issue constraining lender appetite or exit options?
+    evidence_basis: judgment_over_context
+    anchors:
+      "5": >
+        Valuation expectations (where known) line up with the risk/growth
+        profile, EBITDA is clean enough to support leverage at a normal
+        multiple, and nothing in the profile would give a lender or a future
+        buyer pause.
+      "3": >
+        Valuation or financeability is uncertain rather than clearly good or
+        bad — name the specific gap (e.g. no proposed structure yet to
+        judge, or Adj. EBITDA quality carries an open addback question that
+        would concern a lender).
+      "1": >
+        Valuation expectations are structurally disconnected from the
+        risk/growth profile, or a specific issue (customer concentration,
+        addback quality, regulatory exposure) would materially constrain
+        lender appetite or exit options.
+    required_commentary:
+      sub_axes: []
+      min_bullets: 1
+      max_bullets: 4
