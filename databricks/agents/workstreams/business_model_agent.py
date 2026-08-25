@@ -495,6 +495,8 @@ RULE: Extract every distinct dated event. A company with a 7-year history should
 produce many records — do not stop at 1 or 2.
 
 {{
+  "executive_summary": "<5–6 sentence factual summary covering: (1) what the company does and at what revenue scale; (2) how it earns revenue and the margin profile; (3) who leads the company and any ownership/key-man context; (4) workforce model and delivery capacity; (5) customer stickiness signal from tenure or utilization data; (6) what has changed recently. Use numbers where stated.>",
+
   "revenue_model": {{
     "tag": "<choose one tag from the system prompt list>",
     "pct_split": "<stated split or null — e.g. '80% recurring SaaS, 20% professional services'>",
@@ -701,8 +703,6 @@ produce many records — do not stop at 1 or 2.
       "confidence": "<high | medium | low>"
     }}
   ],
-
-  "executive_summary": "<5–6 sentence factual summary covering: (1) what the company does and at what revenue scale; (2) how it earns revenue and the margin profile; (3) who leads the company and any ownership/key-man context; (4) workforce model and delivery capacity; (5) customer stickiness signal from tenure or utilization data; (6) what has changed recently. Use numbers where stated.>",
 
   "extraction_notes": "<note: whether a CIM was present; fields null because genuinely absent; overlay-specific fields skipped; any ambiguities>"
 }}
@@ -1388,7 +1388,7 @@ class BusinessModelAgent:
             deal_type_context=deal_type_context,
             combined_chunk_text=combined_chunk_text,
         )
-        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=12_000)
+        raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, _extract_ep, max_tokens=8_000)
         extracted = self._parse_json_response(raw_response)
 
         # ── Source doc validation: reject records sourced from the company profile ──
