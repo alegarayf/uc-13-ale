@@ -109,9 +109,28 @@ def test_render_rainmaker_landscape_orientation(monkeypatch, tmp_path, company):
 _PAGE_COUNT_CEILING = 4
 
 
+def _require_production_pdf_engine() -> None:
+    """Page counts are only meaningful under WeasyPrint — the engine that
+    actually renders in production. The PyMuPDF Story fallback paginates
+    differently (b2b_saas: 5 pages under PyMuPDF vs. 4 under WeasyPrint), so
+    asserting a ceiling against it reports a phantom regression on any machine
+    where WeasyPrint's system libs (libgobject et al.) are not loadable —
+    which happened once already, costing a session's worth of investigation.
+
+    Same guard test_rainmaker_golden_render.py already uses for its own page
+    count. On macOS/Homebrew you may need DYLD_LIBRARY_PATH=/opt/homebrew/lib
+    for the import below to succeed.
+    """
+    try:
+        import weasyprint  # noqa: F401
+    except Exception as exc:  # noqa: BLE001 - any import/dlopen failure means "not the prod engine"
+        pytest.skip(f"WeasyPrint (or its system libs) not available in this env: {exc!r}")
+
+
 @pytest.mark.parametrize("company", ["elder_care", "elder_care_cim_only", "clearsulting", "gkf", "b2b_saas"])
 def test_render_rainmaker_pdf_page_count_within_target(monkeypatch, tmp_path, company):
     pytest.importorskip("fitz", reason="PyMuPDF not available in this env")
+    _require_production_pdf_engine()
     _patch_volume(monkeypatch, tmp_path)
     bundle = _load(company)
     result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
@@ -138,6 +157,7 @@ def test_render_rainmaker_pdf_page_count_within_target_with_worst_case_mps(monke
     most-verbose-plausible MPS fixture (plan §8.1) — this is what actually
     proves the MPS page's one-page fit before an LLM is generating its text."""
     pytest.importorskip("fitz", reason="PyMuPDF not available in this env")
+    _require_production_pdf_engine()
     _patch_volume(monkeypatch, tmp_path)
     bundle = _load(company)
     mps = _load_mps_fixture()
