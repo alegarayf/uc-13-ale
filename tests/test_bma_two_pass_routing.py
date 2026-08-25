@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 
 from agents.workstreams.business_model_agent import (
+    _COMMERCIAL_FIELD_KEYS,
     _ORGANIZATIONAL_FIELD_KEYS,
     _SYSTEM_PROMPT,
     _TWO_PASS_CONTEXT_CHARS,
@@ -91,7 +92,12 @@ def test_bma_two_pass_merges_disjoint_field_groups() -> None:
         "overlay_conflict_evidence": "none",
         "citations": [{"field": "revenue_model"}],
         "extraction_notes": "ok",
+        "customer_operational_metrics": {"total_customers_or_accounts": "100"},
     }
+    assert "customer_operational_metrics" not in commercial
+    assert "customer_operational_metrics" in organizational
+    assert "customer_operational_metrics" not in _COMMERCIAL_FIELD_KEYS
+    assert "customer_operational_metrics" in _ORGANIZATIONAL_FIELD_KEYS
 
     def replies(n, _sys, user, _ep, _tok):
         if "C37_FIELD_GROUP=commercial" in user:
