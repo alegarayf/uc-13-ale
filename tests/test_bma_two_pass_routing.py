@@ -9,6 +9,7 @@ import json
 
 from agents.workstreams.business_model_agent import (
     _C39_COMMERCIAL_BREVITY,
+    _C40_ORGANIZATIONAL_BREVITY,
     _COMMERCIAL_FIELD_KEYS,
     _ORGANIZATIONAL_FIELD_KEYS,
     _SYSTEM_PROMPT,
@@ -204,3 +205,60 @@ def test_bma_two_pass_commercial_prompt_has_c39_brevity() -> None:
     assert "at most 8 items" not in calls_single[0]["user"]
     assert "at most 8 key_executives" not in calls_single[0]["user"]
     assert "at most 10 headcount_by_function" not in calls_single[0]["user"]
+
+
+def test_bma_two_pass_organizational_prompt_has_c40_brevity() -> None:
+    """C40 guidance is on the two-pass organizational prompt only."""
+    marker = "C40_BREVITY"
+    assert marker in _C40_ORGANIZATIONAL_BREVITY
+    assert "recent_model_changes" in _C40_ORGANIZATIONAL_BREVITY
+    assert "key_dependencies" in _C40_ORGANIZATIONAL_BREVITY
+    assert "citations" in _C40_ORGANIZATIONAL_BREVITY
+    assert marker not in _USER_PROMPT_TEMPLATE
+    assert marker not in _C39_COMMERCIAL_BREVITY
+    assert "C39_BREVITY" not in _C40_ORGANIZATIONAL_BREVITY
+    assert "at most 8 items" not in _C40_ORGANIZATIONAL_BREVITY
+    assert "at most 8 key_executives" not in _C40_ORGANIZATIONAL_BREVITY
+    assert "at most 10 headcount_by_function" not in _C40_ORGANIZATIONAL_BREVITY
+
+    def replies(_n, _sys, _user, _ep, _tok):
+        return "{}"
+
+    two_pass_text = "y" * (_TWO_PASS_CONTEXT_CHARS + 1)
+    agent, calls = _agent_with_mock_llm(replies)
+    agent._extract_structured(
+        combined_chunk_text=two_pass_text,
+        company_profile_json="{}",
+        deal_type_context="DEAL TYPE: test",
+        endpoint="ep",
+    )
+    assert len(calls) == 2
+    commercial = next(c for c in calls if "C37_FIELD_GROUP=commercial" in c["user"])
+    organizational = next(c for c in calls if "C37_FIELD_GROUP=organizational" in c["user"])
+    assert _C40_ORGANIZATIONAL_BREVITY in organizational["user"]
+    assert marker in organizational["user"]
+    assert "at most 10 dated events" in organizational["user"]
+    assert "at most 10 named dependencies" in organizational["user"]
+    assert "at most 16 rows" in organizational["user"]
+    assert _C39_COMMERCIAL_BREVITY in commercial["user"]
+    assert _C40_ORGANIZATIONAL_BREVITY not in commercial["user"]
+    assert marker not in commercial["user"]
+    assert "at most 10 dated events" not in commercial["user"]
+    assert "at most 10 named dependencies" not in commercial["user"]
+    assert "at most 16 rows" not in commercial["user"]
+
+    single_text = "x" * _TWO_PASS_CONTEXT_CHARS
+    agent_single, calls_single = _agent_with_mock_llm(replies)
+    agent_single._extract_structured(
+        combined_chunk_text=single_text,
+        company_profile_json="{}",
+        deal_type_context="DEAL TYPE: test",
+        endpoint="ep",
+    )
+    assert len(calls_single) == 1
+    assert "C37_FIELD_GROUP=" not in calls_single[0]["user"]
+    assert _C40_ORGANIZATIONAL_BREVITY not in calls_single[0]["user"]
+    assert marker not in calls_single[0]["user"]
+    assert "at most 10 dated events" not in calls_single[0]["user"]
+    assert "at most 10 named dependencies" not in calls_single[0]["user"]
+    assert "at most 16 rows" not in calls_single[0]["user"]

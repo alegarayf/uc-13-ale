@@ -794,6 +794,20 @@ _C39_COMMERCIAL_BREVITY = (
     "revenue_model, or revenue_by_location to compensate.\n"
 )
 
+# C40: two-pass organizational output bound. Concatenated only when
+# group == "organizational". Commercial (C39) and C36 single-call
+# prompts must stay byte-identical to C39.
+_C40_ORGANIZATIONAL_BREVITY = (
+    "C40_BREVITY: Bound recent_model_changes, key_dependencies, and citations "
+    "so this organizational JSON finishes inside 8K output tokens. "
+    "recent_model_changes: at most 10 dated events; each description and "
+    "impact_note at most 40 words; omit duplicate or undated events. "
+    "key_dependencies: at most 10 named dependencies; each description at most 25 words. "
+    "citations: at most 16 rows; quotes stay at most 30 words. "
+    "Prefer the highest-impact or named items. Do not expand customer_profile, "
+    "sales_motion, revenue_visibility, or customer_operational_metrics to compensate.\n"
+)
+
 
 def _format_two_pass_user_prompt(
     *,
@@ -816,7 +830,12 @@ def _format_two_pass_user_prompt(
         deal_type_context=deal_type_context,
         combined_chunk_text=combined_chunk_text,
     )
-    brevity = _C39_COMMERCIAL_BREVITY if group == "commercial" else ""
+    if group == "commercial":
+        brevity = _C39_COMMERCIAL_BREVITY
+    elif group == "organizational":
+        brevity = _C40_ORGANIZATIONAL_BREVITY
+    else:
+        brevity = ""
     return (
         f"{preamble}\n"
         f"C37_FIELD_GROUP={group}\n"
