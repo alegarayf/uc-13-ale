@@ -1,6 +1,6 @@
 # Trust statement (generated — do not edit)
 
-Generated: 2026-08-19T19:04:27.870847+00:00
+Generated: 2026-08-24T21:39:36.325449+00:00
 Generator: v1
 Catalog: uc13_ale
 Companies: clearsulting, elder_care, gkf, spg
@@ -42,25 +42,35 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
 - company: clearsulting
   layer: agent_fields
   surface: null
-  attestation: partial
-  reason: incomplete_agent_matrix
+  attestation: attested
+  reason: null
   method: null
   rung: null
   evidence_refs:
   - fta:6e1b4f5d95284b33bbd08942b3595dd6
-  - legal:9d39d36f15204632b23c563305fcb916
+  - legal:6e1b4f5d95284b33bbd08942b3595dd6
+  - bma:6e1b4f5d95284b33bbd08942b3595dd6
+  - cqa:6e1b4f5d95284b33bbd08942b3595dd6
+  - kpi:6e1b4f5d95284b33bbd08942b3595dd6
+  - qoe:6e1b4f5d95284b33bbd08942b3595dd6
+  - profiler:6e1b4f5d95284b33bbd08942b3595dd6
   known_gaps: []
   manual_check: null
 - company: clearsulting
   layer: e2e
   surface: null
-  attestation: partial
-  reason: incomplete_agent_matrix
+  attestation: attested
+  reason: null
   method: null
   rung: null
   evidence_refs:
   - fta:6e1b4f5d95284b33bbd08942b3595dd6
-  - legal:9d39d36f15204632b23c563305fcb916
+  - legal:6e1b4f5d95284b33bbd08942b3595dd6
+  - bma:6e1b4f5d95284b33bbd08942b3595dd6
+  - cqa:6e1b4f5d95284b33bbd08942b3595dd6
+  - kpi:6e1b4f5d95284b33bbd08942b3595dd6
+  - qoe:6e1b4f5d95284b33bbd08942b3595dd6
+  - profiler:6e1b4f5d95284b33bbd08942b3595dd6
   known_gaps: []
   manual_check: null
 - company: clearsulting
@@ -179,9 +189,9 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
   method: null
   rung: deterministic
   evidence_refs:
-  - s2_scores:20260813T183720Z-r3f
+  - s2_scores:20260824T133731Z-t16
   known_gaps:
-  - 20/23 claims failed on legal_register
+  - 26/28 claims failed on legal_register
   manual_check: null
 - company: elder_care
   layer: content_correctness

@@ -998,9 +998,11 @@ items:
   stage: S1
   status: pending
   trigger: null
-  rationale: null
+  rationale: Clearsulting share discharged; GKF/SPG remain outstanding.
   tshirt: m
-  evidence_refs: []
+  evidence_refs:
+  - eval/PROFILER/golden_checklist_clearsulting.md
+  - 'uc13_ale.classification.company_profile Clearsulting created_at=2026-08-24 19:31:55.237812 (job 1118294081493210)'
   rung_assignments: {}
   assessment_metrics: {}
 - id: OI-housekeeping-do-today-chip-a-plan-status-auditor-handoff
