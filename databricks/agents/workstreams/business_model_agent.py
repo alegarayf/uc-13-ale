@@ -730,7 +730,6 @@ _COMMERCIAL_FIELD_KEYS = (
     "revenue_by_location",
     "people_and_org",
     "workforce_capacity",
-    "customer_operational_metrics",
 )
 _ORGANIZATIONAL_FIELD_KEYS = (
     "customer_profile",
@@ -741,6 +740,7 @@ _ORGANIZATIONAL_FIELD_KEYS = (
     "overlay_conflict_evidence",
     "citations",
     "extraction_notes",
+    "customer_operational_metrics",
 )
 
 _SKELETON_OPEN = '\n{{\n  "executive_summary":'
