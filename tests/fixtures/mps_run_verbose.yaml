@@ -1,0 +1,127 @@
+# Hand-written MPS run fixture — worst-case-plausible commentary volume,
+# used to stress-test the MPS page's one-page fit (plan §8.1) before an LLM
+# is generating this text. Shaped exactly per plan §4 (MPSAgent.score()'s
+# return contract), not the LLM's narrower 4-key-per-category shape (§4.1).
+#
+# Score vector [4,5,5,4,5,3,4] reuses the Elder Care golden vector from
+# plan §1 / T1's test_mps_scoring.py (24/24/32/32 vectors) — product/1000 =
+# 24.0, above the 15 threshold.
+#
+# Bullet counts respect the data contract, not the task brief's rounded
+# "4 bullets in all 7 categories": sub_axis_notes (§4/§4.1) is empty for
+# every category except manageable_systemic_risk, so the other six
+# categories cap at 2 bullets (rationale + counter_evidence) — each written
+# near the ~180-char rationale / short-clause sub-axis-note ceiling from
+# §8.1 point 3. manageable_systemic_risk uses 4 of its 6 available
+# sub-axis notes, matching the reference artifact's widest row exactly.
+mps_status: success
+rubric_version: "0.1.0-poc"
+threshold: 15
+run_mode: full_vdr_no_cim
+generated_at: "2026-08-25T00:00:00Z"
+degraded_reason: null
+total: 24.0
+verdict: "above threshold"
+categories:
+  - key: magical_business_model
+    display_name: "Magical business model"
+    score: 4
+    rationale: >-
+      Differentiation shows up structurally: gross margins run 6-8 points above the two
+      named regional competitors, and referral-based acquisition suggests real stickiness.
+    counter_evidence: >-
+      No customer-retention metric is in the data room to confirm stickiness beyond
+      management's referral claim, so the margin gap could partly reflect scale, not moat.
+    sub_axis_notes: []
+    evidence_basis: document_derived
+    evidence_refs: []
+    confidence: high
+
+  - key: growth_mindset
+    display_name: "Growth mindset"
+    score: 5
+    rationale: >-
+      Two senior operating hires in the last 18 months plus a documented add-on M&A
+      pipeline of three named targets point at professionalization ahead of a partner search.
+    counter_evidence: >-
+      Assessed entirely from proxies in the data room — no management interview exists yet
+      to confirm the hires and pipeline reflect genuine ambition rather than exit dressing.
+    sub_axis_notes: []
+    evidence_basis: contact_dependent
+    evidence_refs: []
+    confidence: medium
+
+  - key: growth_characteristics
+    display_name: "Growth characteristics"
+    score: 5
+    rationale: >-
+      Revenue CAGR of 22% over three years is driven by same-store volume growth, not
+      price or one-time contracts, and gross margin held flat as the business scaled.
+    counter_evidence: >-
+      2024's growth rate stepped down to 14% from the prior two years' 26%+, a deceleration
+      the digest does not explain and that a partner would need to test before diligence.
+    sub_axis_notes: []
+    evidence_basis: document_derived
+    evidence_refs: []
+    confidence: high
+
+  - key: manageable_systemic_risk
+    display_name: "Manageable systemic risk"
+    score: 4
+    rationale: >-
+      No single axis is severe enough to structurally impair the business on its own.
+    counter_evidence: ""
+    sub_axis_notes:
+      - axis: "Workforce/Talent"
+        note: "Caregiver turnover trends slightly above the regional benchmark."
+      - axis: "Customer/Demand"
+        note: "Top-10 customer concentration sits at 28%, not existential."
+      - axis: "Channel-or-Payor"
+        note: "Private-pay mix limits reimbursement-rate exposure vs. peers."
+      - axis: "Regulatory"
+        note: "State licensing renewal is routine; no open violations noted."
+    evidence_basis: document_derived
+    evidence_refs: []
+    confidence: medium
+
+  - key: untapped_growth_opportunities
+    display_name: "Untapped growth opportunities"
+    score: 5
+    rationale: >-
+      Two adjacent counties with no current branch and a named add-on target already in
+      diligence give this two concrete, unexploited levers beyond the existing footprint.
+    counter_evidence: >-
+      Pricing headroom is asserted by management with no rate-card comparable against the
+      two named regional competitors, so that specific lever remains unverified for now.
+    sub_axis_notes: []
+    evidence_basis: document_derived
+    evidence_refs: []
+    confidence: medium
+
+  - key: transformational_equity
+    display_name: "Transformational equity"
+    score: 3
+    rationale: >-
+      A named use of funds (branch build-out + the add-on target) exists, but the business
+      already grew 22% CAGR without outside capital, so the trajectory-change case is thin.
+    counter_evidence: >-
+      Management has not articulated what changes structurally beyond "more of the same"
+      footprint expansion, which is the specific gap this score is naming, not a guess.
+    sub_axis_notes: []
+    evidence_basis: judgment_over_context
+    evidence_refs: []
+    confidence: low
+
+  - key: financeable
+    display_name: "Financeable"
+    score: 4
+    rationale: >-
+      Reported EBITDA margin is in line with the category and no addback quality issue is
+      large enough on its own to concern a lender at a normal leverage multiple.
+    counter_evidence: >-
+      26 addback-ledger items including 16 tier-4 (least-supported) entries leave an open
+      Adj. EBITDA quality question that a lender would want resolved before underwriting.
+    sub_axis_notes: []
+    evidence_basis: judgment_over_context
+    evidence_refs: []
+    confidence: medium

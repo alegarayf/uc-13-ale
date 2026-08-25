@@ -91,6 +91,23 @@
   .rule-band-tile .label { color: #595959; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.02em; }
   .two-col { display: flex; gap: 10mm; }
   .two-col > div { flex: 1; }
+  .page.mps { page-break-inside: avoid; }
+  table.mps-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 1.5mm 0 1.5mm 0; }
+  table.mps-table th, table.mps-table td {
+    border-bottom: 0.5pt solid #BFD0E8; padding: 0.8mm 2mm; text-align: left; vertical-align: top;
+    font-size: 7.3pt; line-height: 1.1; overflow: hidden;
+  }
+  table.mps-table th { color: #fff; background: #1F3864; font-size: 7pt; text-transform: uppercase; }
+  table.mps-table th.mps-category-col, table.mps-table td.mps-category-col { background: #1F3864; color: #fff; font-weight: bold; }
+  table.mps-table tr { page-break-inside: avoid; }
+  table.mps-table td.mps-score-col { text-align: center; font-size: 12pt; font-weight: bold; color: #1F3864; }
+  table.mps-table td.mps-commentary-col ul.bullets { margin: 0; padding-left: 3mm; }
+  table.mps-table td.mps-commentary-col li { margin-bottom: 0.3mm; }
+  table.mps-table li.mps-counter-evidence { color: #595959; font-style: italic; }
+  table.mps-table tr.mps-total-row td { border-bottom: none; border-top: 1pt solid #1F3864; }
+  table.mps-table tr.mps-total-row td.mps-score-col { font-size: 12pt; }
+  .mps-legend { color: #595959; font-size: 7pt; margin: 0 0 1mm 0; }
+  .mps-footer-note { color: #1F3864; font-weight: bold; font-size: 9pt; margin-top: 1mm; }
 </style>
 </head>
 <body>
@@ -300,6 +317,69 @@
     Proprietary &amp; Confidential — Not for distribution
     <span class="disclosure">{{ rainmaker.metadata.status }} Synthesized from the available data room; figures are management-reported and unverified.</span>
   </div>
+</section>
+
+<!-- Minimum Pursuit Score — the verdict on the argument built by the prior two pages -->
+<section class="page mps">
+  <div class="running-header">
+    <span class="company">{{ rainmaker.metadata.company_name | default('', true) }}</span>
+    <span>Business Opportunity Summary</span>
+  </div>
+
+  <div class="eyebrow">Minimum Pursuit Score</div>
+  <h2 class="section-header">Does this clear Rallyday's bar for further pursuit?</h2>
+  <div class="divider"></div>
+
+  {% set mps_score_col_pct = (16 / mps.columns | length) | round(2) if mps.columns else 0 %}
+  <table class="mps-table">
+    <thead>
+      <tr>
+        <th class="mps-category-col" style="width: 15%;"></th>
+        {% for col in mps.columns %}<th class="mps-score-col" style="width: {{ mps_score_col_pct }}%;">{{ col.header }}</th>{% endfor %}
+        <th>Commentary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in mps.rows %}
+      <tr>
+        <td class="mps-category-col">
+          {{ row.display_name }}{% if row.evidence_marker %}<sup>{{ row.evidence_marker }}</sup>{% endif %}
+        </td>
+        {% for cell in row.score_cells %}<td class="mps-score-col">{{ cell if cell is not none else '—' }}</td>{% endfor %}
+        <td class="mps-commentary-col">
+          {% if row.bullets %}
+          <ul class="bullets">
+            {% for bullet in row.bullets %}
+            <li{% if bullet.kind == 'counter_evidence' %} class="mps-counter-evidence"{% endif %}>{% if bullet.axis %}<strong>{{ bullet.axis }}:</strong> {% endif %}{{ bullet.text }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <ul class="bullets"><li>Not yet assessed in this preview.</li></ul>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="mps-total-row">
+        <td class="mps-category-col"><strong>Total</strong></td>
+        {% for cell in mps.total_cells %}<td class="mps-score-col">{{ cell if cell is not none else '—' }}</td>{% endfor %}
+        <td class="mps-commentary-col"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  {% if mps.show_legend %}
+  <p class="mps-legend">◇ assessed from proxies and judgment; not directly evidenced in the data room</p>
+  {% endif %}
+
+  {% if mps.mps_status == "degraded" %}
+  <div class="mps-footer-note">Not yet assessed in this preview.</div>
+  {% elif mps.verdict is none %}
+  <div class="mps-footer-note">Total not computable — {{ mps.n_scored }} of 7 categories scored.</div>
+  {% else %}
+  <div class="mps-footer-note">Threshold {{ mps.threshold }} · {{ mps.verdict }}</div>
+  {% endif %}
+
+  <div class="footer">Proprietary &amp; Confidential — Not for distribution</div>
 </section>
 
 </body>

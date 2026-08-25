@@ -10,6 +10,7 @@ instead of raising.
 from __future__ import annotations
 
 import copy
+import re
 from pathlib import Path
 
 import pytest
@@ -75,16 +76,17 @@ def test_render_rainmaker_writes_html_and_returns_paths(monkeypatch, tmp_path, c
 
 
 def test_render_rainmaker_has_expected_html_sections(monkeypatch, tmp_path):
-    """Structural non-regression (round 3, A1): the cover page was dropped —
-    the template now has 2 HTML sections (framing, financials), not 3. The
-    real PDF page count (which is what actually matters to Austin) is
-    asserted separately in test_render_rainmaker_pdf_page_count_within_target
-    (A8), since PyMuPDF/WeasyPrint pagination doesn't map 1:1 to these divs."""
+    """Structural non-regression (round 3, A1; extended T2, plan §8): the
+    cover page was dropped and the MPS page was added — the template now has
+    3 HTML sections (framing, financials, mps). The real PDF page count
+    (which is what actually matters to Austin) is asserted separately in
+    test_render_rainmaker_pdf_page_count_within_target (A8), since
+    PyMuPDF/WeasyPrint pagination doesn't map 1:1 to these divs."""
     _patch_volume(monkeypatch, tmp_path)
     bundle = _load("elder_care")
     result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
     html = Path(result["html"]).read_text(encoding="utf-8")
-    assert html.count('class="page') == 2
+    assert html.count('class="page') == 3
 
 
 def test_render_rainmaker_landscape_orientation(monkeypatch, tmp_path, company):
@@ -96,12 +98,14 @@ def test_render_rainmaker_landscape_orientation(monkeypatch, tmp_path, company):
     assert "size: A4 landscape" in html
 
 
-# Ceiling for the real rendered PDF page count (round 3, Part A). The
-# baseline before this round was 4/4/4/4/5 pages (session_log.md §9);
-# 3 of 5 fixtures already reach the intended 3-page target after A1-A6.
-# elder_care and b2b_saas remain at 4 — the residual gap is bullet
-# *verbosity*, not bullet count, and is addressed only by A7 (a narrative
-# prompt change gated on Hector's separate approval, not yet applied).
+# Ceiling for the real rendered PDF page count. Three content sections
+# (framing, financials, mps), of which the MPS page (plan
+# docs/plans/mps_score/mps_score_1st_draft.md §8/§8.1, T2) is exactly one
+# page by design — all 5 fixtures render at 4 pages today (the committed
+# golden baseline moved from pdf_pages=3 to 4 for this reason, tests/
+# fixtures/rainmaker_golden_render.json). If the MPS commentary is verbose
+# enough to spill onto a 5th page, the fix is tightening the MPS table's
+# CSS/length budget (§8.1 steps 2-4), never raising this ceiling.
 _PAGE_COUNT_CEILING = 4
 
 
@@ -119,6 +123,34 @@ def test_render_rainmaker_pdf_page_count_within_target(monkeypatch, tmp_path, co
     doc = fitz.open(result["pdf"])
     assert doc.page_count <= _PAGE_COUNT_CEILING, (
         f"{company}: {doc.page_count} pages, expected <= {_PAGE_COUNT_CEILING}"
+    )
+
+
+def _load_mps_fixture() -> dict:
+    with open(_FIXTURES_DIR / "mps_run_verbose.yaml", encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+@pytest.mark.parametrize("company", ["elder_care", "elder_care_cim_only", "clearsulting", "gkf", "b2b_saas"])
+def test_render_rainmaker_pdf_page_count_within_target_with_worst_case_mps(monkeypatch, tmp_path, company):
+    """Same guard as test_render_rainmaker_pdf_page_count_within_target
+    (same ceiling, no new one), but exercised with the hand-written,
+    most-verbose-plausible MPS fixture (plan §8.1) — this is what actually
+    proves the MPS page's one-page fit before an LLM is generating its text."""
+    pytest.importorskip("fitz", reason="PyMuPDF not available in this env")
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    mps = _load_mps_fixture()
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], mps=mps)
+    if "pdf" not in result:
+        pytest.skip("no PDF engine available in this env")
+
+    import fitz
+
+    doc = fitz.open(result["pdf"])
+    assert doc.page_count <= _PAGE_COUNT_CEILING, (
+        f"{company}: {doc.page_count} pages with worst-case MPS commentary, "
+        f"expected <= {_PAGE_COUNT_CEILING}"
     )
 
 
@@ -490,3 +522,79 @@ def test_render_rainmaker_key_watchouts_prefers_narrative_compaction(monkeypatch
     assert "Compact watchout one." in watchouts_block
     assert "Compact watchout three." in watchouts_block
     assert "Verbose original bundle watchout" not in watchouts_block
+
+
+# ---------------------------------------------------------------------------
+# T2 — MPS page (plan §8, §11 tests 14/14a/15).
+# ---------------------------------------------------------------------------
+
+
+def test_render_rainmaker_mps_section_renders_on_all_fixtures_without_data(monkeypatch, tmp_path, company):
+    """Test 14: with no MPS run supplied (mps=None, the default — the shape
+    every pre-T3/T4 caller uses today), the section still renders with all
+    7 rows and the degraded fallback text rather than vanishing (OTH-03)."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"])
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert 'class="page mps"' in html
+    assert "Minimum Pursuit Score" in html
+    assert html.count("Not yet assessed in this preview.") >= 7
+    for display_name in (
+        "Magical business model",
+        "Growth mindset",
+        "Growth characteristics",
+        "Manageable systemic risk",
+        "Untapped growth opportunities",
+        "Transformational equity",
+        "Financeable",
+    ):
+        assert display_name in html
+
+
+def test_render_rainmaker_mps_section_renders_with_verbose_fixture(monkeypatch, tmp_path):
+    """Test 14: a populated MPS run renders real scores/commentary, not the
+    degraded fallback."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load("elder_care")
+    mps = _load_mps_fixture()
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], mps=mps)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    mps_section = html[html.index('class="page mps"') :]
+    assert "Full data room" in mps_section
+    assert "above threshold" in mps_section
+    assert "24.0" in mps_section
+    # Only the MPS section must be free of the degraded fallback text — other
+    # sections of Elder Care's own bundle legitimately fall back elsewhere.
+    assert "Not yet assessed in this preview." not in mps_section
+    # The evidence-basis legend must appear once a contact_dependent/
+    # judgment_over_context row is present (F-8, §8.2).
+    assert "assessed from proxies and judgment" in mps_section
+
+
+@pytest.mark.parametrize("company", ["elder_care", "elder_care_cim_only", "clearsulting", "gkf", "b2b_saas"])
+def test_render_rainmaker_mps_section_is_last_page_section(monkeypatch, tmp_path, company):
+    """Test 14a: the MPS section is the LAST `<section class="page">` in the
+    rendered HTML — the page-count half of the one-page-fit guard is already
+    covered by test_render_rainmaker_pdf_page_count_within_target(_with_
+    worst_case_mps); this is purely structural."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    mps = _load_mps_fixture()
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], mps=mps)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    sections = re.findall(r'<section class="page ([a-z]+)">', html)
+    assert sections, "no <section class=\"page ...\"> found"
+    assert sections[-1] == "mps", f"{company}: last section was {sections[-1]!r}, expected 'mps'"
+
+
+def test_render_rainmaker_mps_section_never_embeds_bracketed_source_citations(monkeypatch, tmp_path, company):
+    """Test 15: extends test_render_rainmaker_body_never_embeds_bracketed_
+    source_citations coverage to the MPS section — evidence_refs is always
+    empty in v1 (F-7), so no citation column/text should ever render."""
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    mps = _load_mps_fixture()
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], mps=mps)
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert ".pdf" not in html

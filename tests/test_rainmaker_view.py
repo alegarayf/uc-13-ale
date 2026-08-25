@@ -14,7 +14,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+from agents.exec_summary.mps_rubric import load_rubric, mps_total, mps_verdict
 from agents.exec_summary.rainmaker_view import (
+    _mps_table,
     rainmaker_view,
     severity_color_var,
     severity_label,
@@ -627,3 +629,122 @@ def test_growth_column_never_alters_dollar_cells():
     assert rows["Total Revenue"]["cells"] == ["100", "121"]
     assert rows["Gross Profit"]["cells"] == ["40", "48.4"]
     assert rows["EBITDA"]["cells"] == ["10", "12.1"]
+
+
+# ---------------------------------------------------------------------------
+# T2 — MPS page projection (plan §4, §8; _mps_table).
+# ---------------------------------------------------------------------------
+
+
+def _load_mps_run() -> dict:
+    with open(_FIXTURES_DIR / "mps_run_verbose.yaml", encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+def _rubric_category_keys() -> list[str]:
+    return [c["key"] for c in load_rubric()["categories"]]
+
+
+def test_mps_table_empty_input_is_degraded_with_seven_rows():
+    table = _mps_table([])
+    assert table["mps_status"] == "degraded"
+    assert table["columns"] == []
+    assert len(table["rows"]) == 7
+    assert [r["key"] for r in table["rows"]] == _rubric_category_keys()
+    for row in table["rows"]:
+        assert row["score_cells"] == []
+        assert row["bullets"] == []
+
+
+def test_mps_table_none_input_same_as_empty_list():
+    # rainmaker_view() normalizes mps_runs=None to [] before calling
+    # _mps_table (which itself always expects a list).
+    view_none = rainmaker_view({}, mps_runs=None)
+    view_empty = rainmaker_view({}, mps_runs=[])
+    assert view_none["mps"] == view_empty["mps"]
+
+
+def test_mps_table_seven_rows_in_rubric_file_order():
+    run = _load_mps_run()
+    table = _mps_table([run])
+    assert [r["key"] for r in table["rows"]] == _rubric_category_keys()
+
+
+def test_mps_table_never_computes_arithmetic_of_its_own():
+    """The total/verdict the table returns must be exactly what
+    mps_rubric.mps_total()/mps_verdict() compute from the same scores —
+    _mps_table must not reimplement the product or the threshold compare."""
+    run = _load_mps_run()
+    table = _mps_table([run])
+    key_order = _rubric_category_keys()
+    scores_by_key = {c["key"]: c["score"] for c in run["categories"]}
+    expected_scores = [scores_by_key[k] for k in key_order]
+    expected_total = mps_total(expected_scores)
+    expected_verdict = mps_verdict(expected_total, run["threshold"])
+    assert table["total_cells"] == [f"{expected_total:.1f}"]
+    assert table["verdict"] == expected_verdict
+
+
+def test_mps_table_score_cells_and_verdict_from_verbose_fixture():
+    run = _load_mps_run()
+    table = _mps_table([run])
+    assert table["mps_status"] == "success"
+    assert table["threshold"] == 15
+    assert table["verdict"] == "above threshold"
+    assert table["n_scored"] == 7
+    row_by_key = {r["key"]: r for r in table["rows"]}
+    assert row_by_key["magical_business_model"]["score_cells"] == [4]
+    assert row_by_key["financeable"]["score_cells"] == [4]
+
+
+def test_mps_table_none_score_makes_total_none_never_a_default():
+    run = copy.deepcopy(_load_mps_run())
+    run["categories"][0]["score"] = None
+    table = _mps_table([run])
+    assert table["total_cells"] == [None]
+    assert table["verdict"] is None
+    assert table["n_scored"] == 6
+
+
+def test_mps_table_commentary_capped_at_four_bullets():
+    run = _load_mps_run()
+    table = _mps_table([run])
+    for row in table["rows"]:
+        assert len(row["bullets"]) <= 4
+    manageable = next(r for r in table["rows"] if r["key"] == "manageable_systemic_risk")
+    assert len(manageable["bullets"]) == 4
+    assert all(b["kind"] == "sub_axis" for b in manageable["bullets"])
+
+
+def test_mps_table_evidence_marker_only_on_proxy_categories():
+    run = _load_mps_run()
+    table = _mps_table([run])
+    row_by_key = {r["key"]: r for r in table["rows"]}
+    assert row_by_key["growth_mindset"]["evidence_marker"]  # contact_dependent
+    assert row_by_key["transformational_equity"]["evidence_marker"]  # judgment_over_context
+    assert row_by_key["financeable"]["evidence_marker"]  # judgment_over_context
+    assert not row_by_key["magical_business_model"]["evidence_marker"]  # document_derived
+    assert table["show_legend"] is True
+
+
+def test_mps_table_run_mode_label_lookup_with_safe_default():
+    run = copy.deepcopy(_load_mps_run())
+    run["run_mode"] = "cim_only"
+    table = _mps_table([run])
+    assert table["columns"][0]["header"].startswith("CIM-only preview")
+
+    run["run_mode"] = "some_future_third_mode"
+    table = _mps_table([run])
+    assert table["columns"][0]["header"].startswith("some_future_third_mode")
+
+
+def test_rainmaker_view_wires_mps_key(bundle):
+    run = _load_mps_run()
+    view = rainmaker_view(bundle, mps_runs=[run])
+    assert view["mps"] == _mps_table([run])
+
+
+def test_rainmaker_view_mps_defaults_to_degraded_skeleton(bundle):
+    view = rainmaker_view(bundle)
+    assert view["mps"]["mps_status"] == "degraded"
+    assert len(view["mps"]["rows"]) == 7

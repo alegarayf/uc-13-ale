@@ -42,11 +42,13 @@ class ReportRenderer:
         rainmaker: dict[str, Any] | None = None,
         narrative: dict[str, Any] | None = None,
         brand_logo_data_uri: str | None = None,
+        mps: dict[str, Any] | None = None,
     ) -> str:
         """Render *template_path* with ``bundle``; optional ``tldr`` projection (D5-A),
         ``rainmaker`` projection (Capa A — see rainmaker_view.py), ``narrative``
-        (Capa B — see rainmaker_narrative.py), or ``brand_logo_data_uri`` (Rainmaker
-        cover logo, base64 data URI)."""
+        (Capa B — see rainmaker_narrative.py), ``brand_logo_data_uri`` (Rainmaker
+        cover logo, base64 data URI), or ``mps`` (the MPS page projection — see
+        rainmaker_view._mps_table, plan §8)."""
         template_name = Path(template_path).name
         try:
             template = self._env.get_template(template_name)
@@ -59,6 +61,8 @@ class ReportRenderer:
                 context["narrative"] = narrative
             if brand_logo_data_uri is not None:
                 context["brand_logo_data_uri"] = brand_logo_data_uri
+            if mps is not None:
+                context["mps"] = mps
             return template.render(**context)
         except UndefinedError as exc:
             raise UndefinedError(f"{template_name}: {exc}") from exc
@@ -180,8 +184,10 @@ def render_rainmaker(
     catalog: str,
     company_name: str,
     narrative: dict[str, Any] | None = None,
+    mps: dict[str, Any] | None = None,
 ) -> dict[str, str]:
-    """Render the Rainmaker "Opportunity Summary" (HTML + PDF, 3 pages).
+    """Render the Rainmaker "Opportunity Summary" (HTML + PDF, 4 pages — the
+    MPS page is the fourth, plan §8).
 
     Unlike :func:`render_to_volume` (the Rev3 prose bridge), this produces
     ONLY the visual summary — no ``full_report`` — matching the CIM-first
@@ -193,6 +199,11 @@ def render_rainmaker(
     ``None`` (default) to render with the deterministic bundle fallbacks
     only (no prose synthesis) — this never breaks the render.
 
+    ``mps`` is a single MPSAgent run (plan §4's ``score()`` return shape),
+    also computed by the caller — this function never calls MPSAgent. Pass
+    ``None`` (default) to render the MPS section's degraded skeleton (still
+    7 rows, no scores) rather than omitting the page.
+
     Returns ``{"html": path}`` plus ``{"pdf": path}`` when a PDF engine
     succeeded.
     """
@@ -200,7 +211,7 @@ def render_rainmaker(
 
     vol_dir = reports_volume_dir(catalog, company_name)
     renderer = ReportRenderer()
-    view = _rainmaker_view(bundle)
+    view = _rainmaker_view(bundle, mps_runs=[mps] if mps else None)
     logo_data_uri = _logo_data_uri()
 
     html_out = f"{vol_dir}/rainmaker_opportunity_summary.html"
@@ -210,6 +221,7 @@ def render_rainmaker(
         rainmaker=view,
         narrative=narrative,
         brand_logo_data_uri=logo_data_uri,
+        mps=view["mps"],
     )
     with open(html_out, "w", encoding="utf-8") as fh:
         fh.write(html)

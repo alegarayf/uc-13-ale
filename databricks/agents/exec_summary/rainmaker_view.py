@@ -22,6 +22,7 @@ import re
 from typing import Any
 
 from agents.exec_summary.formatters import format_kpi_value, is_operator_gap
+from agents.exec_summary.mps_rubric import RubricError, load_rubric, mps_total, mps_verdict
 
 _NOT_IN_VDR = "NOT IN VDR"
 _NONE = "NONE"
@@ -639,6 +640,185 @@ def _rule_of_x(table: dict[str, Any]) -> list[dict[str, str]]:
     return tiles[-_RULE_OF_X_CAP:]
 
 
+# ---------------------------------------------------------------------------
+# MPS (Minimum Pursuit Score) — pure render-time projection (T2, plan §8).
+# Never does arithmetic of its own: every score/verdict number that reaches
+# the template comes from mps_rubric.mps_total()/mps_verdict(). The rubric
+# file (not the LLM's own ordering) is the source of the 7-row skeleton, so
+# the section always has exactly 7 rows even when a run degraded or was
+# never computed (§8.2 "Degraded / partial").
+# ---------------------------------------------------------------------------
+
+_MPS_RUN_MODE_LABELS: dict[str, str] = {
+    "cim_only": "CIM-only preview",
+    "full_vdr_no_cim": "Full data room",
+}
+_MPS_EVIDENCE_MARKERS: dict[str, str] = {
+    "contact_dependent": "◇",
+    "judgment_over_context": "◇",
+}
+_MPS_EVIDENCE_LEGEND = (
+    "◇ assessed from proxies and judgment; not directly evidenced in the data room"
+)
+_MPS_COMMENTARY_CAP = 4
+_MPS_NOT_ASSESSED = "Not yet assessed in this preview."
+
+
+def _mps_run_mode_label(run_mode: Any) -> str:
+    """Human-readable run_mode label via a safe-default lookup (§8.2) — an
+    unknown/future run_mode degrades to the raw string rather than raising."""
+    raw = str(run_mode or "")
+    return _MPS_RUN_MODE_LABELS.get(raw, raw)
+
+
+def _mps_column_header(run: dict[str, Any]) -> str:
+    label = _mps_run_mode_label(run.get("run_mode"))
+    date = str(run.get("generated_at") or "").strip()[:10]
+    if label and date:
+        return f"{label} · {date}"
+    return label or date
+
+
+def _mps_category_skeleton() -> list[dict[str, str]]:
+    """The 7-category skeleton (key/display_name/evidence_basis), read from
+    the rubric file — never from a run's own (possibly missing or
+    model-ordered) ``categories`` list. Returns ``[]`` only if the rubric
+    itself fails to load, which callers must treat as "no rows" rather than
+    inventing placeholder categories."""
+    try:
+        rubric = load_rubric()
+    except RubricError:
+        return []
+    return [
+        {
+            "key": category["key"],
+            "display_name": category["display_name"],
+            "evidence_basis": category["evidence_basis"],
+        }
+        for category in rubric.get("categories", [])
+    ]
+
+
+def _mps_commentary_bullets(category: dict[str, Any]) -> list[dict[str, str | None]]:
+    """Merged bullet list for one category's Commentary cell — sub-axis
+    notes first, then rationale, then counter-evidence last, capped at 4
+    total (§8.2). Never fabricates: a blank field simply contributes no
+    bullet."""
+    bullets: list[dict[str, str | None]] = []
+    for note in category.get("sub_axis_notes") or []:
+        if not isinstance(note, dict):
+            continue
+        text = str(note.get("note") or "").strip()
+        if not text:
+            continue
+        bullets.append({"kind": "sub_axis", "axis": str(note.get("axis") or "").strip(), "text": text})
+
+    rationale = str(category.get("rationale") or "").strip()
+    if rationale:
+        bullets.append({"kind": "rationale", "axis": None, "text": rationale})
+
+    counter_evidence = str(category.get("counter_evidence") or "").strip()
+    if counter_evidence:
+        bullets.append({"kind": "counter_evidence", "axis": None, "text": counter_evidence})
+
+    return bullets[:_MPS_COMMENTARY_CAP]
+
+
+def _mps_score(category: dict[str, Any]) -> int | None:
+    score = category.get("score")
+    return score if isinstance(score, int) and not isinstance(score, bool) else None
+
+
+def _mps_empty_row(category: dict[str, str]) -> dict[str, Any]:
+    return {
+        "key": category["key"],
+        "display_name": category["display_name"],
+        "evidence_basis": category["evidence_basis"],
+        "evidence_marker": _MPS_EVIDENCE_MARKERS.get(category["evidence_basis"]),
+        "score_cells": [],
+        "bullets": [],
+    }
+
+
+def _mps_table(mps_runs: list[dict[str, Any]]) -> dict[str, Any]:
+    """Pure projection from MPSAgent output(s) to the MPS page's render
+    shape. ``mps_runs`` is a list of runs shaped per plan §4 (the agent's
+    ``score()`` return value) — F-10's trend view is column-generic, but the
+    POC always passes a single-element list.
+
+    Never computes a total/verdict itself beyond calling
+    :func:`mps_rubric.mps_total` / :func:`mps_rubric.mps_verdict` — those
+    functions are the single source of MPS arithmetic. Always returns
+    exactly 7 rows (in rubric-file order), degraded or not (§8.2).
+    """
+    skeleton = _mps_category_skeleton()
+
+    if not mps_runs:
+        rows = [_mps_empty_row(category) for category in skeleton]
+        return {
+            "mps_status": "degraded",
+            "degraded_reason": "MPS has not been run for this preview",
+            "columns": [],
+            "rows": rows,
+            "total_cells": [],
+            "threshold": None,
+            "verdict": None,
+            "n_scored": 0,
+            "show_legend": any(row["evidence_marker"] for row in rows),
+        }
+
+    key_order = [category["key"] for category in skeleton]
+
+    columns: list[dict[str, str]] = []
+    per_run_by_key: list[dict[str, dict[str, Any]]] = []
+    total_cells: list[float | None] = []
+    for run in mps_runs:
+        by_key = {
+            category["key"]: category
+            for category in (run.get("categories") or [])
+            if isinstance(category, dict) and category.get("key")
+        }
+        per_run_by_key.append(by_key)
+        columns.append({"header": _mps_column_header(run)})
+        scores = [_mps_score(by_key.get(key) or {}) for key in key_order]
+        total_cells.append(mps_total(scores))
+
+    latest_run = mps_runs[-1]
+    latest_by_key = per_run_by_key[-1]
+    threshold = latest_run.get("threshold")
+    verdict = mps_verdict(total_cells[-1], threshold) if threshold is not None else None
+
+    rows: list[dict[str, Any]] = []
+    n_scored = 0
+    for category in skeleton:
+        key = category["key"]
+        score_cells = [_mps_score(by_key.get(key) or {}) for by_key in per_run_by_key]
+        if score_cells and score_cells[-1] is not None:
+            n_scored += 1
+        rows.append(
+            {
+                "key": key,
+                "display_name": category["display_name"],
+                "evidence_basis": category["evidence_basis"],
+                "evidence_marker": _MPS_EVIDENCE_MARKERS.get(category["evidence_basis"]),
+                "score_cells": score_cells,
+                "bullets": _mps_commentary_bullets(latest_by_key.get(key) or {}),
+            }
+        )
+
+    return {
+        "mps_status": str(latest_run.get("mps_status") or "degraded"),
+        "degraded_reason": latest_run.get("degraded_reason"),
+        "columns": columns,
+        "rows": rows,
+        "total_cells": [f"{total:.1f}" if total is not None else None for total in total_cells],
+        "threshold": threshold,
+        "verdict": verdict,
+        "n_scored": n_scored,
+        "show_legend": any(row["evidence_marker"] for row in rows),
+    }
+
+
 def _metadata(bundle: dict[str, Any]) -> dict[str, Any]:
     meta = bundle.get("meta") or {}
     company_name = str(meta.get("company_name") or "")
@@ -654,18 +834,25 @@ def _metadata(bundle: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def rainmaker_view(bundle: dict[str, Any]) -> dict[str, Any]:
+def rainmaker_view(
+    bundle: dict[str, Any], mps_runs: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Build the Rainmaker-template render view from a canonical bundle.
 
     Never mutates ``bundle``. Pure/deterministic — no LLM call. Returns both
     the legacy 4-page-template fields (``financial_availability``,
     ``stat_tiles``, ``confidence_rows``) and the Capa A fields for the
-    current 2-section landscape template (``metadata``, ``financials``
+    current 3-section landscape template (``metadata``, ``financials``
     — including its per-row ``growth``/``growth_kind`` and
-    ``growth_col_label`` — ``key_metrics``, ``rule_of_x``). The financial
-    snapshot bar chart and CAGR circles (round 3, A4) were dropped in favor
-    of the financial table's own growth column (A3) and the Rule-of-X band
-    (A5); there is no replacement field for them.
+    ``growth_col_label`` — ``key_metrics``, ``rule_of_x``, ``mps``). The
+    financial snapshot bar chart and CAGR circles (round 3, A4) were dropped
+    in favor of the financial table's own growth column (A3) and the
+    Rule-of-X band (A5); there is no replacement field for them.
+
+    ``mps_runs`` is MPSAgent output(s) (plan §4/§8), not part of the
+    canonical bundle — it lives in its own Delta table (§9) and is supplied
+    by the caller. ``None``/``[]`` renders the MPS section's degraded
+    skeleton (7 rows, no scores) rather than omitting it.
     """
     financial_table = _financial_table(bundle)
     stat_tiles = _stat_tiles(bundle)
@@ -679,4 +866,5 @@ def rainmaker_view(bundle: dict[str, Any]) -> dict[str, Any]:
         "financials": financial_table,
         "key_metrics": stat_tiles,
         "rule_of_x": _rule_of_x(financial_table),
+        "mps": _mps_table(mps_runs or []),
     }
