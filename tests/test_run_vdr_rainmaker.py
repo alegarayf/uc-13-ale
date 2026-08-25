@@ -333,8 +333,9 @@ def test_no_cim_runs_full_pipeline_and_renders_rainmaker(monkeypatch, _common_pa
     assert "file_whitelist" not in kwargs
 
     rainmaker_mock.assert_called_once()
-    args, _ = rainmaker_mock.call_args
+    args, kwargs = rainmaker_mock.call_args
     assert args[1] == "uc13_preview"
+    assert kwargs.get("run_mode") == "full_vdr_no_cim"
 
     ingestion_mock.assert_not_called()
     pipeline_mock.assert_not_called()
@@ -468,3 +469,5 @@ def test_cim_branch_unchanged(monkeypatch, _common_patches):
     assert pipeline_kwargs["run_orchestrator"] is False
     full_pipeline_mock.assert_not_called()
     rainmaker_mock.assert_called_once()
+    _, rainmaker_kwargs = rainmaker_mock.call_args
+    assert rainmaker_kwargs.get("run_mode") == "cim_only"

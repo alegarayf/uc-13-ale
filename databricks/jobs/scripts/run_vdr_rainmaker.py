@@ -166,7 +166,9 @@ def _run_full_room_flow(spark, table_name: str, record_id: int, company_name: st
             f"to build a report. Summary: {result.get('summary')}"
         )
 
-    rendered = build_rainmaker_summary(company_name, VDR_CATALOG, spark, llm_endpoint)
+    rendered = build_rainmaker_summary(
+        company_name, VDR_CATALOG, spark, llm_endpoint, run_mode="full_vdr_no_cim"
+    )
     print(f"  Rainmaker narrative synthesis: {rendered.get('synthesis_status')}")
 
     token_totals = get_token_totals()
@@ -380,7 +382,9 @@ def run_vdr_rainmaker(
             run_orchestrator=False,
         )
 
-        rendered = build_rainmaker_summary(company_name, VDR_CATALOG, spark, llm_endpoint)
+        rendered = build_rainmaker_summary(
+            company_name, VDR_CATALOG, spark, llm_endpoint, run_mode="cim_only"
+        )
         print(f"  Rainmaker narrative synthesis: {rendered.get('synthesis_status')}")
 
         token_totals = get_token_totals()
