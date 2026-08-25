@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-signal-foldback-m6-checklists-gkf — 2026-08-25
+
+- T8 (Architecture housekeeping + declared-gate-command fix): Corrected the eval_debt ratchet Surface prose to the live ledger (**20 total / 1 open**, HWM **14**); appended GKF M6/T6-bis promotion evidence (`run_id` `cd3abe7b4c3b4b9a91ffa977c5d2c1ce`, 7 `ops.e2e_linkage` rows; neither `lca` nor bare `uc13` fired; FTA linkage **14/18** and checklist **14.5/18** recorded as two distinct figures); documented the declared gate as `python -m pytest -m "not heavy" -q` after an independent collect-only of **1527** vs **870** for the `tests/`-scoped form; bumped both architecture files 1.5.0 → 1.6.0. Rationale: charter §7 item 1 plus M5 audit F1/F4, using T6-bis landed evidence rather than this plan's planning-time forecast.
+
 ## eval-signal-foldback M5 checklists-clearsulting — 2026-08-24
 
 - T7 (Architecture housekeeping for the promotion/e2e_linkage/checklist mechanism): Appended one Surface block to `.dev/architecture/uc-13-ale/known-coupling-surfaces.md` (agent-id `LCA`/`legal`/`Legal` plus the `DeltaEvalStore` catalog call site, cross-referencing Catalog name split) and one Contract block to `data-contract-registry.md` (`PromotionResult` / `HarnessRun` / `ops.e2e_linkage`); bumped both files 1.4.0 → 1.5.0. Rationale: charter §7 item 1; content taken from T5 job `370562481484117` (neither coupling fired; 7-row `ops.e2e_linkage` paste). Adversarial gap deferred: no hermetic pytest that the new Surface block cross-references Catalog name split rather than restating it — named landing gate is the M5 auditor cold-read of plan §8.5 seeds for these two files; observable the new blocks cite T5's 7-row paste and do not duplicate the Catalog name split body.

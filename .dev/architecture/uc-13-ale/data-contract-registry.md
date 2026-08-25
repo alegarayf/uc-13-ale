@@ -1,5 +1,5 @@
 Section:      data-contract-registry
-Version:      1.5.0
+Version:      1.6.0
 Last updated: 2026-08-25
 
 > **Cross-reference:** Retrieval-specific contracts live in [`eval/architecture/rallyday/data-contract-registry.md`](../../eval/architecture/rallyday/data-contract-registry.md). This folder is the charter-named program-wide standing reference; it does not supersede the rallyday tree.
@@ -379,5 +379,6 @@ Fields:
 Validators:     eval/retrieval/tests/test_promotion_gate.py (evaluate_promotion; M3 spec §5 / G3); eval/retrieval/tests/test_record_e2e_linkage.py (record_e2e_linkage / ops.e2e_linkage INSERT; M-RE2 T9). M5 T5 also pins the Clearsulting driver in eval/retrieval/tests/test_promote_w2a_clearsulting.py (AST; not a substitute for those suites).
 Consumers:      evaluate_promotion, record_e2e_linkage, `.dev/g1_score_all_agents.py` rubric-source convention (every golden checklist header cites `.dev/g1_score_all_agents.py::score_<agent>()` — Legal is `score_legal()`, never `score_lca()`)
 Last changed:   2026-08-25 (eval-signal-foldback M5/W2a T7; mechanism landed by T5 job 370562481484117 — Clearsulting run_id 6e1b4f5d95284b33bbd08942b3595dd6, 7 e2e_linkage rows)
+Landed (M6/T6-bis): T6-bis job `770829212065786` (`eval/program/promote_w2b_gkf.py`) — GKF run_id `cd3abe7b4c3b4b9a91ffa977c5d2c1ce`, 7 `ops.e2e_linkage` rows
 ```
 

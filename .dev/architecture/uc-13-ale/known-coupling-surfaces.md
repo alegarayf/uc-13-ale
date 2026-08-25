@@ -1,5 +1,5 @@
 Section:      known-coupling-surfaces
-Version:      1.5.0
+Version:      1.6.0
 Last updated: 2026-08-25
 
 > **Cross-reference:** Retrieval-specific coupling surfaces live in [`eval/architecture/rallyday/known-coupling-surfaces.md`](../../eval/architecture/rallyday/known-coupling-surfaces.md). This folder is the charter-named program-wide standing reference; it does not supersede the rallyday tree.
@@ -131,8 +131,9 @@ Confirmed:    yes — onboarding_runbook.md explicitly disambiguates the two; te
 Surface:      eval_debt.yaml high-water-mark ratchet
 Shared by:    eval/program/eval_debt/eval_debt.yaml open_debt_high_water_mark ↔ eval_debt.assert_ledger_ratchet ↔ CI/onboarding gate
 Failure mode: A new open debt pushes the open count above HWM without a corresponding HWM bump — ratchet must be raised deliberately, not silently, or the gate blocks
-Confirmed:    yes — test_eval_debt.py::test_committed_ledger_ratchet_passes asserts committed ledger (**20 total / 2 open**, HWM **14**) passes ratchet; HWM is a manual, reviewed field
+Confirmed:    yes — test_eval_debt.py::test_committed_ledger_ratchet_passes asserts committed ledger (**20 total / 1 open**, HWM **14**) passes ratchet; HWM is a manual, reviewed field
 Landed (M2/W0): SPG `spg:global:post_m4_corpus_dedup_baseline_stale` closed with live warehouse count **44038** (T3); prior stale doc count 5 open / 18 total superseded
+Landed (M6/T8): Declared gate command is `python -m pytest -m "not heavy" -q` (bare, no path argument). Independently re-collected at T8 after `eval/retrieval/tests/test_promote_w2b_gkf.py` existed on disk: **1527** tests via `pytest.ini` `testpaths` (`tests`, `eval/retrieval/tests`, `eval/content`), versus **870** for `python -m pytest tests/ -m "not heavy" -q --collect-only`. Planning-time 1506 vs 846 is superseded by that re-run and must not be cited as current.
 ```
 
 ```
@@ -234,6 +235,7 @@ Shared by:    `eval/LCA/` (directory) ↔ `eval/retrieval/scripts/record_e2e_lin
 Failure mode: An executor pattern-matching the directory name would pass `--e2e-agent-id lca` (rejected by argparse `choices`) or look up `BASELINES[...]["lca"]` (`KeyError`). Omitting `catalog=` at `DeltaEvalStore(...)` on this path applies **Catalog name split** to promotion evidence (constructor default is production).
 Confirmed:    yes — argparse `choices` and `_AGENTS` both use `"legal"`; directory is `eval/LCA/`. Identified, not yet triggered as a live defect.
 Landed (M5/T5): T5 job `370562481484117` (`eval/program/promote_w2a_clearsulting.py`) did not hit either failure mode. Frozen `record_e2e_linkage` used `e2e_agent_id='legal'` (HarnessRun and `ops.e2e_linkage` row); post-check `n=7` for `run_id='6e1b4f5d95284b33bbd08942b3595dd6'` is `bma` 7/7, `cqa` 4/6, `fta` 17/18 (pre-existing, `linked_at` 2026-08-18 unchanged), `kpi` 0/3, `legal` 0/11 (`linked_at` 2026-08-24T21:00:30.580Z), `profiler` 5/7, `qoe` 4/6 — no `lca` key. Cluster driver constructed `DeltaEvalStore(spark, catalog="uc13_ale")` explicitly; HarnessRun `catalog='uc13_ale'`. A prior submit (`168063648078361`) failed at import before any write and did not exercise these modes.
+Landed (M6/T6-bis): T6-bis job `770829212065786` (`eval/program/promote_w2b_gkf.py`) did not hit either failure mode. Frozen `record_e2e_linkage` used `e2e_agent_id='legal'` (HarnessRun and `ops.e2e_linkage` row); post-check `n=7` for `run_id='cd3abe7b4c3b4b9a91ffa977c5d2c1ce'` is `bma` 7/7, `cqa` 4/6, `fta` 14/18 (linkage-level integer on the frozen INT hub; T4 checklist remains **14.5/18** — two distinct, both-correct figures), `kpi` 0/3, `legal` 8/11, `profiler` 5/7, `qoe` 4/6 — no `lca` key. Cluster driver constructed `DeltaEvalStore(spark, catalog="uc13_ale")` explicitly; HarnessRun `catalog='uc13_ale'`. Neither the `lca` literal nor a bare `uc13` catalog fired.
 ```
 
 [needs confirmation] — additional coupling surfaces from operator knowledge welcome via interview.
