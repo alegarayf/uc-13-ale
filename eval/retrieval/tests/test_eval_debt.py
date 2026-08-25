@@ -136,7 +136,7 @@ def test_committed_ledger_ratchet_passes() -> None:
     assert payload["open_debt_high_water_mark"] == 14
     debts = load_debts(_COMMITTED_LEDGER)
     assert len(debts) == 20
-    assert open_debt_count(debts) == 2
+    assert open_debt_count(debts) == 1
     assert_ledger_ratchet(
         _COMMITTED_LEDGER,
         repo_root=_REPO_ROOT,
@@ -156,6 +156,27 @@ def test_spg_post_m4_corpus_dedup_debt_closed_with_d7_count() -> None:
     assert spg_row.closed_evidence_refs is not None
     assert ".dev/specs/eval-signal-foldback/spec.md#D7" in spg_row.closed_evidence_refs
     assert "baseline_3992534e412f" in spg_row.closed_evidence_refs
+
+
+def test_clearsulting_promotion_inputs_debt_closed_with_d8_fields() -> None:
+    """Falsifies closing by deletion, adding status, or omitting D8 closed_* fields."""
+    payload = yaml.safe_load(_COMMITTED_LEDGER.read_text(encoding="utf-8"))
+    raw = next(
+        row
+        for row in payload["debts"]
+        if row["id"] == "clearsulting:global:promotion_inputs"
+    )
+    assert "status" not in raw
+    assert raw["closed_at"] == "2026-08-24"
+    assert raw["closed_evidence_refs"]
+    debts = load_debts(_COMMITTED_LEDGER)
+    row = next(r for r in debts if r.id == "clearsulting:global:promotion_inputs")
+    assert row.closed_at == "2026-08-24"
+    assert row.closed_evidence_refs is not None
+    assert "eval/PROFILER/golden_checklist_clearsulting.md" in row.closed_evidence_refs
+    assert "6e1b4f5d95284b33bbd08942b3595dd6" in row.closed_evidence_refs
+    open_ids = {r.id for r in debts if r.is_open}
+    assert open_ids == {"elder_care:global:g1_legal_score_regression"}
 
 
 def test_evidence_ref_resolution_variants() -> None:

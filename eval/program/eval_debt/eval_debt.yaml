@@ -11,6 +11,16 @@ debts:
   - trust:clearsulting:retrieval:null
   closes_when: per-company golden checklists scored and pipeline run_ids recorded
     for all agents (registry:OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg)
+  closed_at: '2026-08-24'
+  closed_evidence_refs:
+  - eval/BMA/golden_checklist_clearsulting.md
+  - eval/CQA/golden_checklist_clearsulting.md
+  - eval/KPI/golden_checklist_clearsulting.md
+  - eval/QOE/golden_checklist_clearsulting.md
+  - eval/LCA/golden_checklist_clearsulting.md
+  - eval/PROFILER/golden_checklist_clearsulting.md
+  - 6e1b4f5d95284b33bbd08942b3595dd6
+  - .dev/plans/eval-signal-foldback-m5-checklists-clearsulting/changelogs/T5.md
 - id: elder_care:global:no_citation_source_provenance_loss
   company: elder_care
   surface: null
