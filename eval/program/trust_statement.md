@@ -1,6 +1,6 @@
 # Trust statement (generated — do not edit)
 
-Generated: 2026-08-25T15:06:01.496242+00:00
+Generated: 2026-08-25T19:10:45.393194+00:00
 Generator: v1
 Catalog: uc13_ale
 Companies: clearsulting, elder_care, gkf, spg
@@ -327,21 +327,35 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
 - company: spg
   layer: agent_fields
   surface: null
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: attested
+  reason: null
   method: null
   rung: null
-  evidence_refs: []
+  evidence_refs:
+  - fta:445878b36e06407385b9498dcab265c7
+  - legal:445878b36e06407385b9498dcab265c7
+  - bma:445878b36e06407385b9498dcab265c7
+  - cqa:445878b36e06407385b9498dcab265c7
+  - kpi:445878b36e06407385b9498dcab265c7
+  - qoe:445878b36e06407385b9498dcab265c7
+  - profiler:445878b36e06407385b9498dcab265c7
   known_gaps: []
   manual_check: null
 - company: spg
   layer: e2e
   surface: null
-  attestation: not_attested
-  reason: no_completed_run
+  attestation: attested
+  reason: null
   method: null
   rung: null
-  evidence_refs: []
+  evidence_refs:
+  - fta:445878b36e06407385b9498dcab265c7
+  - legal:445878b36e06407385b9498dcab265c7
+  - bma:445878b36e06407385b9498dcab265c7
+  - cqa:445878b36e06407385b9498dcab265c7
+  - kpi:445878b36e06407385b9498dcab265c7
+  - qoe:445878b36e06407385b9498dcab265c7
+  - profiler:445878b36e06407385b9498dcab265c7
   known_gaps: []
   manual_check: null
 - company: spg
