@@ -1,6 +1,6 @@
 Section:      data-contract-registry
-Version:      1.4.0
-Last updated: 2026-08-21
+Version:      1.5.0
+Last updated: 2026-08-25
 
 > **Cross-reference:** Retrieval-specific contracts live in [`eval/architecture/rallyday/data-contract-registry.md`](../../eval/architecture/rallyday/data-contract-registry.md). This folder is the charter-named program-wide standing reference; it does not supersede the rallyday tree.
 
@@ -364,5 +364,20 @@ Fields:
 Validators:     T9-bis warehouse payload (no no_chunks_retrieved on the two widened passes)
 Consumers:      product_backlog closes_when, T12
 Last changed:   2026-08-21 (M4/W4 T4+T9-bis)
+```
+
+```
+Contract:       PromotionResult / HarnessRun / ops.e2e_linkage (three faces of the promotion / checklist-linkage mechanism)
+Module:         eval/retrieval/promotion_gate.py, eval/retrieval/scripts/record_e2e_linkage.py, eval/retrieval/store.py (DeltaEvalStore); HarnessRun defined in eval/retrieval/models.py
+Serialization:  PromotionResult frozen dataclass; HarnessRun Pydantic BaseModel; ops.e2e_linkage Delta table (`eval/retrieval/scripts/apply_ops_ddl.sql`)
+Version:        unversioned — tracked by git blame
+Purpose:        Record golden-checklist scores against a pipeline HarnessRun and persist per-(run, agent) linkage for promotion
+Fields:
+  - PromotionResult: status (baseline_bootstrap | promoted | promotion_blocked | promotion_waived), candidate_score, candidate_total, prior_run_id, prior_score, waiver_id
+  - ops.e2e_linkage columns: run_id, e2e_agent_id, e2e_snapshot_table, e2e_checklist_score, e2e_checklist_total, linked_at
+  - HarnessRun e2e_* face (return type of record_e2e_linkage): e2e_agent_id, e2e_snapshot_table, e2e_checklist_score, e2e_checklist_total plus run_id / catalog / company_name
+Validators:     eval/retrieval/tests/test_promotion_gate.py (evaluate_promotion; M3 spec §5 / G3); eval/retrieval/tests/test_record_e2e_linkage.py (record_e2e_linkage / ops.e2e_linkage INSERT; M-RE2 T9). M5 T5 also pins the Clearsulting driver in eval/retrieval/tests/test_promote_w2a_clearsulting.py (AST; not a substitute for those suites).
+Consumers:      evaluate_promotion, record_e2e_linkage, `.dev/g1_score_all_agents.py` rubric-source convention (every golden checklist header cites `.dev/g1_score_all_agents.py::score_<agent>()` — Legal is `score_legal()`, never `score_lca()`)
+Last changed:   2026-08-25 (eval-signal-foldback M5/W2a T7; mechanism landed by T5 job 370562481484117 — Clearsulting run_id 6e1b4f5d95284b33bbd08942b3595dd6, 7 e2e_linkage rows)
 ```
 

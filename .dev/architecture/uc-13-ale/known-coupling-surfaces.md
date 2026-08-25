@@ -1,6 +1,6 @@
 Section:      known-coupling-surfaces
-Version:      1.4.0
-Last updated: 2026-08-21
+Version:      1.5.0
+Last updated: 2026-08-25
 
 > **Cross-reference:** Retrieval-specific coupling surfaces live in [`eval/architecture/rallyday/known-coupling-surfaces.md`](../../eval/architecture/rallyday/known-coupling-surfaces.md). This folder is the charter-named program-wide standing reference; it does not supersede the rallyday tree.
 
@@ -226,6 +226,14 @@ Landed (M4/W4 T13 sweep at T12 HEAD `8e7c0619`, re-checked after this closeout c
   Exclusions: pre-existing dirty `databricks/jobs/notebooks/test_pipeline.ipynb` (git log bab8f7a7..HEAD empty); untracked `eval_next_steps.md` not staged.
   Architecture four files were already index-tracked despite `.gitignore` `.dev/`; T13 commits the M4 refresh (and the previously uncommitted M3/W1 T5 prose already on disk).
   INDEX.md / architecture changelog.md were not in T13 Files to touch — versions in INDEX.md remain 1.0.0 / Last verified 2026-08-03 (discrepancy flagged, not edited).
+```
+
+```
+Surface:      Promotion / e2e_linkage / golden-checklist agent-id vocabulary (`LCA` directory vs `legal` CLI/code vs `Legal` spec-prose), plus the `DeltaEvalStore` catalog default on this write path
+Shared by:    `eval/LCA/` (directory) ↔ `eval/retrieval/scripts/record_e2e_linkage.py` argparse `--e2e-agent-id` `choices` ↔ `.dev/g1_score_all_agents.py` `_AGENTS` tuple / `BASELINES[...]` keys ↔ golden-checklist `rubric source` headers (`score_legal()`) ↔ `eval/program/promote_w2a_clearsulting.py` (`LEGAL_AGENT_ID`). Catalog call site only: `DeltaEvalStore.__init__` — cross-reference **Catalog name split** (top of this file); do not restate that surface.
+Failure mode: An executor pattern-matching the directory name would pass `--e2e-agent-id lca` (rejected by argparse `choices`) or look up `BASELINES[...]["lca"]` (`KeyError`). Omitting `catalog=` at `DeltaEvalStore(...)` on this path applies **Catalog name split** to promotion evidence (constructor default is production).
+Confirmed:    yes — argparse `choices` and `_AGENTS` both use `"legal"`; directory is `eval/LCA/`. Identified, not yet triggered as a live defect.
+Landed (M5/T5): T5 job `370562481484117` (`eval/program/promote_w2a_clearsulting.py`) did not hit either failure mode. Frozen `record_e2e_linkage` used `e2e_agent_id='legal'` (HarnessRun and `ops.e2e_linkage` row); post-check `n=7` for `run_id='6e1b4f5d95284b33bbd08942b3595dd6'` is `bma` 7/7, `cqa` 4/6, `fta` 17/18 (pre-existing, `linked_at` 2026-08-18 unchanged), `kpi` 0/3, `legal` 0/11 (`linked_at` 2026-08-24T21:00:30.580Z), `profiler` 5/7, `qoe` 4/6 — no `lca` key. Cluster driver constructed `DeltaEvalStore(spark, catalog="uc13_ale")` explicitly; HarnessRun `catalog='uc13_ale'`. A prior submit (`168063648078361`) failed at import before any write and did not exercise these modes.
 ```
 
 [needs confirmation] — additional coupling surfaces from operator knowledge welcome via interview.
