@@ -892,7 +892,8 @@ items:
   rationale: 'Clearsulting W1 (T4): FTA promotion landed via pipeline run 6e1b4f5d95284b33bbd08942b3595dd6
     (17/18 checklist, promoted over prior 16/18). clearsulting:global:promotion_inputs closed under M5.
     GKF W2b promotion landed via T6-bis on pipeline run cd3abe7b4c3b4b9a91ffa977c5d2c1ce
-    (7 ops.e2e_linkage rows). SPG promotion remains M7.'
+    (7 ops.e2e_linkage rows). SPG W2c promotion landed via T6 on pipeline run 445878b36e06407385b9498dcab265c7
+    (7 ops.e2e_linkage rows; five evaluate_promotion status=baseline_bootstrap).'
   tshirt: null
   evidence_refs:
   - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T4-clearsulting-w1.md
@@ -997,9 +998,9 @@ items:
   source_id: OI-eval-harness-profiler-re-run-clearsulting-gkf-spg
   disposition: staged
   stage: S1
-  status: pending
+  status: closed
   trigger: null
-  rationale: Clearsulting share discharged; GKF share discharged; SPG remains outstanding.
+  rationale: Clearsulting share discharged; GKF share discharged; SPG share discharged.
   tshirt: m
   evidence_refs:
   - eval/PROFILER/golden_checklist_clearsulting.md
@@ -1007,6 +1008,8 @@ items:
   - eval/PROFILER/golden_checklist_gkf.md
   - 'uc13_ale.classification.company_profile GKF created_at=2026-08-25 13:18:14.578154 (job 599472715895762)'
   - .dev/plans/eval-signal-foldback-m6-checklists-gkf/changelogs/T6-bis.md
+  - eval/PROFILER/golden_checklist_spg.md
+  - 'uc13_ale.classification.company_profile SPG created_at=2026-08-25 18:14:01.971483 (job 217099929033112)'
   rung_assignments: {}
   assessment_metrics: {}
 - id: OI-housekeeping-do-today-chip-a-plan-status-auditor-handoff
