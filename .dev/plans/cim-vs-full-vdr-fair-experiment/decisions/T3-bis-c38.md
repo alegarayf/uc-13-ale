@@ -67,4 +67,6 @@ No other hunk. `_TWO_PASS_CONTEXT_CHARS`, `_should_use_two_pass`, both `max_toke
 
 ### (d) Measured `bma_context_chars` (post-C38 Arm A)
 
-Pending — to be back-filled from the post-C38 Arm A job once run, per the plan's C38 contract row. The C38 commit must exist before that submit.
+`121977` (job `595667448217011`, `RunCard.bma_context_chars` and stdout `bma_context_chars=121977`). Well above `40_000`, so two-pass triggered. No `TimeoutError`. Agent-manifest BMA SUCCESS 401.8s. Warehouse latest in-window row `created_at=2026-08-25T16:29:42.282Z` (driver card recorded `2026-08-25T16:11:44.086383`; latest-row-wins). `(a)=true (b)=true (c)=true (d)=false`.
+
+Commercial still truncation-marked: first-save gap `Unterminated string starting at: line 617 column 23 (char 24354)`; surviving row `Expecting property name enclosed in double quotes: line 594 column 34 (char 23483)`. Field lengths on the surviving row: `products_services`=7900, `revenue_by_location`=5201, `people_and_org`=4828, `workforce_capacity`=2, `customer_operational_metrics`=2, `customer_profile`=1791, `sales_motion`=2106, `revenue_visibility`=1250, `key_dependencies`=3607, `recent_model_changes`=5034, `citations`=4164. Moving the one field did not untruncate commercial; `customer_operational_metrics` stayed empty on organizational (skeleton still splits at `customer_profile`). See `runs/T3-bis-c38-brief.md`.

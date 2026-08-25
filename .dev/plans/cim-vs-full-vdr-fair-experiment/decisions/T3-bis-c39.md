@@ -24,7 +24,7 @@ Implementation: module constant `_C39_COMMERCIAL_BREVITY` concatenated only when
 
 ## Items deferred
 
-- A 3-way split or accepting the gap, if the post-C39 Arm A also truncates. Reserved for a fresh operator decision.
+- A 3-way split or accepting the gap, if the post-C39 Arm A also truncates. Reserved for a fresh operator decision. **Closed for Arm A:** post-C39 Arm A `517156035655991` finished both calls untruncated. **Reopened by Arm B:** CIM-only job `884181519217064` also two-pass (`bma_context_chars=80145`) and organizational truncated (`recent_model_changes`=7632; `Unterminated string`); C39 does not bind that group. Operator decision required — do not retry.
 - Whether the brevity guidance measurably reduces extraction quality on the three targeted fields even when it fits — noted as a caveat for T9's shareable report, not a C39 kill criterion.
 
 ## Required C39 points
@@ -91,4 +91,6 @@ Two hunks only: the constant plus a commercial-only `brevity` insert. `_USER_PRO
 
 ### (d) Measured `bma_context_chars` and per-field char counts (post-C39 Arm A)
 
-Pending — to be back-filled from the post-C39 Arm A job once run, per the plan's C39 contract row.
+`121977` (job `517156035655991`, `RunCard.bma_context_chars` and stdout `bma_context_chars=121977`). Well above `40_000`, so two-pass triggered. No `TimeoutError`. Agent-manifest BMA SUCCESS 356.2s. Warehouse latest in-window row `created_at=2026-08-25T17:18:09.945Z` inside `2026-08-25T17:10:52.044Z`–`2026-08-25T17:30:34.054Z`. `(a)=true (b)=true (c)=true (d)=true`.
+
+`executive_summary`=1304 chars (nonempty; starts `Elder Care operates a coordinated home care services business across six markets...`). `data_room_gaps` has no LLM-truncation / `Unterminated string` marker (only a referral-source completeness note). Field lengths on that row: `products_services`=1881 (was 7900 on C38), `revenue_by_location`=3060, `people_and_org`=4330, `workforce_capacity`=2570 (was 2), `customer_operational_metrics`=2464 (was 2), `customer_profile`=1719, `sales_motion`=2097, `revenue_visibility`=1211, `key_dependencies`=3267, `recent_model_changes`=5135, `citations`=4955. Commercial brevity bound held; both calls finished. See `runs/T3-bis-c39-brief.md`.

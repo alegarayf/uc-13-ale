@@ -39,7 +39,7 @@ That comparison ran both single-call and two-pass against Elder Care and saw no 
 
 `_TWO_PASS_CONTEXT_CHARS = 40_000` is a first-cut. No prior run logged `len(combined_chunk_text)`. The constant is documented in-source as pending calibration. `RunCard.bma_context_chars` exists so a later change is evidence-based.
 
-**Measured Arm A `bma_context_chars`:** pending this round's wrapper-submitted post-C37 job. Wet value will be written into `runs/T3-bis-c37-brief.md` and back-filled here after the job.
+**Measured Arm A `bma_context_chars`:** `121977` (job `917857674928`, both in-window BMA writes; also on `RunCard.bma_context_chars` and `reasoning_trace` tool `bma_context_chars`). Well above the `40_000` first-cut, so two-pass did trigger. Threshold itself is not the miss — commercial-group 8K output still truncated.
 
 ### (c) Field-group split rationale
 
@@ -56,4 +56,4 @@ The 2026-08-18 test lost `overlay_conflict_evidence` and misclassified third-par
 
 ### (e) Measured `bma_context_chars` (Arm A)
 
-Pending wet run. See (b).
+`121977`. Source: job `917857674928` stdout `bma_context_chars=121977`, `uc13_ale.analysis.business_model.reasoning_trace` tool `bma_context_chars`, and the FAILED Arm A `RunCard`. Two-pass triggered. Commercial call still truncation-marked (`Unterminated string` at JSON line 619); `customer_operational_metrics` empty. See `runs/T3-bis-c37-brief.md`.
