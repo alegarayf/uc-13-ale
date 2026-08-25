@@ -47,6 +47,21 @@ calibration_rules:
       categories independently. This prevents the model from
       reverse-engineering scores to land on a desired verdict.
 
+# [NEW, T3] Rallyday's own capabilities, injected only into the two
+# judgment_over_context categories (transformational_equity, financeable —
+# §2.2/§7.3). Company-agnostic and versioned on purpose: it describes what
+# Rallyday itself can bring, never a specific target company.
+rallyday_playbook:
+  version: "0.1.0-poc"
+  text: >
+    Rallyday's own playbook as a growth capital partner: RallyGrow (a structured
+    post-close 100-day value-creation program), recurring strategy sessions with
+    the management team, human-capital support (senior-hire sourcing, org design),
+    and add-on M&A sourcing/execution support. Judge whether Rallyday capital would
+    be transformational against what THIS business's own capital needs actually
+    are, using this playbook as the concrete standard for what Rallyday can supply
+    — not a generic "growth capital helps" claim.
+
 categories:
   - key: magical_business_model
     display_name: "Magical business model"

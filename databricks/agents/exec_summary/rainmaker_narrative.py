@@ -121,10 +121,17 @@ def _financials_summary(financial_table: dict[str, Any] | None) -> dict[str, Any
     }
 
 
-def _build_narrative_digest(
+def _base_digest(
     bundle: dict[str, Any], financial_table: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """Compact, whitelisted JSON input shared by both narrative LLM calls."""
+    """Compact, whitelisted JSON core shared by every downstream digest
+    (narrative and MPS — docs/plans/mps_score/mps_score_1st_draft.md §7.3).
+    Reads ONLY the whitelisted bundle paths below; never spreads/copies the
+    bundle wholesale, so it is structurally incapable of leaking
+    chunks/embeddings/reasoning_trace/raw citation objects even if a caller
+    passes a contaminated bundle. Callers may extend the returned dict with
+    additional whitelisted fields, but must not weaken this guarantee by
+    reading from the bundle any other way."""
     meta = bundle.get("meta") or {}
     executive = bundle.get("executive") or {}
     company_framing = bundle.get("company_framing") or {}
@@ -153,6 +160,13 @@ def _build_narrative_digest(
         "data_room_gaps": _gap_summaries(bundle),
         "financials_summary": _financials_summary(financial_table),
     }
+
+
+def _build_narrative_digest(
+    bundle: dict[str, Any], financial_table: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Compact, whitelisted JSON input shared by both narrative LLM calls."""
+    return _base_digest(bundle, financial_table)
 
 
 # ---------------------------------------------------------------------------

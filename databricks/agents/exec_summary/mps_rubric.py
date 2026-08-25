@@ -68,6 +68,10 @@ def _validate_rubric(rubric: Any) -> None:
     if not isinstance(scale, dict) or "min" not in scale or "max" not in scale:
         raise RubricError("scale must be a mapping with min/max")
 
+    playbook = rubric.get("rallyday_playbook")
+    if not isinstance(playbook, dict) or not isinstance(playbook.get("text"), str) or not playbook["text"].strip():
+        raise RubricError("rallyday_playbook.text must be a non-empty string")
+
     categories = rubric.get("categories")
     if not isinstance(categories, list) or len(categories) != _CATEGORY_COUNT:
         raise RubricError(f"rubric must define exactly {_CATEGORY_COUNT} categories")
