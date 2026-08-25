@@ -1,5 +1,5 @@
 Section:      known-coupling-surfaces
-Version:      1.6.0
+Version:      1.7.0
 Last updated: 2026-08-25
 
 > **Cross-reference:** Retrieval-specific coupling surfaces live in [`eval/architecture/rallyday/known-coupling-surfaces.md`](../../eval/architecture/rallyday/known-coupling-surfaces.md). This folder is the charter-named program-wide standing reference; it does not supersede the rallyday tree.
@@ -125,6 +125,7 @@ Surface:      eval/program/registry.yaml is a work-item ledger, NOT a company re
 Shared by:    eval/program/registry.yaml (decisions/waivers/debt) ↔ eval/retrieval/intent_registry.yaml (57 retrieval intents) — distinct artifacts, same "registry" name
 Failure mode: Operator or new contributor edits the wrong "registry.yaml" expecting intent/gold-label semantics, or a script defaults to the wrong path
 Confirmed:    yes — onboarding_runbook.md explicitly disambiguates the two; test_onboarding_runbook.py asserts CLI paths reference the correct one
+Landed (M7/T7): `OI-eval-harness-profiler-re-run-clearsulting-gkf-spg` is `status: closed` (rationale: Clearsulting share discharged; GKF share discharged; SPG share discharged) — this is the row's terminal state. SPG evidence: `eval/PROFILER/golden_checklist_spg.md` and `uc13_ale.classification.company_profile` `created_at=2026-08-25 18:14:01.971483` (Profiler job `217099929033112`). Evaluate-promotion row `OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg` stays `closed` with SPG `RUN_ID` `445878b36e06407385b9498dcab265c7` rationale line.
 ```
 
 ```
@@ -134,6 +135,7 @@ Failure mode: A new open debt pushes the open count above HWM without a correspo
 Confirmed:    yes — test_eval_debt.py::test_committed_ledger_ratchet_passes asserts committed ledger (**20 total / 1 open**, HWM **14**) passes ratchet; HWM is a manual, reviewed field
 Landed (M2/W0): SPG `spg:global:post_m4_corpus_dedup_baseline_stale` closed with live warehouse count **44038** (T3); prior stale doc count 5 open / 18 total superseded
 Landed (M6/T8): Declared gate command is `python -m pytest -m "not heavy" -q` (bare, no path argument). Independently re-collected at T8 after `eval/retrieval/tests/test_promote_w2b_gkf.py` existed on disk: **1527** tests via `pytest.ini` `testpaths` (`tests`, `eval/retrieval/tests`, `eval/content`), versus **870** for `python -m pytest tests/ -m "not heavy" -q --collect-only`. Planning-time 1506 vs 846 is superseded by that re-run and must not be cited as current.
+Landed (M7/T8): Independently re-collected at T8 after `eval/retrieval/tests/test_rerun_profiler_spg.py` (3) and `eval/retrieval/tests/test_promote_w2c_spg.py` (13) existed on disk: **1545** tests via the same declared gate (`3.50s`). Pre-M7 baseline **1527**; T7 observed the same **1545**. Live `eval_debt.yaml` re-read remains **20 total / 1 open** (open id `elder_care:global:g1_legal_score_regression`, HWM **14**) — the Confirmed line above is unchanged.
 ```
 
 ```
@@ -236,6 +238,7 @@ Failure mode: An executor pattern-matching the directory name would pass `--e2e-
 Confirmed:    yes — argparse `choices` and `_AGENTS` both use `"legal"`; directory is `eval/LCA/`. Identified, not yet triggered as a live defect.
 Landed (M5/T5): T5 job `370562481484117` (`eval/program/promote_w2a_clearsulting.py`) did not hit either failure mode. Frozen `record_e2e_linkage` used `e2e_agent_id='legal'` (HarnessRun and `ops.e2e_linkage` row); post-check `n=7` for `run_id='6e1b4f5d95284b33bbd08942b3595dd6'` is `bma` 7/7, `cqa` 4/6, `fta` 17/18 (pre-existing, `linked_at` 2026-08-18 unchanged), `kpi` 0/3, `legal` 0/11 (`linked_at` 2026-08-24T21:00:30.580Z), `profiler` 5/7, `qoe` 4/6 — no `lca` key. Cluster driver constructed `DeltaEvalStore(spark, catalog="uc13_ale")` explicitly; HarnessRun `catalog='uc13_ale'`. A prior submit (`168063648078361`) failed at import before any write and did not exercise these modes.
 Landed (M6/T6-bis): T6-bis job `770829212065786` (`eval/program/promote_w2b_gkf.py`) did not hit either failure mode. Frozen `record_e2e_linkage` used `e2e_agent_id='legal'` (HarnessRun and `ops.e2e_linkage` row); post-check `n=7` for `run_id='cd3abe7b4c3b4b9a91ffa977c5d2c1ce'` is `bma` 7/7, `cqa` 4/6, `fta` 14/18 (linkage-level integer on the frozen INT hub; T4 checklist remains **14.5/18** — two distinct, both-correct figures), `kpi` 0/3, `legal` 8/11, `profiler` 5/7, `qoe` 4/6 — no `lca` key. Cluster driver constructed `DeltaEvalStore(spark, catalog="uc13_ale")` explicitly; HarnessRun `catalog='uc13_ale'`. Neither the `lca` literal nor a bare `uc13` catalog fired.
+Landed (M7/T6): T6 job `943705359150431` (`eval/program/promote_w2c_spg.py`) did not hit either failure mode. `RUN_ID` `445878b36e06407385b9498dcab265c7` is the SPG Legal-intent-group pipeline run selected as the analogue of GKF `cd3abe7b4c3b4b9a91ffa977c5d2c1ce`. Frozen `record_e2e_linkage` used `e2e_agent_id='legal'` (HarnessRun and `ops.e2e_linkage` row); post-check `n=7` is `bma` 7/7, `cqa` 3/6, `fta` 8/18 (linkage-level integer on the frozen INT hub; source checklist remains **8.5/18** — two distinct, both-correct figures; recorded beside the existing GKF **14/18** / **14.5/18** pair), `kpi` 1/3, `legal` 1/11, `profiler` 5/7, `qoe` 3/5 (`candidate_total=5` vs GKF/Clearsulting `6`) — no `lca` key. Cluster driver constructed `DeltaEvalStore(spark, catalog="uc13_ale")` explicitly; HarnessRun `catalog='uc13_ale'`. Neither the `lca` literal nor a bare `uc13` catalog fired.
 ```
 
 [needs confirmation] — additional coupling surfaces from operator knowledge welcome via interview.

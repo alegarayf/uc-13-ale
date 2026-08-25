@@ -1,5 +1,5 @@
 Section:      data-contract-registry
-Version:      1.6.0
+Version:      1.7.0
 Last updated: 2026-08-25
 
 > **Cross-reference:** Retrieval-specific contracts live in [`eval/architecture/rallyday/data-contract-registry.md`](../../eval/architecture/rallyday/data-contract-registry.md). This folder is the charter-named program-wide standing reference; it does not supersede the rallyday tree.
@@ -14,10 +14,12 @@ Fields:
   - registry items[]: id, title, source_refs, source_id, disposition, stage, status, trigger, rationale, tshirt, evidence_refs, rung_assignments, assessment_metrics
   - registry tshirt vocabulary (D3): xs | s | m | l | xl | unsizable — enforced on actionable (pending/in_progress) rows; unsizable requires rationale naming missing scope/falsifier
   - product_backlog items[]: id, company, surface, kind, severity, summary, evidence_refs, fix_lane, closes_when, registry_ref?, closed_at? (optional), closed_evidence_refs? (optional) — no status field. M4/W4: 21 items; 12 closed (`closed_at` 2026-08-20 ×4 caveat + 2026-08-21 ×8 product); open M4 leftovers `PB-legal_register-extraction-depth-contracts`, `PB-legal_register-retrieval-ip`; new open `PB-exec_summary-008-locator-mismatch`
-  - eval_debt: open_debt_high_water_mark (14), debts[] {id: "{company}:{surface|global}:{kind}", opened_at, evidence_refs, closes_when, closed_at?, closed_evidence_refs?} — post-M2/W0: 20 total / 2 open
+  - eval_debt: open_debt_high_water_mark (14), debts[] {id: "{company}:{surface|global}:{kind}", opened_at, evidence_refs, closes_when, closed_at?, closed_evidence_refs?} — post-M2/W0: 20 total / 1 open
 Validators:     test_eval_program_registry.py (TSHIRT_VALUES, FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT=54, GAP-109 row), test_product_backlog_schema.py (validate_product_backlog_closure_shape, test_product_backlog_closed_row_set), test_eval_debt.py (ratchet + SPG 44038 closure)
 Consumers:      eval_debt.py, trust_statement.py, eval/eval_program_playbook.md §3.1
-Last changed:   2026-08-21 (eval-signal-foldback M4/W4 T12 closures; M2/W0 ledger truth-up retained)
+Last changed:   2026-08-25 (eval-signal-foldback M7/W2c T8; live eval_debt.yaml re-read 20 total / 1 open)
+Landed (M7/T7): `OI-eval-harness-profiler-re-run-clearsulting-gkf-spg` status=closed (terminal; Clearsulting, GKF, and SPG discharged). Evaluate-promotion row stays closed with SPG `RUN_ID` `445878b36e06407385b9498dcab265c7`.
+Landed (M7/T8): Governance-block eval_debt count corrected from the stale "20 total / 2 open" to the live ledger **20 total / 1 open** (open id `elder_care:global:g1_legal_score_regression`, HWM **14**).
 ```
 
 ```
@@ -380,5 +382,6 @@ Validators:     eval/retrieval/tests/test_promotion_gate.py (evaluate_promotion;
 Consumers:      evaluate_promotion, record_e2e_linkage, `.dev/g1_score_all_agents.py` rubric-source convention (every golden checklist header cites `.dev/g1_score_all_agents.py::score_<agent>()` — Legal is `score_legal()`, never `score_lca()`)
 Last changed:   2026-08-25 (eval-signal-foldback M5/W2a T7; mechanism landed by T5 job 370562481484117 — Clearsulting run_id 6e1b4f5d95284b33bbd08942b3595dd6, 7 e2e_linkage rows)
 Landed (M6/T6-bis): T6-bis job `770829212065786` (`eval/program/promote_w2b_gkf.py`) — GKF run_id `cd3abe7b4c3b4b9a91ffa977c5d2c1ce`, 7 `ops.e2e_linkage` rows
+Landed (M7/T6): T6 job `943705359150431` (`eval/program/promote_w2c_spg.py`) — SPG Legal-intent-group run_id `445878b36e06407385b9498dcab265c7` (GKF analogue `cd3abe7b4c3b4b9a91ffa977c5d2c1ce`), 7 `ops.e2e_linkage` rows; FTA floor **8/18** (checklist **8.5/18**; recorded beside GKF **14/18**); QoE `candidate_total=5` (vs GKF/Clearsulting `6`)
 ```
 
