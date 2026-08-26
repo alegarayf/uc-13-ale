@@ -439,3 +439,48 @@ items:
       - baseline_3992534e412f
       - eval/retrieval/gold_labels/spg.yaml
       - eval/retrieval/gold/gold_exclusions.yaml
+
+  - id: PB-legal_register-claim-failure-gkf
+    company: gkf
+    surface: legal_register
+    kind: claim_failure
+    severity: high
+    summary: >-
+      GKF legal_register S2 run 20260826T171705Z-ea6b produced 28 claims: 14 supported,
+      10 contradicted, 4 unsupported. Failures concentrate in employment_register (3/4),
+      insurance_register (5/9), and privacy_security_register (4/5). Locators resolved
+      (cited_chunk_id present on every failed claim) but raw quotes did not match the
+      resolved chunks. First legal_register S2 evidence for GKF. T3 has no per-field
+      extraction-depth split, so this row tracks the S2 verdicts as claim_failure rather
+      than guessing extraction_depth.
+    evidence_refs:
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-verifier-run-evidence.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-gkf.stdout.txt
+      - s2_scores:gkf:legal_register:20260826T171705Z-ea6b
+    fix_lane: product
+    closes_when: >-
+      GKF legal_register S2 re-run (same verifier) shows supported fraction improved vs
+      14/28 on run 20260826T171705Z-ea6b; contradicted/unsupported claim_ids in
+      employment, insurance, and privacy_security registers resolve without operator override.
+
+  - id: PB-legal_register-claim-failure-spg
+    company: spg
+    surface: legal_register
+    kind: claim_failure
+    severity: high
+    summary: >-
+      SPG legal_register S2 run 20260826T171712Z-3975 produced 5 claims: 1 supported
+      (contract_register), 1 contradicted (ip_register), 3 unsupported (insurance_register
+      plus two privacy_security_register). Locators resolved; quote-vs-chunk match failed
+      on 4/5 claims. Kind is claim_failure from T3 verdicts (registers are not empty, so
+      not a corpus_gap). Residual ambiguity vs extraction_depth is explicit: T3 has no
+      nested-field split, so this row does not guess a more specific kind.
+    evidence_refs:
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-verifier-run-evidence.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-spg.stdout.txt
+      - s2_scores:spg:legal_register:20260826T171712Z-3975
+    fix_lane: product
+    closes_when: >-
+      SPG legal_register S2 re-run shows supported fraction improved vs 1/5 on run
+      20260826T171712Z-3975; insurance, ip, and privacy_security claim_ids supported
+      without operator override.

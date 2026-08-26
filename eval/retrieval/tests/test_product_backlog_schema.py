@@ -56,6 +56,12 @@ CLOSED_TARGET_IDS = frozenset(
     }
 )
 OPEN_HANDOFF_ID = "PB-exec_summary-008-locator-mismatch"
+M8_T6_NEW_IDS = frozenset(
+    {
+        "PB-legal_register-claim-failure-gkf",
+        "PB-legal_register-claim-failure-spg",
+    }
+)
 
 
 def validate_product_backlog_closure_shape(items: list[dict[str, Any]]) -> list[str]:
@@ -179,12 +185,33 @@ def test_product_backlog_rejects_invalid_severity() -> None:
 def test_product_backlog_closed_row_set() -> None:
     backlog = _load_backlog()
     items = backlog["items"]
-    assert len(items) == 21
+    assert len(items) == 23
     closed_ids = {item["id"] for item in items if item.get("closed_at") is not None}
     assert closed_ids == CLOSED_TARGET_IDS
     open_008 = next(item for item in items if item["id"] == OPEN_HANDOFF_ID)
     assert open_008.get("closed_at") is None
     assert OPEN_HANDOFF_ID not in CLOSED_TARGET_IDS
+
+
+def test_m8_t6_legal_register_rows_match_t3_field_set() -> None:
+    """New M8 T6 rows must use the existing legal_register field set and id convention."""
+    backlog = _load_backlog()
+    items = backlog["items"]
+    by_id = {item["id"]: item for item in items}
+    assert M8_T6_NEW_IDS <= set(by_id)
+    for item_id in M8_T6_NEW_IDS:
+        item = by_id[item_id]
+        assert set(item) == REQUIRED_ITEM_KEYS, f"{item_id}: extra or missing keys {set(item) ^ REQUIRED_ITEM_KEYS}"
+        assert item["surface"] == "legal_register"
+        assert item["kind"] == "claim_failure"
+        assert item["company"] in {"gkf", "spg"}
+        assert item_id == f"PB-legal_register-claim-failure-{item['company']}"
+        assert item.get("closed_at") is None
+        assert item_id not in CLOSED_TARGET_IDS
+    assert not any(
+        item["company"] == "clearsulting" and item["surface"] == "legal_register"
+        for item in items
+    )
 
 
 def test_product_backlog_rejects_orphan_closed_evidence_refs() -> None:
