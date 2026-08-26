@@ -8,7 +8,9 @@ import yaml
 from eval.retrieval.companies import (
     DEFAULT_COMPANY_SLUG,
     UnnormalizableCompanySlugError,
+    _SLUG_TO_DISPLAY,
     canonical_company_slug,
+    display_name_for_slug,
     require_folded_company_slug,
     resolve_company_slug,
 )
@@ -80,3 +82,31 @@ def test_require_folded_company_slug_rejects_display_name() -> None:
 def test_require_folded_company_slug_rejects_empty() -> None:
     with pytest.raises(PreconditionError, match="company_slug must be canonical"):
         require_folded_company_slug("")
+
+
+_ONBOARDING_QUEUE_PATH = _REPO_ROOT / "eval" / "program" / "onboarding_queue.yaml"
+_ONBOARDING_SLUGS = ("elder_care", "clearsulting", "gkf", "spg")
+
+
+@pytest.mark.parametrize("slug", _ONBOARDING_SLUGS)
+def test_display_name_for_slug_round_trips_to_canonical_slug(slug: str) -> None:
+    assert canonical_company_slug(display_name_for_slug(slug)) == slug
+
+
+def test_slug_to_display_matches_onboarding_queue_pairs() -> None:
+    payload = yaml.safe_load(_ONBOARDING_QUEUE_PATH.read_text(encoding="utf-8"))
+    expected = {row["slug"]: row["display_name"] for row in payload["companies"]}
+    assert _SLUG_TO_DISPLAY == expected
+
+
+def test_slug_to_display_is_the_four_frozen_pairs() -> None:
+    assert _SLUG_TO_DISPLAY == {
+        "gkf": "GKF",
+        "clearsulting": "Clearsulting",
+        "spg": "SPG",
+        "elder_care": "Elder Care",
+    }
+
+
+def test_display_name_for_slug_unknown_falls_back_to_title_case() -> None:
+    assert display_name_for_slug("acme_corp") == "Acme Corp"
