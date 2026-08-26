@@ -2196,18 +2196,22 @@ items:
   status: pending
   trigger: Wave 2 pipeline E2E + G1 scoring (2026-08-19) — first simultaneous fresh G1 run across all
     4 companies
-  rationale: 'Distillation-only finding (Wave 3) — root cause NOT investigated, explicitly deferred.
-    Clearsulting Legal 0/11 is partially explained by GAP-102-corpus-specific-gold-bootstrap-holes
-    (0 LEGAL-classified docs), though that entry''s rationale text discusses KPI A-09, not Legal — a
-    title/rationale mismatch flagged separately (see HYGIENE note). GKF (8/11) and SPG (1/11) Legal
-    weakness, and GKF/SPG KPI weakness (1/3, 2/3), are not explained by any existing registry entry.
-    GKF Profiler 4/7 and SPG FTA 11.0/18 are informational data points folded in here rather than
-    given separate entries; GKF Profiler note: all 4 companies'' Profiler runs in this G1 pass carry
-    stale (pre-Wave-2) timestamps, already tracked by GAP-102-profiler-not-in-chip-b-e2e — not a new
-    finding. Candidate root causes to investigate next wave (not concluded here): per-company corpus/overlay
-    gaps (same class as A-09), scoring-rubric drift, or genuine model generalization gaps — BMA/CQA/QoE
-    holding steady across companies in the same run makes a blanket "model can''t generalize" explanation
-    less likely on its face, but this is not a conclusion.'
+  rationale: |
+    M8-INVESTIGATION-COMPLETE. D11 display-name fix landed (`companies.display_name_for_slug` /
+    `_SLUG_TO_DISPLAY`; T1 `a9455fa`) so `verify_legal_register` resolves warehouse rows for all
+    four companies. First `legal_register` S2 evidence outside Elder Care (completion markers):
+    Clearsulting `20260826T170423Z-4199` (n_claims=0, expected — 0 LEGAL-classified docs);
+    GKF `20260826T171705Z-ea6b` (28 claims); SPG `20260826T171712Z-3975` (5 claims). Elder Care
+    Legal named cause: extraction bug on the Wave-2 legal pass (pipeline `766487529692196` /
+    G1 header `827597669988464` scored 4/11); fresh G1 (`LEGAL @ 2026-08-25 18:41:42.3489`) is
+    8/11 after four gap-correct→pass recoveries (t4c/coc/restrictive/platform); scoring-rubric
+    drift and corpus drift (+7 chunks vs `55812`) ruled out; floor ≥9/11 still missed on
+    founder/privacy/ip. KPI cross-company via the O1 G1-plus-corpus path (no claim-level S2;
+    ESC-W4-1 residual uncertainty is standing): Clearsulting and GKF stay 1/3 because
+    `score_kpi()` requires `healthcare_services` and ignores populated `tech_services` /
+    `consumer` sibling blocks (A-09 class); SPG is 2/3 on a matching overlay with a thin
+    scored healthcare subset (4/7) — those three empty fields remain unresolved between
+    corpus-absent and extracted-absent.
   tshirt: l
   evidence_refs:
   - .dev/wave2-e2e-2026-08-19/manifest.md
@@ -2239,5 +2243,29 @@ items:
   evidence_refs:
   - eval/retrieval/gold_labels/spg.yaml
   - .dev/specs/eval-signal-foldback/spec.md#D8
+  rung_assignments: {}
+  assessment_metrics: {}
+- id: GAP-103-legal-score-variance-r-3
+  title: Legal score variance — 8/11 accepted on Elder Care — supersedes GAP-103-legal-score-variance-r-2's 7/11 after M8 extraction-bug root-cause
+  source_refs:
+  - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+  - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/g1_score_m8_elder_care.txt
+  source_id: null
+  disposition: accepted
+  stage: null
+  status: n/a
+  trigger: null
+  rationale: |
+    Explicitly supersedes GAP-103-legal-score-variance-r-2's 7/11 threshold. M8 T4 named
+    the Wave-2 Elder Care Legal 4/11 collapse as an extraction bug; fresh G1
+    (LEGAL @ 2026-08-25 18:41:42.3489) is 8/11 — above the prior 7/11 accepted variance,
+    still below the ≥9/11 floor. 8/11 is the new ratified accepted variance. Residual miss
+    (founder partial, privacy partial, ip gap-correct) is extraction / term-recovery, not a
+    repeat of the Wave-2 empty-flag collapse.
+  tshirt: null
+  evidence_refs:
+  - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+  - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/g1_score_m8_elder_care.txt
+  - registry:GAP-103-legal-score-variance-r-2
   rung_assignments: {}
   assessment_metrics: {}

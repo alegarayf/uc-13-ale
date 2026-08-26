@@ -36,6 +36,8 @@ ACTIONABLE_STATUSES = frozenset({"pending", "in_progress"})
 # .dev/plans/eval-signal-foldback-m7-checklists-spg/decision-logs/T9.md.
 FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 53
 GAP_109_ID = "GAP-109-cross-company-legal-kpi-g1-weakness"
+GAP_103_R3_ID = "GAP-103-legal-score-variance-r-3"
+GAP_109_INVESTIGATION_MARKER = "M8-INVESTIGATION-COMPLETE"
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -370,7 +372,7 @@ def test_actionable_registry_rows_have_d3_tshirt_sizes(populated_artifacts):
 
 
 def test_gap_109_cross_company_legal_kpi_g1_weakness_row_exists():
-    """T2 M2: GAP-109 distillation-era row exists with D3 tshirt and rationale marker."""
+    """T5 M8: GAP-109 rationale replaced; distillation-era marker gone; frozen fields unchanged."""
     registry = _load_yaml(REGISTRY_PATH)
     items = registry.get("items") or []
     row = next((item for item in items if item.get("id") == GAP_109_ID), None)
@@ -378,10 +380,31 @@ def test_gap_109_cross_company_legal_kpi_g1_weakness_row_exists():
     tshirt = row.get("tshirt")
     assert tshirt is not None, f"{GAP_109_ID}: missing tshirt"
     assert tshirt in TSHIRT_VALUES, f"{GAP_109_ID}: tshirt {tshirt!r} not in D3 vocabulary"
+    assert row.get("tshirt") == "l"
+    assert row.get("status") == "pending"
+    assert row.get("disposition") == "staged"
     rationale = row.get("rationale") or ""
-    assert "Distillation-only finding" in rationale, (
-        f"{GAP_109_ID}: rationale missing distillation-era marker"
+    assert "Distillation-only finding" not in rationale, (
+        f"{GAP_109_ID}: rationale still carries the retired distillation-era marker"
     )
+    assert GAP_109_INVESTIGATION_MARKER in rationale, (
+        f"{GAP_109_ID}: rationale missing investigation-completion marker"
+    )
+
+
+def test_gap_103_legal_score_variance_r_3_supersedes_7_11():
+    """T5 M8 branch (ii): new accepted row ratifies 8/11 and supersedes GAP-103 r-2's 7/11."""
+    registry = _load_yaml(REGISTRY_PATH)
+    items = registry.get("items") or []
+    row = next((item for item in items if item.get("id") == GAP_103_R3_ID), None)
+    assert row is not None, f"{GAP_103_R3_ID} missing from registry.yaml"
+    assert row.get("disposition") == "accepted"
+    assert row.get("status") == "n/a"
+    assert row.get("tshirt") is None
+    rationale = row.get("rationale") or ""
+    assert "7/11" in rationale
+    assert "8/11" in rationale
+    assert "supersed" in rationale.lower()
 
 
 def test_synthetic_valid_pair_passes(synthetic_valid_pair):

@@ -393,3 +393,7 @@ debts:
     run 766487529692196) and either fixed, or re-ratified as an accepted variance
     via a registry entry explicitly superseding GAP-103-legal-score-variance-r-2's
     7/11 threshold
+  closed_at: '2026-08-26'
+  closed_evidence_refs:
+  - registry:GAP-103-legal-score-variance-r-3
+  - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/g1_score_m8_elder_care.txt

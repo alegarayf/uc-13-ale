@@ -136,7 +136,7 @@ def test_committed_ledger_ratchet_passes() -> None:
     assert payload["open_debt_high_water_mark"] == 14
     debts = load_debts(_COMMITTED_LEDGER)
     assert len(debts) == 20
-    assert open_debt_count(debts) == 1
+    assert open_debt_count(debts) == 0
     assert_ledger_ratchet(
         _COMMITTED_LEDGER,
         repo_root=_REPO_ROOT,
@@ -176,7 +176,40 @@ def test_clearsulting_promotion_inputs_debt_closed_with_d8_fields() -> None:
     assert "eval/PROFILER/golden_checklist_clearsulting.md" in row.closed_evidence_refs
     assert "6e1b4f5d95284b33bbd08942b3595dd6" in row.closed_evidence_refs
     open_ids = {r.id for r in debts if r.is_open}
-    assert open_ids == {"elder_care:global:g1_legal_score_regression"}
+    assert open_ids == set()
+
+
+_LEGAL_REGRESSION_ID = "elder_care:global:g1_legal_score_regression"
+_VARIANCE_R3_REF = "registry:GAP-103-legal-score-variance-r-3"
+_FRESH_G1_LOG = (
+    ".dev/plans/eval-signal-foldback-m8-root-cause/artifacts/g1_score_m8_elder_care.txt"
+)
+
+
+def test_elder_care_g1_legal_score_regression_closure_shape() -> None:
+    """Fail-closed XOR: closed-with-evidence xor open-with-no-status-field (T5)."""
+    payload = yaml.safe_load(_COMMITTED_LEDGER.read_text(encoding="utf-8"))
+    raw = next(
+        row
+        for row in payload["debts"]
+        if row["id"] == _LEGAL_REGRESSION_ID
+    )
+    assert "status" not in raw
+    closed_with_evidence = bool(raw.get("closed_at")) and bool(
+        raw.get("closed_evidence_refs")
+    )
+    open_with_no_status = raw.get("closed_at") is None and "status" not in raw
+    assert closed_with_evidence or open_with_no_status
+    assert not (closed_with_evidence and open_with_no_status)
+    assert closed_with_evidence
+    assert raw["closed_at"] == "2026-08-26"
+    assert _VARIANCE_R3_REF in raw["closed_evidence_refs"]
+    assert _FRESH_G1_LOG in raw["closed_evidence_refs"]
+    debts = load_debts(_COMMITTED_LEDGER)
+    row = next(r for r in debts if r.id == _LEGAL_REGRESSION_ID)
+    assert row.is_open is False
+    assert row.closed_evidence_refs is not None
+    assert _VARIANCE_R3_REF in row.closed_evidence_refs
 
 
 def test_evidence_ref_resolution_variants() -> None:
