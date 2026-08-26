@@ -104,7 +104,7 @@ See `databricks/agents/shared/retrieval.py` for production `semantic_search()` b
 
 Local machine has no `pyspark`. Submit scripts to the workspace and poll via SDK.
 
-**Existing helpers:** `.dev/t2_databricks_submit.py`, `.dev/t2_run_all.py`
+**Existing helpers:** `.dev/scripts/t2_databricks_submit.py`, `.dev/scripts/t2_run_all.py`
 
 ```python
 # Minimal pattern (see t2_databricks_submit.py for full poll + logs)
@@ -138,7 +138,7 @@ run = w.jobs.submit(
 print("run_id", run.run_id)
 ```
 
-Upload local file first via `workspace.import_` (see `import_text_file` in `.dev/t2_databricks_submit.py`).
+Upload local file first via `workspace.import_` (see `import_text_file` in `.dev/scripts/t2_databricks_submit.py`).
 
 **Eval harness on cluster:** `python -m eval.retrieval.harness_cli run --store-backend delta --catalog uc13_ale ...` requires an active `SparkSession` (cluster or submitted job).
 
@@ -183,7 +183,7 @@ python eval/program/onboarding_cluster_submit.py sync
 - Step 3 gold output lands on the workspace driver; pull `eval/retrieval/gold_labels/<slug>.yaml` back via `workspace.export` or signoff workflow if committing locally.
 - Harness success may print a `baseline_<hash>` run_id even when Databricks reports `INTERNAL_ERROR` on clean `SystemExit(0)` — the script checks logs for a baseline id (T9 quirk).
 
-**Related:** `.dev/t2_databricks_submit.py` (generic submit pattern), `eval/program/onboarding_runbook.md` (full eight-step walk).
+**Related:** `.dev/scripts/t2_databricks_submit.py` (generic submit pattern), `eval/program/onboarding_runbook.md` (full eight-step walk).
 
 ---
 
@@ -230,5 +230,5 @@ If `DATABRICKS_GENIE_SPACE_ID` is set, `backend-ai` can route NL queries through
 
 - Pipeline rules: `databricks/CLAUDE.md`
 - Eval / ops SQL examples: `eval/retrieval/README.md`
-- Operator T2 submit: `.dev/t2_databricks_submit.py`
+- Operator T2 submit: `.dev/scripts/t2_databricks_submit.py`
 - Onboarding Steps 3 & 5: `eval/program/onboarding_cluster_submit.py`

@@ -16,7 +16,7 @@ Load this skill when the task needs **live workspace data or remote execution**.
 
 ## Quick start
 
-**Shell:** On Windows PowerShell, run probe code via `@' ... '@ | python -` — not bash heredocs or `python -c "..."`. See `AGENTS.md` § Shell. No `_quick_*.py` temp files.
+**Shell:** On Windows PowerShell, run probe code via `@' ... '@ | python -` — not bash heredocs or `python -c "..."`. See `AGENTS.md` § Shell. No `_quick_*.py` at repo root or `.dev/` root; if a file is unavoidable, `.dev/scratch/<plan-slug>/`. Layout: `.dev/README.md`.
 
 1. `load_dotenv()` from **repo root** (`.env` has `DATABRICKS_SERVER_HOSTNAME`, `DATABRICKS_TOKEN`, `DATABRICKS_HTTP_PATH`).
 2. Connect with `WorkspaceClient(host=..., token=...)`.
@@ -41,8 +41,8 @@ Full copy-paste recipes: **[`.dev/agent-databricks-recipes.md`](../../.dev/agent
 |------|--------|
 | SQL / table inspection | SDK `statement_execution` |
 | Vector search | `vector_search_indexes.query_index` |
-| Remote Python + Spark | `jobs.submit` + `workspace.import_` — see `.dev/t2_databricks_submit.py` |
-| Onboarding Steps 3 & 5 (bootstrap + harness) | `.dev/onboarding_cluster_submit.py` — see [Onboarding cluster steps](../../.dev/agent-databricks-recipes.md#onboarding-cluster-steps-m4-runbook-steps-3--5) in recipes |
+| Remote Python + Spark | `jobs.submit` + `workspace.import_` — see `.dev/scripts/t2_databricks_submit.py` |
+| Onboarding Steps 3 & 5 (bootstrap + harness) | `eval/program/onboarding_cluster_submit.py` — see [Onboarding cluster steps](../../.dev/agent-databricks-recipes.md#onboarding-cluster-steps-m4-runbook-steps-3--5) in recipes |
 | Pipeline code behavior | `databricks/CLAUDE.md` |
 | Eval harness ops | `uc13_ale.ops.*` — see `eval/retrieval/README.md` |
 
@@ -65,7 +65,7 @@ No `dbutils`, no local `pyspark`, no notebook execution from Cursor — use SDK 
 
 ## Operator scripts (reuse, don't reinvent)
 
-- `.dev/t2_databricks_submit.py` — `WorkspaceClient`, import file, submit serverless Python
-- `.dev/onboarding_cluster_submit.py` — M4 runbook Steps 3 & 5 (gold bootstrap + harness baseline)
-- `.dev/t2_run_all.py` — batch T2 baseline runs
+- `.dev/scripts/t2_databricks_submit.py` — `WorkspaceClient`, import file, submit serverless Python
+- `eval/program/onboarding_cluster_submit.py` — M4 runbook Steps 3 & 5 (gold bootstrap + harness baseline)
+- `.dev/scripts/t2_run_all.py` — batch T2 baseline runs
 - `eval/retrieval/harness_cli.py` — harness CLI (needs cluster Spark for `--store-backend delta`)

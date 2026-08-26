@@ -19,7 +19,7 @@ For pipeline implementation rules (ingestion, notebooks, agent code), read **`da
 
 ## Shell (Windows / pwsh)
 
-Agent shell is **PowerShell**, not bash. Do **not** write ad-hoc `_quick_*.py` / `_check_*.py` files for one-off probes.
+Agent shell is **PowerShell**, not bash. Do **not** write ad-hoc `_quick_*.py` / `_check_*.py` files for one-off probes. If a probe file is unavoidable, put it under `.dev/scratch/<plan-slug>/` — never `.dev/` root. Layout: **`.dev/README.md`**.
 
 **Multi-line Python** — pipe a single-quoted here-string to stdin (preserves `"` and `'`, including SDK args like `wait_timeout="30s"`):
 
@@ -39,6 +39,17 @@ python -c 'print("ok")'
 ```
 
 Forbidden: bash heredocs (`<<'EOF'`), `python -c "..."` with nested double quotes, or temp scripts when the above suffices. Reuse committed helpers (e.g. `eval/program/onboarding_cluster_submit.py`) for repeated workflows.
+
+## `.dev` layout
+
+Honor **`.dev/README.md`**. Do not write one-off scripts or `t*_artifacts/` at `.dev/` root.
+
+- One-offs: `.dev/scratch/<plan-slug>/` (prefer stdin / `python -`)
+- Reusable helpers: `.dev/scripts/`
+- Program dumps: `.dev/plans/<slug>/artifacts/`
+- Closed plans: move the whole tree to `.dev/archive/plans/<slug>/` and delete `.dev/plans/<slug>/` (do not move audits or retros)
+
+Cited-plan archive is deferred: `.dev/pending/dev-archive-wave3.md`.
 
 ## Local limits
 
