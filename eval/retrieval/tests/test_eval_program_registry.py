@@ -29,7 +29,12 @@ NUMERIC_SURFACES = frozenset({"fta_numeric"})
 JUDGE_OR_HUMAN_RUNGS = frozenset({"judge", "human"})
 TSHIRT_VALUES = frozenset({"xs", "s", "m", "l", "xl", "unsizable"})
 ACTIONABLE_STATUSES = frozenset({"pending", "in_progress"})
-FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 54
+# 54 -> 53: eval-signal-foldback M7/T7 closed OI-eval-harness-profiler-re-run-clearsulting-gkf-spg
+# (status: pending -> closed), the shared 3-company profiler-OI row, removing it from the
+# actionable set. Bumped per the M7 audit's F1 remediation
+# (.dev/audits/2026-08-25-eval-signal-foldback-m7-checklists-spg.md, T9 amendment); see
+# .dev/plans/eval-signal-foldback-m7-checklists-spg/decision-logs/T9.md.
+FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 53
 GAP_109_ID = "GAP-109-cross-company-legal-kpi-g1-weakness"
 
 
