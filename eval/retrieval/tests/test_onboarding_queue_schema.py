@@ -16,7 +16,7 @@ import sys
 
 _spec = importlib.util.spec_from_file_location(
     "build_onboarding_queue",
-    _REPO_ROOT / ".dev" / "eval-program" / "build_onboarding_queue.py",
+    _REPO_ROOT / "eval" / "program" / "build_onboarding_queue.py",
 )
 assert _spec and _spec.loader
 _mod = importlib.util.module_from_spec(_spec)

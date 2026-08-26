@@ -256,7 +256,8 @@ eval/retrieval/reports/*.json
 /merge_scout*.md
 /MERGE_SCOUT*.md
 
-# Rallyday — local dev, agent workflow, and generated artifacts
+# Rallyday — local operator/agent workspace. Do not git add -f.
+# Nothing a clone or pytest needs belongs here.
 .claude/
 .dev/
 databricks/.env

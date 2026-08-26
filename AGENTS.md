@@ -49,6 +49,8 @@ Honor **`.dev/README.md`**. Do not write one-off scripts or `t*_artifacts/` at `
 - Program dumps: `.dev/plans/<slug>/artifacts/`
 - Closed plans: move the whole tree to `.dev/archive/plans/<slug>/` and delete `.dev/plans/<slug>/` (do not move audits or retros)
 
+Never `git add -f` under `.dev/`. If a test or clone needs a file, it does not belong in `.dev`.
+
 Cited-plan archive is deferred: `.dev/pending/dev-archive-wave3.md`.
 
 ## Local limits

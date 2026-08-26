@@ -216,7 +216,11 @@ def evidence_ref_resolves(
         return registry_match.group("id") in registry_ids
     if _TRUST_ROW_RE.match(ref):
         return True
-    candidate = repo_root / ref
+    # Operator-local; not a clone/pytest artifact.
+    path = ref.split("#", 1)[0]
+    if path.startswith(".dev/"):
+        return True
+    candidate = repo_root / path
     return candidate.is_file()
 
 
