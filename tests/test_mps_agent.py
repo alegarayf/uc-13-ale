@@ -1,21 +1,29 @@
-"""Unit tests for agents.workstreams.mps_agent — MPSAgent (T3).
+"""Unit tests for agents.workstreams.mps_agent — MPSAgent (T3, T5).
 
-docs/plans/mps_score/tasks/T3_agente_prompt.md, tests 8-12 of
+docs/plans/mps_score/tasks/T3_agente_prompt.md and
+docs/plans/mps_score/tasks/T5_retrieval_persistencia.md, tests 8-13 of
 docs/plans/mps_score/mps_score_1st_draft.md §11. LLM calls are mocked by
 monkeypatching the ``MPSAgent`` instance's ``_call_llm`` — same pattern as
 tests/test_rainmaker_narrative.py:130 (subclass/stub + monkeypatch), applied
 directly to the instance since MPSAgent (unlike the narrative layer's
 ``_RainmakerNarrativeLlm`` shim) is itself the full agent (§4.2).
 
-No retrieval, no Delta write in this task's scope (T3_agente_prompt.md
-"Alcance") — test 10 pins today's stubbed always-skip behavior rather than
-the full cim_detected gating from plan §7.4, which T5 implements. Test 13
-(Delta write) is T5's, not this file's.
+Test 10 was rewritten in T5, not extended (its T3 version pinned "zero
+calls in both branches" — the correct pin for T3's scope, which excluded
+retrieval entirely; T5 flips the ``cim_detected=False`` case to "exactly
+one call"). Test 13 (Delta write) is static/AST-based, following
+tests/test_legal_contracts_agent.py's precedent: it cannot execute real
+DDL against a Spark stub, so it checks that ``_EXPECTED_COLS`` matches the
+``_CREATE_TABLE_SQL`` column set — the DDL itself needs verification
+against the SQL warehouse (T6).
 """
 
 from __future__ import annotations
 
+import ast
 import json
+import re
+from pathlib import Path
 
 import pytest
 import yaml
@@ -241,25 +249,65 @@ def test_prompt_never_reveals_threshold_or_total_formula():
 
 
 # ---------------------------------------------------------------------------
-# Test 10 — retrieval gating (stubbed always-skip in T3 scope)
+# Test 10 — retrieval gating (§7.4/§A.3b — rewritten in T5)
 # ---------------------------------------------------------------------------
 
 
-def test_growth_mindset_retrieval_is_stubbed_to_always_skip(monkeypatch):
+class _FakeSpark:
+    """Stands in for a real SparkSession so ``spark is not None`` — enough
+    to clear the agent's no-session guard. The stubbed
+    ``semantic_search_with_fallback`` below never actually touches it."""
+
+
+def _bundle_with_cim_marker(detected: bool) -> dict:
+    return _bundle(meta={"basis_of_preparation": f"cim_detected={detected}"})
+
+
+def test_growth_mindset_retrieval_skipped_when_cim_detected(monkeypatch):
     calls = []
     monkeypatch.setattr(
         "agents.workstreams.mps_agent.semantic_search_with_fallback",
         lambda *a, **k: calls.append((a, k)),
-        raising=False,
     )
     rubric = load_rubric()
     agent = MPSAgent()
     monkeypatch.setattr(agent, "_call_llm", lambda *a, **k: json.dumps(_valid_categories_payload(rubric)))
 
-    agent.score(**_score_kwargs(bundle=_bundle(), run_mode="cim_only"))
-    agent.score(**_score_kwargs(bundle=_bundle(), run_mode="full_vdr_no_cim"))
+    result = agent.score(
+        **_score_kwargs(bundle=_bundle_with_cim_marker(True), spark=_FakeSpark(), run_mode="cim_only")
+    )
 
     assert calls == []
+    assert result["cim_detected"] is True
+    assert result["retrieval_used"] is False
+
+
+def test_growth_mindset_retrieval_runs_exactly_once_when_no_cim(monkeypatch):
+    calls = []
+
+    def _fake_search(**kwargs):
+        calls.append(kwargs)
+        return _EmptyRouteResult(), False
+
+    monkeypatch.setattr("agents.workstreams.mps_agent.semantic_search_with_fallback", _fake_search)
+    rubric = load_rubric()
+    agent = MPSAgent()
+    monkeypatch.setattr(agent, "_call_llm", lambda *a, **k: json.dumps(_valid_categories_payload(rubric)))
+
+    result = agent.score(
+        **_score_kwargs(
+            bundle=_bundle_with_cim_marker(False), spark=_FakeSpark(), run_mode="full_vdr_no_cim"
+        )
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["company_name"] == "Acme"
+    assert result["cim_detected"] is False
+    assert result["retrieval_used"] is True
+
+
+class _EmptyRouteResult:
+    chunks: list = []
 
 
 # ---------------------------------------------------------------------------
@@ -331,3 +379,102 @@ def test_rc_guard_flags_a_near_copy_rationale_but_not_a_grounded_one():
 
     grounded = "Gross margin runs 6 points above the two named regional competitors per the CIM."
     assert not _rationale_is_near_copy(grounded, category["definition"])
+
+
+# ---------------------------------------------------------------------------
+# Test 13 — Delta write, _EXPECTED_COLS guard (§9)
+#
+# Static/AST-based, following tests/test_legal_contracts_agent.py's
+# precedent (test_expected_cols_matches_appendix_a /
+# test_create_legal_table_ddl_columns_match_expected_cols): a Spark stub
+# cannot execute real DDL, so it cannot catch the cold-start-only DEFAULT/
+# TBLPROPERTIES class of bug databricks/CLAUDE.md documents. What it can
+# verify without a Spark session at all is that the migration guard's
+# source of truth (_EXPECTED_COLS) and the actual write schema/DDL agree.
+# The DDL itself needs verification against the SQL warehouse (T6).
+# ---------------------------------------------------------------------------
+
+_MPS_AGENT_PATH = Path(__file__).resolve().parents[1] / "databricks" / "agents" / "workstreams" / "mps_agent.py"
+_MPS_AGENT_SOURCE = _MPS_AGENT_PATH.read_text(encoding="utf-8")
+
+_MPS_SCORE_EXPECTED_COLS = {
+    "company_name",
+    "catalog",
+    "generated_at",
+    "run_mode",
+    "rubric_version",
+    "total",
+    "threshold",
+    "verdict",
+    "mps_status",
+    "categories_json",
+    "cim_detected",
+    "retrieval_used",
+    "llm_endpoint",
+    "run_id",
+}
+
+
+def _extract_mps_module_constant(name: str) -> str:
+    tree = ast.parse(_MPS_AGENT_SOURCE)
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == name:
+                    return ast.get_source_segment(_MPS_AGENT_SOURCE, node.value) or ""
+    raise AssertionError(f"constant {name} not found in mps_agent.py")
+
+
+def _ddl_column_names(ddl: str) -> set[str]:
+    body = ddl.split("(", 1)[1].rsplit(")", 1)[0]
+    return {
+        line.strip().split()[0]
+        for line in body.splitlines()
+        if line.strip() and not line.strip().startswith("--")
+    }
+
+
+def test_expected_cols_matches_plan_section_9():
+    segment = _extract_mps_module_constant("_EXPECTED_COLS")
+    cols = set(re.findall(r'"([^"]+)"', segment))
+    assert cols == _MPS_SCORE_EXPECTED_COLS
+
+
+def test_create_mps_score_table_ddl_columns_match_expected_cols():
+    ddl_template = _extract_mps_module_constant("_CREATE_TABLE_SQL")
+    ddl_cols = _ddl_column_names(ddl_template.format(table="uc13_ale.analysis.mps_score"))
+    assert ddl_cols == _MPS_SCORE_EXPECTED_COLS
+
+
+def test_mps_score_table_ddl_has_no_default_clause():
+    """databricks/CLAUDE.md: a DEFAULT clause needs the
+    `delta.feature.allowColumnDefaults` TBLPROPERTIES opt-in or CREATE TABLE
+    fails on cold start. mps_score has no DEFAULT, so it needs none — this
+    pins that so a future column addition doesn't introduce one silently."""
+    ddl_template = _extract_mps_module_constant("_CREATE_TABLE_SQL")
+    assert "DEFAULT" not in ddl_template.upper()
+    assert "TBLPROPERTIES" not in ddl_template.upper()
+
+
+def test_run_mode_column_has_no_check_constraint():
+    """§5.1/§9 non-negotiable: run_mode is a plain STRING so the third mode
+    can be persisted later without a migration."""
+    ddl_template = _extract_mps_module_constant("_CREATE_TABLE_SQL")
+    for line in ddl_template.splitlines():
+        if line.strip().startswith("run_mode"):
+            assert "CHECK" not in line.upper()
+            assert line.strip().split()[1].upper().rstrip(",") == "STRING"
+            return
+    raise AssertionError("run_mode column not found in _CREATE_TABLE_SQL")
+
+
+def test_delta_write_is_append_only_never_overwrite():
+    """§9 non-negotiable: append-only, never overwrite — score history from
+    day one is what makes a future trend view a rendering change, not a
+    migration. Also must never DELETE before writing (that would defeat
+    append-only just as surely as an overwrite mode)."""
+    body = _MPS_AGENT_SOURCE[_MPS_AGENT_SOURCE.index("def _write_mps_row") :]
+    body = body[: body.index("\n\n\n")] if "\n\n\n" in body else body
+    assert '.mode("append")' in body
+    assert ".mode(\"overwrite\")" not in body
+    assert "DELETE FROM" not in body
