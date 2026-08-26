@@ -20,13 +20,15 @@ Implementation: module constant `_C40_ORGANIZATIONAL_BREVITY` concatenated only 
 
 ## Assumptions made
 
-- Soft prompt-level length guidance will bind reliably enough on this model/corpus to keep the organizational call's total output inside 8K tokens, as C39's identical mechanism did on commercial. Not proven until the wet run — the kill criteria still HALT (not retry) if either post-C40 arm truncates.
+- Soft prompt-level length guidance will bind reliably enough on this model/corpus to keep the organizational call's total output inside 8K tokens, as C39's identical mechanism did on commercial.
+  > Superseded by T3-bis C40 wet run (d): both post-C40 arms finished both calls untruncated (`727024842940292` Arm A; `606810294015422` Arm B). Wet-run proof is closed; HALT-if-truncate remains standing policy for a later retry, not current C40 state.
+  > ~~Not proven until the wet run — the kill criteria still HALT (not retry) if either post-C40 arm truncates.~~
 - Bounding `recent_model_changes`/`key_dependencies`/`citations` verbosity is an acceptable, scoped quality tradeoff on `_use_two_pass=True` runs only; production/normal-size rooms stay on the C36 single-call path.
 - Re-submitting the previously-clean Arm A under C40 will not regress commercial or organizational. If it does, that is new evidence, not noise.
 
 ## Items deferred
 
-- A 3-way split, further guidance tightening, or accepting the gap, if either post-C40 arm still truncates. Reserved for a fresh operator decision. Do not retry.
+- A 3-way split, further guidance tightening, or accepting the gap, if either post-C40 arm still truncates. Reserved for a fresh operator decision. Do not retry. **Closed:** both post-C40 arms finished both calls untruncated (`727024842940292` Arm A; `606810294015422` Arm B).
 - Whether the brevity guidance measurably reduces extraction quality on the three targeted fields even when it fits — noted as a caveat for T9's shareable report, not a C40 kill criterion.
 
 ## Required C40 points
@@ -91,4 +93,6 @@ Two hunks only: the C40 constant plus an organizational-only `brevity` insert. `
 
 ### (d) Measured `bma_context_chars` and per-field char counts (post-C40 arms)
 
-Pending wet run of wrapper-submitted post-C40 Arm A then Arm B. Back-filled after those jobs complete.
+Arm A job `727024842940292` (`uc13_ale`): `bma_context_chars=121977` (two-pass triggered). Warehouse latest in-window row `created_at=2026-08-25T18:37:55.552958` inside `2026-08-25T18:30:24.227Z`–`2026-08-25T18:50:28.635Z`. Agent-manifest BMA SUCCESS 357.2s. `executive_summary`=1325 chars (nonempty; starts `Elder Care operates a coordinated private-pay home care business across six markets...`). `data_room_gaps` has no LLM-truncation / `Unterminated string` marker (only a referral-source completeness note). Field lengths: `products_services`=2125, `revenue_by_location`=2340, `people_and_org`=3985, `workforce_capacity`=2564, `customer_operational_metrics`=1976, `customer_profile`=1679, `sales_motion`=1575, `revenue_visibility`=883, `key_dependencies`=2501, `recent_model_changes`=4075, `citations`=4992. `(a)=true (b)=true (c)=true (d)=true`.
+
+Arm B job `606810294015422` (`uc13_preview`): `bma_context_chars=80145` (two-pass triggered). Warehouse latest in-window row `created_at=2026-08-25T18:59:52.688898` inside `2026-08-25T18:52:42.086Z`–`2026-08-25T19:09:26.584Z`. Agent-manifest BMA SUCCESS 341.7s. `executive_summary`=1266 chars (nonempty; starts `Elder Care is a premier private pay home care provider serving the Northeast...`). `data_room_gaps`=`[]` (no truncation marker). Field lengths: `products_services`=2810, `revenue_by_location`=3018, `people_and_org`=4258, `workforce_capacity`=2498, `customer_operational_metrics`=1941, `customer_profile`=2390, `sales_motion`=1634, `revenue_visibility`=895, `key_dependencies`=2437, `recent_model_changes`=3512 (was 7632 on the failing C39 Arm B), `citations`=4928. `(a)=true (b)=true (c)=true (d)=true`. C40 organizational bound held; C39 commercial bound still held. See `runs/T3-bis-c40-brief.md`.
