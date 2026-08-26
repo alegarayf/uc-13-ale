@@ -121,30 +121,30 @@ File four missing rows, amend one, then home all ten. Do not add Clearsulting Le
 
 ## Stats by track
 
-**Pace:** 1 day ≈ Wave 4 charter **M1 through M8 as executed**. **1 sprint = 10 working days.** Estimates ±50%, same agent-heavy style.
+**Pace (observed):** Wave 4 charter **M1–M8 = 2.3 working days**, inclusive of HALTs, failed audits, and amendments. That is the only calibrated unit. It is **not** “1 day ≈ one milestone” and **not** “1 day ≈ the whole charter.” **1 sprint = 10 working days.** Leftover tickets are product slices, not a second charter. A rubric/eval change is ~0.05d; a wet legal re-run with one HALT is ~0.15–0.25d. Estimates ±50%.
 
-**Essential** = `must` rows that are closable product work (iterate pack). Locator cascade is a constraint, not a day of work. Dual-source `spot_check` is not double-counted with the scope-gap row. **Complete** = essential + should + nice, **excluding** SFT/LoRA/pre-training.
+**Essential** = closable iterate-pack product work. Locator cascade is a constraint (0d). Dual-source `spot_check` is not double-counted with the scope-gap row. **Complete** = essential + should + nice, **excluding** SFT/LoRA/pre-training.
 
 | Track | Items | Must | Should | Nice | Essential | Complete |
 |---|---:|---:|---:|---:|---|---|
-| Program | 4 | 0 | 1 | 3 | — | 0.4d · 0.04 spr |
-| Legal | 12 | 9 | 1 | 2 | 1.8d · 0.18 spr | 2.2d · 0.22 spr |
-| Exec | 5 | 2 | 1 | 2 | 0.5d · 0.05 spr | 0.7d · 0.07 spr |
-| Eval hygiene | 8 | 0 | 7 | 1 | — | 0.8d · 0.08 spr |
-| Retrieval | 12 | 0 | 3 | 9 | — | 1.4d · 0.14 spr |
-| Calibration | 5 | 0 | 3 | 2 | — | 0.6d · 0.06 spr |
-| Beta | 5 | 0 | 2 | 3 | — | 1.0d · 0.10 spr |
-| Product | 10 | 0 | 2 | 8 | — | 2.0d · 0.20 spr |
-| Analysis | 5 | 0 | 3 | 2 | — | 0.8d · 0.08 spr |
-| Ingest/infra | 9 | 0 | 3 | 6 | — | 1.2d · 0.12 spr |
-| Models (serving A/B only) | 1 | 0 | 0 | 1 | — | 0.2d · 0.02 spr |
-| **Iterate pack (must product)** | **10** | **10** | — | — | **~2.3d · ~0.2 spr** | — |
-| **Prudent (must + should)** | **~35** | 11 | ~24 | — | — | **~5.5d · ~0.6 spr** |
-| **Everything on this map except SFT** | **~76** | 11 | ~24 | ~41 | — | **~11d · ~1.1 spr** |
+| Program | 4 | 0 | 1 | 3 | — | 0.15d · 0.02 spr |
+| Legal | 12 | 9 | 1 | 2 | 0.50d · 0.05 spr | 0.65d · 0.07 spr |
+| Exec | 5 | 2 | 1 | 2 | 0.20d · 0.02 spr | 0.25d · 0.03 spr |
+| Eval hygiene | 8 | 0 | 7 | 1 | — | 0.30d · 0.03 spr |
+| Retrieval | 12 | 0 | 3 | 9 | — | 0.55d · 0.06 spr |
+| Calibration | 5 | 0 | 3 | 2 | — | 0.25d · 0.03 spr |
+| Beta | 5 | 0 | 2 | 3 | — | 0.40d · 0.04 spr |
+| Product | 10 | 0 | 2 | 8 | — | 0.80d · 0.08 spr |
+| Analysis | 5 | 0 | 3 | 2 | — | 0.25d · 0.03 spr |
+| Ingest/infra | 9 | 0 | 3 | 6 | — | 0.45d · 0.05 spr |
+| Models (serving A/B only) | 1 | 0 | 0 | 1 | — | 0.08d · 0.01 spr |
+| **Iterate pack (must product)** | **10** | **10** | — | — | **~0.7d · ~0.07 spr** | — |
+| **Prudent (must + should)** | **~35** | 11 | ~24 | — | — | **~2.3d · ~0.23 spr** |
+| **Everything on this map except SFT** | **~76** | 11 | ~24 | ~41 | — | **~4.1d · ~0.41 spr** |
 
 SFT / LoRA / pre-training: **not in those totals.**
 
-**Read of the numbers:** the 24 Aug “~4 days to finish Wave 4” is **spent**. What is left that is actually a fix is the **iterate pack (~2 days)**. The should pile (beta pulse, floors, taxonomy, hygiene, CIM product call) still fits in a sprint. The long tail is optional.
+**Read of the numbers:** 2.3d already bought the charter (ceremony + HALTs + audits). The iterate pack is **~0.7d** — under a third of that, not another Wave 4. HALT/audit tax can push the pack toward ~1.0d; it still should not approach 2.3d. Prudent (pack + should) is about **one more charter-equivalent day**. The long tail is optional and still under half a sprint.
 
 Do not treat a G1 score as a company-quality ranking. Clearsulting Legal 0/11 is missing docs. Clearsulting/GKF KPI 1/3 is a healthcare-hardcoded scorer. SPG Legal 1/11 is extraction on a fat corpus. Those are not one defect.
 
