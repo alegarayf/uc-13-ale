@@ -45,6 +45,13 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 os.environ["PYTHONPATH"] = str(REPO_ROOT)
 
+# T9 (amendment): make_sdk_sql_executor()'s load_dotenv() is a no-op on this
+# cluster (no .env file is uploaded here). Set the three vars it reads before
+# the driver import below, so the warehouse client can be built on-cluster.
+os.environ["DATABRICKS_SERVER_HOSTNAME"] = {databricks_server_hostname!r}
+os.environ["DATABRICKS_TOKEN"] = {databricks_token!r}
+os.environ["DATABRICKS_HTTP_PATH"] = {databricks_http_path!r}
+
 driver_path = REPO_ROOT / "eval" / "program" / "_legal_register_verify_driver.py"
 spec = importlib.util.spec_from_file_location("legal_register_verify_driver", driver_path)
 if spec is None or spec.loader is None:
@@ -128,12 +135,24 @@ def _slug(company: str) -> str:
     return canonical_company_slug(company)
 
 
-def _render_launcher(repo_root: str, company: str, run_id: str, catalog: str) -> str:
+def _render_launcher(
+    repo_root: str,
+    company: str,
+    run_id: str,
+    catalog: str,
+    *,
+    server_hostname: str,
+    token: str,
+    http_path: str,
+) -> str:
     return LAUNCHER.format(
         repo_root=repo_root,
         company=repr(company),
         run_id=repr(run_id),
         catalog=repr(catalog),
+        databricks_server_hostname=server_hostname,
+        databricks_token=token,
+        databricks_http_path=http_path,
     )
 
 
@@ -206,6 +225,11 @@ def _upload_wrapper_and_driver(w, repo_root: str) -> None:
 
 def run_verify(company: str, catalog: str = DEFAULT_CATALOG, *, sync: bool = True) -> int:
     """Submit ``verify_legal_register`` as a serverless SparkPythonTask."""
+    # T9 (amendment): read these before any workspace call so a missing var
+    # fails fast on the laptop, not on-cluster (A6).
+    server_hostname = os.environ["DATABRICKS_SERVER_HOSTNAME"]
+    token = os.environ["DATABRICKS_TOKEN"]
+    http_path = os.environ["DATABRICKS_HTTP_PATH"]
     run_id = mint_run_id()
     w = client()
     user = workspace_user(w)
@@ -218,7 +242,15 @@ def run_verify(company: str, catalog: str = DEFAULT_CATALOG, *, sync: bool = Tru
     launcher = _upload_driver(
         w,
         user,
-        _render_launcher(repo_root, company, run_id, catalog),
+        _render_launcher(
+            repo_root,
+            company,
+            run_id,
+            catalog,
+            server_hostname=server_hostname,
+            token=token,
+            http_path=http_path,
+        ),
     )
     databricks_run_id, _logs, rc = submit_serverless(
         w,
