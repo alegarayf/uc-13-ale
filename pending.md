@@ -1,28 +1,25 @@
+# Pending scratch (ideas / backlog)
 
-- ~~remove route a related files and others [route_chunks]~~ (done — kept retrieval_mode plumbing) prob should remove?
+Canonical tracker: `OPEN_ITEMS.md`
 
+---
 
+## Orchestrator charter (`.dev/orchestrator/uc13_orchestrator_milestone_charter.md`)
 
-- 2/3 charter: .dev\orchestrator\uc13_orchestrator_milestone_charter.md
-    - m3 - if gates or conditions are triggered 
-    - + the experiment 
-        - Lo que voy a agregar como experiment para la presetancion si el tiempo permite es uno con un llm generation mas agresivo y no tan determinista como está ahora; basciamente generando las secciones claves completamente del mismo bundle/source data. in_one_line, strengths, concerns, business_snapshot...
-    - + change tl;dr name to executive summary 
-    - + summarize or diagest bullets like mitigants w llms somehow 
-    - 
+- **M3** — gate/condition triggers + halt → 1-pager flow (design)
+- **Exec-summary experiment** — more aggressive LLM generation for key sections (`in_one_line`, strengths, concerns, `business_snapshot`) from the same bundle/source data
+- **Mitigants digest** — summarize bullet lists (e.g. mitigants) with LLM
 
+## Housekeeping
 
-- merge hectors repo (agents and auxs) 
+- **`route_chunks`** — Route A removed; leftover `retrieval_mode` plumbing may still delete
 
-- dataset / pre training
-    - explore and evaluate datasets 
-        - understand + try to extract minimal baseline from and for all companies and datasets 
+## Ideas
 
-
-- eval: 
-
-    - re score all agents post m-re3
-    - score fta (or full pipeline) on more companies
-    - 
+- **Dataset / pre-training** — explore and evaluate datasets; extract minimal baseline across companies
 
 
+----
+
+
+- crysler anthropic sdk 
