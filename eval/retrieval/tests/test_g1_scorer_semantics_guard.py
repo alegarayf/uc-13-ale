@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_G1_SCORER_PATH = _REPO_ROOT / ".dev" / "g1_score_all_agents.py"
+_G1_SCORER_PATH = _REPO_ROOT / ".dev" / "scripts" / "g1_score_all_agents.py"
 
 if not _G1_SCORER_PATH.is_file():
     pytest.skip(
-        ".dev/g1_score_all_agents.py absent — scorer guard skipped on fresh clone",
+        ".dev/scripts/g1_score_all_agents.py absent — scorer guard skipped on fresh clone",
         allow_module_level=True,
     )
 

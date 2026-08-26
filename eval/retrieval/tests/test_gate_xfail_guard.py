@@ -10,7 +10,10 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EVAL_TEST_ROOT = REPO_ROOT / "eval" / "retrieval" / "tests"
 TEST_ROOTS = (REPO_ROOT / "tests", EVAL_TEST_ROOT)
-GATE_GLOB = ".dev/plans/**/CLUSTER_GATES.md"
+GATE_GLOBS = (
+    ".dev/plans/**/CLUSTER_GATES.md",
+    ".dev/archive/plans/**/CLUSTER_GATES.md",
+)
 
 
 class _NotXfail:
@@ -100,9 +103,16 @@ def _find_xfail_markers(roots: tuple[Path, ...]) -> list[str]:
     return violations
 
 
+def _iter_gate_files() -> list[Path]:
+    files: list[Path] = []
+    for pattern in GATE_GLOBS:
+        files.extend(REPO_ROOT.glob(pattern))
+    return files
+
+
 def _gate_files_claim_pass() -> list[Path]:
     passing: list[Path] = []
-    for path in REPO_ROOT.glob(GATE_GLOB):
+    for path in _iter_gate_files():
         text = path.read_text(encoding="utf-8")
         if any(
             line.strip().startswith("**Status:** PASS") or " PASS" in line
@@ -120,7 +130,7 @@ def test_eval_suite_has_no_xfail_markers():
 def test_gate_pass_implies_zero_xfail_in_test_dirs():
     passing_gates = _gate_files_claim_pass()
     if not passing_gates:
-        gate_files = list(REPO_ROOT.glob(GATE_GLOB))
+        gate_files = _iter_gate_files()
         if not gate_files:
             pytest.skip("No CLUSTER_GATES.md files — fresh clone")
         pytest.skip("No gate file claims PASS — xfail coupling guard not armed")

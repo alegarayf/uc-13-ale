@@ -318,7 +318,7 @@ debts:
   - .dev/specs/eval-signal-foldback/spec.md#D7
   - live SELECT count(*) FROM uc13_ale.ingestion.chunks WHERE company_name='SPG' -> 44038 (D7 falsification,
     Phase 2 cycle 1; 8 consecutive SPG harness runs also report 44038, never 44085)
-  - .dev/wave2-e2e-2026-08-19/g1_SPG.log
+  - .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/g1_SPG.log
   - baseline_3992534e412f
 - id: gkf:global:post_m4_harness_baseline_corpus_drift
   company: gkf
@@ -385,11 +385,11 @@ debts:
   evidence_refs:
   - trust:elder_care:retrieval:null
   - registry:GAP-103-legal-score-variance-r-2
-  - .dev/wave2-e2e-2026-08-19/g1_Elder_Care.log
-  - .dev/wave2-e2e-2026-08-19/manifest.md
+  - .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/g1_Elder_Care.log
+  - .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/manifest.md
   closes_when: Fresh G1 Legal checklist score (run_id 766487529692196, 2026-08-19) on a subsequent e2e run recovers to
     >=9/11 (BASELINES['elder_care']['legal'] floor per .dev/g1_score_all_agents.py),
-    or the regression is root-caused (per-item diff vs .dev/wave2-e2e-2026-08-19/g1_Elder_Care.log
+    or the regression is root-caused (per-item diff vs .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/g1_Elder_Care.log
     run 766487529692196) and either fixed, or re-ratified as an accepted variance
     via a registry entry explicitly superseding GAP-103-legal-score-variance-r-2's
     7/11 threshold

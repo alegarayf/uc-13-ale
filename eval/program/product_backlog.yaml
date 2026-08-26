@@ -292,7 +292,7 @@ items:
       not an ingest completeness blocker.
     evidence_refs:
       - eval/retrieval/gold_labels/spg.yaml
-      - .dev/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
       - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T8-spg-ingest-fta.md
     fix_lane: eval
     closes_when: >-
@@ -302,7 +302,7 @@ items:
     closed_at: '2026-08-20'
     closed_evidence_refs:
       - .dev/specs/eval-signal-foldback/spec.md#D7
-      - .dev/wave2-e2e-2026-08-19/g1_SPG.log
+      - .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/g1_SPG.log
       - baseline_3992534e412f
       - eval/retrieval/gold_labels/spg.yaml
 
@@ -317,8 +317,8 @@ items:
       Jul/Aug-11 baselines not comparable to post-M4 warehouse; Elder mean MRR 0.665→0.222 on expanded
       intent set. Re-baseline before promotion gates or cross-company trust comparisons.
     evidence_refs:
-      - .dev/company-analysis-diff-pre-vs-post-refactor.md
-      - .dev/tmp_deep_data_analysis.json
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/scratch/orphaned-2026-08/tmp_deep_data_analysis.json
       - eval/retrieval/gold_labels/elder_care.yaml
     fix_lane: eval
     closes_when: >-
@@ -342,9 +342,9 @@ items:
       T2 exec-summary word counts unchanged since Jul-17 (847–1,325) despite post-M4 ingest closure
       and larger orchestrator bundles — deliverables do not reflect +59% Elder corpus or SPG dedup.
     evidence_refs:
-      - .dev/company-analysis-diff-pre-vs-post-refactor.md
-      - .dev/t2_baseline_run_log.json
-      - .dev/tmp_e2e_readiness_probe.json
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/scratch/orphaned-2026-08/t2_baseline_run_log.json
+      - .dev/scratch/orphaned-2026-08/tmp_e2e_readiness_probe.json
     fix_lane: ops
     closes_when: >-
       T2 render_only or agents_render re-run for Elder Care and SPG records new word counts and volume
@@ -361,8 +361,8 @@ items:
       full M4 ingest closure. Deep probe shows richer BMA exec/citations vs company-analysis HTML
       panels; only SPG FTA refreshed Aug-19. G1/content eval may misattribute corpus vs model gaps.
     evidence_refs:
-      - .dev/company-analysis-diff-pre-vs-post-refactor.md
-      - .dev/tmp_deep_data_analysis.json
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/scratch/orphaned-2026-08/tmp_deep_data_analysis.json
       - uc13-company-data-analysis.html
     fix_lane: ops
     closes_when: >-
@@ -380,7 +380,7 @@ items:
       vision placeholder 027ec667…, page-46 b1feca18…) — spot-check claims from 2026-08-13 may need
       re-verification on uc13_ale:55812+ corpus before attributing to extraction bugs.
     evidence_refs:
-      - .dev/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
       - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
       - eval/retrieval/gold_labels/elder_care.yaml
     fix_lane: eval
