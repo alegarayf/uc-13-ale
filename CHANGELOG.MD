@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-signal-foldback-m8-root-cause — 2026-08-26
+
+- T1 (D11 slug-to-display mapping and unconditional legal-register canonicalization): Added `companies.display_name_for_slug` and `_SLUG_TO_DISPLAY` matching `onboarding_queue.yaml`'s four pairs; `_display_name_for_slug` now delegates to that mapping; `build_claim_rows` and `verify_legal_register` always fold through `canonical_company_slug`. Rationale: warehouse `company_name` is display-case (`GKF`/`SPG`) while `s2_scores.company` must be the folded slug, and the space-gate plus title-case inverse left those companies resolving to zero rows. Decision log: `.dev/plans/eval-signal-foldback-m8-root-cause/decision-logs/T1.md`.
+
 ## eval-signal-foldback-m6-checklists-gkf — 2026-08-25
 
 - T8 (Architecture housekeeping + declared-gate-command fix): Corrected the eval_debt ratchet Surface prose to the live ledger (**20 total / 1 open**, HWM **14**); appended GKF M6/T6-bis promotion evidence (`run_id` `cd3abe7b4c3b4b9a91ffa977c5d2c1ce`, 7 `ops.e2e_linkage` rows; neither `lca` nor bare `uc13` fired; FTA linkage **14/18** and checklist **14.5/18** recorded as two distinct figures); documented the declared gate as `python -m pytest -m "not heavy" -q` after an independent collect-only of **1527** vs **870** for the `tests/`-scoped form; bumped both architecture files 1.5.0 → 1.6.0. Rationale: charter §7 item 1 plus M5 audit F1/F4, using T6-bis landed evidence rather than this plan's planning-time forecast.

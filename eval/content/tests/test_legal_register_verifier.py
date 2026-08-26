@@ -8,6 +8,7 @@ import pytest
 
 from eval.content.legal_register_verifier import (
     ChunkResolution,
+    _display_name_for_slug,
     build_claim_rows,
     verify_legal_register,
 )
@@ -352,3 +353,95 @@ def test_build_claim_rows_requires_full_quote_not_prefix_anchor() -> None:
         ),
     )
     assert rows[0].verdict == "contradicted"
+
+
+def test_display_name_for_slug_maps_elder_care() -> None:
+    assert _display_name_for_slug("elder_care") == "Elder Care"
+
+
+def test_display_name_for_slug_maps_clearsulting() -> None:
+    assert _display_name_for_slug("clearsulting") == "Clearsulting"
+
+
+def test_display_name_for_slug_maps_gkf_not_title_case() -> None:
+    assert _display_name_for_slug("gkf") == "GKF"
+    assert _display_name_for_slug("gkf") != "Gkf"
+
+
+def test_display_name_for_slug_maps_spg_not_title_case() -> None:
+    assert _display_name_for_slug("spg") == "SPG"
+    assert _display_name_for_slug("spg") != "Spg"
+
+
+def test_build_claim_rows_canonicalizes_gkf_without_space() -> None:
+    rows = build_claim_rows(
+        "GKF",
+        registers=_sample_registers(),
+        run_id="20260914T120000Z-legal",
+        run_ts=_run_ts(),
+        resolve_chunk=lambda *_: None,
+    )
+    assert rows[0].company == "gkf"
+
+
+def test_verify_legal_register_canonicalizes_gkf_without_space() -> None:
+    recorder = RecordingSqlExecutor()
+    legal_payload = {
+        column: _sample_registers().get(register, [])
+        for column, register in (
+            ("contract_register_json", "contract_register"),
+            ("vendor_register_json", "vendor_register"),
+        )
+    }
+    seen_displays: list[str] = []
+
+    def loader(display: str) -> dict:
+        seen_displays.append(display)
+        return legal_payload
+
+    n_claims = verify_legal_register(
+        "GKF",
+        "20260914T120000Z-legal",
+        sql_executor=recorder,
+        legal_row_loader=loader,
+        chunk_resolver=lambda *_: None,
+        run_ts=_run_ts(),
+    )
+
+    assert n_claims == 1
+    assert seen_displays == ["GKF"]
+    inserts = [stmt for stmt in recorder.statements if "INSERT" in stmt.upper()]
+    assert inserts
+    assert all("'gkf'" in stmt for stmt in inserts)
+    assert all("'GKF'" not in stmt for stmt in inserts)
+
+
+def test_verify_legal_register_folded_gkf_slug_maps_warehouse_display() -> None:
+    """Already-folded ``gkf`` must resolve warehouse ``GKF``, not title-case ``Gkf``."""
+    recorder = RecordingSqlExecutor()
+    legal_payload = {
+        column: _sample_registers().get(register, [])
+        for column, register in (
+            ("contract_register_json", "contract_register"),
+            ("vendor_register_json", "vendor_register"),
+        )
+    }
+    seen_displays: list[str] = []
+
+    def loader(display: str) -> dict:
+        seen_displays.append(display)
+        return legal_payload
+
+    verify_legal_register(
+        "gkf",
+        "20260914T120000Z-legal",
+        sql_executor=recorder,
+        legal_row_loader=loader,
+        chunk_resolver=lambda *_: None,
+        run_ts=_run_ts(),
+    )
+
+    assert seen_displays == ["GKF"]
+    inserts = [stmt for stmt in recorder.statements if "INSERT" in stmt.upper()]
+    assert inserts
+    assert all("'gkf'" in stmt for stmt in inserts)

@@ -12,6 +12,15 @@ _NON_ALNUM_RUN = re.compile(r"[^A-Za-z0-9]+")
 DEFAULT_COMPANY_DISPLAY = "Elder Care"
 DEFAULT_COMPANY_SLUG = "elder_care"
 
+# Inverse of onboarding_queue.yaml's four (display_name, slug) pairs. Warehouse
+# company_name is the display form; s2_scores.company is the slug.
+_SLUG_TO_DISPLAY: dict[str, str] = {
+    "gkf": "GKF",
+    "clearsulting": "Clearsulting",
+    "spg": "SPG",
+    "elder_care": "Elder Care",
+}
+
 
 class UnnormalizableCompanySlugError(ValueError):
     """Raised when a display name folds to an empty slug (write-path step 4)."""
@@ -65,3 +74,15 @@ def require_folded_company_slug(company_slug: str) -> str:
             f"company_slug must be canonical (already folded): {company_slug!r}"
         )
     return company_slug
+
+
+def display_name_for_slug(slug: str) -> str:
+    """Map a folded company slug to the warehouse ``company_name`` display form.
+
+    Unknown slugs fall back to title-case of underscore-split tokens so a
+    hypothetical fifth company does not hard-fail.
+    """
+    mapped = _SLUG_TO_DISPLAY.get(slug)
+    if mapped is not None:
+        return mapped
+    return slug.replace("_", " ").title()

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Protocol
 
 from eval.content.s2_writer import S2ScoreRow, S2Writer, SqlExecutor, _sql_str
-from eval.retrieval.companies import DEFAULT_COMPANY_DISPLAY, canonical_company_slug
+from eval.retrieval.companies import canonical_company_slug, display_name_for_slug
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +269,7 @@ def build_claim_rows(
     enumerate_document_chunks: DocumentChunkEnumerator | None = None,
 ) -> list[S2ScoreRow]:
     """Translate verifiable register rows into §8.8 claim rows."""
-    slug = canonical_company_slug(company) if " " in company else company
+    slug = canonical_company_slug(company)
     rows: list[S2ScoreRow] = []
 
     for register_name, register_rows in registers.items():
@@ -329,9 +329,7 @@ def build_claim_rows(
 
 
 def _display_name_for_slug(slug: str) -> str:
-    if slug == canonical_company_slug(DEFAULT_COMPANY_DISPLAY):
-        return DEFAULT_COMPANY_DISPLAY
-    return slug.replace("_", " ").title()
+    return display_name_for_slug(slug)
 
 
 def make_warehouse_chunk_resolver(
@@ -501,7 +499,7 @@ def verify_legal_register(
     if sql_executor is None and (legal_row_loader is None or chunk_resolver is None):
         raise RuntimeError("sql_executor or injected loaders are required")
 
-    slug = canonical_company_slug(company) if " " in company else company
+    slug = canonical_company_slug(company)
     ts = run_ts or _utc_now_micro()
     display = _display_name_for_slug(slug)
 
