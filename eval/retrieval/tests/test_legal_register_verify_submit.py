@@ -10,6 +10,8 @@ import importlib.util
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 from eval.content.s2_writer import _RUN_ID_RE
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -216,3 +218,65 @@ def test_mint_run_id_matches_s2_writer_run_id_re() -> None:
     run_id = mod.mint_run_id(ts)
     assert _RUN_ID_RE.match(run_id)
     assert run_id.startswith("20260826T162200Z-")
+
+
+# --- T9 amendment: env-var injection into the generated launcher (A6) ---
+
+
+def _render(mod, **overrides):
+    kwargs = dict(
+        repo_root="/Workspace/Users/x/uc-13-ale",
+        company="Clearsulting",
+        run_id="20260826T162200Z-abcd",
+        catalog="uc13_ale",
+        server_hostname="dummy-host.cloud.databricks.com",
+        token="dummy-token-value",
+        http_path="/sql/1.0/warehouses/dummyid",
+    )
+    kwargs.update(overrides)
+    return mod._render_launcher(
+        kwargs.pop("repo_root"),
+        kwargs.pop("company"),
+        kwargs.pop("run_id"),
+        kwargs.pop("catalog"),
+        server_hostname=kwargs.pop("server_hostname"),
+        token=kwargs.pop("token"),
+        http_path=kwargs.pop("http_path"),
+    )
+
+
+def test_launcher_injects_all_three_warehouse_env_vars() -> None:
+    mod = _load_submit()
+    source = _render(mod)
+    assert 'os.environ["DATABRICKS_SERVER_HOSTNAME"] = \'dummy-host.cloud.databricks.com\'' in source
+    assert 'os.environ["DATABRICKS_TOKEN"] = \'dummy-token-value\'' in source
+    assert 'os.environ["DATABRICKS_HTTP_PATH"] = \'/sql/1.0/warehouses/dummyid\'' in source
+
+
+def test_launcher_sets_hostname_before_driver_import() -> None:
+    mod = _load_submit()
+    source = _render(mod)
+    hostname_idx = source.index('os.environ["DATABRICKS_SERVER_HOSTNAME"]')
+    driver_idx = source.index("driver_path = ")
+    assert hostname_idx < driver_idx
+
+
+def test_run_verify_fails_fast_on_missing_env_var(monkeypatch) -> None:
+    mod = _load_submit()
+    monkeypatch.setenv("DATABRICKS_SERVER_HOSTNAME", "dummy-host")
+    monkeypatch.setenv("DATABRICKS_HTTP_PATH", "/sql/1.0/warehouses/dummyid")
+    monkeypatch.delenv("DATABRICKS_TOKEN", raising=False)
+
+    def _fail_if_called(*_a, **_kw):
+        raise AssertionError("workspace client must not be constructed before env check")
+
+    monkeypatch.setattr(mod, "client", _fail_if_called)
+    with pytest.raises(KeyError):
+        mod.run_verify("Clearsulting", "uc13_ale")
+
+
+def test_submit_wrapper_does_not_reference_dotenv_path_outside_main() -> None:
+    source = _SUBMIT.read_text(encoding="utf-8")
+    occurrences = [i for i in range(len(source)) if source.startswith('".env"', i)]
+    # The only literal ".env" reference is inside main()'s load_dotenv(REPO / ".env") call.
+    assert len(occurrences) == 1
