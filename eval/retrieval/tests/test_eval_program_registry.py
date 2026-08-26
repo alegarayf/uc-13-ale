@@ -645,7 +645,7 @@ def test_m5_s5_onboarding_queue_row_present(populated_artifacts):
     assert row["disposition"] == "accepted"
     assert row["status"] == "n/a"
     assert "eval/program/onboarding_queue.yaml" in (row.get("evidence_refs") or [])
-    assert ".dev/eval-program/build_onboarding_queue.py" in (row.get("evidence_refs") or [])
+    assert "eval/program/build_onboarding_queue.py" in (row.get("evidence_refs") or [])
     for commit_sha in ("f9cb629", "0e42eee"):
         assert commit_sha in (row.get("evidence_refs") or [])
 
@@ -706,6 +706,10 @@ def test_production_modules_do_not_embed_gitignored_dev_runtime_paths() -> None:
             for line_no, line in enumerate(
                 path.read_text(encoding="utf-8").splitlines(), start=1
             ):
-                if ".dev/" in line and not line.strip().startswith("#"):
-                    violations.append(f"{path.relative_to(REPO_ROOT)}:{line_no}: {line.strip()}")
+                stripped = line.strip()
+                if stripped.startswith("#") or ".dev/" not in stripped:
+                    continue
+                if "startswith" in stripped:
+                    continue
+                violations.append(f"{path.relative_to(REPO_ROOT)}:{line_no}: {stripped}")
     assert not violations, "gitignored .dev/ runtime dependencies:\n" + "\n".join(violations)

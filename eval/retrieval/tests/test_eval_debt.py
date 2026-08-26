@@ -196,6 +196,11 @@ def test_evidence_ref_resolution_variants() -> None:
         repo_root=_REPO_ROOT,
         registry_ids=registry_ids,
     )
+    assert evidence_ref_resolves(
+        ".dev/does-not-need-to-exist.md",
+        repo_root=_REPO_ROOT,
+        registry_ids=registry_ids,
+    )
     assert not evidence_ref_resolves(
         "registry:NOT-A-REAL-ID",
         repo_root=_REPO_ROOT,

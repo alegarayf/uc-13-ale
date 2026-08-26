@@ -815,7 +815,7 @@ Fields:
   - onboarding_queue: catalog, generated_at, companies[] {display_name, slug, chunk_count, ingest_completeness_ratio, doc_type_diversity_score, rank_score, wave, notes}
   - source_manifest: frozen_at, sources[] {id, source_ref, title}
 Validators:     test_eval_program_registry.py, test_product_backlog_schema.py, test_eval_debt.py (HWM ratchet), test_onboarding_queue_schema.py
-Consumers:      eval_debt.py, exemptions.py, trust_statement.py, onboarding_cluster_submit.py, .dev/eval-program/build_onboarding_queue.py
+Consumers:      eval_debt.py, exemptions.py, trust_statement.py, onboarding_cluster_submit.py, build_onboarding_queue.py
 Last changed:   2026-08-19
 ```
 

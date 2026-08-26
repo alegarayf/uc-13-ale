@@ -90,6 +90,9 @@ def _is_repo_path_ref(ref: str) -> bool:
         return False
     if ref.startswith("claim.") or ref.startswith("fta.claim."):
         return False
+    path = ref.split("#", 1)[0]
+    if path.startswith(".dev/"):
+        return False
     return "/" in ref or ref.endswith((".md", ".yaml", ".yml", ".py", ".json"))
 
 

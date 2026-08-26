@@ -1964,7 +1964,7 @@ items:
   tshirt: null
   evidence_refs:
   - eval/program/onboarding_queue.yaml
-  - .dev/eval-program/build_onboarding_queue.py
+  - eval/program/build_onboarding_queue.py
   - f9cb629
   - 0e42eee
   rung_assignments: {}
