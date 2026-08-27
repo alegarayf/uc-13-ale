@@ -986,6 +986,9 @@ STAKEHOLDER_COVERAGE_REQUIREMENTS: list[dict] = [
         "domain_pass_id": "ip_privacy",
         "doc_type": "IP Assignment / OSS Policy",
         "priority": "Medium",
+        # Shared ip_privacy pass also serves privacy. Privacy BAA/HIPAA hits
+        # must not classify empty ip_register as retrieved_no_terms.
+        "corpus_absent_if_unassessed": True,
     },
     {
         "item_id": "insurance",
@@ -1604,6 +1607,39 @@ class LegalContractsAgent(WorkstreamAgent):
             item_id = req["item_id"]
             if req["assessed_predicate"](merged):
                 assessed_count += 1
+                continue
+
+            if req.get("corpus_absent_if_unassessed"):
+                self._add_gap(
+                    f"{item_id}: no {req['doc_type']} in corpus — corpus_absent"
+                )
+                self._unable_to_assess_items.append(req["display_name"])
+                self._recommended_diligence.append({
+                    "doc_type": req["doc_type"],
+                    "priority": req["priority"],
+                    "item_id": item_id,
+                })
+                self._add_flag(
+                    metric="corpus_absent",
+                    value=req["display_name"],
+                    threshold=req["doc_type"],
+                    severity="Yellow",
+                    note=(
+                        f"{req['display_name']} marked unable_to_assess — "
+                        f"corpus_absent; request {req['doc_type']}."
+                    ),
+                    source_doc="",
+                    confidence="high",
+                )
+                self._add_citation(
+                    claim=req["display_name"],
+                    document=req["doc_type"],
+                    location="assess_coverage_gaps",
+                    confidence="high",
+                    raw_text=(
+                        f"No {req['doc_type']} in retrieved corpus — corpus_absent."
+                    ),
+                )
                 continue
 
             pass_id = req["domain_pass_id"]

@@ -19,6 +19,7 @@ from agents.workstreams.legal_contracts_agent import (
     _merge_query_hits,
     _merge_register_records,
     _pred_founder,
+    _pred_ip,
     _pred_privacy,
     _pred_restrictive,
     _reconcile_register_from_citations,
@@ -488,3 +489,78 @@ def test_pred_privacy_passes_on_any_single_sourced_row():
     assert _pred_privacy(
         {"privacy_security_register": [{"source_doc": "dropbox_hipaa_agreement.pdf"}]}
     ) is True
+
+
+# --- T5: ip_register unable_to_assess / corpus_absent reroute (item 5) -----
+
+
+def test_pred_ip_requires_sourced_ip_register_row():
+    """_pred_ip stays any sourced ip_register row — T5 does not loosen it."""
+    assert _pred_ip({"ip_register": []}) is False
+    assert _pred_ip({"ip_register": [{"source_doc": ""}]}) is False
+    assert _pred_ip({"ip_register": [{"source_doc": "IP Assignment.pdf"}]}) is True
+
+
+def test_ip_coverage_entry_pins_display_and_corpus_absent_reroute():
+    ip_req = next(req for req in STAKEHOLDER_COVERAGE_REQUIREMENTS if req["item_id"] == "ip")
+    assert ip_req["display_name"] == "IP ownership, assignment, OSS"
+    assert ip_req["domain_pass_id"] == "ip_privacy"
+    assert ip_req["assessed_predicate"] is _pred_ip
+    assert ip_req.get("corpus_absent_if_unassessed") is True
+
+
+def test_ip_unable_to_assess_fallback_when_register_empty(agent: LegalContractsAgent):
+    """Characterization: empty ip_register + shared ip_privacy chunks fires
+    unable_to_assess_json with a corpus_absent rationale in flags/citations.
+
+    Elder Care shape from T3's live diagnostic: ip_privacy=4 (privacy BAAs)
+    while ip_register is empty. Shared-pass chunk_count>=1 must not classify
+    IP as retrieved_no_terms.
+    """
+    pass_chunk_counts = _zero_pass_chunk_counts()
+    pass_chunk_counts["ip_privacy"] = 4
+    merged = {
+        **_EMPTY_MERGED,
+        "privacy_security_register": [
+            {"source_doc": "dropbox_hipaa_agreement.pdf", "obligation_type": "BAA"}
+        ],
+    }
+    agent._assess_coverage_gaps(merged, pass_chunk_counts, None)
+
+    assert "IP ownership, assignment, OSS" in agent._unable_to_assess_items
+    assert "Data privacy / security obligations" not in agent._unable_to_assess_items
+    gap_text = " ".join(agent._data_room_gaps)
+    assert "ip: no IP Assignment / OSS Policy in corpus — corpus_absent" in gap_text
+    assert "ip: chunks retrieved but no extractable terms" not in gap_text
+    flag = next(f for f in agent._flags if f.metric == "corpus_absent")
+    assert flag.value == "IP ownership, assignment, OSS"
+    assert "corpus_absent" in flag.note
+    cites = agent._citations_as_dicts()
+    assert any("corpus_absent" in (c.get("raw_text") or "") for c in cites)
+    assert any(row["item_id"] == "ip" for row in agent._recommended_diligence)
+
+
+def test_ip_unable_to_assess_fallback_skipped_when_register_sourced(
+    agent: LegalContractsAgent,
+):
+    """Falsifier for the corpus_absent guard: a sourced ip_register row must
+    not enter _unable_to_assess_items and must not emit the corpus_absent
+    flag. Mutation-checked: firing the corpus_absent branch before the
+    assessed_predicate skip made this assertion fail; reverted after.
+    """
+    pass_chunk_counts = _zero_pass_chunk_counts()
+    pass_chunk_counts["ip_privacy"] = 4
+    merged = {
+        **_EMPTY_MERGED,
+        "ip_register": [
+            {
+                "ip_type": "assignment",
+                "ownership_assignment_note": "work product assigns to company",
+                "source_doc": "IP Assignment.pdf",
+            }
+        ],
+    }
+    agent._assess_coverage_gaps(merged, pass_chunk_counts, None)
+    assert "IP ownership, assignment, OSS" not in agent._unable_to_assess_items
+    assert all(f.metric != "corpus_absent" for f in agent._flags)
+    assert all(row["item_id"] != "ip" for row in agent._recommended_diligence)
