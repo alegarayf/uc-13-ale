@@ -1,5 +1,9 @@
 # Changelog
 
+## iterate-pack-now-slice — 2026-08-27
+
+- T1 (Ledger filing for iterate-pack items 1–5): Appended four open product_backlog rows (`PB-agent-kpi-overlay-scorer-healthcare-hardcode`, `PB-legal_register-elder-care-founder-privacy-extract`, `PB-legal_register-spg-legal-extract-gap`, `PB-agent-spg-kpi-scorer-empty-fields`) and amended `PB-legal_register-retrieval-ip` kind from `corpus_gap` to `extraction_depth`; bumped `test_product_backlog_closed_row_set` from 23 to 27. Rationale: land horizon-map iterate-pack items 1–4 as ledger rows and reclassify the Elder Care IP item per M8 root-cause (retrieved_no_terms class). Adversarial gap covered: `test_iterate_pack_t1_new_rows_match_field_set` (mutation-checked on `PB-legal_register-retrieval-ip` kind pin).
+
 ## eval-signal-foldback-m8-root-cause — 2026-08-26
 
 - T8 (Architecture housekeeping, wave-manifest signoff, closeout): Corrected `.dev/architecture/uc-13-ale/` so `FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT` prose matches the landed test constant (`53`); added T1 mapping and T2 submit-wrapper symbols; appended the D6 novelty signoff (first `legal_register` S2 evidence outside Elder Care) on the archived wave folder. Rationale: charter §7 item 1 plus M8 exit-gate novelty wording, using the operator-ruled archive path as the live-folder substitute. Adversarial gap deferred: no hermetic pytest for gitignored architecture prose — named landing gate is this closeout's on-disk string search of the two FROZEN-named files plus the auditor cold-read; observable both files pin `53` and neither still pins the retired ratchet literal.
