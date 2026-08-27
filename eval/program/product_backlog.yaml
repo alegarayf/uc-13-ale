@@ -146,7 +146,7 @@ items:
   - id: PB-legal_register-retrieval-ip
     company: elder_care
     surface: legal_register
-    kind: corpus_gap
+    kind: extraction_depth
     severity: medium
     summary: >-
       ip_register empty while privacy_security_register has 8 BAA rows from same pass — LEGAL
@@ -484,3 +484,80 @@ items:
       SPG legal_register S2 re-run shows supported fraction improved vs 1/5 on run
       20260826T171712Z-3975; insurance, ip, and privacy_security claim_ids supported
       without operator override.
+
+  - id: PB-agent-kpi-overlay-scorer-healthcare-hardcode
+    company: clearsulting
+    surface: agent
+    kind: measurement_caveat
+    severity: high
+    summary: >-
+      Clearsulting KPI G1 is 1/3 because score_kpi() requires healthcare_services and
+      reads only healthcare_kpis_json (1/7 scored fields) while overlay_confirmed is
+      tech_services and tech_services_kpis_json has 8 nonempty keys the scorer ignores —
+      A-09 overlay/scorer mismatch, not a LEGAL-corpus or KPI_OPS absence story.
+    evidence_refs:
+      - horizon-map.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+      - registry:A-09
+    fix_lane: product
+    closes_when: >-
+      Clearsulting and GKF KPI G1 reads the matching overlay block for each company's
+      overlay_confirmed value, not only healthcare_kpis_json; re-run shows KPI score
+      reflects populated sibling overlay fields.
+    registry_ref: A-09
+
+  - id: PB-legal_register-elder-care-founder-privacy-extract
+    company: elder_care
+    surface: legal_register
+    kind: extraction_depth
+    severity: high
+    summary: >-
+      Elder Care Legal G1 is 8/11 on the fresh 2026-08-25 row; founder stays partial
+      (0 founder_key rows, retrieved_no_terms) and privacy stays partial (4/5 items) —
+      residual extraction depth after t4c/coc/restrictive/platform recovered vs Wave-2.
+    evidence_refs:
+      - horizon-map.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+      - registry:A-09
+    fix_lane: product
+    closes_when: >-
+      Fresh Elder Care Legal G1 ≥9/11 or founder and privacy items leave
+      retrieved_no_terms / 4-of-5 partial state without operator override.
+    registry_ref: A-09
+
+  - id: PB-legal_register-spg-legal-extract-gap
+    company: spg
+    surface: legal_register
+    kind: extraction_depth
+    severity: high
+    summary: >-
+      SPG Legal G1 is 1/11 despite 181 LEGAL-classified docs; legal_register gaps are
+      retrieved_no_terms on t4c/coc/restrictive/vendor/platform — registers nearly empty,
+      opposite of a corpus hole (T4 cross-company table).
+    evidence_refs:
+      - horizon-map.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+      - registry:A-09
+    fix_lane: product
+    closes_when: >-
+      SPG Legal G1 moves off 1/11 against the 181-doc LEGAL set
+    registry_ref: A-09
+
+  - id: PB-agent-spg-kpi-scorer-empty-fields
+    company: spg
+    surface: agent
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      SPG KPI G1 is 2/3 with overlay_confirmed matching healthcare_services; overlay_block_fields
+      fails because caregiver_headcount, clinician_headcount, and compliance_incidents are empty
+      in the scored 7-field healthcare subset (4/7 populated) while KPI_OPS docs = 19.
+    evidence_refs:
+      - horizon-map.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+      - registry:A-09
+    fix_lane: product
+    closes_when: >-
+      Scored healthcare fields fill for SPG KPI G1, or item marked corpus-absent with
+      explicit evidence that the three empty fields are absent from KPI-relevant corpus.
+    registry_ref: A-09

@@ -62,6 +62,40 @@ M8_T6_NEW_IDS = frozenset(
         "PB-legal_register-claim-failure-spg",
     }
 )
+ITERATE_PACK_T1_NEW_IDS = frozenset(
+    {
+        "PB-agent-kpi-overlay-scorer-healthcare-hardcode",
+        "PB-legal_register-elder-care-founder-privacy-extract",
+        "PB-legal_register-spg-legal-extract-gap",
+        "PB-agent-spg-kpi-scorer-empty-fields",
+    }
+)
+ITERATE_PACK_T1_ROW_SHAPE = {
+    "PB-agent-kpi-overlay-scorer-healthcare-hardcode": {
+        "company": "clearsulting",
+        "surface": "agent",
+        "kind": "measurement_caveat",
+        "severity": "high",
+    },
+    "PB-legal_register-elder-care-founder-privacy-extract": {
+        "company": "elder_care",
+        "surface": "legal_register",
+        "kind": "extraction_depth",
+        "severity": "high",
+    },
+    "PB-legal_register-spg-legal-extract-gap": {
+        "company": "spg",
+        "surface": "legal_register",
+        "kind": "extraction_depth",
+        "severity": "high",
+    },
+    "PB-agent-spg-kpi-scorer-empty-fields": {
+        "company": "spg",
+        "surface": "agent",
+        "kind": "measurement_caveat",
+        "severity": "medium",
+    },
+}
 
 
 def validate_product_backlog_closure_shape(items: list[dict[str, Any]]) -> list[str]:
@@ -185,7 +219,7 @@ def test_product_backlog_rejects_invalid_severity() -> None:
 def test_product_backlog_closed_row_set() -> None:
     backlog = _load_backlog()
     items = backlog["items"]
-    assert len(items) == 23
+    assert len(items) == 27
     closed_ids = {item["id"] for item in items if item.get("closed_at") is not None}
     assert closed_ids == CLOSED_TARGET_IDS
     open_008 = next(item for item in items if item["id"] == OPEN_HANDOFF_ID)
@@ -212,6 +246,27 @@ def test_m8_t6_legal_register_rows_match_t3_field_set() -> None:
         item["company"] == "clearsulting" and item["surface"] == "legal_register"
         for item in items
     )
+
+
+def test_iterate_pack_t1_new_rows_match_field_set() -> None:
+    """Iterate-pack T1 rows must use frozen ids, enums, and registry_ref A-09."""
+    backlog = _load_backlog()
+    by_id = {item["id"]: item for item in backlog["items"]}
+    assert ITERATE_PACK_T1_NEW_IDS <= set(by_id)
+    for item_id in ITERATE_PACK_T1_NEW_IDS:
+        item = by_id[item_id]
+        expected = ITERATE_PACK_T1_ROW_SHAPE[item_id]
+        assert item["company"] == expected["company"]
+        assert item["surface"] == expected["surface"]
+        assert item["kind"] == expected["kind"]
+        assert item["severity"] == expected["severity"]
+        assert item["fix_lane"] == "product"
+        assert item["registry_ref"] == "A-09"
+        assert item.get("closed_at") is None
+        assert "horizon-map.md" in item["evidence_refs"]
+        assert "registry:A-09" in item["evidence_refs"]
+    ip_row = by_id["PB-legal_register-retrieval-ip"]
+    assert ip_row["kind"] == "extraction_depth"
 
 
 def test_product_backlog_rejects_orphan_closed_evidence_refs() -> None:
