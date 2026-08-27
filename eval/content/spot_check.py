@@ -98,6 +98,7 @@ class SpotCheckClaim:
     asserted_magnitude: Decimal | None = None
     asserted_unit: str | None = None
     chunk_text: str | None = None
+    analysis_evidence: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -620,6 +621,24 @@ def exec_claim_source(
     )
 
 
+def _exec_analysis_evidence_for_claim(
+    claim_id: str,
+    exec_analysis_cache: dict[str, Any],
+    *,
+    company_slug: str,
+) -> dict[str, Any] | None:
+    """Thin wrapper over ``calibration.exec_claim_analysis_evidence``.
+
+    Deferred import: ``calibration.py`` imports from this module at module
+    load time, so importing it back at module scope here would be circular.
+    """
+    from eval.content.calibration import exec_claim_analysis_evidence
+
+    return exec_claim_analysis_evidence(
+        claim_id, exec_analysis_cache, company_slug=company_slug
+    )
+
+
 def _resolve_chunk_for_entry(
     *,
     chunk_index: ChunkIndex,
@@ -690,6 +709,12 @@ def _claim_from_manifest_entry(
     if surface == "fta_numeric":
         asserted_magnitude, asserted_unit = _parse_fta_claim_text(claim_text)
 
+    analysis_evidence: dict[str, Any] | None = None
+    if surface == "exec_summary" and exec_analysis_cache is not None:
+        analysis_evidence = _exec_analysis_evidence_for_claim(
+            claim_id, exec_analysis_cache, company_slug=company_slug
+        )
+
     return SpotCheckClaim(
         claim_id=claim_id,
         claim_text=claim_text,
@@ -702,6 +727,7 @@ def _claim_from_manifest_entry(
         cited_locator_value=cited_locator_value,
         asserted_magnitude=asserted_magnitude,
         asserted_unit=asserted_unit,
+        analysis_evidence=analysis_evidence,
     )
 
 
@@ -767,11 +793,14 @@ def prepare_spot_check(
     config: SpotCheckConfig,
     *,
     chunk_index: ChunkIndex | None = None,
+    exec_analysis_cache: dict[str, Any] | None = None,
 ) -> SpotCheckPrepareResult:
     """Enumerate claims, validate registry guard-rail, write presentation packet YAML."""
     _assert_human_spot_check_allowed(config.surface, config.registry_path)
     company_slug = canonical_company_slug(config.company)
-    claims = load_claim_enumeration(config, chunk_index=chunk_index)
+    claims = load_claim_enumeration(
+        config, chunk_index=chunk_index, exec_analysis_cache=exec_analysis_cache
+    )
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     packet_name = f"{config.surface}_{company_slug}_presentation.yaml"
@@ -799,6 +828,7 @@ def prepare_spot_check(
                 "cited_locator_kind": claim.cited_locator_kind,
                 "cited_locator_value": claim.cited_locator_value,
                 "chunk_text": claim.chunk_text,
+                "analysis_evidence": claim.analysis_evidence,
                 "verdict": None,
                 "rationale": None,
             }
