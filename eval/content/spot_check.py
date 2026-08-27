@@ -460,7 +460,7 @@ def _top10_source(
 _CACHE_FREE_TRUNCATION_SOURCES: dict[str, tuple[str, str]] = {
     "exec.claim.008": (
         "2024 Elder Care - CIM_vF.pdf",
-        "Pro Forma Income Statement & Projection",
+        "Historical P&L Summary",
     ),
     "exec.claim.009": (
         "2024 Elder Care - CIM_vF.pdf",
