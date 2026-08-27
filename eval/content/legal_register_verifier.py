@@ -66,21 +66,65 @@ def _utc_now_micro() -> datetime:
     return datetime.now(timezone.utc)
 
 
+_CURLY_QUOTE_TRANSLATION = str.maketrans(
+    {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201a": "'",
+        "\u201b": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u201e": '"',
+        "\u201f": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+    }
+)
+_DOCUSIGN_ENVELOPE_ID_RE = re.compile(r"docusign envelope id:\s*[0-9a-f-]+")
+
+
 def _normalize_quote(text: str) -> str:
-    """Whitespace fold, case fold, and hyphenation de-break for quote matching."""
+    """Whitespace fold, case fold, curly-quote/dash fold, e-signature-stamp
+    strip, and hyphenation de-break for quote matching.
+
+    ``chunk_text`` is PDF-extracted and preserves the source's actual Unicode
+    punctuation (curly quotes/dashes) and, for DocuSign-signed documents,
+    inline "DocuSign Envelope ID: <guid>" page-break watermarks that are not
+    real document content. LLM-extracted ``raw_quote`` values are almost
+    always plain ASCII. Folding both sides to the same encoding-neutral,
+    watermark-free form lets a genuinely verbatim quote match across those
+    extraction artifacts without loosening what counts as "the same text".
+    """
     folded = str(text or "").casefold()
     folded = folded.replace("\u00ad", "")
+    folded = folded.translate(_CURLY_QUOTE_TRANSLATION)
+    folded = _DOCUSIGN_ENVELOPE_ID_RE.sub(" ", folded)
     folded = re.sub(r"(\w)-\s+(\w)", r"\1\2", folded)
     return re.sub(r"\s+", " ", folded.strip())
 
 
 def _quote_supported_by_chunk(quote: str, chunk_text: str) -> bool:
-    """Deterministic full-quote containment after normalization."""
+    """Deterministic full-quote containment after normalization.
+
+    Also accepts a quote with a single spurious trailing period stripped:
+    LLM extraction sometimes closes a quote with a sentence-ending period
+    even when the quote is actually a verbatim mid-sentence truncation of
+    the source (the real sentence continues past the quoted span). Requiring
+    the rest of the quote to match exactly, and only ever discarding one
+    trailing ``.``, keeps this from admitting text that isn't genuinely
+    present in the chunk.
+    """
     normalized_quote = _normalize_quote(quote)
     normalized_chunk = _normalize_quote(chunk_text)
     if not normalized_quote or not normalized_chunk:
         return False
-    return normalized_quote in normalized_chunk
+    if normalized_quote in normalized_chunk:
+        return True
+    if normalized_quote.endswith("."):
+        trimmed = normalized_quote[:-1]
+        if trimmed and trimmed in normalized_chunk:
+            return True
+    return False
 
 
 def _quote_prefix_anchor_in_chunk(quote: str, chunk_text: str) -> bool:
