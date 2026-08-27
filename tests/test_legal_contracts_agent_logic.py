@@ -18,6 +18,8 @@ from agents.workstreams.legal_contracts_agent import (
     _is_true,
     _merge_query_hits,
     _merge_register_records,
+    _pred_founder,
+    _pred_privacy,
     _pred_restrictive,
     _reconcile_register_from_citations,
     _register_dedupe_key,
@@ -387,3 +389,102 @@ def test_merge_query_hits_reserves_generic_slots_without_dropping_targeted():
     assert 'budget.get("merge_slot_allocation")' in retrieve_src
     helper_src = inspect.getsource(_merge_query_hits)
     assert "slot_allocation" in helper_src
+
+
+# --- T3: employment/ip_privacy retrieval-query fix (item 2) ---------------
+
+
+def _domain_pass_queries_as_tuple(pass_id: str) -> tuple[str, ...]:
+    raw_query = _DOMAIN_PASS_QUERIES[pass_id]
+    return (raw_query,) if isinstance(raw_query, str) else tuple(raw_query)
+
+
+def test_all_domain_passes_with_slot_allocation_match_query_count():
+    """Falsifier for config drift: any pass declaring merge_slot_allocation
+    must have an allocation tuple whose length matches its query tuple length
+    and whose sum does not exceed top_k. This guards against exactly the class
+    of bug this subtask introduces — two independently-edited dicts
+    (_DOMAIN_PASS_QUERIES, _DOMAIN_PASS_BUDGETS) drifting out of sync. Mutation-
+    checked: temporarily lengthening employment's merge_slot_allocation to a
+    3-tuple while its query tuple stayed length 2 made this assertion fail;
+    reverted after confirming the failure."""
+    for pass_id, budget in _DOMAIN_PASS_BUDGETS.items():
+        allocation = budget.get("merge_slot_allocation")
+        if allocation is None:
+            continue
+        queries = _domain_pass_queries_as_tuple(pass_id)
+        assert len(allocation) == len(queries), f"{pass_id}: allocation/query count drift"
+        assert sum(allocation) <= budget["top_k"], f"{pass_id}: allocation exceeds top_k"
+
+
+def test_employment_budget_reserves_founder_query_slots():
+    """founder/privacy items were reading retrieved_no_terms because the single
+    generic employment query never surfaced Kate Marks Restricted Stock /
+    Stock Transfer chunks within its ANN window (live warehouse check on
+    Elder Care's latest analysis.legal row, T3 diagnostic step). Employment
+    is now a 2-query pass with a founder-targeted second query and reserved
+    merge slots."""
+    budget = _DOMAIN_PASS_BUDGETS["employment"]
+    queries = _domain_pass_queries_as_tuple("employment")
+    allocation = budget["merge_slot_allocation"]
+    assert len(queries) == 2
+    assert allocation == (7, 3)
+    assert sum(allocation) == budget["top_k"]
+    founder_query = queries[1].lower()
+    assert "founder" in founder_query
+    assert "restricted stock" in founder_query
+    assert "stock transfer" in founder_query
+
+
+def test_ip_privacy_budget_reserves_confidentiality_query_slots():
+    """Same defect class for privacy: internal HIPAA confidentiality / employee
+    non-disclosure / HIPAA-release docs were filename-matched but starved out
+    of the generic BAA-weighted query's ANN window (live warehouse check:
+    only 4 of 4+ privacy_security_register-eligible docs retrieved, one short
+    of score_legal's len>=5 pass threshold). ip_privacy is now a 2-query pass
+    with a confidentiality-targeted second query and reserved merge slots."""
+    budget = _DOMAIN_PASS_BUDGETS["ip_privacy"]
+    queries = _domain_pass_queries_as_tuple("ip_privacy")
+    allocation = budget["merge_slot_allocation"]
+    assert len(queries) == 2
+    assert allocation == (5, 3)
+    assert sum(allocation) == budget["top_k"]
+    confidentiality_query = queries[1].lower()
+    assert "hipaa confidentiality" in confidentiality_query
+    assert "non-disclosure" in confidentiality_query
+
+
+def test_pred_founder_requires_founder_key_agreement_class():
+    """founder predicate still gates strictly on agreement_class=='founder_key'
+    with a non-empty source_doc — the retrieval fix does not loosen this."""
+    merged_no_founder = {
+        "employment_register": [
+            {"agreement_class": "employee", "source_doc": "Batistil Contract Agreement 2025.pdf"},
+        ],
+    }
+    assert _pred_founder(merged_no_founder) is False
+
+    merged_with_founder = {
+        "employment_register": [
+            {"agreement_class": "employee", "source_doc": "Batistil Contract Agreement 2025.pdf"},
+            {"agreement_class": "founder_key", "source_doc": "Kate Marks Restricted Stock.pdf"},
+        ],
+    }
+    assert _pred_founder(merged_with_founder) is True
+
+    merged_founder_no_source = {
+        "employment_register": [
+            {"agreement_class": "founder_key", "source_doc": ""},
+        ],
+    }
+    assert _pred_founder(merged_founder_no_source) is False
+
+
+def test_pred_privacy_passes_on_any_single_sourced_row():
+    """_pred_privacy (agent-side 'assessed') passes on any single row with a
+    source_doc — score_legal's G1 rubric (len>=5) is a stricter, separate
+    threshold documented in the packet; the two are allowed to diverge."""
+    assert _pred_privacy({"privacy_security_register": []}) is False
+    assert _pred_privacy(
+        {"privacy_security_register": [{"source_doc": "dropbox_hipaa_agreement.pdf"}]}
+    ) is True
