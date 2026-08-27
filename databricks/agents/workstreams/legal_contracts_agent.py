@@ -637,6 +637,12 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
             "Employment", "Offer", "Contractor", "Commission", "Founder",
             "Handbook", "Orientation", "401", "Restricted", "Stock", "Bylaws",
         ],
+        # T3: founder/key-employee equity docs (Restricted Stock Award, Stock
+        # Transfer) were filename-matched but starved out of the top-10 ANN
+        # window by the generic query's employee/contractor volume (fetch_k
+        # = top_k*3, applied per-query before file_name_filter). Reserve
+        # slots so the founder-targeted query always contributes hits.
+        "merge_slot_allocation": (7, 3),
     },
     "litigation": {
         "top_k": 8,
@@ -663,6 +669,11 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         # C6 R5: push workstream_filter into the VS ANN query so LEGAL-tagged
         # IP/privacy docs are in the candidate window, not only post-filtered.
         "vs_metadata_filters": True,
+        # T3: internal HIPAA confidentiality / employee-ND / HIPAA-release docs
+        # were filename-matched but starved out of the generic query's top-8
+        # ANN window (dominated by BAA/vendor-privacy language). Reserve
+        # slots so the confidentiality-targeted query always contributes hits.
+        "merge_slot_allocation": (5, 3),
     },
     "insurance": {
         "top_k": 6,
@@ -690,19 +701,30 @@ _DOMAIN_PASS_QUERIES: dict[str, str | tuple[str, ...]] = {
         "SaaS software as a service subscription software license hosting agreement "
         "platform dependency reseller channel marketplace exclusivity termination impact",
     ),
+    # T3: employment is now a query list — generic pass plus a founder/key-employee
+    # equity query so restricted stock award / stock transfer / shareholders
+    # agreement documents are not starved out by the volume of generic
+    # employee/contractor agreements in the ANN window (see merge_slot_allocation).
     "employment": (
-        "employment agreement offer letter contractor commission plan founder key employee "
-        "employee handbook orientation restricted stock non-compete non-solicit "
-        "severance 401k bylaws staffing agreement"
+        "employment agreement offer letter contractor commission plan employee "
+        "handbook orientation non-compete non-solicit severance 401k staffing agreement",
+        "founder key employee agreement restricted stock award agreement stock transfer "
+        "agreement shareholders agreement equity grant ownership joinder operating agreement bylaws",
     ),
     "litigation": (
         "litigation lawsuit dispute regulatory compliance arbitration demand letter "
         "settlement survey DOH approval bond renewal regulatory correspondence "
         "threatened claim legal engagement letter"
     ),
+    # T3: ip_privacy is now a query list — generic IP/BAA pass plus a HIPAA
+    # confidentiality/ND/release query so internal employee-facing privacy
+    # obligations are not starved out by BAA/vendor-privacy language in the
+    # ANN window (see merge_slot_allocation).
     "ip_privacy": (
         "intellectual property IP ownership assignment data privacy GDPR HIPAA "
-        "indemnification liability cap open source OSS data processing agreement BAA"
+        "indemnification liability cap open source OSS data processing agreement BAA",
+        "HIPAA confidentiality agreement employee non-disclosure agreement protected "
+        "health information PHI release consent authorization data security breach notification",
     ),
     "insurance": (
         "insurance certificate policy COI certificate of insurance indemnity "
