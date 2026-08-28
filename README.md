@@ -1,4 +1,4 @@
-# uc-13-ale
+# uc-13
 
 Monorepo for a multi-component application:
 
