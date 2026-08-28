@@ -53,8 +53,18 @@ CLOSED_TARGET_IDS = frozenset(
         "PB-fta_numeric-segment-source-location",
         "PB-legal_register-corpus-gap-platform",
         "PB-legal_register-locator-chunk-resolution",
+        # iterate-pack-now-slice T9-bis (R2 amendment): closed on live/hermetic
+        # evidence in .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md.
+        "PB-agent-kpi-overlay-scorer-healthcare-hardcode",
+        "PB-agent-spg-kpi-scorer-empty-fields",
+        "PB-legal_register-retrieval-ip",
+        "PB-exec_summary-008-locator-mismatch",
+        "PB-exec_summary-retrieval-scope-gap",
     }
 )
+# Retired by iterate-pack-now-slice T9-bis (R2 amendment): this row closed via
+# T7's live-verified locator fix; the "open handoff" designation no longer
+# applies. See CLOSED_TARGET_IDS above and T9-rescore-evidence.md.
 OPEN_HANDOFF_ID = "PB-exec_summary-008-locator-mismatch"
 M8_T6_NEW_IDS = frozenset(
     {
@@ -222,9 +232,8 @@ def test_product_backlog_closed_row_set() -> None:
     assert len(items) == 27
     closed_ids = {item["id"] for item in items if item.get("closed_at") is not None}
     assert closed_ids == CLOSED_TARGET_IDS
-    open_008 = next(item for item in items if item["id"] == OPEN_HANDOFF_ID)
-    assert open_008.get("closed_at") is None
-    assert OPEN_HANDOFF_ID not in CLOSED_TARGET_IDS
+    # OPEN_HANDOFF_ID (PB-exec_summary-008-locator-mismatch) was retired into
+    # CLOSED_TARGET_IDS by T9-bis (R2 amendment) -- no longer asserted open.
 
 
 def test_m8_t6_legal_register_rows_match_t3_field_set() -> None:
@@ -262,7 +271,9 @@ def test_iterate_pack_t1_new_rows_match_field_set() -> None:
         assert item["severity"] == expected["severity"]
         assert item["fix_lane"] == "product"
         assert item["registry_ref"] == "A-09"
-        assert item.get("closed_at") is None
+        # T9-bis (R2 amendment): closure permitted only via the authoritative
+        # CLOSED_TARGET_IDS set (never silent) -- see T9-rescore-evidence.md.
+        assert item.get("closed_at") is None or item_id in CLOSED_TARGET_IDS
         assert "horizon-map.md" in item["evidence_refs"]
         assert "registry:A-09" in item["evidence_refs"]
     ip_row = by_id["PB-legal_register-retrieval-ip"]

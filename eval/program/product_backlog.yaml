@@ -24,6 +24,10 @@ items:
       exec_summary spot-check evidence fetch queries analysis.diligence_report aggregation
       fields and per-workstream tables alongside chunk RAG (parity with calibration.py
       dual-source); re-run shows drafted-unsupported rate drops materially vs 2026-08-12 baseline.
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#9-items-9-10-execsummary
+      - eval/content/tests/test_spot_check_dual_source_evidence.py
     registry_ref: OI-eval-content-exec-summary-judge-rung-build
 
   - id: PB-exec_summary-chk27-judge-harness
@@ -103,6 +107,10 @@ items:
       exec_summary claim 008 cites the Diligence Adjusted Income Statement chunk (or an equivalent
       correct locator) and its resolved chunk text supports the claimed TTM Aug-24 revenue value of
       46,423 without requiring the analysis-table override.
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/runs/T7-brief.md
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#9-items-9-10-execsummary
 
   - id: PB-legal_register-extraction-depth-contracts
     company: elder_care
@@ -158,6 +166,10 @@ items:
     closes_when: >-
       ip_register populated from in-corpus IP docs after ingest expansion, or item marked
       unable_to_assess with explicit corpus_absent evidence in legal_report.yaml.
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/runs/T5-brief.md
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#7-elder-care-founderprivacyip-items-2-5-and-spg-legal-extract-item-3
 
   - id: PB-fta_numeric-segment-json-dedupe
     company: elder_care
@@ -505,6 +517,10 @@ items:
       overlay_confirmed value, not only healthcare_kpis_json; re-run shows KPI score
       reflects populated sibling overlay fields.
     registry_ref: A-09
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/runs/T2-brief.md
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#3-live-overlay-column-verification-item-1
 
   - id: PB-legal_register-elder-care-founder-privacy-extract
     company: elder_care
@@ -561,3 +577,6 @@ items:
       Scored healthcare fields fill for SPG KPI G1, or item marked corpus-absent with
       explicit evidence that the three empty fields are absent from KPI-relevant corpus.
     registry_ref: A-09
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#4-spg-kpi-empty-fields-investigation-item-4
