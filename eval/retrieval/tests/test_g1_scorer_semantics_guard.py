@@ -1,4 +1,4 @@
-"""Item 15 — regression guard for .dev/g1_score_all_agents.py scorer semantics."""
+"""Item 15 — regression guard for eval/program/g1_score_all_agents.py scorer semantics."""
 
 from __future__ import annotations
 
@@ -9,11 +9,15 @@ from pathlib import Path
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_G1_SCORER_PATH = _REPO_ROOT / ".dev" / "scripts" / "g1_score_all_agents.py"
+# Relocated from .dev/scripts/ (gitignored, untracked, unauditable at any SHA)
+# to eval/program/ by iterate-pack-now-slice T9-bis's residual-decision
+# follow-up (operator-approved) so this file is git-tracked and its AST
+# semantics are verifiable at the same commit as the tests that guard it.
+_G1_SCORER_PATH = _REPO_ROOT / "eval" / "program" / "g1_score_all_agents.py"
 
 if not _G1_SCORER_PATH.is_file():
     pytest.skip(
-        ".dev/scripts/g1_score_all_agents.py absent — scorer guard skipped on fresh clone",
+        "eval/program/g1_score_all_agents.py absent — scorer guard skipped",
         allow_module_level=True,
     )
 
