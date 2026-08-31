@@ -1,7 +1,9 @@
-"""Hermetic tests for legal_register quote-vs-chunk matching (T6, iterate-pack-now-slice).
+"""Hermetic tests for legal_register quote-vs-chunk matching (T6, iterate-pack-now-slice;
+extended by T3, ledger-close-now-slice).
 
-Covers the two live failure shapes found in the GKF and SPG ``legal_register``
-verifier runs (``.dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-*``):
+Covers the live failure shapes found in the GKF and SPG ``legal_register``
+verifier runs (``.dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-*``
+and the ``20260828T114034Z-711c`` / ``20260828T114102Z-9dbd`` re-runs):
 
 1. GKF: PDF-extracted ``chunk_text`` carries Unicode curly quotes/apostrophes
    and inline "DocuSign Envelope ID: <guid>" page-break watermarks that an
@@ -9,10 +11,23 @@ verifier runs (``.dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-*``)
 2. GKF/SPG: ``raw_quote`` is a verbatim mid-sentence truncation of the source
    with a spurious trailing period appended (the real sentence continues past
    the quoted span).
+3. GKF (T3): ``raw_quote`` reproduces a markdown-table row (e.g.
+   ``insurance_register.0002``, run ``20260828T114034Z-711c``) as flat text,
+   while ``chunk_text`` still carries the ``|`` cell delimiters.
+4. SPG (T3): ``raw_quote`` transcribes a source-quoted defined term with a
+   different quote-mark style than the source uses (e.g.
+   ``privacy_security_register.0000``, run ``20260828T114102Z-9dbd`` —
+   ``raw_quote`` uses ``'Agreement'``, the source PDF uses ``"Agreement"``).
 
 Also proves the fail-closed guarantee (S-61) still holds: a quote that is
 genuinely absent from the chunk — including one that merely looks close via
-noise stripped by this fix — must not be admitted.
+noise stripped by this fix, or one that elides real content mid-quote
+(a dropped connective word, a dropped sentence, or a dropped inline
+parenthetical) — must not be admitted. T3's remaining GKF/SPG unresolved
+claims (``employment_register.0001`` GKF, ``insurance_register.0008`` GKF,
+``insurance_register.0000`` SPG, ``ip_register.0000`` SPG) are exactly this
+shape and are intentionally left unresolved — see
+``.dev/plans/ledger-close-now-slice/decision-logs/T3.md``.
 """
 
 from __future__ import annotations
@@ -137,6 +152,58 @@ def test_build_claim_rows_supported_for_gkf_docusign_and_period_shapes() -> None
 
 
 # ---------------------------------------------------------------------------
+# Positive path — T3 (ledger-close-now-slice) shape: markdown-table pipes.
+# ---------------------------------------------------------------------------
+
+
+def test_markdown_table_pipes_stripped_for_matching() -> None:
+    """GKF ``insurance_register.0002`` (run ``20260828T114034Z-711c``): raw_quote
+    reproduces a table row as flat text; chunk_text keeps the ``|`` delimiters.
+
+    Mutation check performed while developing this fix: reverting the
+    ``folded.replace("|", " ")`` line in ``_normalize_quote`` makes this test
+    fail, confirming the pipe fold — not incidental whitespace collapsing —
+    is what admits the match.
+    """
+    quote = "Premises Medical Expense At least $15,000"
+    chunk_text = (
+        "| Coverage | Minimum Limits |\n"
+        "|---|---|\n"
+        "| Premises Medical Expense | At least $15,000 |\n"
+        "| Employment Practices Liability | In an amount not less than "
+        "$1,000,000 per claim/$1,000,000 aggregate |"
+    )
+    assert _quote_supported_by_chunk(quote, chunk_text)
+
+
+# ---------------------------------------------------------------------------
+# Positive path — T3 (ledger-close-now-slice) shape: quote-mark-style fold.
+# ---------------------------------------------------------------------------
+
+
+def test_quote_mark_style_mismatch_folds_to_same_match() -> None:
+    """SPG ``privacy_security_register.0000`` (run ``20260828T114102Z-9dbd``):
+    raw_quote transcribes a source-quoted defined term with single quotes;
+    the source PDF itself uses double quotes around the same term.
+
+    Mutation check performed while developing this fix: reverting the
+    ``folded.replace('"', "'")`` line in ``_normalize_quote`` makes this test
+    fail, confirming the quote-mark fold is load-bearing here (the quote is
+    otherwise a verbatim prefix of the chunk).
+    """
+    quote = (
+        "This Business Associate Agreement ('Agreement') is entered into the "
+        "[XX] day of [MONTH], [YEAR] between Shared Practices Group, LLC"
+    )
+    chunk_text = (
+        'This Business Associate Agreement ("Agreement") is entered into the '
+        "[XX] day of [MONTH], [YEAR] between Shared Practices Group, LLC, and "
+        "[Contractor Company and/or Full Name]."
+    )
+    assert _quote_supported_by_chunk(quote, chunk_text)
+
+
+# ---------------------------------------------------------------------------
 # Negative path / no-regression — S-61 fail-closed must still hold.
 # ---------------------------------------------------------------------------
 
@@ -175,6 +242,79 @@ def test_trailing_period_fallback_does_not_admit_absent_quote() -> None:
         "Contractor agrees and acknowledges that any individual\u2019s Protected "
         "Health Information that comes within Contractor\u2019s custody is "
         "confidential and unrelated to the quoted clause."
+    )
+    assert not _quote_supported_by_chunk(quote, chunk_text)
+
+
+def test_dropped_connective_word_stays_unsupported() -> None:
+    """GKF ``employment_register.0001`` (run ``20260828T114034Z-711c``): the
+    source reads "...and *that* nothing...", raw_quote drops the connective
+    "that". Left unresolved deliberately (see T3 decision log) rather than
+    folding stray connective words — that lever is unbounded and risks
+    admitting genuine paraphrase, not just formatting noise.
+    """
+    quote = (
+        "Developer shall be an independent contractor, and nothing in this "
+        "Agreement is intended to constitute either party an agent, legal "
+        "representative, subsidiary, joint venturer, partner, employee or "
+        "servant."
+    )
+    chunk_text = (
+        "It is understood and agreed by the parties hereto that this "
+        "Agreement does not create a fiduciary relationship between them, "
+        "that Developer shall be an independent contractor, and that "
+        "nothing in this Agreement is intended to constitute either party "
+        "an agent, legal representative, subsidiary, joint venturer, "
+        "partner, employee or servant of the other for any purpose "
+        "whatsoever, and Developer covenants not to assert otherwise in "
+        "any forum."
+    )
+    assert not _quote_supported_by_chunk(quote, chunk_text)
+
+
+def test_dropped_middle_sentence_without_ellipsis_stays_unsupported() -> None:
+    """GKF ``insurance_register.0008`` (run ``20260828T114034Z-711c``): raw_quote
+    splices two non-adjacent sentences with the middle sentence dropped and no
+    ellipsis marker — a real elision, not just noise, and must stay unsupported.
+    """
+    quote = (
+        "Policy limits and coverages may not be shared across different "
+        "operating entities or schools. All policies, except for Workers' "
+        "Compensation, must be written on a primary and non-contributory "
+        "basis."
+    )
+    chunk_text = (
+        "Policy limits and coverages may not be shared across different "
+        "operating entities or schools. All required policies are to be "
+        "written on an occurrence basis except for Employment Practices "
+        "Liability, Cyber Liability and Media Liability, which may be "
+        "written on a claims made basis. All policies, except for Workers' "
+        "Compensation, must be written on a primary and non-contributory "
+        "basis and provide a waiver of subrogation for the entities listed "
+        "below."
+    )
+    assert not _quote_supported_by_chunk(quote, chunk_text)
+
+
+def test_dropped_inline_parenthetical_stays_unsupported() -> None:
+    """SPG ``ip_register.0000`` (run ``20260828T114102Z-9dbd``): raw_quote drops
+    an inline defined-term parenthetical (``(the "Disclosing Party")``) that
+    the source inserts mid-clause. Left unresolved deliberately: folding
+    inline parentheticals generically would risk admitting quotes that elide
+    substantive qualifying content, not just an aside.
+    """
+    quote = (
+        "each party, and its respective agents (the 'Recipient'), will have "
+        "personal access to and knowledge of the other party's information "
+        "of a proprietary and confidential nature"
+    )
+    chunk_text = (
+        'LMP and Client each hereby acknowledge that, during the term of '
+        'this Agreement, each party, and its respective agents (the '
+        '"Recipient"), will have personal access to and knowledge of the '
+        'other party\'s (the "Disclosing Party") information of a '
+        "proprietary and confidential nature and not otherwise part of the "
+        "public domain."
     )
     assert not _quote_supported_by_chunk(quote, chunk_text)
 

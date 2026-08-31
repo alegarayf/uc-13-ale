@@ -85,20 +85,28 @@ _DOCUSIGN_ENVELOPE_ID_RE = re.compile(r"docusign envelope id:\s*[0-9a-f-]+")
 
 def _normalize_quote(text: str) -> str:
     """Whitespace fold, case fold, curly-quote/dash fold, e-signature-stamp
-    strip, and hyphenation de-break for quote matching.
+    strip, table-pipe fold, quote-mark-style fold, and hyphenation de-break
+    for quote matching.
 
     ``chunk_text`` is PDF-extracted and preserves the source's actual Unicode
-    punctuation (curly quotes/dashes) and, for DocuSign-signed documents,
-    inline "DocuSign Envelope ID: <guid>" page-break watermarks that are not
-    real document content. LLM-extracted ``raw_quote`` values are almost
-    always plain ASCII. Folding both sides to the same encoding-neutral,
-    watermark-free form lets a genuinely verbatim quote match across those
-    extraction artifacts without loosening what counts as "the same text".
+    punctuation (curly quotes/dashes), markdown table-cell pipes for
+    tabular content, and, for DocuSign-signed documents, inline "DocuSign
+    Envelope ID: <guid>" page-break watermarks that are not real document
+    content. LLM-extracted ``raw_quote`` values are almost always plain
+    ASCII and, when quoting a defined term the source wraps in double
+    quotes, are sometimes transcribed with single quotes instead (a
+    transcription-style choice, not a different term). Folding both sides
+    to the same encoding-neutral, delimiter-neutral, quote-style-neutral
+    form lets a genuinely verbatim quote match across those extraction
+    artifacts without loosening what counts as "the same text": every fold
+    here removes formatting/typographic noise, never real quoted content.
     """
     folded = str(text or "").casefold()
     folded = folded.replace("\u00ad", "")
     folded = folded.translate(_CURLY_QUOTE_TRANSLATION)
     folded = _DOCUSIGN_ENVELOPE_ID_RE.sub(" ", folded)
+    folded = folded.replace("|", " ")
+    folded = folded.replace('"', "'")
     folded = re.sub(r"(\w)-\s+(\w)", r"\1\2", folded)
     return re.sub(r"\s+", " ", folded.strip())
 
