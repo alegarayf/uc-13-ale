@@ -40,6 +40,8 @@ def _is_registry_or_gold_change(path: str) -> bool:
 
 def is_gate_eligible(gold: GoldLabel) -> bool:
     """Gate-eligible per §5.12.1 — ready/partial with ≥1 positive."""
+    if gold.aggregate_exclude:
+        return False
     if gold.gold_status not in {"ready", "partial"}:
         return False
     return len(gold.positive_chunk_ids) >= 1

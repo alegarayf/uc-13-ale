@@ -1,0 +1,297 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+import yaml
+
+from eval.retrieval.companies import UnnormalizableCompanySlugError
+from eval.retrieval.errors import EvalError
+from eval.retrieval.eval_debt import (
+    EvalDebtError,
+    EvalDebtRow,
+    assert_ledger_ratchet,
+    close_debt,
+    evidence_ref_resolves,
+    load_debts,
+    open_debt,
+    open_debt_count,
+)
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_COMMITTED_LEDGER = _REPO_ROOT / "eval" / "program" / "eval_debt" / "eval_debt.yaml"
+_REGISTRY = _REPO_ROOT / "eval" / "program" / "registry.yaml"
+
+
+def _seed_ledger(tmp_path: Path, *, hwm: int = 1) -> Path:
+    ledger = tmp_path / "eval_debt.yaml"
+    ledger.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "open_debt_high_water_mark": hwm,
+                "debts": [],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    return ledger
+
+
+def test_ledger_roundtrip(tmp_path: Path) -> None:
+    ledger = _seed_ledger(tmp_path, hwm=1)
+    row = open_debt(
+        ledger,
+        company="Clearsulting",
+        surface="legal_register",
+        kind="gold_bootstrap",
+        closes_when="legal_register attested at rung-3",
+    )
+    loaded = load_debts(ledger)
+    assert len(loaded) == 1
+    assert loaded[0] == row
+    assert loaded[0].company == "clearsulting"
+    assert loaded[0].surface == "legal_register"
+    assert loaded[0].layer == "content"
+    assert loaded[0].evidence_refs == [
+        "trust:clearsulting:content:legal_register"
+    ]
+    assert loaded[0].is_open is True
+
+
+def test_open_rejects_unfoldable_company(tmp_path: Path) -> None:
+    ledger = _seed_ledger(tmp_path, hwm=1)
+    with pytest.raises(UnnormalizableCompanySlugError):
+        open_debt(
+            ledger,
+            company="---",
+            surface="null",
+            kind="domain_gap",
+            closes_when="company slug normalizes",
+        )
+
+
+def test_open_rejects_high_water_mark_exceeded(tmp_path: Path) -> None:
+    ledger = _seed_ledger(tmp_path, hwm=0)
+    with pytest.raises(EvalDebtError, match="high-water mark"):
+        open_debt(
+            ledger,
+            company="Clearsulting",
+            surface="legal_register",
+            kind="gold_bootstrap",
+            closes_when="legal_register attested",
+        )
+
+
+def test_close_debt_preserves_committed_id_set(tmp_path: Path) -> None:
+    """F-08: closing a row must not shrink the ledger's id set (no deletion-as-closure)."""
+    ledger = _seed_ledger(tmp_path, hwm=2)
+    first = open_debt(
+        ledger,
+        company="Clearsulting",
+        surface="legal_register",
+        kind="gold_bootstrap",
+        closes_when="legal_register attested",
+    )
+    second = open_debt(
+        ledger,
+        company="Clearsulting",
+        surface="null",
+        kind="promotion_inputs",
+        closes_when="pipeline run_id recorded",
+    )
+    ids_before = {row.id for row in load_debts(ledger)}
+    close_debt(ledger, debt_id=first.id, closed_evidence_refs=["registry:UGA-1"])
+    ids_after = {row.id for row in load_debts(ledger)}
+    assert ids_before <= ids_after
+    assert ids_after == ids_before
+    assert second.id in ids_after
+
+
+def test_close_records_state_without_deleting_row(tmp_path: Path) -> None:
+    ledger = _seed_ledger(tmp_path, hwm=1)
+    opened = open_debt(
+        ledger,
+        company="Clearsulting",
+        surface="legal_register",
+        kind="gold_bootstrap",
+        closes_when="legal_register attested",
+    )
+    closed = close_debt(
+        ledger,
+        debt_id=opened.id,
+        closed_evidence_refs=["registry:UGA-1"],
+    )
+    rows = load_debts(ledger)
+    assert len(rows) == 1
+    assert rows[0].closed_at == closed.closed_at
+    assert rows[0].closed_evidence_refs == ["registry:UGA-1"]
+    assert open_debt_count(rows) == 0
+
+
+def test_committed_ledger_ratchet_passes() -> None:
+    payload = yaml.safe_load(_COMMITTED_LEDGER.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == 1
+    assert payload["open_debt_high_water_mark"] == 14
+    debts = load_debts(_COMMITTED_LEDGER)
+    assert len(debts) == 20
+    assert open_debt_count(debts) == 0
+    assert_ledger_ratchet(
+        _COMMITTED_LEDGER,
+        repo_root=_REPO_ROOT,
+        registry_path=_REGISTRY,
+    )
+
+
+def test_spg_post_m4_corpus_dedup_debt_closed_with_d7_count() -> None:
+    """Falsifies re-closing with stale 44085 in closes_when while leaving closed_at set."""
+    debts = load_debts(_COMMITTED_LEDGER)
+    spg_row = next(
+        row for row in debts if row.id == "spg:global:post_m4_corpus_dedup_baseline_stale"
+    )
+    assert spg_row.closed_at == "2026-08-20"
+    assert "44038" in spg_row.closes_when
+    assert "44085" not in spg_row.closes_when
+    assert spg_row.closed_evidence_refs is not None
+    assert ".dev/specs/eval-signal-foldback/spec.md#D7" in spg_row.closed_evidence_refs
+    assert "baseline_3992534e412f" in spg_row.closed_evidence_refs
+
+
+def test_clearsulting_promotion_inputs_debt_closed_with_d8_fields() -> None:
+    """Falsifies closing by deletion, adding status, or omitting D8 closed_* fields."""
+    payload = yaml.safe_load(_COMMITTED_LEDGER.read_text(encoding="utf-8"))
+    raw = next(
+        row
+        for row in payload["debts"]
+        if row["id"] == "clearsulting:global:promotion_inputs"
+    )
+    assert "status" not in raw
+    assert raw["closed_at"] == "2026-08-24"
+    assert raw["closed_evidence_refs"]
+    debts = load_debts(_COMMITTED_LEDGER)
+    row = next(r for r in debts if r.id == "clearsulting:global:promotion_inputs")
+    assert row.closed_at == "2026-08-24"
+    assert row.closed_evidence_refs is not None
+    assert "eval/PROFILER/golden_checklist_clearsulting.md" in row.closed_evidence_refs
+    assert "6e1b4f5d95284b33bbd08942b3595dd6" in row.closed_evidence_refs
+    open_ids = {r.id for r in debts if r.is_open}
+    assert open_ids == set()
+
+
+_LEGAL_REGRESSION_ID = "elder_care:global:g1_legal_score_regression"
+_VARIANCE_R3_REF = "registry:GAP-103-legal-score-variance-r-3"
+_FRESH_G1_LOG = (
+    ".dev/plans/eval-signal-foldback-m8-root-cause/artifacts/g1_score_m8_elder_care.txt"
+)
+
+
+def test_elder_care_g1_legal_score_regression_closure_shape() -> None:
+    """Fail-closed XOR: closed-with-evidence xor open-with-no-status-field (T5)."""
+    payload = yaml.safe_load(_COMMITTED_LEDGER.read_text(encoding="utf-8"))
+    raw = next(
+        row
+        for row in payload["debts"]
+        if row["id"] == _LEGAL_REGRESSION_ID
+    )
+    assert "status" not in raw
+    closed_with_evidence = bool(raw.get("closed_at")) and bool(
+        raw.get("closed_evidence_refs")
+    )
+    open_with_no_status = raw.get("closed_at") is None and "status" not in raw
+    assert closed_with_evidence or open_with_no_status
+    assert not (closed_with_evidence and open_with_no_status)
+    assert closed_with_evidence
+    assert raw["closed_at"] == "2026-08-26"
+    assert _VARIANCE_R3_REF in raw["closed_evidence_refs"]
+    assert _FRESH_G1_LOG in raw["closed_evidence_refs"]
+    debts = load_debts(_COMMITTED_LEDGER)
+    row = next(r for r in debts if r.id == _LEGAL_REGRESSION_ID)
+    assert row.is_open is False
+    assert row.closed_evidence_refs is not None
+    assert _VARIANCE_R3_REF in row.closed_evidence_refs
+
+
+def test_evidence_ref_resolution_variants() -> None:
+    registry_ids = {"UGA-1"}
+    assert evidence_ref_resolves(
+        "registry:UGA-1",
+        repo_root=_REPO_ROOT,
+        registry_ids=registry_ids,
+    )
+    assert evidence_ref_resolves(
+        "trust:clearsulting:content:legal_register",
+        repo_root=_REPO_ROOT,
+        registry_ids=registry_ids,
+    )
+    assert evidence_ref_resolves(
+        "eval/program/registry.yaml",
+        repo_root=_REPO_ROOT,
+        registry_ids=registry_ids,
+    )
+    assert evidence_ref_resolves(
+        ".dev/does-not-need-to-exist.md",
+        repo_root=_REPO_ROOT,
+        registry_ids=registry_ids,
+    )
+    assert not evidence_ref_resolves(
+        "registry:NOT-A-REAL-ID",
+        repo_root=_REPO_ROOT,
+        registry_ids=registry_ids,
+    )
+    assert not evidence_ref_resolves(
+        "trust:bad:layer:legal_register",
+        repo_root=_REPO_ROOT,
+        registry_ids=registry_ids,
+    )
+
+
+def test_ratchet_rejects_unresolved_open_evidence(tmp_path: Path) -> None:
+    ledger = tmp_path / "eval_debt.yaml"
+    ledger.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "open_debt_high_water_mark": 1,
+                "debts": [
+                    {
+                        "id": "clearsulting:legal_register:gap",
+                        "company": "clearsulting",
+                        "surface": "legal_register",
+                        "layer": "content",
+                        "kind": "gap",
+                        "opened_at": "2026-08-14",
+                        "evidence_refs": ["registry:NOT-A-REAL-ID"],
+                        "closes_when": "fixed",
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(EvalDebtError, match="does not resolve"):
+        assert_ledger_ratchet(
+            ledger,
+            repo_root=_REPO_ROOT,
+            registry_path=_REGISTRY,
+        )
+
+
+def test_eval_debt_error_subclasses_eval_error() -> None:
+    assert issubclass(EvalDebtError, EvalError)
+
+
+def test_eval_debt_row_is_frozen() -> None:
+    row = EvalDebtRow(
+        id="x",
+        company="clearsulting",
+        surface=None,
+        layer="retrieval",
+        kind="gap",
+        opened_at="2026-08-14",
+        evidence_refs=["trust:clearsulting:retrieval:null"],
+        closes_when="done",
+    )
+    with pytest.raises(AttributeError):
+        row.kind = "other"  # type: ignore[misc]

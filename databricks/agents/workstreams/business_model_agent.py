@@ -495,6 +495,8 @@ RULE: Extract every distinct dated event. A company with a 7-year history should
 produce many records — do not stop at 1 or 2.
 
 {{
+  "executive_summary": "<5–6 sentence factual summary covering: (1) what the company does and at what revenue scale; (2) how it earns revenue and the margin profile; (3) who leads the company and any ownership/key-man context; (4) workforce model and delivery capacity; (5) customer stickiness signal from tenure or utilization data; (6) what has changed recently. Use numbers where stated.>",
+
   "revenue_model": {{
     "tag": "<choose one tag from the system prompt list>",
     "pct_split": "<stated split or null — e.g. '80% recurring SaaS, 20% professional services'>",
@@ -702,8 +704,6 @@ produce many records — do not stop at 1 or 2.
     }}
   ],
 
-  "executive_summary": "<5–6 sentence factual summary covering: (1) what the company does and at what revenue scale; (2) how it earns revenue and the margin profile; (3) who leads the company and any ownership/key-man context; (4) workforce model and delivery capacity; (5) customer stickiness signal from tenure or utilization data; (6) what has changed recently. Use numbers where stated.>",
-
   "extraction_notes": "<note: whether a CIM was present; fields null because genuinely absent; overlay-specific fields skipped; any ambiguities>"
 }}
 """
@@ -717,6 +717,134 @@ _VALID_SALES_MOTIONS = {
     "founder_led", "enterprise_sales", "channel_partner",
     "inbound_plg", "outbound", "relationship",
 }
+
+# C37: first-cut context-size gate for the two-pass fallback. Unmeasured
+# against Arm A until this experiment's run; recalibrate from RunCard
+# `bma_context_chars`. Do not treat as a tuned production constant.
+_TWO_PASS_CONTEXT_CHARS = 40_000
+
+_COMMERCIAL_FIELD_KEYS = (
+    "executive_summary",
+    "revenue_model",
+    "products_services",
+    "revenue_by_location",
+    "people_and_org",
+    "workforce_capacity",
+)
+_ORGANIZATIONAL_FIELD_KEYS = (
+    "customer_profile",
+    "sales_motion",
+    "revenue_visibility",
+    "key_dependencies",
+    "recent_model_changes",
+    "overlay_conflict_evidence",
+    "citations",
+    "extraction_notes",
+    "customer_operational_metrics",
+)
+
+_SKELETON_OPEN = '\n{{\n  "executive_summary":'
+_SKELETON_SPLIT = '\n  "customer_profile":'
+
+
+def _should_use_two_pass(combined_chunk_text: str) -> bool:
+    """True when C37 two-pass fallback is authorized for this context size."""
+    return len(combined_chunk_text) > _TWO_PASS_CONTEXT_CHARS
+
+
+def _user_prompt_preamble() -> str:
+    idx = _USER_PROMPT_TEMPLATE.find(_SKELETON_OPEN)
+    if idx < 0:
+        raise RuntimeError("C37: _USER_PROMPT_TEMPLATE missing skeleton opener")
+    return _USER_PROMPT_TEMPLATE[:idx]
+
+
+def _two_pass_skeletons() -> tuple[str, str]:
+    """Derive commercial / organizational JSON skeletons from the C36 template."""
+    start = _USER_PROMPT_TEMPLATE.find(_SKELETON_OPEN)
+    end = _USER_PROMPT_TEMPLATE.rfind("\n}}")
+    if start < 0 or end < 0:
+        raise RuntimeError("C37: _USER_PROMPT_TEMPLATE missing skeleton bounds")
+    skel = _USER_PROMPT_TEMPLATE[start:end + len("\n}}")]
+    skel = skel.replace("{{", "{").replace("}}", "}")
+    split_at = skel.find(_SKELETON_SPLIT)
+    if split_at < 0:
+        raise RuntimeError("C37: skeleton missing customer_profile split")
+    commercial = skel[:split_at].rstrip().rstrip(",") + "\n}"
+    org_body = skel[split_at:].lstrip()
+    organizational = "{\n  " + org_body
+    return commercial, organizational
+
+
+_COMMERCIAL_SKELETON, _ORGANIZATIONAL_SKELETON = _two_pass_skeletons()
+
+# C39: two-pass commercial output bound. Concatenated only when
+# group == "commercial". Organizational and C36 single-call prompts
+# must stay byte-identical to C38.
+_C39_COMMERCIAL_BREVITY = (
+    "C39_BREVITY: Bound products_services, people_and_org, and workforce_capacity "
+    "so this commercial JSON finishes inside 8K output tokens. "
+    "products_services: at most 8 items; each prose field at most 40 words; "
+    "keep numeric literals short; omit duplicate service lines. "
+    "people_and_org: at most 8 key_executives and 8 ownership rows; "
+    "background_note, management_depth_note, and entity_structure_note at most 25 words each. "
+    "workforce_capacity: at most 10 headcount_by_function rows; "
+    "workforce_model and hiring_and_growth notes at most 40 words each. "
+    "Prefer the highest-revenue or named items. Do not expand executive_summary, "
+    "revenue_model, or revenue_by_location to compensate.\n"
+)
+
+# C40: two-pass organizational output bound. Concatenated only when
+# group == "organizational". Commercial (C39) and C36 single-call
+# prompts must stay byte-identical to C39.
+_C40_ORGANIZATIONAL_BREVITY = (
+    "C40_BREVITY: Bound recent_model_changes, key_dependencies, and citations "
+    "so this organizational JSON finishes inside 8K output tokens. "
+    "recent_model_changes: at most 10 dated events; each description and "
+    "impact_note at most 40 words; omit duplicate or undated events. "
+    "key_dependencies: at most 10 named dependencies; each description at most 25 words. "
+    "citations: at most 16 rows; quotes stay at most 30 words. "
+    "Prefer the highest-impact or named items. Do not expand customer_profile, "
+    "sales_motion, revenue_visibility, or customer_operational_metrics to compensate.\n"
+)
+
+
+def _format_two_pass_user_prompt(
+    *,
+    company_profile_json: str,
+    deal_type_context: str,
+    combined_chunk_text: str,
+    group: str,
+) -> str:
+    """Same unbounded input as the C36 single-call prompt; group-only output schema."""
+    if group == "commercial":
+        skeleton = _COMMERCIAL_SKELETON
+        keys = ", ".join(_COMMERCIAL_FIELD_KEYS)
+    elif group == "organizational":
+        skeleton = _ORGANIZATIONAL_SKELETON
+        keys = ", ".join(_ORGANIZATIONAL_FIELD_KEYS)
+    else:
+        raise ValueError(f"C37 unknown field group: {group!r}")
+    preamble = _user_prompt_preamble().format(
+        company_profile_json=company_profile_json,
+        deal_type_context=deal_type_context,
+        combined_chunk_text=combined_chunk_text,
+    )
+    if group == "commercial":
+        brevity = _C39_COMMERCIAL_BREVITY
+    elif group == "organizational":
+        brevity = _C40_ORGANIZATIONAL_BREVITY
+    else:
+        brevity = ""
+    return (
+        f"{preamble}\n"
+        f"C37_FIELD_GROUP={group}\n"
+        f"{brevity}"
+        f"Emit ONLY these top-level keys: {keys}. "
+        "The retrieved document context above is the full unbounded context; "
+        "do not reduce, filter, or cap it.\n"
+        f"{skeleton}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -747,6 +875,7 @@ class BusinessModelAgent:
         self._flags_as_dicts        = self._base._flags_as_dicts
         self._citations_as_dicts    = self._base._citations_as_dicts
         self._company_name: str     = ""
+        self._bma_context_chars: int = 0
 
     # ------------------------------------------------------------------
     # Retrieval helper — copied from financial_trends_agent.py
@@ -1321,6 +1450,54 @@ class BusinessModelAgent:
         return conflict, note_str
 
     # ------------------------------------------------------------------
+    # C37 extraction routing (single-call C36 vs two-pass fallback)
+    # ------------------------------------------------------------------
+
+    def _extract_structured(
+        self,
+        combined_chunk_text: str,
+        company_profile_json: str,
+        deal_type_context: str,
+        endpoint: str,
+    ) -> dict:
+        """C36 single call below threshold; C37 two-pass above it.
+
+        Two-pass uses the same full unbounded ``combined_chunk_text`` on both
+        calls (output-shaping split only). Two-pass ``_call_llm`` sites pass
+        the system prompt via a local so the C36 AST pin still sees exactly
+        one ``_call_llm(_SYSTEM_PROMPT, ..., max_tokens=8_000)``.
+        """
+        user_prompt = _USER_PROMPT_TEMPLATE.format(
+            company_profile_json=company_profile_json,
+            deal_type_context=deal_type_context,
+            combined_chunk_text=combined_chunk_text,
+        )
+        if not _should_use_two_pass(combined_chunk_text):
+            print("  Calling LLM for extraction ...")
+            raw_response = self._call_llm(_SYSTEM_PROMPT, user_prompt, endpoint, max_tokens=8_000)
+            return self._parse_json_response(raw_response)
+
+        print("  Calling LLM for extraction (C37 two-pass) ...")
+        commercial_prompt = _format_two_pass_user_prompt(
+            company_profile_json=company_profile_json,
+            deal_type_context=deal_type_context,
+            combined_chunk_text=combined_chunk_text,
+            group="commercial",
+        )
+        organizational_prompt = _format_two_pass_user_prompt(
+            company_profile_json=company_profile_json,
+            deal_type_context=deal_type_context,
+            combined_chunk_text=combined_chunk_text,
+            group="organizational",
+        )
+        system = _SYSTEM_PROMPT
+        commercial_raw = self._call_llm(system, commercial_prompt, endpoint, max_tokens=8_000)
+        organizational_raw = self._call_llm(system, organizational_prompt, endpoint, max_tokens=8_000)
+        commercial_result = self._parse_json_response(commercial_raw)
+        organizational_result = self._parse_json_response(organizational_raw)
+        return {**commercial_result, **organizational_result}
+
+    # ------------------------------------------------------------------
     # Main run() orchestration
     # ------------------------------------------------------------------
 
@@ -1372,89 +1549,24 @@ class BusinessModelAgent:
                     seen_texts.add(chunk.chunk_text)
                     all_chunks.append(chunk)
 
-        # Bound the extraction context so the single LLM call stays fast even when
-        # vision transcription makes CIM pages large (an unbounded join blew the
-        # context up ~4x with vision ON and timed the call out). Prioritise CIM →
-        # Tier 1 → rest, cap per-chunk chars by tier, and cap the total budget.
-        # This bounds INPUT only — the output max_tokens is unchanged, so no
-        # output truncation.
-        def _is_cim_file(name: str) -> bool:
-            n = (name or "").lower()
-            return "cim" in n or "memorandum" in n or "offering" in n
-
-        def _chunk_rank(c):
-            tier = c.priority_tier if c.priority_tier is not None else 99
-            return (0 if _is_cim_file(c.file_name) else 1, tier)
-
-        all_chunks.sort(key=_chunk_rank)
-
-        _CAP_CIM, _CAP_T1, _CAP_OTHER = 3000, 2000, 900
-        _TOTAL_BUDGET = 90_000  # chars (~22K input tokens)
-        _parts: list[str] = []
-        _used = 0
-        for c in all_chunks:
-            if _is_cim_file(c.file_name):
-                cap = _CAP_CIM
-            elif (c.priority_tier if c.priority_tier is not None else 99) <= 1:
-                cap = _CAP_T1
-            else:
-                cap = _CAP_OTHER
-            block = f"[File: {c.file_name}] [Section: {c.section_header}]\n{(c.chunk_text or '')[:cap]}"
-            if _used + len(block) > _TOTAL_BUDGET:
-                break
-            _parts.append(block)
-            _used += len(block)
-        combined_chunk_text = "\n\n---\n\n".join(_parts)
+        combined_chunk_text = "\n\n---\n\n".join(
+            f"[File: {c.file_name}] [Section: {c.section_header}]\n{c.chunk_text}"
+            for c in all_chunks
+        )
 
         profile_dict = tr6.data
         company_profile_json = json.dumps(profile_dict, default=str) if profile_dict else "{}"
         overlay = (profile_dict or {}).get("industry_overlay", "") if profile_dict else ""
 
-        # ── Two-pass extraction (split to stay under the serving read timeout) ──
-        # A single max_tokens=16_000 call exceeds the Databricks serving read
-        # timeout (~120s) and fails. Split the 15-field schema into two disjoint
-        # groups and extract each in a bounded call (max_tokens=8_000, well under
-        # 120s), then combine by taking each group's fields from its own pass.
-        # No output truncation: each pass emits only its group; both passes see
-        # the full context, so cross-field narrative (e.g. executive_summary)
-        # still has everything it needs.
-        base_user_prompt = _USER_PROMPT_TEMPLATE.format(
+        # ── LLM extraction (C36 single-call, or C37 two-pass above threshold) ──
+        self._bma_context_chars = len(combined_chunk_text)
+        print(f"  bma_context_chars={self._bma_context_chars}")
+        extracted = self._extract_structured(
+            combined_chunk_text=combined_chunk_text,
             company_profile_json=company_profile_json,
             deal_type_context=deal_type_context,
-            combined_chunk_text=combined_chunk_text,
+            endpoint=_extract_ep,
         )
-
-        _GROUP_A = ["revenue_model", "products_services", "revenue_by_location",
-                    "customer_operational_metrics", "customer_profile",
-                    "sales_motion", "revenue_visibility"]
-        _GROUP_B = ["people_and_org", "workforce_capacity", "key_dependencies",
-                    "recent_model_changes", "overlay_conflict_evidence",
-                    "citations", "executive_summary", "extraction_notes"]
-
-        def _extract_group(group_fields: list, label: str) -> dict:
-            directive = (
-                "\n\n=== PARTIAL EXTRACTION PASS ===\n"
-                "In THIS response, populate ONLY these top-level JSON fields: "
-                + ", ".join(group_fields) + ".\n"
-                "Keep the EXACT same JSON structure, but for every OTHER top-level "
-                "field return null (for objects) or [] (for arrays) — do not omit "
-                "the keys. Extract the requested fields fully and completely."
-            )
-            print(f"  Calling LLM for extraction (pass {label}: {len(group_fields)} fields) ...")
-            raw = self._call_llm(
-                _SYSTEM_PROMPT, base_user_prompt + directive, _extract_ep, max_tokens=8_000
-            )
-            return self._parse_json_response(raw) or {}
-
-        res_a = _extract_group(_GROUP_A, "A/commercial")
-        res_b = _extract_group(_GROUP_B, "B/organizational")
-
-        # Combine: each group's fields come from the pass that owns them.
-        extracted = {}
-        for _f in _GROUP_A:
-            extracted[_f] = res_a.get(_f)
-        for _f in _GROUP_B:
-            extracted[_f] = res_b.get(_f)
 
         # ── Source doc validation: reject records sourced from the company profile ──
         _PROFILE_SENTINEL = "COMPANY PROFILE"
@@ -1672,7 +1784,10 @@ class BusinessModelAgent:
         self._base._trace.append({
             "step":       llm_step,
             "tool":       "llm_extraction",
-            "input":      f"combined context: {len(all_chunks)} chunks from {len(seen_texts)} unique texts (9 retrieval tools)",
+            "input":      (
+                f"combined context: {len(all_chunks)} chunks from {len(seen_texts)} unique texts "
+                f"(9 retrieval tools); bma_context_chars={self._bma_context_chars}"
+            ),
             "output":     (
                 f"Extracted revenue_model_tag={(extracted.get('revenue_model') or {}).get('tag')}, "
                 f"products_services={len(extracted.get('products_services') or [])}, "
@@ -1681,6 +1796,14 @@ class BusinessModelAgent:
             ),
             "confidence": "high" if all_chunks else "low",
             "sources":    list({c.file_name for c in all_chunks}),
+        })
+        self._base._trace.append({
+            "step":       llm_step + 1,
+            "tool":       "bma_context_chars",
+            "input":      f"len(combined_chunk_text); threshold={_TWO_PASS_CONTEXT_CHARS}",
+            "output":     str(self._bma_context_chars),
+            "confidence": "high",
+            "sources":    [],
         })
 
         # ── Accumulate citations from LLM output ─────────────────────────
@@ -1780,6 +1903,7 @@ class BusinessModelAgent:
             "flags":                         self._flags_as_dicts(),
             "report_path":                   None,
             "created_at":                    datetime.now(timezone.utc).isoformat(),
+            "bma_context_chars":             self._bma_context_chars,
         }
 
 

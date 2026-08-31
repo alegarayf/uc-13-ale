@@ -1,0 +1,897 @@
+schema_version: 1
+format: spot_check_backfill_v1
+surface: exec_summary
+company: Elder Care
+company_slug: elder_care
+supersedes_run_id: 20260813T124947Z-9a9e
+built_at: '2026-08-13T18:50:02.606629+00:00'
+summary:
+  claim_count: 53
+  resolved_count: 52
+  operator_review_count: 1
+  unresolved_rate: 0.018867924528301886
+  flip_count: 0
+  unit_correction_count: 0
+  flips: []
+claims:
+- claim_id: exec.claim.001
+  verdict: supported
+  rationale: 'OVERTURNED (draft: supported/medium, operator asked whether the ''6''
+    was a hallucinated count). uc13_ale.analysis.business_model.customer_operational_metrics_json.by_location
+    lists exactly six distinct locations as of Q4-24E (Long Island, New York, Westchester,
+    Massachusetts/Guided Living, New Jersey/Unicity, Connecticut) -- an exact match
+    to the claimed ''six locations''. Not a hallucination; the count is grounded in
+    the business_model workstream table, just absent from the CIM chunk the RAG tool
+    retrieved. Basis: analysis table (business_model.customer_operational_metrics_json)
+    + CIM p.5 chunk (621e400f) for the qualitative description.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Elder Care by the Numbers
+  cited_chunk_id: 0352086f-6ed8-499a-b4f5-851d26b8b72f
+  cited_locator_kind: section
+  cited_locator_value: Elder Care by the Numbers(1)
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.002
+  verdict: supported
+  rationale: 'Operator confirmed: substantiated by data even though not verbatim.
+    KPI billing-log chunks (e.g. caeba4fd) show per-caregiver Bill Rate x Billed Hours
+    records consistent with hourly private-pay billing. Basis: retrieved data, valid
+    inference.'
+  source_doc: GL_0125-0325.xlsx
+  source_location: null
+  cited_chunk_id: 0627823e-a4ec-4b12-9e49-6ec5474bcd68
+  cited_locator_kind: section
+  cited_locator_value: Sheet — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.003
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- compared against an unrelated
+    CIM ''Clients Served: 1,186'' aggregate on a different date basis). uc13_ale.analysis.kpi.healthcare_kpis_json.census_or_patient_panel
+    gives weekly Company Total Clients for Q2 2025 (343, 350, 350, 355, 361) with
+    a QTD average of 351.8 -- rounds to the claimed ''approximately 352 active clients
+    as of Q2 2025'', an exact match once the correct structured KPI table is consulted
+    instead of the CIM narrative chunk. Basis: analysis table (kpi.healthcare_kpis_json),
+    source_doc Company KPI Dashboard SAMPLE.xlsx.'
+  source_doc: Company KPI Dashboard SAMPLE.xlsx
+  source_location: Census or Patient Panel
+  cited_chunk_id: 03580592-95c0-4456-b4b3-c244b0d78f7f
+  cited_locator_kind: section
+  cited_locator_value: NYC — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.004
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- compared against an unrelated
+    CIM ''Active Caregivers: 1,888'' aggregate). uc13_ale.analysis.kpi.healthcare_kpis_json.caregiver_headcount
+    states verbatim ''All Markets Total Caregivers: 2,123 (as of 4/21/25)'' -- exact
+    match to the claimed 2,123 caregivers as of Q2 2025. Basis: analysis table (kpi.healthcare_kpis_json),
+    exact numeric match.'
+  source_doc: Company KPI Dashboard SAMPLE.xlsx
+  source_location: Caregiver Headcount
+  cited_chunk_id: 03580592-95c0-4456-b4b3-c244b0d78f7f
+  cited_locator_kind: section
+  cited_locator_value: NYC — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.005
+  verdict: supported
+  rationale: Batch-approved, unchanged. CIM p.18 'Corporate Functions' (chunk ffdfd9cb)
+    names both Guided Living and Unicity.
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Corporate Functions
+  cited_chunk_id: ffdfd9cb-4057-4344-814b-72570f9ebc44
+  cited_locator_kind: section
+  cited_locator_value: Corporate Functions
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.006
+  verdict: supported
+  rationale: Batch-approved, unchanged. CIM p.41 confirms October 2023 Connecticut
+    market entry.
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Key Entity Metrics
+  cited_chunk_id: 103e99ea-2b24-4074-a0b2-e95d565ef05b
+  cited_locator_kind: section
+  cited_locator_value: 'Key Entity Metrics: Elder Care Homecare – NY(1)'
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.007
+  verdict: supported
+  rationale: 'OVERTURNED confidence (draft: supported/medium, off by a ''location
+    subtotal'' the agent couldn''t reconcile). uc13_ale.analysis.financial_trends.revenue_trend_json
+    ''Historical P&L Summary'' row states Pro Forma Adjusted Revenue of $46,423K (46.4M)
+    for TTM Aug-24 -- exact match once the correct structured table (vs. the CIM location-subtotal
+    chunk, $44.7M) is consulted; the claim''s own text even cites ''per the Historical
+    P&L Summary workstream'', which is this table. Basis: analysis table (financial_trends.revenue_trend_json).'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Historical P&L Summary, Page 49
+  cited_chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
+  cited_locator_kind: section
+  cited_locator_value: Corporate Operating Expense Adjustments
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.008
+  verdict: supported
+  rationale: 'Confidence raised to high (was medium, chunk-boundary truncation). uc13_ale.analysis.financial_trends.revenue_trend_json
+    confirms both endpoints exactly: 2020A = 8,955, TTM Aug-24 = 46,423 (Historical
+    P&L Summary row). The RAG chunk truncation noted by the operator was purely a
+    retrieval artifact -- the source table itself is complete. Root-cause note carried
+    to failure_modes.md (chunk_truncation bucket).'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Historical P&L Summary, Page 49
+  cited_chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
+  cited_locator_kind: section
+  cited_locator_value: Corporate Operating Expense Adjustments
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.009
+  verdict: supported
+  rationale: Confidence raised to high. uc13_ale.analysis.financial_trends.ebitda_json
+    'Diligence Adjusted Income Statement' row confirms Pro Forma Adjusted EBITDA of
+    $9,239K / 19.9% margin for TTM Aug-24 exactly, resolving the truncated-excerpt
+    gap the operator flagged.
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Historical P&L Summary, Page 49
+  cited_chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
+  cited_locator_kind: section
+  cited_locator_value: Corporate Operating Expense Adjustments
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.010
+  verdict: supported
+  rationale: Confidence raised to high. uc13_ale.analysis.financial_trends.ebitda_json
+    confirms Reported EBITDA margin of 7.9% for TTM Aug-24; diligence_report.top_10_issues_json
+    rank 1 independently states the same figure against the same '~10% healthcare
+    services threshold' benchmark verbatim.
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Historical P&L Summary, Page 49
+  cited_chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
+  cited_locator_kind: section
+  cited_locator_value: Corporate Operating Expense Adjustments
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.011
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- RAG retrieved unrelated tax-return
+    Schedule M-2 chunks). uc13_ale.analysis.diligence_report.top_10_issues_json rank
+    1 states verbatim ''17 discrete Tier 4 items totaling ~$7.3M''; quality_of_earnings.tier4_addback_count
+    = 17 independently confirms the count. Basis: analysis tables, not VDR chunk RAG
+    (root cause: retrieval index does not cover the analysis-pipeline''s own structured
+    output -- see failure_modes.md).'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.012
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). uc13_ale.analysis.financial_trends.addback_pct_of_ebitda
+    = 246.9, and diligence_report.top_10_issues_json rank 1 states ''approximately
+    247% of reported EBITDA'' verbatim. Basis: analysis table, exact numeric match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Historical P&L Summary, Page 49
+  cited_chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
+  cited_locator_kind: section
+  cited_locator_value: Corporate Operating Expense Adjustments
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.013
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- no VDR chunk discussed the classification
+    rationale). uc13_ale.analysis.quality_of_earnings.addback_ledger_json: all 17
+    items carry tier_classification=''Tier 4'' with tier_rationale text stating ''...per
+    absolute rule, any addback without a supporting_doc_referenced must be classified
+    Tier 4'' -- a verbatim mechanism match to the claim. Basis: analysis table (quality_of_earnings.addback_ledger_json).'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.014
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). uc13_ale.analysis.quality_of_earnings.addback_ledger_json
+    item [G] ''Run-rate executive compensation'' = $2,490 exactly. Basis: analysis
+    table, exact numeric match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.015
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). addback_ledger_json item [K] ''Unicity
+    pre-acquisition results'' = $1,077 exactly. Basis: analysis table, exact numeric
+    match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.016
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). addback_ledger_json item [O] ''Unicity
+    incremental earnings from synergies'' = $909 exactly. Basis: analysis table, exact
+    numeric match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.017
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- RAG retrieved unrelated bank-reconciliation
+    PDFs). uc13_ale.analysis.diligence_report.reconciliation_summary_json = {match:
+    0, mismatch: 1, cannot_check: 9} -- an exact match to ''one mismatch and ... unable
+    to verify nine items.'' Basis: analysis table, exact match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Historical P&L Summary, Page 49
+  cited_chunk_id: 012e33ca-7912-4b54-8789-f307b5c78e04
+  cited_locator_kind: section
+  cited_locator_value: Corporate Operating Expense Adjustments
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.018
+  verdict: supported
+  rationale: Confidence raised to high. uc13_ale.analysis.forecast.forecast_assumptions_json
+    states verbatim 'Management projects revenue growing from $47.2M (2024E) to $197.8M
+    (2029P)'; 197.8/47.2 = 4.19x, confirming the '4.2x increase' math.
+  source_doc: Elder Care Projection Model_vUPLOAD.xlsx
+  source_location: Forecast Assumptions
+  cited_chunk_id: 000ca3cd-4dde-4541-97a1-aa072fa3cbae
+  cited_locator_kind: section
+  cited_locator_value: Proj_Corporate Adj. P&L — Summary
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.019
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low; operator: ''if by some logic it
+    attributes the red label then it''s ok as long as the rationale checks out'').
+    uc13_ale.analysis.diligence_report.section_ratings_json.forecast = ''Red'' --
+    a real source-table rating, not a hallucinated label. forecast.credibility_summary_json
+    shows 5 of 15 assumptions rated ''Stretch'' (beyond the historical envelope; stretch_assumption_count=5),
+    which is the substantiated basis for ''aggressive assumptions''. This is exactly
+    the ''valid agent-derived rationale that follows exec-summary instructions'' case
+    in the adjudication philosophy. Basis: analysis tables (diligence_report.section_ratings_json,
+    forecast.credibility_summary_json).'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Executive Summary
+  cited_chunk_id: 0ad97a98-edca-44fa-b2f2-329ad4bae382
+  cited_locator_kind: section
+  cited_locator_value: Executive Summary
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.020
+  verdict: supported
+  rationale: Batch-approved, unchanged. Diligence workbook Q&A states the NYSDOH citation
+    verbatim.
+  source_doc: Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx
+  source_location: Q&A
+  cited_chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
+  cited_locator_kind: section
+  cited_locator_value: 11. Tax - CFGI — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.021
+  verdict: supported
+  rationale: Unchanged verdict, confidence corroborated. diligence_report.top_10_issues_json
+    rank 3 poses the same open question ('has the company provided written DOH confirmation
+    of closure'), confirming this is a real, source-grounded open item rather than
+    an unprovable negative-inference guess.
+  source_doc: Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx
+  source_location: null
+  cited_chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
+  cited_locator_kind: section
+  cited_locator_value: 11. Tax - CFGI — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.022
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- no chunk had explicit OIG/SAM
+    language). uc13_ale.analysis.kpi.healthcare_kpis_json.compliance_incidents item
+    3 has status=''open'': ''Diligence request item 4 ... list of ... persons excluded
+    from Medicare ... is listed as Open.'' diligence_report.top_10_issues_json rank
+    4 states the same open item verbatim. Basis: analysis table, exact match.'
+  source_doc: Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx
+  source_location: null
+  cited_chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
+  cited_locator_kind: section
+  cited_locator_value: 11. Tax - CFGI — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.023
+  verdict: supported
+  rationale: Batch-approved, unchanged. Retainer-agreement document itself confirms
+    outside counsel retention.
+  source_doc: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts
+    by Peter Ackerman Esq.pdf
+  source_location: null
+  cited_chunk_id: 53d46d8e-274c-4e27-a10e-fcade23c1f5a
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.024
+  verdict: supported
+  rationale: Batch-approved, unchanged. Manhattan_Lease_0424.pdf Section 11 is the
+    anti-assignment covenant itself.
+  source_doc: Manhattan_Lease_0424.pdf
+  source_location: Section 11
+  cited_chunk_id: 0ccb095f-a7b6-4a2b-934c-1de1fb32c0cb
+  cited_locator_kind: section
+  cited_locator_value: '1. Rent and Additional Rent:'
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.025
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low; operator suspected this was agent
+    self-assessment, not documentation). uc13_ale.analysis.diligence_report.section_confidence_json
+    shows all seven workstreams rated ''Medium'' -- an exact match to ''Overall analytical
+    confidence across all seven workstreams is rated Medium.'' This IS documented
+    in the analysis pipeline''s own structured output, not an ungrounded self-assessment.
+    Basis: analysis table, exact match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Executive Summary
+  cited_chunk_id: 0ad97a98-edca-44fa-b2f2-329ad4bae382
+  cited_locator_kind: section
+  cited_locator_value: Executive Summary
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.026
+  verdict: contradicted
+  rationale: 'OVERTURNED (draft: unsupported/low; operator: ''same as claim 19'').
+    uc13_ale.analysis.diligence_report.section_ratings_json shows ALL SEVEN workstreams
+    carry a Red or Yellow rating (business_model=Yellow, financial_trends=Red, customer_quality=Yellow,
+    kpi=Red, legal_contracts=Red, quality_of_earnings=Red, forecast=Red) -- zero are
+    Green. The claim''s specific count of ''five of seven ... carry at least one Red
+    or Yellow rating'' is directly contradicted by the source table; the correct figure
+    is seven of seven. This is consistent with claims 046+047, which correctly enumerate
+    5 Red + 2 Yellow = 7 total, and with the verbatim executive_summary text itself
+    (''five of seven workstreams carry a Red rating ... with the remaining two rated
+    Yellow'') -- i.e. the exec_summary''s OWN ''Confidence'' section never actually
+    makes the ''5 of 7 Red-or-Yellow'' claim; exec.claim.026 appears to be a claim-extraction
+    misstatement of that sentence. Genuine numeric/internal-consistency catch, not
+    a retrieval-fix target. Basis: analysis table (diligence_report.section_ratings_json),
+    cross-checked against claims 046/047 and the verbatim executive_summary text.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Executive Summary
+  cited_chunk_id: 0ad97a98-edca-44fa-b2f2-329ad4bae382
+  cited_locator_kind: section
+  cited_locator_value: Executive Summary
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.027
+  verdict: unsupported
+  rationale: 'Unchanged (mandatory always-flagged calibration probe; agrees with M2
+    calibration operator verdict). Investigated: no analysis table (business_model,
+    kpi) states Medicare/Medicaid certification status for any location; kpi.missing_kpis_json
+    flags payor_mix as a data-room gap, which is adjacent but not the same fact. No
+    chunk or structured-table trace exists either way.'
+  source_doc: null
+  source_location: null
+  cited_chunk_id: null
+  cited_locator_kind: null
+  cited_locator_value: null
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: operator_review
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.028
+  verdict: contradicted
+  rationale: 'Unchanged verdict, evidence strengthened (mandatory always-flagged calibration
+    probe; agrees with M2 calibration operator verdict). uc13_ale.analysis.quality_of_earnings.qofe_report_present
+    = false, and every one of the 17 addback_ledger_json items carries a tier_rationale
+    stating it lacks supporting documentation -- directly contradicting a claim that
+    the QoE workstream ''validated every Tier 4 addback against audited standalone
+    financials.'' The Project Orange QoE engagement letter (chunk 62a944a5) independently
+    corroborates: the QoE scope was to identify/analyze addbacks, not validate them.'
+  source_doc: Project Orange Engagement Letter - May 1, 2025.pdf
+  source_location: null
+  cited_chunk_id: 35d4aa00-0a13-4ae6-94d0-c6349147ad76
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.029
+  verdict: supported
+  rationale: Batch-approved, unchanged. Client service agreements confirm the service
+    lines.
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Services Overview
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.030
+  verdict: supported
+  rationale: Batch-approved, unchanged. CIM p.22 MD&A states organic + acquisitive
+    growth verbatim.
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: MD&A
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.031
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). uc13_ale.analysis.quality_of_earnings.ebitda_scenarios_json.reported_ebitda
+    = 7718.0, i.e. ~$7.7M exactly; also cited verbatim in diligence_report.top_10_issues_json
+    rank 1. Basis: analysis table, exact numeric match. Root cause is agent/retrieval
+    architecture (correct figure lives in a structured field, not a VDR chunk), not
+    an agent computation failure, per the operator''s question.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.032
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). addback_ledger_json item [D] ''Cash-to-accrual
+    revenue adjustment'' = $665 exactly. Basis: analysis table, exact numeric match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.033
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). addback_ledger_json item [N] ''Guided
+    Living ramp-up/maturity adjustment'' = $430 exactly. Basis: analysis table, exact
+    numeric match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.034
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). uc13_ale.analysis.diligence_report.top_10_issues_json
+    rank 1 enumerates exactly five addbacks each exceeding 5% of the $7,718K reported
+    EBITDA base: exec comp 32.3%, Unicity pre-acq 14.0%, Unicity synergies 11.8%,
+    cash-to-accrual 8.6%, Guided Living ramp-up 5.6%; independently re-verified by
+    dividing each addback_ledger_json dollar amount by ebitda_scenarios_json.reported_ebitda
+    (all confirm to within rounding). Basis: analysis tables, independently recomputed.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: EBITDA Adjustment Detail
+  cited_chunk_id: 0d820bf2-0624-489c-a931-3059ce0861b2
+  cited_locator_kind: section
+  cited_locator_value: EBITDA Adjustment Detail
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.035
+  verdict: supported
+  rationale: Confidence raised to high (was medium, inference-only). uc13_ale.analysis.diligence_report.top_10_issues_json
+    rank 2 states near-verbatim that these pro-forma/pre-close addbacks were incorporated
+    'without audited standalone financials or demonstrated post-close performance'
+    -- a direct source match, not just internal-consistency inference from the exec_summary's
+    own text.
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: null
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.036
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- treated as an unverifiable hypothetical).
+    uc13_ale.analysis.diligence_report.top_10_issues_json rank 5 ''why_it_matters''
+    states near-verbatim: ''If the QofE process rejects even a portion of the Tier
+    4 addbacks, reported EBITDA could turn negative or near-zero, fundamentally altering
+    the investment thesis, leverage profile, and valuation.'' This is the report''s
+    own stated implication, not agent speculation. Basis: analysis table, near-verbatim
+    match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: null
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.037
+  verdict: supported
+  rationale: Batch-approved, unchanged. CIM p.48 confirms organic growth drivers;
+    CT de novo ramp confirmed via claim.006.
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Growth Strategy
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.038
+  verdict: supported
+  rationale: 'Confidence raised to high (was low, ''generic/vague''). uc13_ale.analysis.diligence_report.top_10_issues_json
+    contains explicit severity labels ''Critical'' (5 issues) and ''Material'' (4
+    issues) across multiple workstreams -- a verbatim match to ''critical and material
+    issues'' (which is itself the literal first sentence of the executive_summary''s
+    Top Risks section). Basis: analysis table, verbatim match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: null
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.039
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- retrieval surfaced unrelated billing
+    rows). uc13_ale.analysis.diligence_report.top_10_issues_json rank 3 poses exactly
+    this open question: ''...are there any related corrective action plans, consent
+    orders, or ongoing monitoring obligations...'' Basis: analysis table, exact match.'
+  source_doc: Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx
+  source_location: null
+  cited_chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
+  cited_locator_kind: section
+  cited_locator_value: 11. Tax - CFGI — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.040
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- retrieval surfaced unrelated Amex
+    transaction rows). uc13_ale.analysis.diligence_report.top_10_issues_json rank
+    4 states the OIG/SAM exclusion screening and False Claims Act exposure verbatim.
+    Basis: analysis table, exact match.'
+  source_doc: Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx
+  source_location: null
+  cited_chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
+  cited_locator_kind: section
+  cited_locator_value: 11. Tax - CFGI — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.041
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- treated as an unverifiable evaluative
+    ranking). uc13_ale.analysis.diligence_report.top_10_issues_json rank 1 (severity
+    ''Critical'', workstreams quality_of_earnings + financial_trends) is literally
+    the #1-ranked issue in the report''s own structured output, with why_it_matters
+    citing ''LOI price, leverage capacity, and deal structure'' -- matching the claim
+    almost verbatim, and matching the executive_summary''s own verbatim sentence (''represents
+    the single most consequential open item for price and structure''). The ranking
+    is a real, source-table fact, not an ungrounded evaluative judgment. Basis: analysis
+    table, verbatim + rank-order match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: null
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.042
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- the relevant retainer-agreement
+    chunk wasn''t retrieved). uc13_ale.analysis.diligence_report.top_10_issues_json
+    rank 6 why_it_matters: ''deteriorating cash conversion, payor disputes, or billing
+    compliance issues that could impair working capital assumptions.'' Basis: analysis
+    table, exact match.'
+  source_doc: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts
+    by Peter Ackerman Esq.pdf
+  source_location: null
+  cited_chunk_id: 53d46d8e-274c-4e27-a10e-fcade23c1f5a
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.043
+  verdict: supported
+  rationale: 'Confidence raised to high (was low). uc13_ale.analysis.diligence_report.top_10_issues_json
+    rank 7 states verbatim: ''Material customer contracts contain termination-for-convenience
+    provisions; can the seller confirm whether any such contracts include change-of-control
+    triggers...'' Basis: analysis table, verbatim match.'
+  source_doc: Elder Home Care Temp Agreement - Fully Executed.pdf
+  source_location: null
+  cited_chunk_id: 77effc87-bb1d-40b2-ba9c-c2a68c76e81c
+  cited_locator_kind: section
+  cited_locator_value: PROFESSIONAL STAFFING AGREEMENT
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.044
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- retrieval surfaced only individual
+    ''Not Billable'' status rows). uc13_ale.analysis.diligence_report.top_10_issues_json
+    rank 8 states the exact same two-client decline figures ($205,830 and $62,902
+    total) as the claim. Basis: analysis table, exact numeric match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: null
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.045
+  verdict: supported
+  rationale: 'Confidence raised to high (was medium; ''unusual'' characterization
+    flagged as beyond raw fact). uc13_ale.analysis.diligence_report.top_10_issues_json
+    rank 10 states verbatim: ''unusual indemnity provisions flagged across multiple
+    contracts (Manhattan lease, Unicity Asset Purchase Agreement, Koeppel Rosen vendor
+    agreement).'' The ''unusual ... multiple contracts'' characterization is the report''s
+    own stated finding, not an agent overclaim. Basis: analysis table, verbatim match.'
+  source_doc: Manhattan_Lease_0424.pdf
+  source_location: null
+  cited_chunk_id: 0ccb095f-a7b6-4a2b-934c-1de1fb32c0cb
+  cited_locator_kind: section
+  cited_locator_value: '1. Rent and Additional Rent:'
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.046
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). uc13_ale.analysis.diligence_report.section_ratings_json
+    Red ratings are exactly: financial_trends, kpi, legal_contracts, quality_of_earnings,
+    forecast -- an exact enumeration match to the claim''s named five workstreams.
+    Basis: analysis table, exact match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Executive Summary
+  cited_chunk_id: 0ad97a98-edca-44fa-b2f2-329ad4bae382
+  cited_locator_kind: section
+  cited_locator_value: Executive Summary
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.047
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low). section_ratings_json Yellow ratings
+    are exactly: business_model, customer_quality -- an exact match. Basis: analysis
+    table, exact match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: Executive Summary
+  cited_chunk_id: 0ad97a98-edca-44fa-b2f2-329ad4bae382
+  cited_locator_kind: section
+  cited_locator_value: Executive Summary
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.048
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- treated as a forward-looking recommendation
+    with no source-document fact). uc13_ale.analysis.diligence_report.top_10_issues_json
+    rank 1 states this near-verbatim as the top-ranked issue (''can the seller provide
+    audited or third-party-verified support for each of these items?''). Basis: analysis
+    table, near-verbatim match.'
+  source_doc: 2024 Elder Care - CIM_vF.pdf
+  source_location: null
+  cited_chunk_id: 07071d82-3102-418a-a4dc-589647de5d54
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.049
+  verdict: supported
+  rationale: 'Confidence raised to high (was low). Combines diligence_report.top_10_issues_json
+    rank 3 (DOH written confirmation) and rank 4 (OIG/SAM exclusion screening) into
+    a single ''open item'' framing; both are stated verbatim in the source. Basis:
+    analysis table, verbatim match on both components.'
+  source_doc: Elder Care - Diligence Workbook - vSHARE_6.19.25.xlsx
+  source_location: null
+  cited_chunk_id: 001eeaca-3e95-4ec0-97a5-a2ef39a1d8f9
+  cited_locator_kind: section
+  cited_locator_value: 11. Tax - CFGI — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.050
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- only topically-adjacent chunks
+    retrieved). uc13_ale.analysis.diligence_report.top_10_issues_json rank 6 poses
+    exactly this open item (aggregate amount and aging profile of receivables in collection).
+    Basis: analysis table, exact match.'
+  source_doc: April 30 2025 Fully Executed Retainer Agreement for Collection Efforts
+    by Peter Ackerman Esq.pdf
+  source_location: null
+  cited_chunk_id: 53d46d8e-274c-4e27-a10e-fcade23c1f5a
+  cited_locator_kind: section
+  cited_locator_value: Document body
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.051
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- only topically-adjacent chunks
+    retrieved). uc13_ale.analysis.diligence_report.top_10_issues_json rank 7 poses
+    exactly this open item (change-of-control triggers in material customer contracts).
+    Basis: analysis table, exact match.'
+  source_doc: Elder Home Care Temp Agreement - Fully Executed.pdf
+  source_location: null
+  cited_chunk_id: 77effc87-bb1d-40b2-ba9c-c2a68c76e81c
+  cited_locator_kind: section
+  cited_locator_value: PROFESSIONAL STAFFING AGREEMENT
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.052
+  verdict: supported
+  rationale: 'Confidence raised to high (was low, ''generic diligence-tracker evidence'').
+    uc13_ale.analysis.diligence_report.top_10_issues_json rank 9 states verbatim the
+    company ''cannot produce location-level P&L or operational KPIs across its multi-site
+    footprint,'' naming Guided Living, Unicity, and ECHC among the entities needed
+    to validate the EBITDA build-up. Basis: analysis table, verbatim match.'
+  source_doc: Company KPI Dashboard SAMPLE.xlsx
+  source_location: null
+  cited_chunk_id: 03580592-95c0-4456-b4b3-c244b0d78f7f
+  cited_locator_kind: section
+  cited_locator_value: NYC — Data
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null
+- claim_id: exec.claim.053
+  verdict: supported
+  rationale: 'OVERTURNED (draft: unsupported/low -- retrieval surfaced unrelated contractor-agreement
+    boilerplate). uc13_ale.analysis.diligence_report.top_10_issues_json rank 10 states
+    verbatim that outside counsel should confirm whether the Manhattan lease assignment
+    restriction applies to a change-of-control transaction. Basis: analysis table,
+    verbatim match.'
+  source_doc: Manhattan_Lease_0424.pdf
+  source_location: null
+  cited_chunk_id: 0ccb095f-a7b6-4a2b-934c-1de1fb32c0cb
+  cited_locator_kind: section
+  cited_locator_value: '1. Rent and Additional Rent:'
+  asserted_magnitude: null
+  asserted_unit: null
+  disposition: resolved
+  unit_correction: null
+  flip_from_verdict: null

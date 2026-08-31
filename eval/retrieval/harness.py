@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from eval.retrieval.companies import require_folded_company_slug
 from eval.retrieval.errors import (
     BaselineInvalidError,
     CoverageError,
@@ -93,7 +94,8 @@ def default_registry_path() -> Path:
     return _repo_root() / "eval" / "retrieval" / "intent_registry.yaml"
 
 
-def default_gold_path(company_slug: str = "elder_care") -> Path:
+def default_gold_path(company_slug: str) -> Path:
+    require_folded_company_slug(company_slug)
     return _repo_root() / "eval" / "retrieval" / "gold_labels" / f"{company_slug}.yaml"
 
 
@@ -250,7 +252,11 @@ def compute_metrics(
     route_result: Any,
 ) -> HarnessResult:
     """Metric math per spec §5.8."""
-    if gold.gold_status == "bootstrap_failed" or not gold.positive_chunk_ids:
+    if (
+        gold.aggregate_exclude
+        or gold.gold_status == "bootstrap_failed"
+        or not gold.positive_chunk_ids
+    ):
         return HarnessResult(
             intent_id=intent.intent_id,
             eval_status="skipped_bootstrap_failed",
@@ -516,11 +522,20 @@ class EvalHarness:
         *,
         registry_path: Path | None = None,
         gold_path: Path | None = None,
+        company_slug: str | None = None,
         reports_dir: Path | None = None,
         retrieval_dispatch: Callable[..., Any] | None = None,
     ) -> None:
         self.registry_path = registry_path or default_registry_path()
-        self.gold_path = gold_path or default_gold_path()
+        if gold_path is not None:
+            self.gold_path = gold_path
+        elif company_slug is not None:
+            self.gold_path = default_gold_path(company_slug)
+        else:
+            raise PreconditionError(
+                "EvalHarness requires gold_path or company_slug; "
+                "no silent Elder Care fallback"
+            )
         self.reports_dir = reports_dir or default_reports_dir()
         self._retrieval_dispatch = retrieval_dispatch or dispatch_retrieval
 
@@ -762,7 +777,11 @@ class EvalHarness:
             intent = registry_map[intent_id]
             gold = gold_map[intent_id]
             result_ablation_arm = resolved_ablation_arm if run_type == "ablation" else None
-            if gold.gold_status == "bootstrap_failed" or not gold.positive_chunk_ids:
+            if (
+                gold.aggregate_exclude
+                or gold.gold_status == "bootstrap_failed"
+                or not gold.positive_chunk_ids
+            ):
                 result_count = 0
                 if not skip_retrieval:
                     route_result = self._retrieval_dispatch(
