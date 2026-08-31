@@ -610,15 +610,22 @@ _DOMAIN_PASS_EXTRACT: dict[str, dict] = {
 
 _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
     "contracts_vendors_platform": {
-        "top_k": 14,
+        "top_k": 24,
         "min_chunk_length": 150,
         "max_chars": 20_000,
         "max_tokens": 12_000,
         # A0: broaden beyond generic MSA tokens — lease/SA/staffing dominate Elder Care LEGAL
+        # C6: add platform/channel filenames the A0 list missed (ClearCare SaaS, Veta,
+        # Senior Care Authority, Advance Placement) so those docs are reachable.
         "file_name_filter": [
             "Contract", "MSA", "Agreement", "SOW", "Customer", "Client", "Vendor", "Supplier",
             "SA", "Lease", "Sublease", "Staffing", "Purchase", "Temp", "Marketing", "Engagement",
+            "SaaS", "ClearCare", "Senior Care Authority", "Advance Placement", "Veta",
         ],
+        # C5 Landed (R9) / F-8: per-query reserved merge slots so clause-targeted
+        # queries keep a floor without starving the generic query (index 0).
+        # Order matches _DOMAIN_PASS_QUERIES["contracts_vendors_platform"].
+        "merge_slot_allocation": (14, 4, 3, 3),
     },
     "employment": {
         "top_k": 10,
@@ -630,6 +637,12 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
             "Employment", "Offer", "Contractor", "Commission", "Founder",
             "Handbook", "Orientation", "401", "Restricted", "Stock", "Bylaws",
         ],
+        # T3: founder/key-employee equity docs (Restricted Stock Award, Stock
+        # Transfer) were filename-matched but starved out of the top-10 ANN
+        # window by the generic query's employee/contractor volume (fetch_k
+        # = top_k*3, applied per-query before file_name_filter). Reserve
+        # slots so the founder-targeted query always contributes hits.
+        "merge_slot_allocation": (7, 3),
     },
     "litigation": {
         "top_k": 8,
@@ -647,9 +660,20 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "min_chunk_length": 150,
         "max_chars": 15_000,
         "max_tokens": 10_000,
+        # C6: HIPAA/BAA tokens already hit privacy docs; add NDA / restricted-stock /
+        # ClearCare SaaS tokens so IP-assignment and platform-license files are reachable.
         "file_name_filter": [
             "IP", "Privacy", "GDPR", "HIPAA", "OSS", "Data Processing", "BAA",
+            "Non-Disclosure", "ND Agreement", "SaaS", "ClearCare", "Restricted Stock",
         ],
+        # C6 R5: push workstream_filter into the VS ANN query so LEGAL-tagged
+        # IP/privacy docs are in the candidate window, not only post-filtered.
+        "vs_metadata_filters": True,
+        # T3: internal HIPAA confidentiality / employee-ND / HIPAA-release docs
+        # were filename-matched but starved out of the generic query's top-8
+        # ANN window (dominated by BAA/vendor-privacy language). Reserve
+        # slots so the confidentiality-targeted query always contributes hits.
+        "merge_slot_allocation": (5, 3),
     },
     "insurance": {
         "top_k": 6,
@@ -665,25 +689,42 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
 }
 
 # Per-pass semantic queries — tuned from A0 corpus decomposition (§5.6.3 / B2).
-_DOMAIN_PASS_QUERIES: dict[str, str] = {
+# contracts_vendors_platform is a query list: generic pass plus t4c/coc clause-targeted
+# queries so those term families are not starved by the generic ranking (C5).
+_DOMAIN_PASS_QUERIES: dict[str, str | tuple[str, ...]] = {
     "contracts_vendors_platform": (
         "material customer contract MSA master service agreement statement of work "
         "change of control termination vendor supplier platform reseller channel "
-        "staffing agreement lease sublease asset purchase marketing contract"
+        "staffing agreement lease sublease asset purchase marketing contract",
+        "termination for convenience terminate without cause for convenience of either party notice of termination cancel at any time",
+        "change of control change in control consent to assignment assignment and subletting landlord consent shall not assign ownership transfer",
+        "SaaS software as a service subscription software license hosting agreement "
+        "platform dependency reseller channel marketplace exclusivity termination impact",
     ),
+    # T3: employment is now a query list — generic pass plus a founder/key-employee
+    # equity query so restricted stock award / stock transfer / shareholders
+    # agreement documents are not starved out by the volume of generic
+    # employee/contractor agreements in the ANN window (see merge_slot_allocation).
     "employment": (
-        "employment agreement offer letter contractor commission plan founder key employee "
-        "employee handbook orientation restricted stock non-compete non-solicit "
-        "severance 401k bylaws staffing agreement"
+        "employment agreement offer letter contractor commission plan employee "
+        "handbook orientation non-compete non-solicit severance 401k staffing agreement",
+        "founder key employee agreement restricted stock award agreement stock transfer "
+        "agreement shareholders agreement equity grant ownership joinder operating agreement bylaws",
     ),
     "litigation": (
         "litigation lawsuit dispute regulatory compliance arbitration demand letter "
         "settlement survey DOH approval bond renewal regulatory correspondence "
         "threatened claim legal engagement letter"
     ),
+    # T3: ip_privacy is now a query list — generic IP/BAA pass plus a HIPAA
+    # confidentiality/ND/release query so internal employee-facing privacy
+    # obligations are not starved out by BAA/vendor-privacy language in the
+    # ANN window (see merge_slot_allocation).
     "ip_privacy": (
         "intellectual property IP ownership assignment data privacy GDPR HIPAA "
-        "indemnification liability cap open source OSS data processing agreement BAA"
+        "indemnification liability cap open source OSS data processing agreement BAA",
+        "HIPAA confidentiality agreement employee non-disclosure agreement protected "
+        "health information PHI release consent authorization data security breach notification",
     ),
     "insurance": (
         "insurance certificate policy COI certificate of insurance indemnity "
@@ -704,6 +745,70 @@ _DOMAIN_PASSES: list[tuple[str, dict]] = [
 ]
 
 _DOMAIN_PASS_IDS: frozenset[str] = frozenset(pass_id for pass_id, _ in _DOMAIN_PASSES)
+
+
+def _chunk_merge_key(chunk) -> object:
+    return getattr(chunk, "chunk_id", None) or id(chunk)
+
+
+def _merge_query_hits(
+    per_query_hits: list[list],
+    top_k: int,
+    slot_allocation: tuple[int, ...] | None = None,
+) -> tuple[list, tuple[int, ...]]:
+    """Unique-by-chunk_id merge of per-query hit lists, capped at ``top_k``.
+
+    With ``slot_allocation``, query *i* is reserved up to ``slot_allocation[i]``
+    unique slots (generic / index 0 first) before a round-robin remainder fill.
+    Without it, the merge is round-robin unique — the pre-T16 contracts behaviour
+    and the single-query passes.
+    """
+    n_queries = len(per_query_hits)
+    seen: set = set()
+    chunks: list = []
+    kept = [0] * n_queries
+    cursors = [0] * n_queries
+
+    def _take_next_unique(query_idx: int) -> bool:
+        hits = per_query_hits[query_idx]
+        while cursors[query_idx] < len(hits) and len(chunks) < top_k:
+            chunk = hits[cursors[query_idx]]
+            cursors[query_idx] += 1
+            key = _chunk_merge_key(chunk)
+            if key in seen:
+                continue
+            seen.add(key)
+            chunks.append(chunk)
+            kept[query_idx] += 1
+            return True
+        return False
+
+    if slot_allocation is not None:
+        if len(slot_allocation) != n_queries:
+            raise ValueError(
+                "merge_slot_allocation length "
+                f"{len(slot_allocation)} != query count {n_queries}"
+            )
+        if any(n < 0 for n in slot_allocation):
+            raise ValueError("merge_slot_allocation values must be non-negative")
+        if sum(slot_allocation) > top_k:
+            raise ValueError(
+                f"merge_slot_allocation sum {sum(slot_allocation)} exceeds top_k {top_k}"
+            )
+        for query_idx, reserved in enumerate(slot_allocation):
+            taken = 0
+            while taken < reserved and _take_next_unique(query_idx):
+                taken += 1
+
+    progressed = True
+    while progressed and len(chunks) < top_k:
+        progressed = False
+        for query_idx in range(n_queries):
+            if _take_next_unique(query_idx):
+                progressed = True
+                if len(chunks) >= top_k:
+                    break
+    return chunks, tuple(kept)
 
 
 def _has_source_doc(record: dict) -> bool:
@@ -881,6 +986,9 @@ STAKEHOLDER_COVERAGE_REQUIREMENTS: list[dict] = [
         "domain_pass_id": "ip_privacy",
         "doc_type": "IP Assignment / OSS Policy",
         "priority": "Medium",
+        # Shared ip_privacy pass also serves privacy. Privacy BAA/HIPAA hits
+        # must not classify empty ip_register as retrieved_no_terms.
+        "corpus_absent_if_unassessed": True,
     },
     {
         "item_id": "insurance",
@@ -1017,6 +1125,7 @@ class LegalContractsAgent(WorkstreamAgent):
         file_name_filter,
         min_chunk_length: int = 150,
         min_results: int = 3,
+        vs_metadata_filters: bool = False,
     ) -> "RouteResult":
         """Semantic search with filename-filter retry; always passes catalog=self._catalog (D3a).
 
@@ -1037,6 +1146,7 @@ class LegalContractsAgent(WorkstreamAgent):
             min_chunk_length=min_chunk_length,
             min_results=min_results,
             catalog=self._catalog,
+            vs_metadata_filters=vs_metadata_filters,
         )
         if used_fallback:
             step = len(self._trace) + 1
@@ -1061,29 +1171,50 @@ class LegalContractsAgent(WorkstreamAgent):
     def _domain_retrieve_pass(self, spark, pass_id: str) -> "ToolResult":  # noqa: F821
         """Run semantic retrieval for one domain pass using §5.6.3 budgets."""
         budget = _DOMAIN_PASS_BUDGETS[pass_id]
-        query = _DOMAIN_PASS_QUERIES[pass_id]
+        raw_query = _DOMAIN_PASS_QUERIES[pass_id]
+        queries = (raw_query,) if isinstance(raw_query, str) else tuple(raw_query)
         file_name_filter = budget["file_name_filter"]
         filter_preview = ", ".join(file_name_filter[:6])
         if len(file_name_filter) > 6:
             filter_preview += ", …"
 
         workstream_filter = budget.get("workstream_filter", ["LEGAL"])
-        chunks = self._semantic_search_with_fallback(
-            spark=spark,
-            query=query,
-            workstream_filter=workstream_filter,
-            top_k=budget["top_k"],
-            file_name_filter=file_name_filter,
-            min_chunk_length=budget["min_chunk_length"],
-        ).chunks
+        vs_metadata_filters = budget.get("vs_metadata_filters", False)
+        top_k = budget["top_k"]
+        per_query_hits: list[list] = [
+            self._semantic_search_with_fallback(
+                spark=spark,
+                query=query,
+                workstream_filter=workstream_filter,
+                top_k=top_k,
+                file_name_filter=file_name_filter,
+                min_chunk_length=budget["min_chunk_length"],
+                vs_metadata_filters=vs_metadata_filters,
+            ).chunks
+            for query in queries
+        ]
+        raw_allocation = budget.get("merge_slot_allocation")
+        slot_allocation = tuple(raw_allocation) if raw_allocation is not None else None
+        # Reserved-slot merge when the budget names merge_slot_allocation (C5
+        # Landed R9 / F-8); otherwise round-robin unique (single-query passes).
+        chunks, merged_slots = _merge_query_hits(
+            per_query_hits, top_k, slot_allocation
+        )
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         ws_preview = ",".join(workstream_filter)
+        alloc_note = ""
+        if slot_allocation is not None:
+            alloc_note = (
+                f" | merge_slot_allocation={list(slot_allocation)}"
+                f" | merged_slots={list(merged_slots)}"
+            )
         return self._tool_call(
             tool_name=f"domain_retrieve_{pass_id}",
             input_summary=(
-                f"pass={pass_id} | workstream={ws_preview} | top_k={budget['top_k']} | "
-                f"file_name_filter=[{filter_preview}]"
+                f"pass={pass_id} | workstream={ws_preview} | top_k={top_k} | "
+                f"queries={len(queries)} | file_name_filter=[{filter_preview}]"
+                f"{alloc_note}"
             ),
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
@@ -1478,16 +1609,51 @@ class LegalContractsAgent(WorkstreamAgent):
                 assessed_count += 1
                 continue
 
+            if req.get("corpus_absent_if_unassessed"):
+                self._add_gap(
+                    f"{item_id}: no {req['doc_type']} in corpus — corpus_absent"
+                )
+                self._unable_to_assess_items.append(req["display_name"])
+                self._recommended_diligence.append({
+                    "doc_type": req["doc_type"],
+                    "priority": req["priority"],
+                    "item_id": item_id,
+                })
+                self._add_flag(
+                    metric="corpus_absent",
+                    value=req["display_name"],
+                    threshold=req["doc_type"],
+                    severity="Yellow",
+                    note=(
+                        f"{req['display_name']} marked unable_to_assess — "
+                        f"corpus_absent; request {req['doc_type']}."
+                    ),
+                    source_doc="",
+                    confidence="high",
+                )
+                self._add_citation(
+                    claim=req["display_name"],
+                    document=req["doc_type"],
+                    location="assess_coverage_gaps",
+                    confidence="high",
+                    raw_text=(
+                        f"No {req['doc_type']} in retrieved corpus — corpus_absent."
+                    ),
+                )
+                continue
+
             pass_id = req["domain_pass_id"]
             chunk_count = pass_chunk_counts.get(pass_id, 0)
 
             if chunk_count >= 1:
-                self._add_gap(f"{item_id}: chunks retrieved but no extractable terms")
+                self._add_gap(
+                    f"{item_id}: chunks retrieved but no extractable terms — retrieved_no_terms"
+                )
                 self._unable_to_assess_items.append(req["display_name"])
             else:
                 self._add_gap(
                     f"{item_id}: no documents retrieved for {pass_id} pass — "
-                    f"request {req['doc_type']}"
+                    f"request {req['doc_type']} — no_chunks_retrieved"
                 )
                 self._unable_to_assess_items.append(req["display_name"])
                 self._recommended_diligence.append({

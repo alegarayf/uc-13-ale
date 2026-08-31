@@ -111,3 +111,35 @@ JOIN {catalog}.ops.retrieval_harness_runs r ON r.run_id = cur.run_id
 JOIN {catalog}.ops.retrieval_harness_results b
     ON b.run_id = r.baseline_ref_run_id AND b.intent_id = cur.intent_id
 WHERE r.baseline_ref_run_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION {catalog}.ops.canonical_company_slug(name STRING)
+RETURNS STRING
+RETURN
+  CASE
+    WHEN name IS NULL THEN '__unnormalizable__'
+    WHEN regexp_replace(
+      lower(regexp_replace(name, '[^A-Za-z0-9]+', '_')),
+      '^_+|_+$',
+      ''
+    ) = '' THEN '__unnormalizable__'
+    ELSE regexp_replace(
+      lower(regexp_replace(name, '[^A-Za-z0-9]+', '_')),
+      '^_+|_+$',
+      ''
+    )
+  END;
+
+CREATE OR REPLACE VIEW {catalog}.ops.baseline_complete_companies AS
+SELECT DISTINCT
+  {catalog}.ops.canonical_company_slug(company_name) AS company,
+  catalog
+FROM {catalog}.ops.retrieval_harness_latest_baseline;
+
+CREATE TABLE IF NOT EXISTS {catalog}.ops.e2e_linkage (
+    run_id STRING NOT NULL,
+    e2e_agent_id STRING NOT NULL,
+    e2e_snapshot_table STRING NOT NULL,
+    e2e_checklist_score INT NOT NULL,
+    e2e_checklist_total INT NOT NULL,
+    linked_at TIMESTAMP NOT NULL
+) USING DELTA;

@@ -2,16 +2,25 @@
 
 from __future__ import annotations
 
+import inspect
+from types import SimpleNamespace
+
 import pytest
 
 from agents.workstreams.legal_contracts_agent import (
     LegalContractsAgent,
     STAKEHOLDER_COVERAGE_REQUIREMENTS,
+    _DOMAIN_PASS_BUDGETS,
     _DOMAIN_PASS_IDS,
+    _DOMAIN_PASS_QUERIES,
     _eq_str,
     _is_not_found,
     _is_true,
+    _merge_query_hits,
     _merge_register_records,
+    _pred_founder,
+    _pred_ip,
+    _pred_privacy,
     _pred_restrictive,
     _reconcile_register_from_citations,
     _register_dedupe_key,
@@ -330,3 +339,228 @@ def test_compute_section_confidence_band_edges(
 ):
     agent._assessed_coverage_count = assessed_count
     assert agent._compute_section_confidence() == expected
+
+
+def _hits(prefix: str, n: int) -> list[SimpleNamespace]:
+    return [SimpleNamespace(chunk_id=f"{prefix}{i:02d}") for i in range(n)]
+
+
+def test_merge_query_hits_reserves_generic_slots_without_dropping_targeted():
+    """C5 Landed (R9): targeted hits survive the merge without starving the generic query.
+
+    F-8 mechanism: four unique-hit queries round-robin under top_k=24 keep 6 slots
+    each and drop generic ranks 6–23. Mutation: ignore ``merge_slot_allocation``
+    and round-robin instead — generic kept count falls to 6 and this assertion
+    fails.
+    """
+    budget = _DOMAIN_PASS_BUDGETS["contracts_vendors_platform"]
+    allocation = budget["merge_slot_allocation"]
+    top_k = budget["top_k"]
+    queries = _DOMAIN_PASS_QUERIES["contracts_vendors_platform"]
+    assert allocation == (14, 4, 3, 3)
+    assert top_k == 24
+    assert isinstance(queries, tuple) and len(queries) == 4
+    assert len(allocation) == len(queries)
+    assert sum(allocation) == top_k
+    assert budget.get("vs_metadata_filters", False) is False
+
+    generic = _hits("G", 24)
+    t4c = [SimpleNamespace(chunk_id="G05")] + _hits("T", 8)
+    coc = _hits("C", 8)
+    platform = _hits("P", 8)
+    per_query = [generic, t4c, coc, platform]
+
+    starved_chunks, starved_kept = _merge_query_hits(per_query, top_k, None)
+    assert starved_kept[0] == 6
+    assert all(kept >= 1 for kept in starved_kept[1:])
+    assert len(starved_chunks) == top_k
+
+    chunks, kept = _merge_query_hits(per_query, top_k, allocation)
+    assert kept == (14, 4, 3, 3)
+    ids = [chunk.chunk_id for chunk in chunks]
+    assert ids[:14] == [f"G{i:02d}" for i in range(14)]
+    assert "G05" in ids[:14]
+    assert ids[14:18] == [f"T{i:02d}" for i in range(4)]
+    assert ids[18:21] == [f"C{i:02d}" for i in range(3)]
+    assert ids[21:24] == [f"P{i:02d}" for i in range(3)]
+    assert "G05" not in ids[14:]
+
+    retrieve_src = inspect.getsource(LegalContractsAgent._domain_retrieve_pass)
+    assert "_merge_query_hits" in retrieve_src
+    assert 'budget.get("merge_slot_allocation")' in retrieve_src
+    helper_src = inspect.getsource(_merge_query_hits)
+    assert "slot_allocation" in helper_src
+
+
+# --- T3: employment/ip_privacy retrieval-query fix (item 2) ---------------
+
+
+def _domain_pass_queries_as_tuple(pass_id: str) -> tuple[str, ...]:
+    raw_query = _DOMAIN_PASS_QUERIES[pass_id]
+    return (raw_query,) if isinstance(raw_query, str) else tuple(raw_query)
+
+
+def test_all_domain_passes_with_slot_allocation_match_query_count():
+    """Falsifier for config drift: any pass declaring merge_slot_allocation
+    must have an allocation tuple whose length matches its query tuple length
+    and whose sum does not exceed top_k. This guards against exactly the class
+    of bug this subtask introduces — two independently-edited dicts
+    (_DOMAIN_PASS_QUERIES, _DOMAIN_PASS_BUDGETS) drifting out of sync. Mutation-
+    checked: temporarily lengthening employment's merge_slot_allocation to a
+    3-tuple while its query tuple stayed length 2 made this assertion fail;
+    reverted after confirming the failure."""
+    for pass_id, budget in _DOMAIN_PASS_BUDGETS.items():
+        allocation = budget.get("merge_slot_allocation")
+        if allocation is None:
+            continue
+        queries = _domain_pass_queries_as_tuple(pass_id)
+        assert len(allocation) == len(queries), f"{pass_id}: allocation/query count drift"
+        assert sum(allocation) <= budget["top_k"], f"{pass_id}: allocation exceeds top_k"
+
+
+def test_employment_budget_reserves_founder_query_slots():
+    """founder/privacy items were reading retrieved_no_terms because the single
+    generic employment query never surfaced Kate Marks Restricted Stock /
+    Stock Transfer chunks within its ANN window (live warehouse check on
+    Elder Care's latest analysis.legal row, T3 diagnostic step). Employment
+    is now a 2-query pass with a founder-targeted second query and reserved
+    merge slots."""
+    budget = _DOMAIN_PASS_BUDGETS["employment"]
+    queries = _domain_pass_queries_as_tuple("employment")
+    allocation = budget["merge_slot_allocation"]
+    assert len(queries) == 2
+    assert allocation == (7, 3)
+    assert sum(allocation) == budget["top_k"]
+    founder_query = queries[1].lower()
+    assert "founder" in founder_query
+    assert "restricted stock" in founder_query
+    assert "stock transfer" in founder_query
+
+
+def test_ip_privacy_budget_reserves_confidentiality_query_slots():
+    """Same defect class for privacy: internal HIPAA confidentiality / employee
+    non-disclosure / HIPAA-release docs were filename-matched but starved out
+    of the generic BAA-weighted query's ANN window (live warehouse check:
+    only 4 of 4+ privacy_security_register-eligible docs retrieved, one short
+    of score_legal's len>=5 pass threshold). ip_privacy is now a 2-query pass
+    with a confidentiality-targeted second query and reserved merge slots."""
+    budget = _DOMAIN_PASS_BUDGETS["ip_privacy"]
+    queries = _domain_pass_queries_as_tuple("ip_privacy")
+    allocation = budget["merge_slot_allocation"]
+    assert len(queries) == 2
+    assert allocation == (5, 3)
+    assert sum(allocation) == budget["top_k"]
+    confidentiality_query = queries[1].lower()
+    assert "hipaa confidentiality" in confidentiality_query
+    assert "non-disclosure" in confidentiality_query
+
+
+def test_pred_founder_requires_founder_key_agreement_class():
+    """founder predicate still gates strictly on agreement_class=='founder_key'
+    with a non-empty source_doc — the retrieval fix does not loosen this."""
+    merged_no_founder = {
+        "employment_register": [
+            {"agreement_class": "employee", "source_doc": "Batistil Contract Agreement 2025.pdf"},
+        ],
+    }
+    assert _pred_founder(merged_no_founder) is False
+
+    merged_with_founder = {
+        "employment_register": [
+            {"agreement_class": "employee", "source_doc": "Batistil Contract Agreement 2025.pdf"},
+            {"agreement_class": "founder_key", "source_doc": "Kate Marks Restricted Stock.pdf"},
+        ],
+    }
+    assert _pred_founder(merged_with_founder) is True
+
+    merged_founder_no_source = {
+        "employment_register": [
+            {"agreement_class": "founder_key", "source_doc": ""},
+        ],
+    }
+    assert _pred_founder(merged_founder_no_source) is False
+
+
+def test_pred_privacy_passes_on_any_single_sourced_row():
+    """_pred_privacy (agent-side 'assessed') passes on any single row with a
+    source_doc — score_legal's G1 rubric (len>=5) is a stricter, separate
+    threshold documented in the packet; the two are allowed to diverge."""
+    assert _pred_privacy({"privacy_security_register": []}) is False
+    assert _pred_privacy(
+        {"privacy_security_register": [{"source_doc": "dropbox_hipaa_agreement.pdf"}]}
+    ) is True
+
+
+# --- T5: ip_register unable_to_assess / corpus_absent reroute (item 5) -----
+
+
+def test_pred_ip_requires_sourced_ip_register_row():
+    """_pred_ip stays any sourced ip_register row — T5 does not loosen it."""
+    assert _pred_ip({"ip_register": []}) is False
+    assert _pred_ip({"ip_register": [{"source_doc": ""}]}) is False
+    assert _pred_ip({"ip_register": [{"source_doc": "IP Assignment.pdf"}]}) is True
+
+
+def test_ip_coverage_entry_pins_display_and_corpus_absent_reroute():
+    ip_req = next(req for req in STAKEHOLDER_COVERAGE_REQUIREMENTS if req["item_id"] == "ip")
+    assert ip_req["display_name"] == "IP ownership, assignment, OSS"
+    assert ip_req["domain_pass_id"] == "ip_privacy"
+    assert ip_req["assessed_predicate"] is _pred_ip
+    assert ip_req.get("corpus_absent_if_unassessed") is True
+
+
+def test_ip_unable_to_assess_fallback_when_register_empty(agent: LegalContractsAgent):
+    """Characterization: empty ip_register + shared ip_privacy chunks fires
+    unable_to_assess_json with a corpus_absent rationale in flags/citations.
+
+    Elder Care shape from T3's live diagnostic: ip_privacy=4 (privacy BAAs)
+    while ip_register is empty. Shared-pass chunk_count>=1 must not classify
+    IP as retrieved_no_terms.
+    """
+    pass_chunk_counts = _zero_pass_chunk_counts()
+    pass_chunk_counts["ip_privacy"] = 4
+    merged = {
+        **_EMPTY_MERGED,
+        "privacy_security_register": [
+            {"source_doc": "dropbox_hipaa_agreement.pdf", "obligation_type": "BAA"}
+        ],
+    }
+    agent._assess_coverage_gaps(merged, pass_chunk_counts, None)
+
+    assert "IP ownership, assignment, OSS" in agent._unable_to_assess_items
+    assert "Data privacy / security obligations" not in agent._unable_to_assess_items
+    gap_text = " ".join(agent._data_room_gaps)
+    assert "ip: no IP Assignment / OSS Policy in corpus — corpus_absent" in gap_text
+    assert "ip: chunks retrieved but no extractable terms" not in gap_text
+    flag = next(f for f in agent._flags if f.metric == "corpus_absent")
+    assert flag.value == "IP ownership, assignment, OSS"
+    assert "corpus_absent" in flag.note
+    cites = agent._citations_as_dicts()
+    assert any("corpus_absent" in (c.get("raw_text") or "") for c in cites)
+    assert any(row["item_id"] == "ip" for row in agent._recommended_diligence)
+
+
+def test_ip_unable_to_assess_fallback_skipped_when_register_sourced(
+    agent: LegalContractsAgent,
+):
+    """Falsifier for the corpus_absent guard: a sourced ip_register row must
+    not enter _unable_to_assess_items and must not emit the corpus_absent
+    flag. Mutation-checked: firing the corpus_absent branch before the
+    assessed_predicate skip made this assertion fail; reverted after.
+    """
+    pass_chunk_counts = _zero_pass_chunk_counts()
+    pass_chunk_counts["ip_privacy"] = 4
+    merged = {
+        **_EMPTY_MERGED,
+        "ip_register": [
+            {
+                "ip_type": "assignment",
+                "ownership_assignment_note": "work product assigns to company",
+                "source_doc": "IP Assignment.pdf",
+            }
+        ],
+    }
+    agent._assess_coverage_gaps(merged, pass_chunk_counts, None)
+    assert "IP ownership, assignment, OSS" not in agent._unable_to_assess_items
+    assert all(f.metric != "corpus_absent" for f in agent._flags)
+    assert all(row["item_id"] != "ip" for row in agent._recommended_diligence)

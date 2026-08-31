@@ -1,0 +1,399 @@
+schema_version: 1
+open_debt_high_water_mark: 14
+debts:
+- id: clearsulting:global:promotion_inputs
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: promotion_inputs
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  closes_when: per-company golden checklists scored and pipeline run_ids recorded
+    for all agents (registry:OI-eval-harness-evaluate-promotion-clearsulting-gkf-spg)
+  closed_at: '2026-08-24'
+  closed_evidence_refs:
+  - eval/BMA/golden_checklist_clearsulting.md
+  - eval/CQA/golden_checklist_clearsulting.md
+  - eval/KPI/golden_checklist_clearsulting.md
+  - eval/QOE/golden_checklist_clearsulting.md
+  - eval/LCA/golden_checklist_clearsulting.md
+  - eval/PROFILER/golden_checklist_clearsulting.md
+  - 6e1b4f5d95284b33bbd08942b3595dd6
+  - .dev/plans/eval-signal-foldback-m5-checklists-clearsulting/changelogs/T5.md
+- id: elder_care:global:no_citation_source_provenance_loss
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: no_citation_source_provenance_loss
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:elder_care:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/escalations/ESC-M4-1-rb-defect-t9-1-gold-corpus.md
+  - .dev/specs/eval-consolidation-program/eval_consolidation_program_milestone_charter.md
+  closes_when: gold_exclusions.yaml is company-scoped and Elder Care three no_citation_source
+    annotations restored (kpi.retrieve_bill_rates_and_margins, kpi.retrieve_headcount_attrition,
+    kpi.retrieve_pipeline_backlog)
+  closed_at: '2026-08-14'
+  closed_evidence_refs:
+  - .dev/specs/eval-consolidation-program/eval_consolidation_program_milestone_charter.md#Amendment-A5
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/changelogs/T13.md
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/elder_care.yaml
+- id: clearsulting:global:bloated_fc_cqa_retrieve_revenue_type_and_renewals
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_cqa_retrieve_revenue_type_and_renewals
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: cqa.retrieve_revenue_type_and_renewals gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1273 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_fta_ebitda_q1_financial_statements
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_fta_ebitda_q1_financial_statements
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: fta.ebitda.q1_financial_statements gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1262 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_fta_opex_q1_financial_statements
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_fta_opex_q1_financial_statements
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: fta.opex.q1_financial_statements gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1262 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_fta_revenue_q1_financial_statements
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_fta_revenue_q1_financial_statements
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: fta.revenue.q1_financial_statements gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1262 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_kpi_retrieve_delivery_model
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_kpi_retrieve_delivery_model
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: kpi.retrieve_delivery_model gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1085 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_cqa_retrieve_customer_tenure
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_cqa_retrieve_customer_tenure
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: cqa.retrieve_customer_tenure gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_profiler_banked_vs_nonbanked
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_profiler_banked_vs_nonbanked
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: profiler.banked_vs_nonbanked gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_profiler_business_description
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_profiler_business_description
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: profiler.business_description gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_profiler_deal_type
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_profiler_deal_type
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: profiler.deal_type gold re-bootstrapped with citation_backfill or aggregate_exclude
+    (no_citation_source) yielding interpretable recall@10 — not filename_closure with
+    1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_profiler_industry_overlay
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_profiler_industry_overlay
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: profiler.industry_overlay gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_profiler_revenue_model
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_profiler_revenue_model
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: profiler.revenue_model gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: clearsulting:global:bloated_fc_profiler_vertical_subsector
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: bloated_fc_profiler_vertical_subsector
+  opened_at: '2026-08-14'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - .dev/plans/eval-consolidation-m4-onboarding-runbook/signoffs/T11-clearsulting-bloated-gold-disposition.md
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+  closes_when: profiler.vertical_subsector gold re-bootstrapped with citation_backfill
+    or aggregate_exclude (no_citation_source) yielding interpretable recall@10 — not
+    filename_closure with 1082 positives
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - eval/retrieval/gold_labels/clearsulting.yaml
+  - run_id:141001781333770
+  - registry:GAP-M4-1-clearsulting-bloated-filename-closure
+- id: elder_care:global:post_m4_harness_baseline_corpus_drift
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: post_m4_harness_baseline_corpus_drift
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:elder_care:retrieval:null
+  - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  closes_when: fresh harness baseline stored in uc13_ale.ops with ingestion_snapshot
+    uc13_ale:55812:2026-08-19+ or later; trust_statement retrieval row regenerated;
+    mean MRR comparable only to post-M4 cohort
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - baseline_2fa3a9056bd0
+  - eval/retrieval/reports/baseline_2fa3a9056bd0.json
+  - eval/program/trust_statement.md
+  - .dev/wave1.6-remediation-2026-08-19/phase1-validation.md
+  - .dev/wave1.6-remediation-2026-08-19/manifest.md
+- id: spg:global:post_m4_corpus_dedup_baseline_stale
+  company: spg
+  surface: null
+  layer: retrieval
+  kind: post_m4_corpus_dedup_baseline_stale
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:spg:retrieval:null
+  - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  closes_when: harness baseline baseline_0ec50347353a superseded by post-dedup run
+    on uc13_ale:44038+ corpus; gold ingestion_snapshot reconciled to live chunk count;
+    per-intent recall@10 interpretable
+  closed_at: '2026-08-20'
+  closed_evidence_refs:
+  - .dev/specs/eval-signal-foldback/spec.md#D7
+  - live SELECT count(*) FROM uc13_ale.ingestion.chunks WHERE company_name='SPG' -> 44038 (D7 falsification,
+    Phase 2 cycle 1; 8 consecutive SPG harness runs also report 44038, never 44085)
+  - .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/g1_SPG.log
+  - baseline_3992534e412f
+- id: gkf:global:post_m4_harness_baseline_corpus_drift
+  company: gkf
+  surface: null
+  layer: retrieval
+  kind: post_m4_harness_baseline_corpus_drift
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:gkf:retrieval:null
+  - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  closes_when: harness baseline baseline_4e098a2a2252 superseded by post-M4 run with
+    ingestion_snapshot uc13_ale:3107:2026-08-19+; bloated filename_closure intents
+    disposition unchanged until separate T11-style pass
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - baseline_7510d1d14449
+  - eval/retrieval/gold/gold_exclusions.yaml
+  - registry:GAP-M5-2-gkf-bloated-filename-closure
+  - .dev/wave1.6-remediation-2026-08-19/gkf-bloat-remediation.md
+  - .dev/wave1.6-remediation-2026-08-19/manifest.md
+- id: clearsulting:global:post_m4_harness_baseline_corpus_drift
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: post_m4_harness_baseline_corpus_drift
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:clearsulting:retrieval:null
+  - registry:OI-eval-harness-post-m4-retrieval-baseline-refresh
+  - .dev/company-analysis-diff-pre-vs-post-refactor.md
+  closes_when: harness baseline baseline_7174e0399e29 superseded by post-M4 run on
+    uc13_ale:2417:2026-08-19+ corpus after optional harness re-compare noted deferred
+    in GAP-M4-1 closeout
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - baseline_488f70f13570
+  - .dev/wave1.6-remediation-2026-08-19/clearsulting.md
+  - .dev/wave1.6-remediation-2026-08-19/manifest.md
+- id: elder_care:global:corpus_encoding_defect
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: corpus_encoding_defect
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:elder_care:retrieval:null
+  closes_when: All affected gold_labels YAML (elder_care, clearsulting, and any re-bootstrap
+    cohort) validate as UTF-8 with zero raw 0x97 bytes; em dashes in bootstrap notes
+    use U+2014 (UTF-8 E2 80 94); confirmed by byte scan of local and workspace copies
+    post serial bootstrap; ingestion.chunks remains clean (no char(151))
+  closed_at: '2026-08-19'
+  closed_evidence_refs:
+  - .dev/wave1.6-remediation-2026-08-19/phase1-validation.md
+  - .dev/wave1.6-remediation-2026-08-19/clearsulting.md
+  - baseline_2fa3a9056bd0
+  - baseline_488f70f13570
+- id: elder_care:global:g1_legal_score_regression
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: g1_legal_score_regression
+  opened_at: '2026-08-19'
+  evidence_refs:
+  - trust:elder_care:retrieval:null
+  - registry:GAP-103-legal-score-variance-r-2
+  - .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/g1_Elder_Care.log
+  - .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/manifest.md
+  closes_when: Fresh G1 Legal checklist score (run_id 766487529692196, 2026-08-19) on a subsequent e2e run recovers to
+    >=9/11 (BASELINES['elder_care']['legal'] floor per .dev/g1_score_all_agents.py),
+    or the regression is root-caused (per-item diff vs .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/g1_Elder_Care.log
+    run 766487529692196) and either fixed, or re-ratified as an accepted variance
+    via a registry entry explicitly superseding GAP-103-legal-score-variance-r-2's
+    7/11 threshold
+  closed_at: '2026-08-26'
+  closed_evidence_refs:
+  - registry:GAP-103-legal-score-variance-r-3
+  - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/g1_score_m8_elder_care.txt

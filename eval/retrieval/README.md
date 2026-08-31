@@ -15,13 +15,59 @@ pytest eval/retrieval/tests/
 
 Frozen organic slice: `fixtures/elder_care_slice.json` (`EvalFixtureSlice`). Chunk rows are copied from `uc13_ale` at export time; pytest mocks VS/embed only — it does not invent corpus text.
 
+**Slice population (pinned):** three `citation_backfill` / `ready` intents — `fta.opex.q3_projected_financials`, `legal.contracts_vendors_platform`, `cqa.retrieve_customer_concentration`. The fixture tracks post-T4 gold (`uc13_ale:55812:2026-08-11`); do not embed `35104`-epoch ids or snapshot strings.
+
+## CI fixture refresh policy (spec item 19)
+
+**Trigger:** every gold/corpus change — i.e. each §15.3 re-baseline event (gold refresh, ingestion rebuild, or committed `elder_care.yaml` change that alters slice intent positives).
+
+**Procedure (operator-run — never CI):**
+
+1. Confirm upstream gold is committed and slice intents remain `citation_backfill` / `ready`.
+2. Regenerate from laptop (warehouse SQL via `databricks-sdk`):
+
+```bash
+python -m eval.retrieval.scripts.refresh_elder_care_slice
+```
+
+Dry-run (validate resolution without writing):
+
+```bash
+python -m eval.retrieval.scripts.refresh_elder_care_slice --dry-run
+```
+
+3. Eyeball the diff — chunk ids, `ingestion_snapshot`, and `mock_vs_scores` keys should move with gold; chunk previews should be organic text, not placeholders.
+4. Commit the refreshed `fixtures/elder_care_slice.json` and record evidence in `signoffs/T9-slice-refresh.md` (or the active plan signoff path).
+
+**Guard:** `eval/retrieval/tests/test_elder_care_slice_fixture.py` — especially `test_elder_care_slice_ready_intents_match_committed_gold` — is the CI falsifier. A red fixture test after gold change means run the refresh script; do not hand-edit ids.
+
+**M1 mandatory regen (2026-08-11):** T9 unconditional refresh after T4/T5 gold epoch — the prior `35104`-epoch fixture dangled ~98% of ids with the 2026-08-05 corpus rebuild. Future regenerations follow the drift-conditional policy above unless a plan explicitly mandates unconditional regen.
+
+**Out of scope:** `company_slug_vectors.yaml` — re-pinned at ESC-T2-1; verify parity only, do not regenerate blindly.
+
 ## Cluster baseline runbook (Elder Care / `uc13_ale`)
 
 Run once per Cell 7 ingestion rebuild or retrieval code change. Charter exit gate G2 (VS `company_name` pushdown) is verified during setup.
 
 **Workspace catalog:** Elder Care baseline uses **`uc13_ale` for everything** — corpus, VS index, gold labels, **and** ops tables (`uc13_ale.ops.*`). The program charter examples use `uc13.ops` for a shared merge target; keep ops in `uc13_ale` until you promote upstream.
 
-**Active baseline pin (2026-07-16):** `baseline_1aeb0ace584a` per `retrieval_harness_latest_baseline` (alternate stability twin: `baseline_813d0dd1b188`). Supersedes M-RE3 `baseline_299063e87806` after `legal.insurance` registry fix — do not cross-compare across registry versions (`RegistryHashMismatchError`).
+**Comparison epoch (M1 / 2026-08-11 — charter Amendment A2):** **`baseline_acf58bcc4968`** at `ingestion_snapshot=uc13_ale:55812:2026-08-11` (55,812 Elder Care chunks; gold refresh event §15.3). This opens a **new comparison epoch** — never cross-compare against `35104`-epoch baselines as a live premise (`compare()` / `validate_baseline_ref` raises `IngestionSnapshotMismatchError`). **Archival only:** `baseline_3831adf97292`, `baseline_544eb3f2a0e2`, and all pre-2026-08-05 pins.
+
+**Historical baseline pin (2026-07-16, superseded):** `baseline_1aeb0ace584a` per `retrieval_harness_latest_baseline` (alternate stability twin: `baseline_813d0dd1b188`). Supersedes M-RE3 `baseline_299063e87806` after `legal.insurance` registry fix — do not cross-compare across registry versions (`RegistryHashMismatchError`).
+
+### M1 gold refresh + re-baseline (§15.3 event record)
+
+| Field | Value |
+|---|---|
+| Event | Full-57 gold refresh (T4) + new harness baseline (T5) |
+| Date | 2026-08-11 |
+| `ingestion_snapshot` | `uc13_ale:55812:2026-08-11` |
+| Gold commit | `eval/retrieval/gold_labels/elder_care.yaml` (52 ready/partial + 5 annotated exclusions) |
+| New baseline id | `baseline_acf58bcc4968` |
+| Zero-drift smoke | Within-epoch enhancement re-run vs `baseline_acf58bcc4968` → `max_abs_delta=0` |
+| Cross-epoch guard | `validate_baseline_ref(..., baseline_3831adf97292)` → `IngestionSnapshotMismatchError` |
+
+**Epoch rule:** Baseline comparisons and enhancement/ablation `baseline_ref_run_id` pins must share the same `ingestion_snapshot` as the active gold. Operator promotion of `retrieval_harness_latest_baseline` to the new id is a separate step (not required for repo-pinned JSON baseline).
 
 ### 1. Upstream preconditions (§5.15)
 
@@ -215,7 +261,7 @@ After the run, copy stdout into the job log or PR notes and update the matrix ce
 
 </details>
 
-**T2 gate:** OPEN — all three dimensions `pass`; T2 may implement `workstream` and `priority_tier` VS metadata filter pushdown.
+**T2 gate:** **DECIDED OFF** (M-PHV4 PG5 fail, 2026-07-15) — `vs_metadata_filters` default stays `False`. Attestation: `.dev/attestations/m-phv4-r02-vs-metadata-filters-ab-elder-care-2026-07-15.md`. Probe results below are **historical evidence** only; T2 VS metadata filter pushdown is not in scope.
 
 ### Pass/fail matrix
 
@@ -249,7 +295,7 @@ from eval.retrieval.harness import EvalHarness
 from eval.retrieval.store import DeltaEvalStore
 
 CATALOG = "uc13_ale"
-harness = EvalHarness()
+harness = EvalHarness(company_slug="elder_care")
 store = DeltaEvalStore(spark, catalog=CATALOG)
 
 report = harness.run(
@@ -364,7 +410,7 @@ from eval.retrieval.store import DeltaEvalStore
 
 CATALOG = "uc13_ale"
 BASELINE_REF = "baseline_1aeb0ace584a"  # M-PHV4 post-consolidation (promoted 2026-07-15)
-harness = EvalHarness()
+harness = EvalHarness(company_slug="elder_care")
 store = DeltaEvalStore(spark, catalog=CATALOG)
 
 for arm in ("merge_rank_on", "merge_rank_off", "sim_only", "tier_only"):
@@ -480,7 +526,7 @@ from eval.retrieval.harness import EvalHarness
 from eval.retrieval.store import DeltaEvalStore
 
 CATALOG = "uc13_ale"
-harness = EvalHarness()
+harness = EvalHarness(company_slug="elder_care")
 store = DeltaEvalStore(spark, catalog=CATALOG)
 
 report = harness.run(
@@ -808,6 +854,25 @@ FROM uc13_ale.ops.retrieval_harness_runs
 WHERE run_id = '<pipeline_agent_run_id>';
 ```
 
+**Append-only history (`uc13_ale.ops.e2e_linkage`).** Delta writes dual-record linkage: the manifest columns above stay on `retrieval_harness_runs` (G3 evidence reads them), and each first-time linkage appends a row to `ops.e2e_linkage` with the same score fields plus `linked_at` (idempotent per `run_id` + `e2e_agent_id` — re-invocation updates the manifest only). Query the golden five (BMA, CQA, KPI, QoE, Profiler) via the history table:
+
+```sql
+SELECT e2e_agent_id, COUNT(*) AS linked_runs
+FROM uc13_ale.ops.e2e_linkage
+WHERE e2e_agent_id IN ('bma', 'cqa', 'kpi', 'qoe', 'profiler')
+GROUP BY e2e_agent_id
+ORDER BY e2e_agent_id;
+```
+
+Backfill existing history once (idempotent):
+
+```sql
+-- emitted by record_e2e_linkage.backfill_e2e_linkage on DeltaEvalStore
+-- or run the INSERT … SELECT from signoffs/T10-e2e-linkage.md
+```
+
+SQLite/local dev (`--store-backend sqlite`) updates manifests only — no `ops.e2e_linkage` row (documented exception).
+
 #### Promotion gate invocation (BMA, CQA, KPI, QoE, Profiler)
 
 For BMA, CQA, KPI, QoE, and Profiler, link golden-checklist scores via **`evaluate_promotion`** — a **Python library call** with **no CLI wrapper** (M3 Decision M3-B; this milestone does not add one). On promoting outcomes (`baseline_bootstrap`, `promoted`, `promotion_waived`), the gate calls `record_e2e_linkage` internally; FTA/Legal continue to call `record_e2e_linkage` directly (bash examples above).
@@ -1103,4 +1168,5 @@ If the numeric bar fails **or** sign-off is `fail`, record the diff and verdict 
 | `python -m eval.retrieval.harness_cli run ...` | Harness execution |
 | `python -m eval.retrieval.harness_cli validate-baseline ...` | Preflight baseline_ref checks |
 | `python -m eval.retrieval.scripts.sync_eval_store --run-id <id> --direction sqlite_to_delta` | SQLite → Delta promotion |
+| `python -m eval.retrieval.scripts.refresh_elder_care_slice` | Regenerate `fixtures/elder_care_slice.json` from committed gold + live chunks (operator-run) |
 | `python -m eval.retrieval.scripts.record_e2e_linkage --run-id <id> --e2e-agent-id fta --e2e-checklist-score <n> ...` | Link FTA E2E checklist to pipeline manifest |

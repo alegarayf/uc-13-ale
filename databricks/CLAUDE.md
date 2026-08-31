@@ -299,8 +299,9 @@ Sparse-page detection in `parse_pdf()` automatically flags pages inside a financ
 The base class default is `max_tokens=12_000`. Agents with especially large extraction schemas should pass an explicit override. The assessment narrative LLM call is a separate invocation and has its own `max_tokens` (6,000). Never rely on the default for production agents — set it explicitly in each `_call_llm()` call so truncation budget is visible at the call site.
 
 **Serving read timeout ≈ 120s — single calls must finish under it.** The Databricks serving read timeout is ~120s per request (not reliably raised by env vars). A ~12K-token Sonnet generation completes under it; **~16K does not** and dies with `TimeoutError: Timed out after 0:10:00` (retries until the 10-min budget). Consequences:
-- **BMA extraction is split into TWO bounded passes** (`business_model_agent.py`): commercial fields and organizational fields, each `max_tokens=8_000`, combined by taking each group's fields from its own pass. Do not collapse it back to a single 16K call. This is the FTA sub-agent pattern applied to BMA.
-- If any other agent's single extraction grows past ~12K output, split it the same way rather than raising `max_tokens`.
+- **BMA extraction — C36 single call below threshold; C37 two-pass fallback above it.** Default / normal-size rooms stay on the landed C36 path: one `_call_llm(_SYSTEM_PROMPT, …, max_tokens=8_000)` over the full unbounded `combined_chunk_text`, with `executive_summary` first in the skeleton. When `len(combined_chunk_text) > _TWO_PASS_CONTEXT_CHARS` (`40_000`, first-cut pending calibration via `RunCard.bma_context_chars`), C37 (2026-08-25, operator-authorized) splits **output only** into two `max_tokens=8_000` calls over the **same full unbounded** input (commercial vs organizational field groups mirroring the 8 retrieval-tool boundaries), then merges. This is not input-context bounding and not an unconditional default. **Do not raise `max_tokens` above 8_000 on either call; do not add a third call or continuation loop; do not edit `agent_base.py` to “fix” BMA.**
+- **History (2026-08-18, superseded in scope by C37):** a two-pass split with *bounded/capped* input (CIM → Tier 1 → other, 90K-char budget) was proposed on Hector's CIM-Rainmaker branch and **rejected by Ale** on a smaller / non-vision Elder Care comparison — quality loss (`overlay_conflict_evidence`) and noise (`key_executives` misclassification) for no token/latency win. That test did **not** cover Arm-A-scale rooms (`uc13_ale` Elder Care 55,819 chunks). Post-C36 Arm A `833694093064269` then showed 8K clears the serving floor but cannot complete the schema on that context. Standing record: `.dev/merge-decisions.md` (2026-08-25 supersedes 2026-08-18; do not delete the 2026-08-18 entry). Decision log: `.dev/plans/cim-vs-full-vdr-fair-experiment/decisions/T3-bis-c37.md`.
+- If any **other** agent's single extraction grows past ~12K output, consider splitting it (the FTA sub-agent pattern is the precedent) rather than raising `max_tokens`. BMA's split is the C37 gated fallback only — do not copy it as a general default.
 
 ### Assessment generators — `flags` is a JSON STRING column
 
@@ -463,6 +464,29 @@ Goal: prove Cell 7 stops the notebook on a fatal sync path with the exact stdout
 If observed cluster behavior diverges from this runbook (missing stdout substrings, exception swallowed, job reports success despite `IndexSyncError`, or DLT states other than `FAILED`/`CANCELED` that should halt), **do not silently reinterpret the exit gate as passed**. Re-open the underlying fix via the charter's amendment path (`.dev/specs/pipeline/uc13_pipeline_hardening_milestone_charter.md` §7 escalation ladder). This runbook was derived from static code reading and unit tests, not from an automated cluster execution in CI.
 
 **Out of scope for this checkpoint:** deploying or exercising `uc13_ingestion_pipeline.yml` (M-PHV3). Notebook-only operator discipline is the current enforcement mechanism.
+
+---
+
+## Eval harness cluster execution (spec §15.7 / item 11a)
+
+Local machines have no `pyspark`. Eval harness runs with `--store-backend delta` and cluster-side gold rebootstrap both require remote execution.
+
+### Upload-then-submit (one-off / eval scripts)
+
+Use the SDK **upload-then-submit** pattern — do not assume workspace files track git automatically:
+
+1. `load_dotenv()` from repo root; connect with explicit `WorkspaceClient(host=..., token=...)` (the SDK does not auto-discover `DATABRICKS_SERVER_HOSTNAME`).
+2. Upload the local script via `workspace.import_` (base64 content, `overwrite=True`) — see `import_text_file()` in `.dev/scripts/t2_databricks_submit.py`.
+3. Submit a serverless Python task with `jobs.submit()` + `SparkPythonTask(python_file=...)` — see `submit_python()` in the same helper.
+4. Poll `jobs.get_run()` until `TERMINATED`; fetch logs via `jobs.get_run_output()`.
+
+**Canonical helper:** `.dev/scripts/t2_databricks_submit.py` (also referenced from `.dev/agent-databricks-recipes.md`). **Live verification:** M1 T1 signoff `signoffs/T1-entry-11a.md` — run `834151860276843`, stdout `T2_PING_OK`.
+
+Typical eval commands submitted this way: `python -m eval.retrieval.harness_cli run --store-backend delta --run-type baseline --company-name "Elder Care" --catalog uc13_ale` (T4) and gold-bootstrap cluster runs (T2).
+
+### Standing jobs (VDR / workflow YAML)
+
+For jobs backed by a **Databricks Git folder** (e.g. VDR Diligence Pipeline `617196299594076`), code does **not** update from local upload. Ship changes by: **push to git**, then `databricks repos update <repo_id> --branch <branch>`. The job's `git_source` block is dead config — the Git folder checkout is the live code source (see VDR pipeline section above).
 
 ---
 

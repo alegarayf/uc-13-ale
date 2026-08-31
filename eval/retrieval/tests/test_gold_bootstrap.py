@@ -13,19 +13,30 @@ from eval.retrieval.errors import PreconditionError
 from eval.retrieval.gold.bootstrap import (
     BASIS_NEGATIVE_SECTION_PATTERNS,
     GoldLabelBootstrap,
+    _resolved_output_path,
+    _tabs_matching_excel_candidate,
+    build_parser,
     format_ingestion_snapshot,
+    load_gold_exclusions,
     load_gold_labels,
     load_registry,
+    main,
     validate_ingestion_snapshot_consistency,
     write_gold_labels,
 )
-from eval.retrieval.models import GoldLabel, RetrievalIntent
+from eval.retrieval.harness import default_gold_path
+from eval.retrieval.models import EXCLUDE_REASON_VOCABULARY, GoldLabel, RetrievalIntent
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REGISTRY_PATH = REPO_ROOT / "eval" / "retrieval" / "intent_registry.yaml"
 GOLD_PATH = REPO_ROOT / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
 GOLD_COUNTS_PATH = REPO_ROOT / "eval" / "retrieval" / "fixtures" / "gold_positive_counts.yaml"
-INGESTION_SNAPSHOT = "uc13_ale:35104:2026-07-30"
+GOLD_EXCLUSIONS_PATH = REPO_ROOT / "eval" / "retrieval" / "gold" / "gold_exclusions.yaml"
+EXPECTED_READY_PARTIAL_COUNT = 52
+EXPECTED_AGGREGATE_EXCLUDE_COUNT = 5
+INGESTION_SNAPSHOT = "uc13_ale:55812:2026-08-11"
+SNAPSHOT_INGESTION_DATE = date(2026, 8, 11)
+SNAPSHOT_CHUNK_COUNT = 55812
 
 
 class MockSpark:
@@ -69,7 +80,7 @@ def _sample_intent(intent_id: str, **overrides) -> RetrievalIntent:
 @pytest.fixture
 def mock_spark_handlers() -> dict[str, list[dict]]:
     return {
-        "COUNT(*) AS chunk_count": [{"chunk_count": 35104}],
+        "COUNT(*) AS chunk_count": [{"chunk_count": SNAPSHOT_CHUNK_COUNT}],
         "analysis.financial_trends": [
             {
                 "citations": (
@@ -99,16 +110,57 @@ def mock_spark_handlers() -> dict[str, list[dict]]:
 
 def test_format_ingestion_snapshot_normative():
     assert (
-        format_ingestion_snapshot("uc13_ale", 35104, date(2026, 7, 30))
+        format_ingestion_snapshot("uc13_ale", SNAPSHOT_CHUNK_COUNT, SNAPSHOT_INGESTION_DATE)
         == INGESTION_SNAPSHOT
     )
+
+
+def test_excel_tab_exact_match_preferred_over_prefix():
+    tabs = ["Revenue", "Revenue Cash Proof", "Summary"]
+    assert _tabs_matching_excel_candidate(tabs, "Revenue") == ["Revenue"]
+
+
+def test_excel_tab_prefix_match_when_no_exact_tab():
+    tabs = ["Revenue Cash Proof", "Revenue Detail"]
+    assert _tabs_matching_excel_candidate(tabs, "Revenue") == [
+        "Revenue Cash Proof",
+        "Revenue Detail",
+    ]
+
+
+def test_resolve_excel_tab_uses_exact_match_when_ambiguous_prefix_pool():
+    handlers = {
+        "COUNT(*) AS chunk_count": [{"chunk_count": 100}],
+        "DISTINCT c.tab": [
+            {"tab": "Revenue"},
+            {"tab": "Revenue Cash Proof"},
+        ],
+        "c.tab = 'Revenue'": [{"chunk_id": "chunk_rev001"}],
+        "analysis.kpi": [
+            {
+                "kpi_dashboard_json": (
+                    '{"claims": [{"claim": "retrieve_healthcare_revenue_per_unit", '
+                    '"source_doc": "Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx", '
+                    '"source_location": "Sheet: Revenue, Section: Summary"}]}'
+                ),
+                "created_at": "2026-08-19T00:00:00Z",
+            }
+        ],
+    }
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, company_name="GKF", ingestion_date=date(2026, 8, 19))
+    tab = bootstrap._resolve_excel_tab(
+        "Project Ajax - Financial Due Diligence Databook - 12.22.25.xlsx",
+        "Sheet: Revenue, Section: Summary",
+    )
+    assert tab == "Revenue"
 
 
 def test_compute_ingestion_snapshot_single_value(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     assert bootstrap.compute_ingestion_snapshot() == INGESTION_SNAPSHOT
 
@@ -117,7 +169,7 @@ def test_bootstrap_pass1_citation_backfill(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     intent = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -137,7 +189,7 @@ def test_bootstrap_pass2_basis_rule(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     intent = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -168,7 +220,7 @@ def test_bootstrap_pass2_cross_intent_positive(mock_spark_handlers):
     spark = MockSpark(handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     q1 = _sample_intent(
         "fta.opex.q1_financial_statements",
@@ -207,7 +259,7 @@ def test_all_labels_share_single_ingestion_snapshot(mock_spark_handlers):
     spark = MockSpark(mock_spark_handlers)
     bootstrap = GoldLabelBootstrap(
         spark,
-        ingestion_date=date(2026, 7, 30),
+        ingestion_date=SNAPSHOT_INGESTION_DATE,
     )
     intents = load_registry(REGISTRY_PATH)[:5]
     labels = bootstrap.bootstrap(intents)
@@ -293,15 +345,70 @@ def test_committed_gold_positive_counts_match_manifest():
     assert GOLD_COUNTS_PATH.exists(), "gold_positive_counts.yaml manifest required"
     labels = load_gold_labels(GOLD_PATH)
     manifest = yaml.safe_load(GOLD_COUNTS_PATH.read_text(encoding="utf-8"))
-    assert manifest["ingestion_snapshot"] == INGESTION_SNAPSHOT
-    assert manifest["row_count"] == len(labels)
-    actual_total = sum(len(label.positive_chunk_ids) for label in labels)
-    assert manifest["total_positive_chunk_ids"] == actual_total
-    for label in labels:
-        expected = manifest["intents"][label.intent_id]
-        assert expected["gold_status"] == label.gold_status
-        assert expected["gold_method"] == label.gold_method
-        assert expected["positive_count"] == len(label.positive_chunk_ids)
+    _assert_manifest_matches_gold(labels, manifest)
+
+
+def test_committed_gold_ready_partial_have_nonempty_positives():
+    """Item 16 — ready/partial rows must carry non-empty positive_chunk_ids."""
+    labels = load_gold_labels(GOLD_PATH)
+    ready_partial = [
+        label for label in labels if label.gold_status in {"ready", "partial"}
+    ]
+    assert len(ready_partial) == EXPECTED_READY_PARTIAL_COUNT
+    _assert_no_empty_ready_partial(labels)
+
+
+def test_committed_gold_excluded_rows_match_t3c_shape():
+    """Item 16 — excluded rows match T3-c: annotated bootstrap_failed + empty positives."""
+    labels = load_gold_labels(GOLD_PATH)
+    exclusions = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
+    assert len(exclusions) == EXPECTED_AGGREGATE_EXCLUDE_COUNT
+    _assert_excluded_rows_match_t3c_shape(labels, exclusions)
+
+
+def test_manifest_guard_fails_on_mutated_positive_count():
+    """Mutation falsifier — flipped manifest count must fail the manifest guard."""
+    labels = load_gold_labels(GOLD_PATH)
+    manifest = yaml.safe_load(GOLD_COUNTS_PATH.read_text(encoding="utf-8"))
+    first_intent_id = next(iter(manifest["intents"]))
+    manifest["intents"][first_intent_id]["positive_count"] += 1
+    with pytest.raises(AssertionError):
+        _assert_manifest_matches_gold(labels, manifest)
+
+
+def test_ready_partial_guard_fails_on_empty_positives():
+    """Mutation falsifier — ready row with empty positives must fail the guard."""
+    label = GoldLabel(
+        intent_id="fta.opex.q1_financial_statements",
+        company_name="Elder Care",
+        catalog="uc13_ale",
+        gold_status="ready",
+        positive_chunk_ids=[],
+        gold_method="section_range",
+        ingestion_snapshot=INGESTION_SNAPSHOT,
+        confidence="high",
+    )
+    with pytest.raises(AssertionError, match="empty positives"):
+        _assert_no_empty_ready_partial([label])
+
+
+def test_fta_q1_intents_post_t7_section_range_positives():
+    """Post-T7: three FTA q1 intents carry section_range positives (T11 fallback path)."""
+    labels = {row.intent_id: row for row in load_gold_labels(GOLD_PATH)}
+    manifest = yaml.safe_load(GOLD_COUNTS_PATH.read_text(encoding="utf-8"))
+    q1_intents = (
+        "fta.ebitda.q1_financial_statements",
+        "fta.opex.q1_financial_statements",
+        "fta.revenue.q1_financial_statements",
+    )
+    for intent_id in q1_intents:
+        label = labels[intent_id]
+        expected = manifest["intents"][intent_id]
+        assert label.gold_status == "ready"
+        assert label.gold_method == "section_range"
+        assert len(label.positive_chunk_ids) == 3
+        assert expected["gold_method"] == "section_range"
+        assert expected["positive_count"] == 3
 
 
 def test_committed_elder_care_yaml_matches_fixture_shape():
@@ -352,3 +459,290 @@ def test_generate_skeleton_gold_yaml_from_registry(tmp_path):
     loaded = yaml.safe_load(out.read_text(encoding="utf-8"))
     assert len(loaded) == len(intents)
     assert all(row["ingestion_snapshot"] == INGESTION_SNAPSHOT for row in loaded)
+
+
+def _fta_q1_q3_handlers(**extra: list[dict]) -> dict[str, list[dict]]:
+    """Handlers for q1 zero-out scenarios with cross-intent sibling pair."""
+    handlers: dict[str, list[dict]] = {
+        "COUNT(*) AS chunk_count": [{"chunk_count": SNAPSHOT_CHUNK_COUNT}],
+        "analysis.financial_trends": [
+            {
+                "citations": (
+                    '[{"document": "2024 Elder Care - CIM_vF.pdf", '
+                    '"location": "p. 49 Historical P&L Summary"}, '
+                    '{"document": "2024 Elder Care - CIM_vF.pdf", '
+                    '"location": "p. 52 Projected financials"}]'
+                ),
+                "created_at": "2026-07-02T00:00:00Z",
+            }
+        ],
+        "p. 49": [{"chunk_id": "chunk_cite001"}],
+        "p. 52": [{"chunk_id": "chunk_cite001"}],
+        "section_header ILIKE '%Projection%'": [{"chunk_id": "chunk_basis_neg"}],
+        "section_header ILIKE '%Tax Return%'": [{"chunk_id": "chunk_tax001"}],
+    }
+    handlers.update(extra)
+    return handlers
+
+
+def _assert_no_empty_ready_partial(labels: list[GoldLabel]) -> None:
+    for label in labels:
+        if label.gold_status in {"ready", "partial"}:
+            assert label.positive_chunk_ids, (
+                f"{label.intent_id} emitted {label.gold_status!r} with empty positives"
+            )
+
+
+def _assert_manifest_matches_gold(labels: list[GoldLabel], manifest: dict) -> None:
+    assert manifest["ingestion_snapshot"] == INGESTION_SNAPSHOT
+    assert manifest["row_count"] == len(labels)
+    actual_total = sum(len(label.positive_chunk_ids) for label in labels)
+    assert manifest["total_positive_chunk_ids"] == actual_total
+    for label in labels:
+        expected = manifest["intents"][label.intent_id]
+        assert expected["gold_status"] == label.gold_status
+        assert expected["gold_method"] == label.gold_method
+        assert expected["positive_count"] == len(label.positive_chunk_ids)
+
+
+def _assert_excluded_rows_match_t3c_shape(
+    labels: list[GoldLabel],
+    exclusions: dict[str, str],
+) -> None:
+    excluded_labels = [label for label in labels if label.aggregate_exclude]
+    assert len(excluded_labels) == len(exclusions)
+    for label in excluded_labels:
+        assert label.intent_id in exclusions
+        assert label.gold_status == "bootstrap_failed"
+        assert label.positive_chunk_ids == []
+        assert label.exclude_reason == exclusions[label.intent_id]
+        assert label.exclude_reason in EXCLUDE_REASON_VOCABULARY
+        assert "aggregate_exclude" in (label.notes or "")
+
+
+def test_pass2_zero_out_reengages_section_range_fallback():
+    handlers = _fta_q1_q3_handlers(
+        **{
+            "page_start BETWEEN 45 AND 50": [
+                {"chunk_id": "chunk_sec001"},
+                {"chunk_id": "chunk_sec002"},
+            ],
+        }
+    )
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 7, 30))
+    q1 = _sample_intent(
+        "fta.opex.q1_financial_statements",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q3 = _sample_intent(
+        "fta.opex.q3_projected_financials",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    labels = {row.intent_id: row for row in bootstrap.bootstrap([q1, q3])}
+    q1_label = labels["fta.opex.q1_financial_statements"]
+
+    assert q1_label.gold_status == "ready"
+    assert q1_label.gold_method == "section_range"
+    assert q1_label.confidence == "high"
+    assert set(q1_label.positive_chunk_ids) == {"chunk_sec001", "chunk_sec002"}
+    assert "Pass 1 citation_backfill zeroed by pass-2 negatives" in (q1_label.notes or "")
+    assert "fallback section_range engaged" in (q1_label.notes or "")
+    negative_ids = set(q1_label.negative_chunk_ids or [])
+    assert negative_ids.isdisjoint(q1_label.positive_chunk_ids)
+    _assert_no_empty_ready_partial(list(labels.values()))
+
+
+def test_pass2_zero_out_falls_through_to_filename_closure():
+    handlers = _fta_q1_q3_handlers(
+        **{
+            "page_start BETWEEN 45 AND 50": [{"chunk_id": "chunk_cite001"}],
+            "classification.doc_relevance": [{"chunk_id": "chunk_file001"}],
+        }
+    )
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 7, 30))
+    q1 = _sample_intent(
+        "fta.opex.q1_financial_statements",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q3 = _sample_intent(
+        "fta.opex.q3_projected_financials",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q1_label = bootstrap.bootstrap([q1, q3])[0]
+
+    assert q1_label.gold_status == "partial"
+    assert q1_label.gold_method == "filename_closure"
+    assert q1_label.confidence == "medium"
+    assert q1_label.positive_chunk_ids == ["chunk_file001"]
+    negative_ids = set(q1_label.negative_chunk_ids or [])
+    assert "chunk_file001" not in negative_ids
+    _assert_no_empty_ready_partial([q1_label])
+
+
+def test_pass2_zero_out_fail_closed_when_no_fallback_survivors():
+    handlers = _fta_q1_q3_handlers(
+        **{
+            "page_start BETWEEN 45 AND 50": [{"chunk_id": "chunk_cite001"}],
+            "classification.doc_relevance": [{"chunk_id": "chunk_cite001"}],
+        }
+    )
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 7, 30))
+    q1 = _sample_intent(
+        "fta.opex.q1_financial_statements",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q3 = _sample_intent(
+        "fta.opex.q3_projected_financials",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q1_label = bootstrap.bootstrap([q1, q3])[0]
+
+    assert q1_label.gold_status == "bootstrap_failed"
+    assert q1_label.positive_chunk_ids == []
+    assert "Pass 2 zeroed all pass-1 citation_backfill positives" in (q1_label.notes or "")
+    _assert_no_empty_ready_partial([q1_label])
+
+
+def test_pass2_partial_strip_does_not_reengage_fallback():
+    """Surviving pass-1 positives must not trigger pass-2 fallback re-engagement."""
+    handlers = {
+        "COUNT(*) AS chunk_count": [{"chunk_count": SNAPSHOT_CHUNK_COUNT}],
+        "analysis.financial_trends": [
+            {
+                "citations": (
+                    '[{"document": "2024 Elder Care - CIM_vF.pdf", '
+                    '"location": "p. 49 Historical P&L Summary"}, '
+                    '{"document": "2024 Elder Care - CIM_vF.pdf", '
+                    '"location": "p. 50 EBITDA Adjustment"}]'
+                ),
+                "created_at": "2026-07-02T00:00:00Z",
+            }
+        ],
+        "page_start = 49": [{"chunk_id": "chunk_a"}],
+        "page_start = 50": [{"chunk_id": "chunk_b"}],
+        "section_header ILIKE '%Projection%'": [{"chunk_id": "chunk_a"}],
+        "section_header ILIKE '%Tax Return%'": [{"chunk_id": "chunk_tax001"}],
+    }
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 7, 30))
+    q1 = _sample_intent(
+        "fta.opex.q1_financial_statements",
+        agent_id="fta.opex",
+        workstream_filter=["FINANCIAL"],
+    )
+    q1_label = bootstrap.bootstrap([q1])[0]
+
+    assert q1_label.gold_status == "ready"
+    assert q1_label.gold_method == "citation_backfill"
+    assert q1_label.positive_chunk_ids == ["chunk_b"]
+    assert q1_label.notes is None
+    _assert_no_empty_ready_partial([q1_label])
+
+
+def test_main_parses_company_catalog_output(tmp_path, monkeypatch):
+    captured: dict[str, object] = {}
+    written: dict[str, object] = {}
+
+    class FakeBootstrap:
+        def __init__(self, spark, *, catalog, company_name, ingestion_date=None):
+            captured["spark"] = spark
+            captured["catalog"] = catalog
+            captured["company_name"] = company_name
+
+        def bootstrap(self, intents):
+            captured["intent_count"] = len(intents)
+            return []
+
+        @property
+        def ingestion_snapshot(self):
+            return "uc13_ale:1:2026-08-14"
+
+    def fake_write(path, labels):
+        written["path"] = path
+        written["labels"] = labels
+
+    monkeypatch.setattr("eval.retrieval.gold.bootstrap.GoldLabelBootstrap", FakeBootstrap)
+    monkeypatch.setattr(
+        "eval.retrieval.gold.bootstrap.load_registry",
+        lambda _path: ["intent"],
+    )
+    monkeypatch.setattr("eval.retrieval.gold.bootstrap.write_gold_labels", fake_write)
+
+    fake_spark = object()
+
+    class _SparkModule:
+        @staticmethod
+        def getActiveSession():
+            return fake_spark
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "pyspark.sql",
+        type("m", (), {"SparkSession": _SparkModule})(),
+    )
+
+    output = tmp_path / "custom.yaml"
+    rc = main(
+        [
+            "--company",
+            "Clearsulting",
+            "--catalog",
+            "uc13_ale",
+            "--output",
+            str(output),
+        ]
+    )
+    assert rc == 0
+    assert captured["company_name"] == "Clearsulting"
+    assert captured["catalog"] == "uc13_ale"
+    assert written["path"] == output
+
+
+def test_main_output_defaults_to_company_gold_path():
+    parser = build_parser()
+    args = parser.parse_args(["--company", "Clearsulting"])
+    assert _resolved_output_path(args) == default_gold_path("clearsulting")
+
+    args_default = parser.parse_args([])
+    assert _resolved_output_path(args_default) == default_gold_path("elder_care")
+
+
+def test_main_returns_nonzero_without_spark_session(monkeypatch, capsys):
+    class _SparkModule:
+        @staticmethod
+        def getActiveSession():
+            return None
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "pyspark.sql",
+        type("m", (), {"SparkSession": _SparkModule})(),
+    )
+    rc = main(["--company", "Elder Care", "--catalog", "uc13_ale"])
+    assert rc == 1
+    assert "Active SparkSession required" in capsys.readouterr().err
+
+
+def test_main_returns_nonzero_for_unnormalizable_company(monkeypatch, capsys):
+    class _SparkModule:
+        @staticmethod
+        def getActiveSession():
+            return object()
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "pyspark.sql",
+        type("m", (), {"SparkSession": _SparkModule})(),
+    )
+    rc = main(["--company", "!!!", "--catalog", "uc13_ale"])
+    assert rc == 1
+    assert "gold bootstrap:" in capsys.readouterr().err

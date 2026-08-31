@@ -9,6 +9,7 @@ Pinned ILIKE patterns (Surface 8) live in module constants below.
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from collections.abc import Iterable, Mapping, Sequence
@@ -19,7 +20,7 @@ from typing import Any, Protocol
 import yaml
 
 from eval.retrieval.errors import PreconditionError
-from eval.retrieval.models import GoldLabel, RetrievalIntent
+from eval.retrieval.models import EXCLUDE_REASON_VOCABULARY, GoldLabel, RetrievalIntent
 
 DEFAULT_COMPANY_NAME = "Elder Care"
 DEFAULT_CATALOG = "uc13_ale"
@@ -67,6 +68,12 @@ CROSS_INTENT_NEGATIVE_PAIRS: dict[str, str] = {
     "fta.ebitda.q1_financial_statements": "fta.ebitda.q4_addback_schedule",
 }
 
+POSITIVE_FALLBACK_CHAIN: tuple[str, ...] = (
+    "citation_backfill",
+    "section_range",
+    "filename_closure",
+)
+
 AGENT_ANALYSIS_TABLE: dict[str, str] = {
     "kpi": "kpi",
     "cqa": "customer_quality",
@@ -79,6 +86,32 @@ AGENT_ANALYSIS_TABLE: dict[str, str] = {
 }
 
 _PAGE_RE = re.compile(r"(?:p(?:age)?\.?\s*|page\s*)(\d+)", re.IGNORECASE)
+_EXCEL_SHEET_RE = re.compile(r"Sheet:\s*(.+)", re.IGNORECASE)
+_EXCEL_DATA_ROWS_RE = re.compile(
+    r"Sheet:\s*([^,]+),\s*Data Rows",
+    re.IGNORECASE,
+)
+_EXCEL_SECTION_SUFFIX_RE = re.compile(
+    r"\s*(?:,\s*|\s*/\s*)Section:",
+    re.IGNORECASE,
+)
+
+KPI_ITEM12_INTENT_IDS: frozenset[str] = frozenset(
+    {
+        "kpi.retrieve_bench_and_capacity",
+        "kpi.retrieve_bill_rates_and_margins",
+        "kpi.retrieve_headcount_attrition",
+        "kpi.retrieve_healthcare_labor_market",
+        "kpi.retrieve_healthcare_ops",
+        "kpi.retrieve_healthcare_revenue_per_unit",
+        "kpi.retrieve_pipeline_backlog",
+    }
+)
+
+KPI_CLAIM_INTENT_MAP_PATH = Path(__file__).resolve().parent / "kpi_claim_intent_map.yaml"
+GOLD_EXCLUSIONS_PATH = Path(__file__).resolve().parent / "gold_exclusions.yaml"
+
+CitationRef = tuple[str, str | None, str | None]
 
 
 class SparkSessionLike(Protocol):
@@ -161,12 +194,173 @@ def _section_pattern_from_location(location: str | None) -> str | None:
     return f"%{cleaned}%"
 
 
-def _walk_json_for_source_refs(value: Any, refs: list[tuple[str, str | None]]) -> None:
+_KPI_PDF_PAGE_SUFFIX_RE = re.compile(r",\s*page\s*\d+\s*$", re.IGNORECASE)
+
+
+def _normalize_kpi_pdf_location(location: str) -> str:
+    """Strip KPI PDF citation prefixes/suffixes before section ILIKE matching."""
+    cleaned = re.sub(r"^section:\s*", "", location.strip(), flags=re.IGNORECASE)
+    cleaned = _KPI_PDF_PAGE_SUFFIX_RE.sub("", cleaned)
+    return cleaned.strip()
+
+
+def _is_excel_shaped_location(location: str | None) -> bool:
+    if not location:
+        return False
+    return _EXCEL_SHEET_RE.search(location) is not None
+
+
+def _excel_tab_from_data_rows_location(location: str) -> str | None:
+    match = _EXCEL_DATA_ROWS_RE.search(location)
+    if not match:
+        return None
+    return match.group(1).strip()
+
+
+def _excel_tab_candidate_from_location(location: str) -> str:
+    match = _EXCEL_SHEET_RE.search(location)
+    if not match:
+        raise PreconditionError(f"Location is not Excel-shaped: {location!r}")
+    raw = match.group(1).strip()
+    section_match = _EXCEL_SECTION_SUFFIX_RE.search(raw)
+    if section_match:
+        raw = raw[: section_match.start()].strip()
+    return raw.split(",", 1)[0].strip()
+
+
+def _tabs_matching_excel_candidate(tabs: Sequence[str], candidate: str) -> list[str]:
+    exact_matches = [tab for tab in tabs if tab == candidate]
+    if exact_matches:
+        return exact_matches
+    return [tab for tab in tabs if tab.startswith(candidate)]
+
+
+def load_kpi_claim_intent_map(
+    path: Path = KPI_CLAIM_INTENT_MAP_PATH,
+) -> tuple[dict[str, str], dict[str, Any]]:
+    """Load fail-closed KPI claim→intent mapping (Contract T2-a)."""
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise PreconditionError(
+            f"KPI claim→intent map must be a mapping at {path}"
+        )
+    claims = payload.get("claims")
+    intents = payload.get("intents")
+    if not isinstance(claims, dict):
+        raise PreconditionError(
+            f"KPI claim→intent map missing claims mapping at {path}"
+        )
+    if not isinstance(intents, dict):
+        raise PreconditionError(
+            f"KPI claim→intent map missing intents totality block at {path}"
+        )
+
+    claim_map = {str(key): str(value) for key, value in claims.items()}
+    intent_block = {str(key): value for key, value in intents.items()}
+
+    missing_intents = KPI_ITEM12_INTENT_IDS - set(intent_block)
+    if missing_intents:
+        raise PreconditionError(
+            "KPI claim→intent map missing item-12 intents: "
+            f"{sorted(missing_intents)}"
+        )
+    extra_intents = set(intent_block) - KPI_ITEM12_INTENT_IDS
+    if extra_intents:
+        raise PreconditionError(
+            "KPI claim→intent map has unknown item-12 intents: "
+            f"{sorted(extra_intents)}"
+        )
+
+    mapped_targets = set(claim_map.values())
+    unknown_targets = mapped_targets - KPI_ITEM12_INTENT_IDS
+    if unknown_targets:
+        raise PreconditionError(
+            "KPI claim→intent map targets unknown intents: "
+            f"{sorted(unknown_targets)}"
+        )
+
+    return claim_map, intent_block
+
+
+def load_gold_exclusions(
+    path: Path = GOLD_EXCLUSIONS_PATH,
+    *,
+    company_slug: str,
+) -> dict[str, str]:
+    """Load company-scoped aggregate-exclusion population (Contract T3-b / T13)."""
+    if not company_slug or not str(company_slug).strip():
+        raise PreconditionError(
+            "company_slug is required for load_gold_exclusions"
+        )
+    from eval.retrieval.companies import require_folded_company_slug
+
+    require_folded_company_slug(company_slug)
+    slug = str(company_slug).strip()
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise PreconditionError(
+            f"Gold exclusions artifact must be a mapping at {path}"
+        )
+    companies = payload.get("companies")
+    if not isinstance(companies, dict):
+        raise PreconditionError(
+            f"Gold exclusions artifact missing companies mapping at {path}"
+        )
+    company_block = companies.get(slug)
+    if company_block is None:
+        return {}
+    if not isinstance(company_block, dict):
+        raise PreconditionError(
+            f"Gold exclusions company block for {slug!r} must be a mapping at {path}"
+        )
+    excluded = company_block.get("excluded")
+    if excluded is None:
+        return {}
+    if not isinstance(excluded, list):
+        raise PreconditionError(
+            f"Gold exclusions excluded list for {slug!r} must be a list at {path}"
+        )
+    mapping: dict[str, str] = {}
+    for index, entry in enumerate(excluded):
+        if not isinstance(entry, dict):
+            raise PreconditionError(
+                f"Gold exclusions entry {index} for {slug!r} must be a mapping at {path}"
+            )
+        intent_id = entry.get("intent_id")
+        exclude_reason = entry.get("exclude_reason")
+        if not intent_id or not exclude_reason:
+            raise PreconditionError(
+                f"Gold exclusions entry {index} for {slug!r} missing intent_id or "
+                f"exclude_reason at {path}"
+            )
+        intent_key = str(intent_id)
+        if intent_key in mapping:
+            raise PreconditionError(
+                f"Duplicate gold exclusion for intent {intent_key!r} "
+                f"under {slug!r} at {path}"
+            )
+        mapping[intent_key] = str(exclude_reason)
+    return mapping
+
+
+def _validate_exclude_reason_membership(label: GoldLabel) -> None:
+    if label.exclude_reason is None:
+        return
+    if label.exclude_reason not in EXCLUDE_REASON_VOCABULARY:
+        raise PreconditionError(
+            f"exclude_reason {label.exclude_reason!r} for {label.intent_id} "
+            f"is not in closed vocabulary {sorted(EXCLUDE_REASON_VOCABULARY)}"
+        )
+
+
+def _walk_json_for_source_refs(value: Any, refs: list[CitationRef]) -> None:
     if isinstance(value, dict):
         doc = value.get("source_doc") or value.get("document")
         loc = value.get("source_location") or value.get("location")
+        claim_raw = value.get("claim")
+        claim = str(claim_raw) if claim_raw is not None else None
         if doc:
-            refs.append((str(doc), str(loc) if loc else None))
+            refs.append((str(doc), str(loc) if loc else None, claim))
         for nested in value.values():
             _walk_json_for_source_refs(nested, refs)
     elif isinstance(value, list):
@@ -205,6 +399,10 @@ class GoldLabelBootstrap:
         self.ingestion_date = ingestion_date or datetime.now(timezone.utc).date()
         self._ingestion_snapshot: str | None = None
         self._analysis_row_cache: dict[str, dict[str, Any] | None] = {}
+        self._kpi_claim_map_cache: tuple[dict[str, str], dict[str, Any]] | None = None
+        self._gold_exclusions_cache: dict[str, str] | None = None
+        self._gold_exclusions_cache_slug: str | None = None
+        self._last_excel_citation_notes: dict[str, str] = {}
 
     def compute_ingestion_snapshot(self) -> str:
         """Compute single company-level ingestion_snapshot (Cell 7 normative)."""
@@ -249,29 +447,9 @@ class GoldLabelBootstrap:
         return labels
 
     def _bootstrap_pass1(self, intent: RetrievalIntent, snapshot: str) -> GoldLabel:
-        positives: list[str] = []
-        gold_method: str = "citation_backfill"
-        confidence: str = "high"
-
-        citation_ids = self._positives_from_citations(intent)
-        if citation_ids:
-            positives = citation_ids
-            gold_method = "citation_backfill"
-            confidence = "high"
-        else:
-            section_ids = self._positives_from_section_range(intent)
-            if section_ids:
-                positives = section_ids
-                gold_method = "section_range"
-                confidence = "high"
-            else:
-                closure_ids = self._positives_from_filename_closure(intent)
-                if closure_ids:
-                    positives = closure_ids
-                    gold_method = "filename_closure"
-                    confidence = "medium"
-
-        if not positives:
+        self._last_excel_citation_notes.pop(intent.intent_id, None)
+        exclude_reason = self._gold_exclusions().get(intent.intent_id)
+        if exclude_reason is not None:
             return GoldLabel(
                 intent_id=intent.intent_id,
                 company_name=self.company_name,
@@ -281,10 +459,35 @@ class GoldLabelBootstrap:
                 gold_method="citation_backfill",
                 ingestion_snapshot=snapshot,
                 confidence="low",
-                notes="Pass 1 found zero positives",
+                aggregate_exclude=True,
+                exclude_reason=exclude_reason,
+                notes=(
+                    f"aggregate_exclude: {exclude_reason} "
+                    f"(gold_exclusions.yaml; no citation source)"
+                ),
             )
 
+        result = self._try_positive_methods(intent, POSITIVE_FALLBACK_CHAIN)
+        if result is None:
+            kpi_notes = self._last_excel_citation_notes.pop(intent.intent_id, None)
+            notes = "Pass 1 found zero positives"
+            if kpi_notes:
+                notes = f"{notes}; {kpi_notes}"
+            return GoldLabel(
+                intent_id=intent.intent_id,
+                company_name=self.company_name,
+                catalog=self.catalog,
+                gold_status="bootstrap_failed",
+                positive_chunk_ids=[],
+                gold_method="citation_backfill",
+                ingestion_snapshot=snapshot,
+                confidence="low",
+                notes=notes,
+            )
+
+        positives, gold_method, confidence = result
         gold_status = "partial" if gold_method == "filename_closure" else "ready"
+        notes = self._last_excel_citation_notes.pop(intent.intent_id, None)
         return GoldLabel(
             intent_id=intent.intent_id,
             company_name=self.company_name,
@@ -294,7 +497,44 @@ class GoldLabelBootstrap:
             gold_method=gold_method,
             ingestion_snapshot=snapshot,
             confidence=confidence,
+            notes=notes,
         )
+
+    def _fallback_methods_after(self, method: str) -> tuple[str, ...]:
+        try:
+            index = POSITIVE_FALLBACK_CHAIN.index(method)
+        except ValueError:
+            return ()
+        return POSITIVE_FALLBACK_CHAIN[index + 1 :]
+
+    def _positives_for_method(
+        self, intent: RetrievalIntent, method: str
+    ) -> list[str]:
+        if method == "citation_backfill":
+            return self._positives_from_citations(intent)
+        if method == "section_range":
+            return self._positives_from_section_range(intent)
+        if method == "filename_closure":
+            return self._positives_from_filename_closure(intent)
+        raise ValueError(f"Unknown positive method: {method!r}")
+
+    def _try_positive_methods(
+        self,
+        intent: RetrievalIntent,
+        methods: Sequence[str],
+        *,
+        negative_ids: frozenset[str] | None = None,
+    ) -> tuple[list[str], str, str] | None:
+        excluded = negative_ids or frozenset()
+        for method in methods:
+            candidates = self._positives_for_method(intent, method)
+            survivors = [
+                chunk_id for chunk_id in candidates if chunk_id not in excluded
+            ]
+            if survivors:
+                confidence = "medium" if method == "filename_closure" else "high"
+                return survivors, method, confidence
+        return None
 
     def _bootstrap_pass2(
         self,
@@ -345,26 +585,160 @@ class GoldLabelBootstrap:
                 )
                 negative_confidence = "high"
 
+        negative_set = set(negatives)
         positives = [
             chunk_id
             for chunk_id in base.positive_chunk_ids
-            if chunk_id not in set(negatives)
+            if chunk_id not in negative_set
         ]
-        return base.model_copy(
-            update={
-                "positive_chunk_ids": positives,
-                "negative_chunk_ids": negatives or None,
-                "negative_method": negative_method,
-                "negative_rule": negative_rule,
-                "negative_confidence": negative_confidence,
-            }
+
+        updates: dict[str, Any] = {
+            "positive_chunk_ids": positives,
+            "negative_chunk_ids": negatives or None,
+            "negative_method": negative_method,
+            "negative_rule": negative_rule,
+            "negative_confidence": negative_confidence,
+        }
+
+        if not positives:
+            fallback_methods = self._fallback_methods_after(base.gold_method)
+            fallback = self._try_positive_methods(
+                intent,
+                fallback_methods,
+                negative_ids=frozenset(negative_set),
+            )
+            if fallback is not None:
+                fb_positives, fb_method, fb_confidence = fallback
+                updates.update(
+                    {
+                        "positive_chunk_ids": fb_positives,
+                        "gold_method": fb_method,
+                        "gold_status": (
+                            "partial" if fb_method == "filename_closure" else "ready"
+                        ),
+                        "confidence": fb_confidence,
+                        "notes": (
+                            f"Pass 1 {base.gold_method} zeroed by pass-2 negatives; "
+                            f"fallback {fb_method} engaged"
+                        ),
+                    }
+                )
+            else:
+                updates.update(
+                    {
+                        "positive_chunk_ids": [],
+                        "gold_status": "bootstrap_failed",
+                        "confidence": "low",
+                        "notes": (
+                            f"Pass 2 zeroed all pass-1 {base.gold_method} positives; "
+                            "no fallback survivors"
+                        ),
+                    }
+                )
+
+        label = base.model_copy(update=updates)
+        if label.gold_status in {"ready", "partial"} and not label.positive_chunk_ids:
+            raise PreconditionError(
+                f"Bootstrap invariant violated for {intent.intent_id}: "
+                f"{label.gold_status!r} with empty positive_chunk_ids"
+            )
+        return label
+
+    def _kpi_claim_intent_map(self) -> tuple[dict[str, str], dict[str, Any]]:
+        if self._kpi_claim_map_cache is None:
+            self._kpi_claim_map_cache = load_kpi_claim_intent_map()
+        return self._kpi_claim_map_cache
+
+    def _gold_exclusions(self) -> dict[str, str]:
+        from eval.retrieval.companies import canonical_company_slug
+
+        company_slug = canonical_company_slug(self.company_name)
+        if (
+            self._gold_exclusions_cache is None
+            or self._gold_exclusions_cache_slug != company_slug
+        ):
+            self._gold_exclusions_cache = load_gold_exclusions(
+                company_slug=company_slug,
+            )
+            self._gold_exclusions_cache_slug = company_slug
+        return self._gold_exclusions_cache
+
+    def _validate_kpi_citation_refs(self, refs: Sequence[CitationRef]) -> None:
+        claim_map, _intent_block = self._kpi_claim_intent_map()
+        for document, _location, claim in refs:
+            if not claim:
+                raise PreconditionError(
+                    f"KPI citation ref missing claim for document={document!r}"
+                )
+            if claim not in claim_map:
+                raise PreconditionError(f"Unmapped KPI claim: {claim!r}")
+
+    def _resolve_excel_tab(self, document: str, location: str) -> str:
+        exact_tab = _excel_tab_from_data_rows_location(location)
+        if exact_tab is not None:
+            return exact_tab
+
+        candidate = _excel_tab_candidate_from_location(location)
+        tabs = self._distinct_tabs_for_file(document)
+        matches = _tabs_matching_excel_candidate(tabs, candidate)
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise PreconditionError(
+                "Excel tab resolution found zero candidates for "
+                f"document={document!r}, location={location!r}, candidate={candidate!r}"
+            )
+        raise PreconditionError(
+            "Excel tab resolution is ambiguous for "
+            f"document={document!r}, location={location!r}, candidate={candidate!r}: "
+            f"{sorted(matches)}"
         )
+
+    def _distinct_tabs_for_file(self, document: str) -> list[str]:
+        company_lit = _sql_literal(self.company_name)
+        doc_lit = _sql_literal(document)
+        query = f"""
+            SELECT DISTINCT c.tab
+            FROM {self.catalog}.ingestion.chunks c
+            WHERE c.company_name = {company_lit}
+              AND c.tab IS NOT NULL
+              AND (
+                c.file_name = {doc_lit}
+                OR c.file_name ILIKE {_sql_literal('%' + document[-40:] + '%')}
+              )
+        """
+        rows = _collect_rows(self.spark.sql(query))
+        tabs: list[str] = []
+        for row in rows:
+            tab = _row_value(row, "tab")
+            if tab:
+                tabs.append(str(tab))
+        return tabs
+
+    def _chunks_for_file_and_tab(self, document: str, tab: str) -> list[str]:
+        company_lit = _sql_literal(self.company_name)
+        doc_lit = _sql_literal(document)
+        tab_lit = _sql_literal(tab)
+        query = f"""
+            SELECT c.chunk_id
+            FROM {self.catalog}.ingestion.chunks c
+            WHERE c.company_name = {company_lit}
+              AND c.tab = {tab_lit}
+              AND (
+                c.file_name = {doc_lit}
+                OR c.file_name ILIKE {_sql_literal('%' + document[-40:] + '%')}
+              )
+        """
+        return _chunk_ids_from_sql(self.spark, query)
 
     def _positives_from_citations(self, intent: RetrievalIntent) -> list[str]:
         refs = self._citation_refs_for_agent(intent.agent_id)
+        if intent.agent_id == "kpi":
+            return self._positives_from_kpi_citations(intent, refs)
+
         chunk_ids: list[str] = []
         company_lit = _sql_literal(self.company_name)
-        for document, location in refs:
+        for document, location, _claim in refs:
             doc_lit = _sql_literal(document)
             page = _parse_page_from_location(location)
             section_pattern = _section_pattern_from_location(location)
@@ -385,6 +759,85 @@ class GoldLabelBootstrap:
                   {section_clause}
             """
             chunk_ids.extend(_chunk_ids_from_sql(self.spark, query))
+        return _dedupe_preserve_order(chunk_ids)
+
+    def _chunks_for_kpi_pdf_citation(
+        self, document: str, location: str
+    ) -> list[str]:
+        normalized = _normalize_kpi_pdf_location(location)
+        company_lit = _sql_literal(self.company_name)
+        doc_lit = _sql_literal(document)
+        page = _parse_page_from_location(location)
+        section_pattern = _section_pattern_from_location(normalized)
+        page_clause = f"AND c.page_start = {page}" if page is not None else ""
+        section_clause = (
+            f"AND c.section_header ILIKE {_sql_literal(section_pattern)}"
+            if section_pattern
+            else ""
+        )
+        query = f"""
+            SELECT c.chunk_id
+            FROM {self.catalog}.ingestion.chunks c
+            WHERE c.company_name = {company_lit}
+              AND (c.file_name = {doc_lit} OR c.file_name ILIKE {_sql_literal('%' + document[-40:] + '%')})
+              {page_clause}
+              {section_clause}
+        """
+        return _chunk_ids_from_sql(self.spark, query)
+
+    def _positives_from_kpi_citations(
+        self,
+        intent: RetrievalIntent,
+        refs: Sequence[CitationRef],
+    ) -> list[str]:
+        claim_map, _intent_block = self._kpi_claim_intent_map()
+        self._validate_kpi_citation_refs(refs)
+
+        chunk_ids: list[str] = []
+        excel_note_parts: list[str] = []
+        pdf_note_parts: list[str] = []
+        pdf_unresolved_parts: list[str] = []
+        for document, location, claim in refs:
+            assert claim is not None
+            if claim_map[claim] != intent.intent_id:
+                continue
+            if not location:
+                raise PreconditionError(
+                    f"KPI claim {claim!r} has missing location for document={document!r}"
+                )
+            if _is_excel_shaped_location(location):
+                tab = self._resolve_excel_tab(document, location)
+                matched = self._chunks_for_file_and_tab(document, tab)
+                if not matched:
+                    raise PreconditionError(
+                        "Zero chunks for KPI Excel citation "
+                        f"(document={document!r}, tab={tab!r}, claim={claim!r})"
+                    )
+                chunk_ids.extend(matched)
+                excel_note_parts.append(f"claim={claim}; tab={tab}")
+            else:
+                matched = self._chunks_for_kpi_pdf_citation(document, location)
+                if not matched:
+                    pdf_unresolved_parts.append(
+                        f"claim={claim}; location={location}"
+                    )
+                    continue
+                chunk_ids.extend(matched)
+                pdf_note_parts.append(f"claim={claim}")
+
+        note_segments: list[str] = []
+        if excel_note_parts:
+            note_segments.append("excel_branch: " + "; ".join(excel_note_parts))
+        if pdf_note_parts:
+            note_segments.append("pdf_branch: " + "; ".join(pdf_note_parts))
+        if pdf_unresolved_parts:
+            note_segments.append(
+                "pdf_branch_unresolved: " + "; ".join(pdf_unresolved_parts)
+            )
+        if note_segments:
+            self._last_excel_citation_notes[intent.intent_id] = "; ".join(
+                note_segments
+            )
         return _dedupe_preserve_order(chunk_ids)
 
     def _positives_from_section_range(self, intent: RetrievalIntent) -> list[str]:
@@ -450,14 +903,14 @@ class GoldLabelBootstrap:
         """
         return _dedupe_preserve_order(_chunk_ids_from_sql(self.spark, query))
 
-    def _citation_refs_for_agent(self, agent_id: str) -> list[tuple[str, str | None]]:
+    def _citation_refs_for_agent(self, agent_id: str) -> list[CitationRef]:
         table = AGENT_ANALYSIS_TABLE.get(agent_id)
         if not table:
             return []
         row = self._latest_analysis_row(table)
         if not row:
             return []
-        refs: list[tuple[str, str | None]] = []
+        refs: list[CitationRef] = []
         citations = _parse_json_field(row.get("citations"))
         if isinstance(citations, list):
             for cite in citations:
@@ -465,8 +918,10 @@ class GoldLabelBootstrap:
                     continue
                 doc = cite.get("document") or cite.get("source_doc")
                 loc = cite.get("location") or cite.get("source_location")
+                claim_raw = cite.get("claim")
+                claim = str(claim_raw) if claim_raw is not None else None
                 if doc:
-                    refs.append((str(doc), str(loc) if loc else None))
+                    refs.append((str(doc), str(loc) if loc else None, claim))
         for value in row.values():
             parsed = _parse_json_field(value)
             if parsed is not None:
@@ -539,10 +994,10 @@ def _intent_suffix(intent_id: str) -> str:
 
 
 def _dedupe_preserve_order_refs(
-    refs: list[tuple[str, str | None]],
-) -> list[tuple[str, str | None]]:
-    seen: set[tuple[str, str | None]] = set()
-    ordered: list[tuple[str, str | None]] = []
+    refs: list[CitationRef],
+) -> list[CitationRef]:
+    seen: set[CitationRef] = set()
+    ordered: list[CitationRef] = []
     for ref in refs:
         if ref in seen:
             continue
@@ -567,6 +1022,8 @@ def write_gold_labels(path: Path, labels: Sequence[GoldLabel]) -> None:
         )
     if any(not label.ingestion_snapshot for label in labels):
         raise PreconditionError("Refusing to write gold row missing ingestion_snapshot")
+    for label in labels:
+        _validate_exclude_reason_membership(label)
     payload = [label.model_dump(mode="json", exclude_none=True) for label in labels]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -593,29 +1050,90 @@ def validate_ingestion_snapshot_consistency(labels: Sequence[GoldLabel]) -> str:
     return next(iter(snapshots))
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="eval.retrieval.gold.bootstrap")
+    parser.add_argument(
+        "--company",
+        default=DEFAULT_COMPANY_NAME,
+        help=f"Company display name (default: {DEFAULT_COMPANY_NAME!r})",
+    )
+    parser.add_argument(
+        "--catalog",
+        default=DEFAULT_CATALOG,
+        help=f"Unity Catalog (default: {DEFAULT_CATALOG})",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help=(
+            "Gold YAML output path "
+            "(default: eval/retrieval/gold_labels/<canonical_slug>.yaml)"
+        ),
+    )
+    return parser
+
+
+def _resolved_output_path(args: argparse.Namespace) -> Path:
+    if args.output is not None:
+        return args.output
+    from eval.retrieval.companies import canonical_company_slug
+    from eval.retrieval.harness import default_gold_path
+
+    return default_gold_path(canonical_company_slug(args.company))
+
+
+def main(argv: list[str] | None = None) -> int:
+    import sys
+
     from pyspark.sql import SparkSession
+
+    from eval.retrieval.companies import canonical_company_slug
+    from eval.retrieval.errors import PreconditionError
+
+    args = build_parser().parse_args(argv)
+
+    try:
+        company_slug = canonical_company_slug(args.company)
+        output_path = _resolved_output_path(args)
+    except ValueError as exc:
+        print(f"gold bootstrap: {exc}", file=sys.stderr)
+        return 1
 
     repo_root = Path(__file__).resolve().parents[3]
     registry_path = repo_root / "eval" / "retrieval" / "intent_registry.yaml"
-    output_path = repo_root / "eval" / "retrieval" / "gold_labels" / "elder_care.yaml"
 
     spark = SparkSession.getActiveSession()
     if spark is None:
-        raise RuntimeError(
-            "Active SparkSession required — run on Databricks cluster after Cell 7"
+        print(
+            "Active SparkSession required — run on Databricks cluster after Cell 7",
+            file=sys.stderr,
         )
+        return 1
 
-    intents = load_registry(registry_path)
-    bootstrap = GoldLabelBootstrap(spark)
-    labels = bootstrap.bootstrap(intents)
-    write_gold_labels(output_path, labels)
+    try:
+        intents = load_registry(registry_path)
+        bootstrap = GoldLabelBootstrap(
+            spark,
+            catalog=args.catalog,
+            company_name=args.company,
+        )
+        labels = bootstrap.bootstrap(intents)
+        write_gold_labels(output_path, labels)
+    except (PreconditionError, ValueError) as exc:
+        print(f"gold bootstrap: {exc}", file=sys.stderr)
+        return 1
+
     ready = sum(1 for label in labels if label.gold_status != "bootstrap_failed")
     print(
         f"Wrote {len(labels)} gold labels to {output_path} "
+        f"for company={company_slug} catalog={args.catalog} "
         f"(ready/partial={ready}, snapshot={bootstrap.ingestion_snapshot})"
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    raise SystemExit(main())

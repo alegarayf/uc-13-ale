@@ -1,0 +1,582 @@
+# Elder Care S2 product backlog — claim failures tracked as product signal, not registry waivers.
+# Registry note: F-14-assessment-metrics-rung3 is an assessment_metrics waiver (M3 audit), not
+# a substitute for S2 claim-failure backlog items below.
+schema_version: 1
+items:
+  - id: PB-exec_summary-retrieval-scope-gap
+    company: elder_care
+    surface: exec_summary
+    kind: retrieval_scope_gap
+    severity: high
+    summary: >-
+      Spot-check retrieval only queries VDR chunk RAG; exec_summary claims trace to
+      analysis.diligence_report and sibling workstream tables — 28/30 drafted-unsupported
+      claims were retrieval_scope_gap, not corpus or generator defects. T12 wired dual-source
+      in calibration.py only (CHK-26a 0.857); spot_check.py still chunk-only.
+    evidence_refs:
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.m3_backlog.md
+      - eval/eval_program_playbook.md
+      - eval/content/calibration.py
+      - eval/content/spot_check.py
+    fix_lane: product
+    closes_when: >-
+      exec_summary spot-check evidence fetch queries analysis.diligence_report aggregation
+      fields and per-workstream tables alongside chunk RAG (parity with calibration.py
+      dual-source); re-run shows drafted-unsupported rate drops materially vs 2026-08-12 baseline.
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#9-items-9-10-execsummary
+      - eval/content/tests/test_spot_check_dual_source_evidence.py
+    registry_ref: OI-eval-content-exec-summary-judge-rung-build
+
+  - id: PB-exec_summary-chk27-judge-harness
+    company: elder_care
+    surface: exec_summary
+    kind: measurement_caveat
+    severity: high
+    summary: >-
+      CHK-27 LLM-judge harness descoped at M3 (zero rung-2 surfaces). Post-T12 calibration
+      (verdict_agreement 0.857 ≥ 0.80) makes exec_summary judge rung viable pending operator
+      authorization — build harness reusing calibration judge_claim + s2_writer for production runs.
+    evidence_refs:
+      - eval/eval_program_playbook.md
+      - eval/content/calibration.py
+      - eval/program/registry.yaml
+    fix_lane: eval
+    closes_when: >-
+      CHK-27 judge harness executes exec_summary at scale; registry CHK-26a
+      rung_assignments.exec_summary is judge (not human); human spot_check blocked for upgraded surface.
+    registry_ref: OI-eval-content-exec-summary-judge-rung-build
+
+  - id: PB-exec_summary-source-ref-mislabel
+    company: elder_care
+    surface: exec_summary
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      Presentation packet source_ref points at analysis.legal.executive_summary instead of
+      analysis.diligence_report.executive_summary — standing citation bug for all 53 claims.
+    evidence_refs:
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.m3_backlog.md
+    fix_lane: product
+    closes_when: >-
+      prepare_spot_check emits source://...analysis.diligence_report.executive_summary for
+      exec_summary surface in generated presentation packets.
+
+  - id: PB-exec_summary-chunk-truncation
+    company: elder_care
+    surface: exec_summary
+    kind: claim_failure
+    severity: medium
+    summary: >-
+      Correct VDR chunk retrieved but numeric evidence sits past ~1,200-char truncation boundary
+      (claims 008–010, 018); same driver as M2 WP-2 on calibration evidence fetch.
+    evidence_refs:
+      - eval/content/spot-check/exec_summary_elder_care_2026-08-12.failure_modes.md
+      - eval/content/calibration.py
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      exec_summary evidence fetch returns untruncated chunk_text for affected claim_ids in a
+      spot-check re-run (009, 010, 018 supported without analysis-table override; claim 008 is tracked
+      separately under PB-exec_summary-008-locator-mismatch as a citation/locator defect, not
+      truncation).
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-bis-spotcheck-note.md
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-spotcheck-note.md
+
+  - id: PB-exec_summary-008-locator-mismatch
+    company: elder_care
+    surface: exec_summary
+    kind: claim_failure
+    severity: medium
+    summary: >-
+      Claim 008's citation resolves (cache-free, full chunk text) to the Pro Forma Income Statement
+      vision chunk, which reports TTM Aug-24 revenue 44,735, not the claimed 46,423. The claimed
+      figure is the Pro Forma Adjusted Revenue TTM value in the Diligence Adjusted Income Statement
+      chunk (page 46). Discovered while adjudicating PB-exec_summary-chunk-truncation (T11, M4/W4);
+      not truncation (the resolved chunk returned in full) and not the M7 dual-source retrieval gap
+      (both chunks are reachable via the same chunk-only retrieval path).
+    evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-spotcheck-note.md
+    fix_lane: product
+    closes_when: >-
+      exec_summary claim 008 cites the Diligence Adjusted Income Statement chunk (or an equivalent
+      correct locator) and its resolved chunk text supports the claimed TTM Aug-24 revenue value of
+      46,423 without requiring the analysis-table override.
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/runs/T7-brief.md
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#9-items-9-10-execsummary
+
+  - id: PB-legal_register-extraction-depth-contracts
+    company: elder_care
+    surface: legal_register
+    kind: extraction_depth
+    severity: high
+    summary: >-
+      Contracts pass retrieves 14 chunks but termination_for_convenience and change-of-control
+      nested fields stay not_found on merged register rows — drives legal_register S2 claim
+      failures alongside trust 20/23.
+    evidence_refs:
+      - eval/LCA/presentation_summary_elder_care.md
+      - eval/LCA/poc_delta_elder_care.md
+      - eval/program/trust_statement.md
+    fix_lane: product
+    closes_when: >-
+      Elder Care legal run populates t4c and coc nested fields on contract_register rows where
+      lease/APA corpus contains those clauses; legal_register S2 supported fraction improves
+      vs 3/23 baseline.
+
+  - id: PB-legal_register-corpus-gap-platform
+    company: elder_care
+    surface: legal_register
+    kind: corpus_gap
+    severity: medium
+    summary: >-
+      No platform/reseller/channel agreements in LEGAL-tagged corpus — platform_dependency_register
+      empty despite contracts_vendors_platform pass retrieval.
+    evidence_refs:
+      - eval/LCA/presentation_summary_elder_care.md
+      - eval/LCA/poc_delta_elder_care.md
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      Platform checklist item assessable (register row or documented exemption with corpus cite)
+      OR corpus expanded with platform agreements and re-extraction yields rows.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T9-bis-legal-rerun-note.md
+
+  - id: PB-legal_register-retrieval-ip
+    company: elder_care
+    surface: legal_register
+    kind: extraction_depth
+    severity: medium
+    summary: >-
+      ip_register empty while privacy_security_register has 8 BAA rows from same pass — LEGAL
+      corpus lacks IP assignment/OSS/trademark docs, not a dedupe-only miss.
+    evidence_refs:
+      - eval/LCA/presentation_summary_elder_care.md
+      - eval/LCA/poc_delta_elder_care.md
+    fix_lane: product
+    closes_when: >-
+      ip_register populated from in-corpus IP docs after ingest expansion, or item marked
+      unable_to_assess with explicit corpus_absent evidence in legal_report.yaml.
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/runs/T5-brief.md
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#7-elder-care-founderprivacyip-items-2-5-and-spg-legal-extract-item-3
+
+  - id: PB-fta_numeric-segment-json-dedupe
+    company: elder_care
+    surface: fta_numeric
+    kind: claim_failure
+    severity: high
+    summary: >-
+      revenue_by_segment_json contains byte-identical duplicate blocks (Westchester [5]-[9] vs
+      [20]-[24], Long Island [10]-[14] vs [31]-[35]) — root cause of 33 LOW/unresolvable claims.
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+    fix_lane: product
+    closes_when: >-
+      FTA extraction writes deduplicated revenue_by_segment_json (or record_id per row) and a
+      future spot-check resolves duplicate-array claims without operator override.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T10-fta-rerun-note.md
+
+  - id: PB-fta_numeric-segment-source-location
+    company: elder_care
+    surface: fta_numeric
+    kind: extraction_depth
+    severity: medium
+    summary: >-
+      revenue_by_segment_json schema lacks source_location unlike sibling FTA arrays — 42 claims
+      capped at MEDIUM with no Layer-B chunk path structurally possible.
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      revenue_by_segment_json entries carry source_location populated from true source workbook/tab
+      and spot-check Layer B resolves for representative segment claims.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T10-fta-rerun-note.md
+
+  - id: PB-fta_numeric-broken-chunk-repoint
+    company: elder_care
+    surface: fta_numeric
+    kind: claim_failure
+    severity: medium
+    summary: >-
+      Pro Forma Income Statement citations resolve to broken vision placeholder chunk 027ec667…;
+      sibling cd9773ea… on same page confirms values — 42 claims in known_bad_chunk_family.
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      source_location to chunk_id mapping for Pro Forma Income Statement section resolves to
+      cd9773ea… (or equivalent correct chunk) in ingestion metadata and downstream tooling.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-bis-spotcheck-note.md
+
+  - id: PB-fta_numeric-chunk-truncation
+    company: elder_care
+    surface: fta_numeric
+    kind: claim_failure
+    severity: medium
+    summary: >-
+      ~1,200-char chunk-text cap in evidence fetch truncates numeric values needed for Layer-B
+      verification on fta_numeric spot-check paths (M2 WP-2 class).
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/calibration.py
+      - eval/eval_program_playbook.md
+    fix_lane: product
+    closes_when: >-
+      fetch_chunk_metadata / retrieve_evidence returns full chunk_text for FTA numeric evidence
+      paths without 1200-char cap regression on Elder Care calibration sample.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-bis-spotcheck-note.md
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-fta-evidence-lengths.json
+
+  - id: PB-fta_numeric-page46-vision-reextract
+    company: elder_care
+    surface: fta_numeric
+    kind: extraction_depth
+    severity: low
+    summary: >-
+      Chunk b1feca18 (Diligence Adjusted Income Statement p.46) has stale Pro Forma Adjusted
+      EBITDA rows for 2023A/TTM while margin row is correct — 12 claims MEDIUM via Layer A only.
+    evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.m3_backlog.md
+    fix_lane: product
+    closes_when: >-
+      Re-extracted CIM page 46 chunk reconciles EBITDA dollar rows with margin row for 2023A and
+      TTM columns in ingestion.chunks.
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-bis-spotcheck-note.md
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T11-spotcheck-note.md
+
+  - id: PB-legal_register-locator-chunk-resolution
+    company: elder_care
+    surface: legal_register
+    kind: claim_failure
+    severity: high
+    summary: >-
+      Nine legal_register S2 failures are retrieval misses — source_doc/source_location did not
+      resolve to corpus chunks (COI table layout, multi-doc lease rows, page vs section locators).
+    evidence_refs:
+      - eval/content/legal_register_verifier.py
+      - eval/LCA/presentation_summary_elder_care.md
+      - eval/LCA/poc_delta_elder_care.md
+    fix_lane: product
+    closes_when: >-
+      Deterministic legal verifier resolves cited_chunk_id for the nine bucket-A claim_ids in a
+      legal_register S2 re-run (Manhattan/Long Island leases, COI rows, BAA, retainer) without
+      operator override.
+    registry_ref: M5-S2-product-backlog-ledger
+    closed_at: '2026-08-21'
+    closed_evidence_refs:
+      - .dev/plans/eval-signal-foldback-m4-product-fixes/artifacts/T9-bis-legal-rerun-note.md
+
+  - id: PB-spg-ingest-borderline-completeness
+    company: spg
+    surface: ingest
+    kind: measurement_caveat
+    severity: low
+    summary: >-
+      SPG ingest preflight closed at 1.0000 (363/363) post-M4 SpreadsheetML parser + Aug-19 probe.
+      Remaining work is retrieval baseline refresh on deduped 44k corpus (was 71k pre-refactor) —
+      not an ingest completeness blocker.
+    evidence_refs:
+      - eval/retrieval/gold_labels/spg.yaml
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T8-spg-ingest-fta.md
+    fix_lane: eval
+    closes_when: >-
+      Post-M4 harness baseline recorded for SPG on uc13_ale:44085+ corpus with updated ingestion_snapshot
+      ids; FTA golden checklist re-scored with pipeline run_id (replacing Chip B 8.5/18 pre-ingest-close).
+    registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
+    closed_at: '2026-08-20'
+    closed_evidence_refs:
+      - .dev/specs/eval-signal-foldback/spec.md#D7
+      - .dev/archive/programs/eval-signal-foldback/waves/wave2-e2e-2026-08-19/g1_SPG.log
+      - baseline_3992534e412f
+      - eval/retrieval/gold_labels/spg.yaml
+
+  - id: PB-multi-company-retrieval-baseline-stale-post-m4
+    company: elder_care
+    surface: retrieval
+    kind: measurement_caveat
+    severity: high
+    summary: >-
+      Aug 2026 parser rollout changed corpus economics for all four companies — Elder +59% chunks
+      (35k→56k), SPG −38% dedup (71k→44k), Clearsulting/GKF minor uplift. Harness MRR/recall@10 from
+      Jul/Aug-11 baselines not comparable to post-M4 warehouse; Elder mean MRR 0.665→0.222 on expanded
+      intent set. Re-baseline before promotion gates or cross-company trust comparisons.
+    evidence_refs:
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/scratch/orphaned-2026-08/tmp_deep_data_analysis.json
+      - eval/retrieval/gold_labels/elder_care.yaml
+    fix_lane: eval
+    closes_when: >-
+      Fresh harness baselines stored in uc13_ale.ops for all four companies with post-M4 ingestion_snapshot
+      pins; trust_statement retrieval rows regenerated; pre-M4 baseline ids documented as invalid in registry GAP-107.
+    registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
+    closed_at: '2026-08-20'
+    closed_evidence_refs:
+      - eval/program/trust_statement.md
+      - baseline_2fa3a9056bd0
+      - baseline_488f70f13570
+      - baseline_7510d1d14449
+      - baseline_3992534e412f
+
+  - id: PB-exec-summary-t2-artifacts-stale-post-m4
+    company: elder_care
+    surface: exec_summary
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      T2 exec-summary word counts unchanged since Jul-17 (847–1,325) despite post-M4 ingest closure
+      and larger orchestrator bundles — deliverables do not reflect +59% Elder corpus or SPG dedup.
+    evidence_refs:
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/scratch/orphaned-2026-08/t2_baseline_run_log.json
+      - .dev/scratch/orphaned-2026-08/tmp_e2e_readiness_probe.json
+    fix_lane: ops
+    closes_when: >-
+      T2 render_only or agents_render re-run for Elder Care and SPG records new word counts and volume
+      artifact bytes in t2_baseline_run_log with post-M4 run_ids.
+    registry_ref: OI-runbook-program-milestones-t2-exec-summary-post-m4-rerender
+
+  - id: PB-agent-outputs-stale-post-m4-ingest
+    company: clearsulting
+    surface: agent
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      Workstream agent Delta rows for Clearsulting, Elder Care, and GKF last ran Jul-28/30 — before
+      full M4 ingest closure. Deep probe shows richer BMA exec/citations vs company-analysis HTML
+      panels; only SPG FTA refreshed Aug-19. G1/content eval may misattribute corpus vs model gaps.
+    evidence_refs:
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
+      - .dev/scratch/orphaned-2026-08/tmp_deep_data_analysis.json
+      - uc13-company-data-analysis.html
+    fix_lane: ops
+    closes_when: >-
+      Full seven-agent pipeline re-run for Clearsulting, Elder Care, and GKF with post-M4 run_ids;
+      company-analysis regen shows HTML agent panels match deep probe agent summaries.
+    registry_ref: OI-agent-quality-post-m4-agent-rerun-three-companies
+
+  - id: PB-fta_numeric-post-m4-chunk-citation-drift
+    company: elder_care
+    surface: fta_numeric
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      Post-M4 Elder corpus +59% chunks may resolve or relocate cited chunk_ids (e.g. Pro Forma broken
+      vision placeholder 027ec667…, page-46 b1feca18…) — spot-check claims from 2026-08-13 may need
+      re-verification on uc13_ale:55812+ corpus before attributing to extraction bugs.
+    evidence_refs:
+      - .dev/scratch/orphaned-2026-08/company-analysis-diff-pre-vs-post-refactor.md
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-13.failure_modes.md
+      - eval/retrieval/gold_labels/elder_care.yaml
+    fix_lane: eval
+    closes_when: >-
+      FTA numeric spot-check re-run on post-M4 corpus documents which prior claim failures persist vs
+      resolve due to chunk relocation; remaining failures re-triaged in product_backlog.
+    registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
+
+  - id: PB-gkf-retrieval-bloated-filename-closure
+    company: gkf
+    surface: retrieval
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      GKF harness baseline baseline_4e098a2a2252 includes 26 filename_closure intents with >500
+      positives each — per-intent recall@10 not interpretable; eval_debt HWM blocked new rows at T6.
+    evidence_refs:
+      - eval/retrieval/gold_labels/gkf.yaml
+      - eval/program/onboarding_queue.yaml
+    fix_lane: eval
+    closes_when: >-
+      Bloated GKF intents re-bootstrapped with citation_backfill or aggregate_exclude, or operator
+      raises eval_debt HWM and opens tracked debt rows with closes_when per Clearsulting T11 pattern.
+    registry_ref: M5-S4-gkf-spg-retrieval-onboard
+    closed_at: '2026-08-20'
+    closed_evidence_refs:
+      - .dev/specs/eval-signal-foldback/spec.md#D8
+      - baseline_7510d1d14449
+      - eval/retrieval/gold/gold_exclusions.yaml
+      - eval/retrieval/gold_labels/gkf.yaml
+      - registry:GAP-M5-2-gkf-bloated-filename-closure
+
+  - id: PB-spg-retrieval-bloated-filename-closure
+    company: spg
+    surface: retrieval
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      SPG harness baseline baseline_0ec50347353a includes 20 filename_closure intents with >500
+      positives each — per-intent recall@10 not interpretable; eval_debt HWM blocked new rows at T6.
+    evidence_refs:
+      - eval/retrieval/gold_labels/spg.yaml
+      - eval/program/onboarding_queue.yaml
+    fix_lane: eval
+    closes_when: >-
+      Bloated SPG intents re-bootstrapped with citation_backfill or aggregate_exclude, or operator
+      raises eval_debt HWM and opens tracked debt rows with closes_when per Clearsulting T11 pattern.
+    registry_ref: M5-S4-gkf-spg-retrieval-onboard
+    closed_at: '2026-08-20'
+    closed_evidence_refs:
+      - .dev/specs/eval-signal-foldback/spec.md#D8
+      - "reconciliation: 26 SPG filename_closure intents at HEAD of gold_labels/spg.yaml; 20 of those
+        exceed 500 positives (this row's entire scope) and are now citation_backfill; 13 is a distinct
+        count (gold_exclusions.yaml entries); 3 residuals at 23/23/41 positives were never in this
+        row's scope (see registry:OI-eval-harness-spg-residual-filename-closure-gold-completeness)"
+      - baseline_3992534e412f
+      - eval/retrieval/gold_labels/spg.yaml
+      - eval/retrieval/gold/gold_exclusions.yaml
+
+  - id: PB-legal_register-claim-failure-gkf
+    company: gkf
+    surface: legal_register
+    kind: claim_failure
+    severity: high
+    summary: >-
+      GKF legal_register S2 run 20260826T171705Z-ea6b produced 28 claims: 14 supported,
+      10 contradicted, 4 unsupported. Failures concentrate in employment_register (3/4),
+      insurance_register (5/9), and privacy_security_register (4/5). Locators resolved
+      (cited_chunk_id present on every failed claim) but raw quotes did not match the
+      resolved chunks. First legal_register S2 evidence for GKF. T3 has no per-field
+      extraction-depth split, so this row tracks the S2 verdicts as claim_failure rather
+      than guessing extraction_depth.
+    evidence_refs:
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-verifier-run-evidence.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-gkf.stdout.txt
+      - s2_scores:gkf:legal_register:20260826T171705Z-ea6b
+    fix_lane: product
+    closes_when: >-
+      GKF legal_register S2 re-run (same verifier) shows supported fraction improved vs
+      14/28 on run 20260826T171705Z-ea6b; contradicted/unsupported claim_ids in
+      employment, insurance, and privacy_security registers resolve without operator override.
+
+  - id: PB-legal_register-claim-failure-spg
+    company: spg
+    surface: legal_register
+    kind: claim_failure
+    severity: high
+    summary: >-
+      SPG legal_register S2 run 20260826T171712Z-3975 produced 5 claims: 1 supported
+      (contract_register), 1 contradicted (ip_register), 3 unsupported (insurance_register
+      plus two privacy_security_register). Locators resolved; quote-vs-chunk match failed
+      on 4/5 claims. Kind is claim_failure from T3 verdicts (registers are not empty, so
+      not a corpus_gap). Residual ambiguity vs extraction_depth is explicit: T3 has no
+      nested-field split, so this row does not guess a more specific kind.
+    evidence_refs:
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-verifier-run-evidence.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T3-spg.stdout.txt
+      - s2_scores:spg:legal_register:20260826T171712Z-3975
+    fix_lane: product
+    closes_when: >-
+      SPG legal_register S2 re-run shows supported fraction improved vs 1/5 on run
+      20260826T171712Z-3975; insurance, ip, and privacy_security claim_ids supported
+      without operator override.
+
+  - id: PB-agent-kpi-overlay-scorer-healthcare-hardcode
+    company: clearsulting
+    surface: agent
+    kind: measurement_caveat
+    severity: high
+    summary: >-
+      Clearsulting KPI G1 is 1/3 because score_kpi() requires healthcare_services and
+      reads only healthcare_kpis_json (1/7 scored fields) while overlay_confirmed is
+      tech_services and tech_services_kpis_json has 8 nonempty keys the scorer ignores —
+      A-09 overlay/scorer mismatch, not a LEGAL-corpus or KPI_OPS absence story.
+    evidence_refs:
+      - horizon-map.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+      - registry:A-09
+    fix_lane: product
+    closes_when: >-
+      Clearsulting and GKF KPI G1 reads the matching overlay block for each company's
+      overlay_confirmed value, not only healthcare_kpis_json; re-run shows KPI score
+      reflects populated sibling overlay fields.
+    registry_ref: A-09
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/runs/T2-brief.md
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#3-live-overlay-column-verification-item-1
+
+  - id: PB-legal_register-elder-care-founder-privacy-extract
+    company: elder_care
+    surface: legal_register
+    kind: extraction_depth
+    severity: high
+    summary: >-
+      Elder Care Legal G1 is 8/11 on the fresh 2026-08-25 row; founder stays partial
+      (0 founder_key rows, retrieved_no_terms) and privacy stays partial (4/5 items) —
+      residual extraction depth after t4c/coc/restrictive/platform recovered vs Wave-2.
+    evidence_refs:
+      - horizon-map.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+      - registry:A-09
+    fix_lane: product
+    closes_when: >-
+      Fresh Elder Care Legal G1 ≥9/11 or founder and privacy items leave
+      retrieved_no_terms / 4-of-5 partial state without operator override.
+    registry_ref: A-09
+
+  - id: PB-legal_register-spg-legal-extract-gap
+    company: spg
+    surface: legal_register
+    kind: extraction_depth
+    severity: high
+    summary: >-
+      SPG Legal G1 is 1/11 despite 181 LEGAL-classified docs; legal_register gaps are
+      retrieved_no_terms on t4c/coc/restrictive/vendor/platform — registers nearly empty,
+      opposite of a corpus hole (T4 cross-company table).
+    evidence_refs:
+      - horizon-map.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+      - registry:A-09
+    fix_lane: product
+    closes_when: >-
+      SPG Legal G1 moves off 1/11 against the 181-doc LEGAL set
+    registry_ref: A-09
+
+  - id: PB-agent-spg-kpi-scorer-empty-fields
+    company: spg
+    surface: agent
+    kind: measurement_caveat
+    severity: medium
+    summary: >-
+      SPG KPI G1 is 2/3 with overlay_confirmed matching healthcare_services; overlay_block_fields
+      fails because caregiver_headcount, clinician_headcount, and compliance_incidents are empty
+      in the scored 7-field healthcare subset (4/7 populated) while KPI_OPS docs = 19.
+    evidence_refs:
+      - horizon-map.md
+      - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/T4-root-cause-findings.md
+      - registry:A-09
+    fix_lane: product
+    closes_when: >-
+      Scored healthcare fields fill for SPG KPI G1, or item marked corpus-absent with
+      explicit evidence that the three empty fields are absent from KPI-relevant corpus.
+    registry_ref: A-09
+    closed_at: '2026-08-28'
+    closed_evidence_refs:
+      - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#4-spg-kpi-empty-fields-investigation-item-4

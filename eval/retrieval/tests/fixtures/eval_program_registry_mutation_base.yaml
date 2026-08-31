@@ -1,0 +1,21 @@
+schema_version: 1
+frozen_at: "2026-08-10"
+sources:
+  - id: ROW-1
+    source_ref: OPEN_ITEMS.md#open--half-open
+    title: Synthetic row one
+  - id: ACC-synthetic-orphan-a
+    source_ref: .dev/eval_state_of_affairs_2026-08-03.md#8.4
+    title: Synthetic ACC orphan A
+  - id: ACC-synthetic-orphan-b
+    source_ref: .dev/eval_state_of_affairs_2026-08-03.md#8.4
+    title: Synthetic ACC orphan B
+ratifications:
+  - subject: Synthetic ratification one
+    rides: ROW-1
+  - subject: Synthetic ratification two
+    rides: ROW-1
+  - subject: Synthetic ratification three
+    rides: ROW-1
+  - subject: Synthetic ratification four
+    rides: ROW-1
