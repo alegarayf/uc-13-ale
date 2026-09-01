@@ -382,6 +382,7 @@ def test_prepare_spot_check_rejects_non_human_surface_assignment(
 def test_prepare_spot_check_halts_on_rung2_registry_assignment(
     spot_check_tree: Path,
 ) -> None:
+    """Per-surface: the requested surface itself being judge-assigned still halts."""
     registry = yaml.safe_load(
         (spot_check_tree / "eval/program/registry.yaml").read_text(encoding="utf-8")
     )
@@ -395,6 +396,30 @@ def test_prepare_spot_check_halts_on_rung2_registry_assignment(
 
     with pytest.raises(ValueError, match="rung-2"):
         prepare_spot_check(cfg)
+
+
+def test_prepare_spot_check_sibling_judge_promotion_does_not_block_human_surface(
+    spot_check_tree: Path,
+) -> None:
+    """Guard-scoping regression: promoting exec_summary to judge must not block a
+    still-human sibling surface (fta_numeric) from its own spot-check path."""
+    registry = yaml.safe_load(
+        (spot_check_tree / "eval/program/registry.yaml").read_text(encoding="utf-8")
+    )
+    for item in registry["items"]:
+        if item["id"] == "CHK-26a":
+            item["rung_assignments"]["exec_summary"] = "judge"
+    (spot_check_tree / "eval/program/registry.yaml").write_text(
+        yaml.safe_dump(registry), encoding="utf-8"
+    )
+    cfg = _config(
+        spot_check_tree,
+        surface="fta_numeric",
+        source="uc13_ale.analysis.financial_trends",
+    )
+
+    result = prepare_spot_check(cfg)
+    assert result.claim_count == 2
 
 
 def test_write_spot_check_results_without_sql_executor_raises_before_write(

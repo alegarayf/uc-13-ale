@@ -34,7 +34,11 @@ ACTIONABLE_STATUSES = frozenset({"pending", "in_progress"})
 # actionable set. Bumped per the M7 audit's F1 remediation
 # (.dev/audits/2026-08-25-eval-signal-foldback-m7-checklists-spg.md, T9 amendment); see
 # .dev/plans/eval-signal-foldback-m7-checklists-spg/decision-logs/T9.md.
-FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 53
+# 53 -> 52: ledger-close-now-slice/T5 closed OI-eval-content-exec-summary-judge-rung-build
+# (status: pending -> closed) after building the CHK-27 exec_summary judge harness
+# (eval/content/judge_harness.py) and flipping CHK-26a.rung_assignments.exec_summary to
+# judge; see .dev/plans/ledger-close-now-slice/decision-logs/T5.md.
+FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 52
 GAP_109_ID = "GAP-109-cross-company-legal-kpi-g1-weakness"
 GAP_103_R3_ID = "GAP-103-legal-score-variance-r-3"
 GAP_109_INVESTIGATION_MARKER = "M8-INVESTIGATION-COMPLETE"

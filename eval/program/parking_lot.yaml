@@ -1,0 +1,495 @@
+# Parking lot — items parked until team or stakeholder confirms or rejects.
+# Not a work queue. Closable product defects stay in product_backlog.yaml.
+# Eval-program work stays in registry.yaml (disposition: deferred = revisit when).
+# This file only records the call. After accept, file the work on the right ledger.
+#
+# status:     awaiting_confirm | accepted | rejected
+# waiting_on: team | stakeholder | both
+# topic:      catalogs | beta | prompts | product | ingest | eval | models
+# cluster:    optional grouping key (beta, prompts, …)
+# notes:      gitignored write-ups; not required on a clean clone
+schema_version: 1
+items:
+  - id: PL-catalog-eval-obvs-prod
+    title: Catalog names — eval / obvs / prod
+    status: awaiting_confirm
+    waiting_on: team
+    topic: catalogs
+    parked_at: '2026-08-31'
+    decision_needed: >-
+      Confirm or reject a three-name catalog map (eval / obvs / prod) versus today's
+      uc13_ale / {catalog}.ops-inside-each / uc13, plus the uc13_preview CIM sandbox.
+    current_state: >-
+      Standing convention is three existing Unity Catalog names, not interchangeable:
+      uc13 (production), uc13_ale (eval / harness), uc13_preview (CIM preview sandbox).
+      Observability is the ops schema inside each catalog (apply_ops_ddl.sql), not a
+      fourth catalog. doc_id hashes the catalog name; data does not migrate. Production
+      uc13 is still not M0–M4 ready (2026-08-10; no later retract). MERGE_SCOUT
+      "catalog split" was never written to a decision log.
+    options:
+      - id: keep_today
+        label: Keep uc13 / uc13_ale / uc13_preview; ops stays per-catalog
+      - id: rename_three
+        label: Rename the three existing catalogs to prod / eval / preview (or prod / eval / obvs)
+      - id: add_obvs
+        label: Add a dedicated observability catalog; reject mixing ops into eval or prod
+    source_refs:
+      - databricks/CLAUDE.md
+      - tests/test_catalog_convention.py
+      - eval/retrieval/scripts/apply_ops_ddl.sql
+      - 2026-08-28-hector-merge.md
+    notes:
+      - horizon-map.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: >-
+      A named option is accepted or the rename/split is rejected, with rationale
+      recorded on this row.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-beta-wiring
+    title: Live beta → measurement loop
+    status: awaiting_confirm
+    waiting_on: both
+    topic: beta
+    cluster: beta
+    parked_at: '2026-08-21'
+    decision_needed: >-
+      Confirm or reject funding Phases A–C (usage check, wire runs into measurement,
+      feedback into the same backlog) now that Wave 4 M1–M8 has exited.
+    current_state: >-
+      Lab stages 3–5 work. Beta stages 1–2 are disconnected. Last full-diligence
+      production activity cited 3 Aug 2026; CIM preview activity 20 Aug. Daily
+      handoffs have reprinted "Beta → measurement" as parked since 21 Aug. Does
+      not block leftover product rows on product_backlog.yaml.
+    options:
+      - id: fund_abc
+        label: Fund A–C after the iterate pack (or in cheap parallel for A)
+      - id: phase_a_only
+        label: Confirm Phase A only (is beta alive / which button); park B–C
+      - id: reject_now
+        label: Reject wiring this quarter; keep lab-only measurement
+    source_refs:
+      - databricks/CLAUDE.md
+    notes:
+      - eval_next_steps.md
+      - horizon-map.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: A–C are accepted as a slice, scoped to A only, or rejected with a date to revisit.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-beta-production-home
+    title: Is production the official stakeholder-beta home?
+    status: awaiting_confirm
+    waiting_on: stakeholder
+    topic: beta
+    cluster: beta
+    parked_at: '2026-08-21'
+    decision_needed: >-
+      Confirm or reject production uc13 as the official home for stakeholder beta
+      (if yes, lab-only proof is not "fixed for stakeholders").
+    current_state: >-
+      Production is documented as the beta target. The live VDR UI job has pointed
+      at the Rainmaker preview path (uc13_preview), not full diligence on uc13.
+      Always check the job notebook before assuming what it runs.
+    source_refs:
+      - databricks/CLAUDE.md
+      - 2026-08-28-hector-merge.md
+    notes:
+      - eval_next_steps.md
+      - horizon-map.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: Production is named official, or another catalog/job is named official, or beta is declared not live.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-beta-which-button
+    title: Which button beta hits
+    status: awaiting_confirm
+    waiting_on: team
+    topic: beta
+    cluster: beta
+    parked_at: '2026-08-21'
+    decision_needed: >-
+      Confirm which path stakeholder beta actually triggers — Rainmaker CIM job
+      versus run_vdr_pipeline.py full diligence — and whether that path is intentional.
+    current_state: >-
+      CLAUDE.md job-path warning (verified 2026-08-10): VDR Diligence Pipeline task
+      pointed at run_vdr_rainmaker_job, producing a CIM one-pager in uc13_preview
+      and writing no uc13 table. Necessary and not being done as a standing check.
+    source_refs:
+      - databricks/CLAUDE.md
+    notes:
+      - eval_next_steps.md
+      - horizon-map.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: The live job notebook path is confirmed and recorded as the official beta button, or retargeted.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-beta-feedback-channel
+    title: Feedback channel (form vs Slack)
+    status: awaiting_confirm
+    waiting_on: stakeholder
+    topic: beta
+    cluster: beta
+    parked_at: '2026-08-21'
+    decision_needed: >-
+      Confirm where stakeholder issue reports go so each report ties to a company
+      and a run (form, Slack, or other).
+    current_state: >-
+      No standard intake. Phase C in eval_next_steps.md wants company + date (run id
+      in Phase B) and weekly triage onto the same backlog used for product fixes.
+    source_refs: []
+    notes:
+      - eval_next_steps.md
+      - horizon-map.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: A channel is named and required fields (company + run/date) are agreed, or feedback-loop work is rejected.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-beta-new-companies
+    title: Phase D — new beta companies at the same bar
+    status: awaiting_confirm
+    waiting_on: stakeholder
+    topic: beta
+    cluster: beta
+    parked_at: '2026-08-21'
+    decision_needed: >-
+      Confirm or reject onboarding new beta deals to the same quality bar as the
+      four reference companies (after the iterate pack).
+    current_state: >-
+      Explicit Wave 4 non-goal. Onboarding runbook exists for the four reference
+      companies. New companies without the bar become second-class measurement.
+    source_refs:
+      - eval/program/onboarding_runbook.md
+    notes:
+      - eval_next_steps.md
+      - horizon-map.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: Phase D is accepted with a first-company trigger, or rejected until a named date.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-cim-preview-separate-product
+    title: CIM preview vs full diligence as separate products
+    status: awaiting_confirm
+    waiting_on: stakeholder
+    topic: product
+    cluster: beta
+    parked_at: '2026-08-21'
+    decision_needed: >-
+      Confirm or reject marketing CIM preview as a separate, lighter product with
+      its own expectations (never mix preview scores with full-diligence trust).
+    current_state: >-
+      Fair CIM-only vs full-VDR report landed 26 Aug (Elder Care, directional).
+      Legal lost on CIM-only; KPI/customer/forecast differed; QoE/FT/BMA same.
+      Catalogs and products are already isolated in code (uc13_preview vs uc13_ale / uc13).
+    source_refs:
+      - 2026-08-28-hector-merge.md
+      - databricks/CLAUDE.md
+    notes:
+      - horizon-map.md
+      - eval_next_steps.md
+      - CIM_VS_FULL_VDR_ANALYSIS.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: Preview is named a separate product, folded into one product with caveats, or retired.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-phase-9-vs-new-wave
+    title: Phase 9 vs a new wave
+    status: awaiting_confirm
+    waiting_on: team
+    topic: product
+    parked_at: '2026-08-26'
+    decision_needed: >-
+      Confirm the next home for leftover product work and beta wiring — absorb into
+      a formal Phase 9, open a new wave, or keep a named follow-up list.
+    current_state: >-
+      Wave 4 charter ended at M8/G5. Iterate-pack leftovers still need a home.
+      Horizon lists this as decide / now.
+    source_refs:
+      - eval/program/product_backlog.yaml
+    notes:
+      - horizon-map.md
+      - eval_next_steps.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: Phase 9, a new wave name, or a named FU list is recorded as the home.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-prompt-identity
+    title: Prompt identity layer (not a CMS)
+    status: awaiting_confirm
+    waiting_on: both
+    topic: prompts
+    cluster: prompts
+    parked_at: '2026-08-25'
+    decision_needed: >-
+      Confirm or reject a thin prompt-identity slice (classify + hash template onto
+      the run; git remains source of truth) versus buying a prompt store / CMS.
+    current_state: >-
+      We store the answer, not which instructions produced it. Proposal (25 Aug)
+      rejects Langfuse/PromptLayer as runtime source, versioned markdown folders,
+      and Legal JSON edits outside a deploy. Daily handoffs reprinted "Prompt store
+      as a product" as parked. Name collision — do not call this a second "registry."
+    options:
+      - id: identity_0_1
+        label: Fund classify + hash-on-run (threads 0–1); not a Wave 4 blocker
+      - id: reject_identity
+        label: Reject — git SHA is enough
+      - id: fund_cms
+        label: Fund a prompt CMS / hot-reload (explicitly opposed by the write-up)
+    source_refs: []
+    notes:
+      - prompt_registry.md
+      - horizon-map.md
+    related:
+      registry:
+        - EXT-2
+      backlog: []
+    closes_when: Threads 0–1 are accepted, identity is rejected, or a CMS is explicitly funded against the write-up.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-langfuse-aiops
+    title: Langfuse / AIOps as judge-score and trace home
+    status: awaiting_confirm
+    waiting_on: team
+    topic: prompts
+    cluster: prompts
+    parked_at: '2026-08-14'
+    decision_needed: >-
+      Confirm or reject Langfuse (or equivalent) as the home for judge scores and
+      traces — runtime AIOps versus git + hash on the existing run record.
+    current_state: >-
+      Registry EXT-2 is deferred pending operator trigger (spec §18). Prompt-identity
+      write-up rejects an external prompt CMS as a runtime source. MLflow tracing
+      already exists on the agent path.
+    source_refs:
+      - eval/program/registry.yaml
+    notes:
+      - prompt_registry.md
+    related:
+      registry:
+        - EXT-2
+      backlog: []
+    closes_when: EXT-2 is accepted with a vendor/home, rejected in favor of git+hash, or re-triggered with a date.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-trust-product-surface
+    title: Product surface for trust evidence
+    status: awaiting_confirm
+    waiting_on: stakeholder
+    topic: product
+    parked_at: '2026-08-14'
+    decision_needed: >-
+      Confirm or reject exposing trust-statement / quality evidence on a product
+      surface (not only eval/program/trust_statement.md).
+    current_state: >-
+      Registry EXT-3 deferred pending operator trigger. Trust rollup is generated
+      lab markdown. No stakeholder-facing quality stamp on a run today.
+    source_refs:
+      - eval/program/registry.yaml
+      - eval/program/trust_statement.md
+    notes: []
+    related:
+      registry:
+        - EXT-3
+      backlog: []
+    closes_when: A product surface is accepted with a first screen, or EXT-3 stays deferred with a revisit date.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-eval-ci-operating-model
+    title: Manual eval gate vs CI automation
+    status: awaiting_confirm
+    waiting_on: team
+    topic: eval
+    parked_at: '2026-08-14'
+    decision_needed: >-
+      Confirm whether the harness cluster path and INDEX↔ops cross-check stay a
+      standing manual gate or move into CI.
+    current_state: >-
+      Registry EXT-1 deferred. Live recall@10 and promotion remain cluster/operator
+      paths. CI bundle was accepted out of scope for a unified eval CLI (GAP-105).
+    source_refs:
+      - eval/program/registry.yaml
+    notes: []
+    related:
+      registry:
+        - EXT-1
+        - GAP-105-harness-cluster-not-in-ci
+        - GAP-105-no-unified-eval-cli
+      backlog: []
+    closes_when: Manual-gate is ratified, a CI slice is accepted, or EXT-1 is re-triggered with a date.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-chk27-judge-harness
+    title: CHK-27 exec_summary judge harness
+    status: accepted
+    waiting_on: team
+    topic: eval
+    parked_at: '2026-08-13'
+    decision_needed: >-
+      Authorize or reject building the CHK-27 LLM-judge harness for exec_summary
+      (descoped at M3; only if probe + recal pass).
+    current_state: >-
+      Registry CHK-27 closed (built). Product backlog row PB-exec_summary-chk27-judge-harness
+      remains open pending the at-scale production run (plan T6). Post-T12 calibration
+      verdict_agreement 0.857 made a judge rung viable; CHK-26a.rung_assignments.exec_summary
+      is now judge. Human spot_check tooling is fail-closed against judge-rung surfaces
+      (eval/content/spot_check.py:_assert_human_spot_check_allowed).
+    source_refs:
+      - eval/program/product_backlog.yaml
+      - eval/program/registry.yaml
+    notes:
+      - horizon-map.md
+    related:
+      registry:
+        - CHK-27
+      backlog:
+        - PB-exec_summary-chk27-judge-harness
+    closes_when: Operator authorizes the harness, or the backlog row is rejected/descoped with rationale.
+    rationale: >-
+      Operator authorized the CHK-27 exec_summary judge-harness build during the
+      ledger-close-now-slice planning session (2026-08-31), citing CHK-26a's post-T12
+      dual-source verdict_agreement 0.857 ≥ 0.80 threshold pass (recorded 2026-08-19).
+      Built in eval/content/judge_harness.py (plan T5); at-scale production execution
+      is a separate, still-open item (PB-exec_summary-chk27-judge-harness, plan T6).
+    decided_at: '2026-08-31'
+    decided_by: operator
+
+  - id: PL-cell7-parser-rebuild
+    title: Cell 7 full parser rebuild
+    status: awaiting_confirm
+    waiting_on: team
+    topic: ingest
+    parked_at: '2026-08-10'
+    decision_needed: >-
+      Approve or reject a full ingestion-parser rebuild (force=company / Cell 7).
+      AGENTS.md forbids this without explicit approval.
+    current_state: >-
+      Safety rail in AGENTS.md. Vision parse is unreliable on serverless. Incremental
+      per-doc ingest is the default; a logic change is a no-op unless force is set.
+    source_refs:
+      - AGENTS.md
+      - databricks/CLAUDE.md
+    notes:
+      - horizon-map.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: A dated approval names company + catalog + force mode, or the rebuild stays forbidden.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-genie-product-fate
+    title: Genie chatbot product fate
+    status: awaiting_confirm
+    waiting_on: stakeholder
+    topic: product
+    parked_at: '2026-08-10'
+    decision_needed: Confirm whether Genie (garden rules chatbot) is a product or leftover code.
+    current_state: >-
+      backend-ai genie_rules.py exists; product call never made. Registry M-02 is
+      unsizable. Horizon lists this as decide.
+    source_refs:
+      - backend-ai/app/services/genie_rules.py
+      - eval/program/registry.yaml
+    notes:
+      - horizon-map.md
+    related:
+      registry:
+        - M-02
+      backlog: []
+    closes_when: Genie is accepted as a product track, mothballed, or deleted with rationale.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-garden-ui-auth
+    title: Garden UI + auth for analysis.*
+    status: awaiting_confirm
+    waiting_on: stakeholder
+    topic: product
+    parked_at: '2026-08-10'
+    decision_needed: >-
+      Confirm or reject productizing Garden UI and production auth against analysis.*
+      (blocks a stakeholder-facing diligence UI).
+    current_state: >-
+      Horizon proposed / later wave. Older architecture question (S-05 / M-04).
+      Local Garden works against memory or garden.rules; diligence analysis tables
+      are not a Garden product today.
+    source_refs:
+      - README.md
+    notes:
+      - horizon-map.md
+    related:
+      registry: []
+      backlog: []
+    closes_when: A Garden/analysis product slice is accepted, or UI productization is rejected for a named period.
+    rationale: null
+    decided_at: null
+    decided_by: null
+
+  - id: PL-finetune-sft
+    title: Fine-tune / SFT / LoRA program
+    status: awaiting_confirm
+    waiting_on: stakeholder
+    topic: models
+    parked_at: '2026-08-26'
+    decision_needed: >-
+      Confirm that weight-training is out of scope (recommended), or accept it as
+      a new program — not a leftover from Wave 4.
+    current_state: >-
+      Nothing in repo trains weights. Horizon says no track. Dataset / pre-training
+      "all-company baseline" is registry-only and never wired to gold or promotion
+      (GAP-108-disconnected-eval-idea-pending-md).
+    source_refs:
+      - eval/program/registry.yaml
+    notes:
+      - horizon-map.md
+      - pending.md
+    related:
+      registry:
+        - GAP-108-disconnected-eval-idea-pending-md
+      backlog: []
+    closes_when: Training is rejected as a standing non-goal, or a new program name is accepted.
+    rationale: null
+    decided_at: null
+    decided_by: null

@@ -147,12 +147,11 @@ def _load_registry_assignments(registry_path: Path) -> dict[str, str]:
 
 def _assert_human_spot_check_allowed(surface: str, registry_path: Path) -> None:
     assignments = _load_registry_assignments(registry_path)
-    for mvp_surface, rung in assignments.items():
-        if mvp_surface in MVP_SURFACES and rung == "judge":
-            raise ValueError(
-                f"registry records rung-2 (judge) assignment for {mvp_surface!r}; "
-                "spot-check tooling requires human-only MVP surfaces"
-            )
+    if surface in MVP_SURFACES and assignments.get(surface) == "judge":
+        raise ValueError(
+            f"registry records rung-2 (judge) assignment for {surface!r}; "
+            "spot-check tooling requires human-only MVP surfaces"
+        )
     assigned = assignments.get(surface)
     if assigned != "human":
         raise ValueError(
