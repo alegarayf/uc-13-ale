@@ -2065,17 +2065,25 @@ items:
   source_id: OI-agent-quality-post-m4-agent-rerun-three-companies
   disposition: staged
   stage: S1
-  status: pending
+  status: closed
   trigger: null
   rationale: 'Parser refactor closed ingest gaps but did not trigger full agent re-runs except SPG FTA
     (2026-08-19). Deep probe shows richer BMA exec/citations for Clearsulting/Elder/GKF vs Jul-28/30
     rows; company-analysis HTML agent panels stale for 3/4 companies. Re-run workstream agents before
-    G1 golden checklists or content spot-checks attribute gaps to model vs corpus.'
+    G1 golden checklists or content spot-checks attribute gaps to model vs corpus.
+    T8 (ledger-close-now-slice, 2026-09-01): ran run_diligence_pipeline.py for Clearsulting
+    (605049684219049), Elder Care (697743257281894), and GKF (660652868011762) — all
+    TERMINATED/SUCCESS, 9/9 agents. Live HTML agent panels match T8-deep-probe-agents.json.
+    Sibling-citation check: only PB-agent-outputs-stale-post-m4-ingest cites this row;
+    that PB close stays T10. OI scope (the three-company agent rerun) is done.'
   tshirt: l
   evidence_refs:
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
   - .dev/tmp_deep_data_analysis.json
   - uc13-company-data-analysis.html
+  - .dev/plans/ledger-close-now-slice/artifacts/T8-closure-evidence.md
+  - .dev/plans/ledger-close-now-slice/artifacts/T8-deep-probe-agents.json
+  - .dev/plans/ledger-close-now-slice/artifacts/T8-company-analysis.html
   rung_assignments: {}
   assessment_metrics: {}
 - id: GAP-107-pre-m4-corpus-metrics-invalidation

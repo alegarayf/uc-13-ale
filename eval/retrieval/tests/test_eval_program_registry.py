@@ -38,7 +38,9 @@ ACTIONABLE_STATUSES = frozenset({"pending", "in_progress"})
 # (status: pending -> closed) after building the CHK-27 exec_summary judge harness
 # (eval/content/judge_harness.py) and flipping CHK-26a.rung_assignments.exec_summary to
 # judge; see .dev/plans/ledger-close-now-slice/decision-logs/T5.md.
-FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 52
+# 52 -> 51: ledger-close-now-slice/T8 closed OI-agent-quality-post-m4-agent-rerun-three-companies
+# (status: pending -> closed) after the three-company run_diligence_pipeline.py rerun.
+FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 51
 GAP_109_ID = "GAP-109-cross-company-legal-kpi-g1-weakness"
 GAP_103_R3_ID = "GAP-103-legal-score-variance-r-3"
 GAP_109_INVESTIGATION_MARKER = "M8-INVESTIGATION-COMPLETE"
