@@ -281,6 +281,28 @@ def _reconcile_coc_from_nested_fields(merged: dict) -> None:
             coc["clause_present"] = "true"
 
 
+def _reconcile_t4c_from_nested_fields(merged: dict) -> None:
+    """Backfill termination_for_convenience.present when the LLM populated
+    notice_days/penalty detail fields but left the boolean flag itself
+    ``not_found`` — mirrors ``_reconcile_coc_from_nested_fields`` (T1) for the
+    termination-for-convenience clause family. A row carrying a concrete
+    ``notice_days`` or ``penalty`` value is, by construction, describing a
+    clause that IS present (§5.6.1 tri-state discipline) — T11
+    (ledger-close-now-slice, amendment-2)."""
+    for row in merged.get("contract_register") or []:
+        tfc = row.get("termination_for_convenience")
+        if not isinstance(tfc, dict):
+            continue
+        if not _is_not_found(tfc.get("present")):
+            continue
+        has_evidence = (
+            _parse_int(tfc.get("notice_days")) is not None
+            or bool(str(tfc.get("penalty") or "").strip())
+        )
+        if has_evidence:
+            tfc["present"] = "true"
+
+
 def _merge_register_records(existing: dict, incoming: dict) -> dict:
     """Within-register conflict resolution — prefer row with longer raw_quote — §5.6.2."""
     preferred = existing if _raw_quote_len(existing) >= _raw_quote_len(incoming) else incoming
@@ -374,6 +396,24 @@ RETRIEVED DOCUMENT CONTEXT (extract ALL contract/vendor/platform facts from here
 
 EXTRACTION TASK — contracts, vendors, and platform/channel dependencies (§5.8.1).
 Extract one record per distinct contract, vendor agreement, or platform dependency.
+
+CLAUSE-FAMILY EXTRACTION RULES (read before extracting change_of_control,
+termination_for_convenience, and restrictive_covenants — apply to EVERY row):
+1. Actively search the full retrieved context for change-in-control / consent-to-
+   assignment language, terminate-for-convenience / terminate-without-cause language,
+   and non-compete / non-solicit / exclusivity / MFN language for each contract, even
+   when you are uncertain whether the top-level flag should be "true" or "not_found" —
+   do not skip the nested detail fields just because the top-level flag is undetermined.
+2. Field-sync rule: if you populate ANY nested detail field for change_of_control
+   (consent_required, consent_standard, ownership_threshold_pct) or for
+   termination_for_convenience (notice_days, penalty) with a concrete, non-null value,
+   the parent flag (change_of_control.clause_present / termination_for_convenience.present)
+   must be "true", never "not_found" — a populated detail field is itself evidence the
+   clause is present. Conversely, if you set a parent flag to "true", attempt to populate
+   its detail fields from the same passage before leaving them null.
+3. Use "not_found" for clause_present / present ONLY when no clause language for that
+   family appears anywhere in the retrieved context for that contract — not merely
+   because a nuance is unclear.
 Return ONLY this JSON object:
 
 {{
@@ -648,6 +688,14 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         # queries keep a floor without starving the generic query (index 0).
         # Order matches _DOMAIN_PASS_QUERIES["contracts_vendors_platform"].
         "merge_slot_allocation": (14, 4, 3, 3),
+        # T11 (ledger-close-now-slice, amendment-2): mirrors the employment (T1)
+        # and insurance workstream_filter widen — SPG contract-adjacent docs
+        # (employment-classed MSAs/leases) can carry BACKGROUND alongside LEGAL
+        # post-reclassification; superset filter, cannot remove previously-
+        # eligible chunks. vs_metadata_filters mirrors the ip_privacy (C6 R5)
+        # precedent — push the filter into the VS ANN query, not just post-filter.
+        "workstream_filter": ["LEGAL", "BACKGROUND"],
+        "vs_metadata_filters": True,
     },
     "employment": {
         "top_k": 10,
@@ -864,11 +912,26 @@ def _pred_coc(merged: dict) -> bool:
 
 
 def _pred_restrictive(merged: dict) -> bool:
+    """Assessed against contract_register.restrictive_covenants first, then
+    the employment_register's own non_compete/non_solicit fields — SPG's
+    restrictive language lives in employment agreements, not customer/vendor
+    contracts (golden_checklist_spg.md L20: Sacramento/Fairfax/Denver/Lewis
+    employment & IC agreements), so a contract_register-only read never sees
+    it. T11 (ledger-close-now-slice, amendment-2)."""
     for row in merged.get("contract_register") or []:
         if not _has_source_doc(row):
             continue
         rc = row.get("restrictive_covenants") or {}
         if not _is_not_found(rc.get("present")):
+            return True
+    for row in merged.get("employment_register") or []:
+        if not _has_source_doc(row):
+            continue
+        non_compete = row.get("non_compete") or {}
+        if not _is_not_found(non_compete.get("present")):
+            return True
+        non_solicit = row.get("non_solicit") or {}
+        if not _is_not_found(non_solicit.get("present")):
             return True
     return False
 
@@ -1931,6 +1994,7 @@ class LegalContractsAgent(WorkstreamAgent):
         merged = self._merge_registers(registers)
         _reconcile_register_from_citations(merged, self._citations_as_dicts())
         _reconcile_coc_from_nested_fields(merged)
+        _reconcile_t4c_from_nested_fields(merged)
         contract_register = merged.get("contract_register") or []
         litigation_register = merged.get("litigation_register") or []
 
