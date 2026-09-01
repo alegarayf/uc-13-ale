@@ -69,9 +69,12 @@ CLOSED_TARGET_IDS = frozenset(
         "PB-exec-summary-t2-artifacts-stale-post-m4",
         "PB-agent-outputs-stale-post-m4-ingest",
         "PB-fta_numeric-post-m4-chunk-citation-drift",
+        # ledger-close-now-slice T10-tris (amendment-2): T12 live verification
+        "PB-legal_register-extraction-depth-contracts",
+        "PB-legal_register-spg-legal-extract-gap",
     }
 )
-LEDGER_CLOSE_STAYS_OPEN_IDS = frozenset(
+LEDGER_CLOSE_T12_CLOSED_IDS = frozenset(
     {
         "PB-legal_register-extraction-depth-contracts",
         "PB-legal_register-spg-legal-extract-gap",
@@ -276,15 +279,39 @@ def test_m8_t6_legal_register_rows_match_t3_field_set() -> None:
     )
 
 
-def test_ledger_close_now_stays_open_rows_remain_open() -> None:
-    """T1-bis stays-open recommendations must not be closed by T10."""
+def test_ledger_close_now_t12_rows_are_closed() -> None:
+    """T12 close / close-via-override must land on both T10-tris rows."""
     backlog = _load_backlog()
     by_id = {item["id"]: item for item in backlog["items"]}
-    assert LEDGER_CLOSE_STAYS_OPEN_IDS <= set(by_id)
-    for item_id in LEDGER_CLOSE_STAYS_OPEN_IDS:
+    assert LEDGER_CLOSE_T12_CLOSED_IDS <= set(by_id)
+    assert LEDGER_CLOSE_T12_CLOSED_IDS <= CLOSED_TARGET_IDS
+    for item_id in LEDGER_CLOSE_T12_CLOSED_IDS:
         item = by_id[item_id]
-        assert item.get("closed_at") is None, f"{item_id}: T1-bis recommended stays-open"
-        assert item_id not in CLOSED_TARGET_IDS, f"{item_id}: stays-open id leaked into CLOSED_TARGET_IDS"
+        assert item.get("closed_at") is not None, f"{item_id}: T12 close missing closed_at"
+        refs = [str(r) for r in item.get("closed_evidence_refs") or []]
+        assert any(
+            "T12-closure-evidence.md" in r for r in refs
+        ), f"{item_id}: missing T12 artifact cite"
+
+    depth_refs = [
+        str(r)
+        for r in by_id["PB-legal_register-extraction-depth-contracts"][
+            "closed_evidence_refs"
+        ]
+    ]
+    depth_joined = "\n".join(depth_refs)
+    assert any("operator-override" in r for r in depth_refs)
+    assert "S2" in depth_joined and "3/23" in depth_joined
+    assert "t4c" in depth_joined and "coc" in depth_joined
+    assert "786816606734173" in depth_joined
+
+    spg_refs = [
+        str(r) for r in by_id["PB-legal_register-spg-legal-extract-gap"]["closed_evidence_refs"]
+    ]
+    spg_joined = "\n".join(spg_refs)
+    assert not any("operator-override" in r for r in spg_refs)
+    assert "702079473124503" in spg_joined
+    assert "1/11" in spg_joined and "2/11" in spg_joined
 
 
 def test_iterate_pack_t1_new_rows_match_field_set() -> None:
@@ -314,13 +341,11 @@ def test_product_backlog_rejects_orphan_closed_evidence_refs() -> None:
     backlog = _load_backlog()
     mutated = dict(backlog)
     items = [dict(item) for item in backlog["items"]]
-    open_item = next(item for item in items if item["id"] not in CLOSED_TARGET_IDS)
-    poisoned = dict(open_item)
+    # T10-tris closed the last open rows; clone any item into an open-shaped poison.
+    poisoned = dict(items[0])
+    poisoned.pop("closed_at", None)
     poisoned["closed_evidence_refs"] = ["registry:orphan-closure-evidence"]
-    for index, item in enumerate(items):
-        if item["id"] == open_item["id"]:
-            items[index] = poisoned
-            break
+    items[0] = poisoned
     mutated["items"] = items
     errors = validate_product_backlog(mutated)
     assert any("closed_evidence_refs must be absent when closed_at is absent" in err for err in errors)

@@ -140,6 +140,14 @@ items:
       Elder Care legal run populates t4c and coc nested fields on contract_register rows where
       lease/APA corpus contains those clauses; legal_register S2 supported fraction improves
       vs 3/23 baseline.
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T12-closure-evidence.md
+      - operator-override:waives-S2-fraction-conjunct
+      - "waived_clause:legal_register S2 supported fraction improves vs 3/23 baseline"
+      - "before_after:t4c pass->pass; coc gap-correct->pass"
+      - run_id:786816606734173
+      - t11_sha:5900f1aad8ddb60988c101b27029a9f3a206f51c
 
   - id: PB-legal_register-corpus-gap-platform
     company: elder_care
@@ -596,6 +604,12 @@ items:
     closes_when: >-
       SPG Legal G1 moves off 1/11 against the 181-doc LEGAL set
     registry_ref: A-09
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T12-closure-evidence.md
+      - run_id:702079473124503
+      - t11_sha:5900f1aad8ddb60988c101b27029a9f3a206f51c
+      - "g1:1/11->2/11"
 
   - id: PB-agent-spg-kpi-scorer-empty-fields
     company: spg
