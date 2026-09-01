@@ -1957,7 +1957,8 @@ items:
     stays open — its own closes_when ("CHK-27 judge harness executes exec_summary at scale") is a separate,
     still-open gate that this OI-row''s closure does not discharge; confirmed via grep that
     PB-exec_summary-retrieval-scope-gap and PB-exec_summary-chk27-judge-harness are the only two
-    product_backlog.yaml rows citing this registry_ref — no third citation exists.'
+    product_backlog.yaml rows citing this registry_ref — no third citation exists.
+    2026-09-01 ledger-close-now-audit-remediation (audit 2026-09-01-ledger-close-now-slice F3): PB-exec_summary-chk27-judge-harness closed_at 2026-09-01 by T6/T10 of ledger-close-now-slice. The "stays open" sentence above is historical (true at T5-bis write time) and is no longer current.'
   tshirt: l
   evidence_refs:
   - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T12-calibration-exec_summary-dual-source.json

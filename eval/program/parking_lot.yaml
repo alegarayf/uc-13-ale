@@ -373,6 +373,7 @@ items:
       verdict_agreement 0.857 made a judge rung viable; CHK-26a.rung_assignments.exec_summary
       is now judge. Human spot_check tooling is fail-closed against judge-rung surfaces
       (eval/content/spot_check.py:_assert_human_spot_check_allowed).
+      2026-09-01 ledger-close-now-audit-remediation (audit 2026-09-01-ledger-close-now-slice F3): PB-exec_summary-chk27-judge-harness is closed (closed_at 2026-09-01); the "remains open" sentence above is historical (true at T5-bis write time).
     source_refs:
       - eval/program/product_backlog.yaml
       - eval/program/registry.yaml

@@ -1,5 +1,9 @@
 # Changelog
 
+## ledger-close-now-audit-remediation — 2026-09-01
+
+- T1 (audit remediation — waiver, parking-lot test, F3 narrative sync): Added tracked `eval/program/suite_gate_waivers.md` waiving six pre-existing pytest nodeids from audit `2026-09-01-ledger-close-now-slice`; committed `eval/retrieval/tests/test_parking_lot_schema.py` unchanged; appended dated F3 correction notes to `OI-eval-content-exec-summary-judge-rung-build` rationale and `PL-chk27-judge-harness` current_state. Rationale: discharge audit findings F0/F1/F1b/F3 without re-opening closed ledger rows or patching waived test causes. Adversarial gap deferred: no hermetic pytest that the waiver file remains tracked — named landing gate is T3 kill criterion 2 (`git ls-files`).
+
 ## ledger-close-now-slice — 2026-08-31
 
 - T10-tris (amendment-2 ledger close of the two stays-open legal_register rows): Closed `PB-legal_register-spg-legal-extract-gap` on T12's live SPG Legal G1 1/11→2/11 (`run_id=702079473124503`, T11 SHA `5900f1a`) and `PB-legal_register-extraction-depth-contracts` via the session-authorized operator-override that waives the S2-fraction conjunct of `closes_when` (`t4c` pass→pass, `coc` gap-correct→pass, `run_id=786816606734173`). The eight T10-closed rows were left untouched. Rationale: T12's recommendations are the only new evidence, and T10-tris is the sole ledger writer. + renamed `test_ledger_close_now_stays_open_rows_remain_open` → `test_ledger_close_now_t12_rows_are_closed` (mutation-checked on the override citation).
