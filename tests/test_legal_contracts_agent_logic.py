@@ -18,10 +18,12 @@ from agents.workstreams.legal_contracts_agent import (
     _is_true,
     _merge_query_hits,
     _merge_register_records,
+    _pred_coc,
     _pred_founder,
     _pred_ip,
     _pred_privacy,
     _pred_restrictive,
+    _reconcile_coc_from_nested_fields,
     _reconcile_register_from_citations,
     _register_dedupe_key,
 )
@@ -167,6 +169,47 @@ def test_reconcile_register_from_citations_backfills_restrictive_present():
     row = merged["contract_register"][0]
     assert row["restrictive_covenants"]["present"] == "true"
     assert _pred_restrictive(merged) is True
+
+
+def test_reconcile_coc_from_nested_fields_backfills_clause_present():
+    """Elder Care live re-run (T1, ledger-close-now-slice) showed the LLM
+    populating change_of_control.consent_required/consent_standard/
+    ownership_threshold_pct with real lease-assignment detail (Westchester
+    landlord consent clause) while leaving clause_present itself
+    'not_found' — an internal-consistency gap g1_score_all_agents.score_legal
+    reads strictly (coc scored gap-correct, not pass). Mutation-checked:
+    commenting out the has_evidence upgrade branch left clause_present
+    'not_found' and made the final assertion fail; reverted after confirming
+    the failure."""
+    merged = {
+        "contract_register": [
+            {
+                "contract_id": 5,
+                "counterparty_name": "Landlord (Westchester)",
+                "source_doc": "Westchester_Lease_0121.pdf",
+                "change_of_control": {
+                    "clause_present": "not_found",
+                    "consent_required": "true",
+                    "consent_standard": "Prior written consent of Owner required for assignment",
+                    "ownership_threshold_pct": "majority",
+                },
+            },
+            {
+                "contract_id": 6,
+                "counterparty_name": "No evidence counterparty",
+                "change_of_control": {
+                    "clause_present": "not_found",
+                    "consent_required": None,
+                    "consent_standard": None,
+                    "ownership_threshold_pct": None,
+                },
+            },
+        ],
+    }
+    _reconcile_coc_from_nested_fields(merged)
+    assert merged["contract_register"][0]["change_of_control"]["clause_present"] == "true"
+    assert merged["contract_register"][1]["change_of_control"]["clause_present"] == "not_found"
+    assert _pred_coc(merged) is True
 
 
 @pytest.fixture
@@ -435,6 +478,22 @@ def test_employment_budget_reserves_founder_query_slots():
     assert "founder" in founder_query
     assert "restricted stock" in founder_query
     assert "stock transfer" in founder_query
+
+
+def test_employment_budget_admits_background_tagged_docs_for_spg():
+    """SPG's employment-agreement docs are tagged LEGAL and BACKGROUND (not
+    LEGAL-exclusive) post-reclassification, so a LEGAL-only workstream_filter
+    misses them the same way the insurance pass missed BACKGROUND-tagged COI
+    certs before its own workstream_filter fix (see the insurance budget's
+    comment a few entries below). Mutation-checked: removing the employment
+    budget's workstream_filter key made this assertion fail (falls back to
+    the _domain_retrieve_pass default of ["LEGAL"] only); reverted after
+    confirming the failure."""
+    budget = _DOMAIN_PASS_BUDGETS["employment"]
+    assert budget.get("workstream_filter") == ["LEGAL", "BACKGROUND"]
+
+    retrieve_src = inspect.getsource(LegalContractsAgent._domain_retrieve_pass)
+    assert 'budget.get("workstream_filter", ["LEGAL"])' in retrieve_src
 
 
 def test_ip_privacy_budget_reserves_confidentiality_query_slots():
