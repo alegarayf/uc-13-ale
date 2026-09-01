@@ -259,6 +259,28 @@ def _reconcile_register_from_citations(merged: dict, citations: list[dict]) -> N
                 rc["scope_note"] = quote[:200]
 
 
+def _reconcile_coc_from_nested_fields(merged: dict) -> None:
+    """Backfill change_of_control.clause_present when the LLM populated
+    consent-detail fields but left the boolean flag itself ``not_found`` —
+    an internal-consistency gap distinct from the citation-based backfill
+    above. A row carrying a concrete ``consent_required``/``consent_standard``/
+    ``ownership_threshold_pct`` value is, by construction, describing a clause
+    that IS present (§5.6.1 tri-state discipline) — T1 (ledger-close-now-slice)."""
+    for row in merged.get("contract_register") or []:
+        coc = row.get("change_of_control")
+        if not isinstance(coc, dict):
+            continue
+        if not _is_not_found(coc.get("clause_present")):
+            continue
+        has_evidence = (
+            _is_true(coc.get("consent_required"))
+            or bool(str(coc.get("consent_standard") or "").strip())
+            or bool(str(coc.get("ownership_threshold_pct") or "").strip())
+        )
+        if has_evidence:
+            coc["clause_present"] = "true"
+
+
 def _merge_register_records(existing: dict, incoming: dict) -> dict:
     """Within-register conflict resolution — prefer row with longer raw_quote — §5.6.2."""
     preferred = existing if _raw_quote_len(existing) >= _raw_quote_len(incoming) else incoming
@@ -643,6 +665,11 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         # = top_k*3, applied per-query before file_name_filter). Reserve
         # slots so the founder-targeted query always contributes hits.
         "merge_slot_allocation": (7, 3),
+        # T1 (ledger-close-now-slice): SPG's employment-agreement docs are
+        # tagged LEGAL and BACKGROUND (not LEGAL-exclusive) post-reclassification —
+        # mirrors the insurance pass precedent below, which hit the same
+        # LEGAL-alone miss for COI docs tagged BACKGROUND.
+        "workstream_filter": ["LEGAL", "BACKGROUND"],
     },
     "litigation": {
         "top_k": 8,
@@ -1903,6 +1930,7 @@ class LegalContractsAgent(WorkstreamAgent):
 
         merged = self._merge_registers(registers)
         _reconcile_register_from_citations(merged, self._citations_as_dicts())
+        _reconcile_coc_from_nested_fields(merged)
         contract_register = merged.get("contract_register") or []
         litigation_register = merged.get("litigation_register") or []
 
