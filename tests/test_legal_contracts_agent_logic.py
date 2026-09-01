@@ -13,6 +13,7 @@ from agents.workstreams.legal_contracts_agent import (
     _DOMAIN_PASS_BUDGETS,
     _DOMAIN_PASS_IDS,
     _DOMAIN_PASS_QUERIES,
+    _USER_PROMPT_CONTRACTS_VENDORS_PLATFORM,
     _eq_str,
     _is_not_found,
     _is_true,
@@ -23,8 +24,10 @@ from agents.workstreams.legal_contracts_agent import (
     _pred_ip,
     _pred_privacy,
     _pred_restrictive,
+    _pred_t4c,
     _reconcile_coc_from_nested_fields,
     _reconcile_register_from_citations,
+    _reconcile_t4c_from_nested_fields,
     _register_dedupe_key,
 )
 
@@ -210,6 +213,233 @@ def test_reconcile_coc_from_nested_fields_backfills_clause_present():
     assert merged["contract_register"][0]["change_of_control"]["clause_present"] == "true"
     assert merged["contract_register"][1]["change_of_control"]["clause_present"] == "not_found"
     assert _pred_coc(merged) is True
+
+
+# --- T11 fix #1: contracts-pass prompt hardening (field-sync rule) --------
+
+
+def test_contracts_prompt_has_field_sync_rule_for_coc_and_t4c():
+    """The LLM must be instructed to keep change_of_control.clause_present /
+    termination_for_convenience.present in sync with their own nested detail
+    fields — mirrors the intent of _reconcile_coc_from_nested_fields (T1)
+    inside the prompt itself, targeting the Run-2 failure mode (T1.md: the
+    second Elder Care live run populated NO CoC detail fields at all, so
+    post-merge reconciliation had nothing to backfill from). Mutation-checked:
+    removing the 'Field-sync rule' sentence from the prompt constant made the
+    second assertion fail; reverted after confirming the failure."""
+    prompt = _USER_PROMPT_CONTRACTS_VENDORS_PLATFORM
+    assert "CLAUSE-FAMILY EXTRACTION RULES" in prompt
+    assert "Field-sync rule" in prompt
+    assert "must be \"true\", never \"not_found\"" in prompt
+
+
+# --- T11 fix #2: contracts-pass retrieval widen ----------------------------
+
+
+def test_contracts_vendors_platform_budget_widened_workstream_and_vs_filters():
+    """Mirrors the employment (T1) / insurance workstream_filter widen and the
+    ip_privacy (C6 R5) vs_metadata_filters precedent — superset filter, cannot
+    remove previously-eligible chunks. Mutation-checked: removing the
+    workstream_filter key made this assertion fail (falls back to the
+    _domain_retrieve_pass default of ["LEGAL"] only); reverted after
+    confirming the failure."""
+    budget = _DOMAIN_PASS_BUDGETS["contracts_vendors_platform"]
+    assert budget.get("workstream_filter") == ["LEGAL", "BACKGROUND"]
+    assert budget.get("vs_metadata_filters") is True
+
+    retrieve_src = inspect.getsource(LegalContractsAgent._domain_retrieve_pass)
+    assert 'budget.get("workstream_filter", ["LEGAL"])' in retrieve_src
+
+
+# --- T11 fix #3: deterministic t4c backfill (mirrors CoC pattern) ---------
+
+
+def test_reconcile_t4c_from_nested_fields_backfills_present():
+    """Mirrors test_reconcile_coc_from_nested_fields_backfills_clause_present
+    (T1) for termination_for_convenience — a row carrying a concrete
+    notice_days or penalty value is, by construction, describing a present
+    clause even when the LLM left the flag itself 'not_found'. Negative case
+    (all fields None) proves the backfill does not invent terms. Mutation-
+    checked: neutralizing the has_evidence branch left present 'not_found'
+    and made the first assertion fail; reverted after confirming the
+    failure."""
+    merged = {
+        "contract_register": [
+            {
+                "contract_id": 1,
+                "counterparty_name": "Landlord (Westchester)",
+                "source_doc": "Westchester_Lease_0121.pdf",
+                "termination_for_convenience": {
+                    "present": "not_found",
+                    "notice_days": "60",
+                    "penalty": None,
+                },
+            },
+            {
+                "contract_id": 2,
+                "counterparty_name": "No evidence counterparty",
+                "termination_for_convenience": {
+                    "present": "not_found",
+                    "notice_days": None,
+                    "penalty": None,
+                },
+            },
+        ],
+    }
+    _reconcile_t4c_from_nested_fields(merged)
+    assert merged["contract_register"][0]["termination_for_convenience"]["present"] == "true"
+    assert merged["contract_register"][1]["termination_for_convenience"]["present"] == "not_found"
+    assert _pred_t4c(merged) is True
+
+
+def test_reconcile_t4c_from_nested_fields_backfills_from_penalty_alone():
+    """Falsifier: penalty-only evidence (no notice_days) must still backfill —
+    proves the two has_evidence branches are OR'd, not AND'd."""
+    merged = {
+        "contract_register": [
+            {
+                "contract_id": 1,
+                "counterparty_name": "Penalty Only Co",
+                "source_doc": "Penalty.pdf",
+                "termination_for_convenience": {
+                    "present": "not_found",
+                    "notice_days": None,
+                    "penalty": "$50,000 early termination fee",
+                },
+            },
+        ],
+    }
+    _reconcile_t4c_from_nested_fields(merged)
+    assert merged["contract_register"][0]["termination_for_convenience"]["present"] == "true"
+
+
+def test_run_wires_reconcile_t4c_after_merge():
+    """Falsifier: run() must call _reconcile_t4c_from_nested_fields after the
+    existing CoC reconciliation, before roll-ups read contract_register."""
+    body = inspect.getsource(LegalContractsAgent.run)
+    coc_pos = body.index("_reconcile_coc_from_nested_fields(merged)")
+    t4c_pos = body.index("_reconcile_t4c_from_nested_fields(merged)")
+    rollup_pos = body.index("_build_coc_consent_list(")
+    assert coc_pos < t4c_pos < rollup_pos
+
+
+# --- T11 fix #4: restrictive predicate realignment (employment register) --
+
+
+def test_pred_restrictive_still_requires_source_doc_on_employment_rows():
+    """Falsifier: the employment-register widen must not bypass the
+    has_source_doc gate that the contract_register branch already enforces."""
+    merged = {
+        "contract_register": [],
+        "employment_register": [
+            {"agreement_class": "employee", "source_doc": "", "non_compete": {"present": "true"}},
+        ],
+    }
+    assert _pred_restrictive(merged) is False
+
+
+def test_pred_restrictive_false_when_employment_restrictive_not_found():
+    """Falsifier: sourced employment rows with not_found non_compete/non_solicit
+    must not flip the predicate — only concrete evidence should."""
+    merged = {
+        "contract_register": [],
+        "employment_register": [
+            {
+                "agreement_class": "employee",
+                "source_doc": "generic_offer_letter.pdf",
+                "non_compete": {"present": "not_found"},
+                "non_solicit": {"present": "not_found"},
+            }
+        ],
+    }
+    assert _pred_restrictive(merged) is False
+
+
+def test_pred_restrictive_four_company_regression_matrix():
+    """Mandatory four-company hermetic regression (kill criterion 1) before
+    shipping fix #4. Fixture shapes are hermetic, built from each company's
+    documented live register pattern, not live warehouse reads:
+    - Elder Care: contract_register-sourced restrictive covenant already
+      passes (golden_checklist_elder_care.md L21: 5 contract_register rows,
+      APA + Manhattan/Long Island leases) — must stay True, unaffected by
+      the employment-register addition (it is additive, OR'd in).
+    - Clearsulting: genuinely empty corpus for this clause family
+      (golden_checklist_clearsulting.md L20: 0 non-compete/non-solicit/MFN/
+      exclusivity hits in 2417 chunks) — must stay False, not become a false
+      positive.
+    - GKF: contract_register-sourced restrictive covenant already passes
+      (golden_checklist_gkf.md L20: FDD Confidentiality and Noncompetition
+      Agreement rows) — must stay True.
+    - SPG: the row this fix targets. contract_register clause flags are all
+      not_found (T1.md L96) but employment agreements carry non-compete/
+      non-solicit language the old contract_register-only predicate could
+      never see (golden_checklist_spg.md L20: Sacramento/Fairfax/Denver/Lewis
+      employment & IC agreements) — must flip from False to True.
+    Mutation-checked: reverting _pred_restrictive to its pre-fix,
+    contract_register-only body made the SPG assertion fail (False instead
+    of True) while leaving the other three assertions unchanged; reverted
+    after confirming the failure."""
+    elder_care_merged = {
+        "contract_register": [
+            {
+                "contract_id": 1,
+                "counterparty_name": "Manhattan Landlord",
+                "source_doc": "Manhattan_Lease.pdf",
+                "restrictive_covenants": {"present": "true", "scope_note": "non-compete clause"},
+            }
+        ],
+        "employment_register": [],
+    }
+    assert _pred_restrictive(elder_care_merged) is True
+
+    clearsulting_merged = {
+        "contract_register": [],
+        "employment_register": [],
+    }
+    assert _pred_restrictive(clearsulting_merged) is False
+
+    gkf_merged = {
+        "contract_register": [
+            {
+                "contract_id": 1,
+                "counterparty_name": "Goddard Franchisor LLC",
+                "source_doc": "FDD_Confidentiality_and_Noncompetition_Agreement.pdf",
+                "restrictive_covenants": {
+                    "present": "true",
+                    "scope_note": "confidentiality and noncompetition",
+                },
+            }
+        ],
+        "employment_register": [],
+    }
+    assert _pred_restrictive(gkf_merged) is True
+
+    spg_merged = {
+        "contract_register": [
+            {
+                "contract_id": 1,
+                "counterparty_name": "MSA counterparty",
+                "source_doc": "1.1.3.1.10_Grand Junction MSA.pdf",
+                "restrictive_covenants": {"present": "not_found", "scope_note": None},
+            }
+        ],
+        "employment_register": [
+            {
+                "person_or_role": "Maximillion Jenson",
+                "agreement_class": "employee",
+                "source_doc": "7.5.38_Sacramento_-_Employment_Agreement__Maximillion_Jenson.pdf",
+                "non_compete": {
+                    "present": "true",
+                    "scope_note": "Specialized Training; Goodwill; Non-Compete",
+                },
+                "non_solicit": {
+                    "present": "true",
+                    "scope_note": "Finder's Fee on hiring Company employees or contractors",
+                },
+            }
+        ],
+    }
+    assert _pred_restrictive(spg_merged) is True
 
 
 @pytest.fixture
@@ -405,7 +635,10 @@ def test_merge_query_hits_reserves_generic_slots_without_dropping_targeted():
     assert isinstance(queries, tuple) and len(queries) == 4
     assert len(allocation) == len(queries)
     assert sum(allocation) == top_k
-    assert budget.get("vs_metadata_filters", False) is False
+    # T11 (ledger-close-now-slice, amendment-2) flipped this to True as part of
+    # fix #2's retrieval widen — superseded from the pre-T11 False baseline;
+    # see test_contracts_vendors_platform_budget_widened_workstream_and_vs_filters.
+    assert budget.get("vs_metadata_filters", False) is True
 
     generic = _hits("G", 24)
     t4c = [SimpleNamespace(chunk_id="G05")] + _hits("T", 8)
