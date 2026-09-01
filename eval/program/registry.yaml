@@ -1590,7 +1590,7 @@ items:
   - .dev/audits/eval-consolidation/M3/g6-closeout-evidence.md
   - .dev/audits/eval-consolidation/M3/operator-attestation-rung3.md
   rung_assignments:
-    exec_summary: human
+    exec_summary: judge
     fta_numeric: human
   assessment_metrics:
     exec_summary:
@@ -1608,7 +1608,7 @@ items:
   source_id: null
   disposition: staged
   stage: S2
-  status: descoped
+  status: closed
   trigger: null
   rationale: 'No-build disposition: zero surfaces assigned rung 2 at M3 start — CHK-26a
     records rung_assignments {exec_summary: human, fta_numeric: human} and CHK-23a
@@ -1618,11 +1618,21 @@ items:
     final; M3 does not re-decide rungs. S2 score-table storage (§8.8/§9) is built
     separately (T1); no judge-harness module or rung-2 production runs are in scope
     this milestone. Post-T12 (2026-08-19): exec_summary calibration dual-source passed 0.857
-    threshold — resurrection scoped to OI-eval-content-exec-summary-judge-rung-build pending operator gate.'
+    threshold — resurrection scoped to OI-eval-content-exec-summary-judge-rung-build pending operator gate.
+    T5 (ledger-close-now-slice, 2026-08-31): operator authorized build per
+    OI-eval-content-exec-summary-judge-rung-build; harness module built at
+    eval/content/judge_harness.py reusing judge_claim/build_exec_dual_source_evidence
+    (calibration.py) and S2Writer (s2_writer.py); CHK-26a rung_assignments.exec_summary
+    now judge. Status closed for the build; at-scale production execution against
+    uc13_ale.eval.s2_scores is a downstream subtask''s exclusive scope (plan T6) —
+    see PB-exec_summary-chk27-judge-harness (open) for the at-scale closes_when.'
   tshirt: null
   evidence_refs:
   - .dev/audits/eval-consolidation/M2/2026-08-12-eval-consolidation-m2-audit.md
   - .dev/plans/eval-consolidation-m2-s2-preplan-assessments/audits/calibration-disagreement-audit-2026-08-12.md
+  - eval/content/judge_harness.py
+  - eval/content/tests/test_judge_harness.py
+  - .dev/plans/ledger-close-now-slice/decision-logs/T5.md
   rung_assignments: {}
   assessment_metrics: {}
 - id: CHK-28
@@ -1934,12 +1944,20 @@ items:
   source_id: OI-eval-content-exec-summary-judge-rung-build
   disposition: staged
   stage: S2
-  status: pending
+  status: closed
   trigger: Operator authorizes exec_summary human→judge after T12 signoff review (playbook §6.2 step 4); CHK-26a dual-source verdict_agreement 0.857 ≥ 0.80 recorded 2026-08-19
   rationale: 'Post-T12 build slice (not full charter): (1) wire dual-source evidence in eval/content/spot_check.py
     — closes PB-exec_summary-retrieval-scope-gap; mirror calibration.py pattern; (2) resurrect CHK-27 judge harness
     for exec_summary — closes PB-exec_summary-chk27-judge-harness; reuse judge_claim + s2_writer; (3) update CHK-26a
-    rung_assignments.exec_summary to judge. CHK-27 remains descoped until this row closes; no auto-build on calibration pass alone.'
+    rung_assignments.exec_summary to judge. CHK-27 remains descoped until this row closes; no auto-build on calibration pass alone.
+    T5 (ledger-close-now-slice, 2026-08-31): all three sub-items landed — (1) closed 2026-08-28 per
+    PB-exec_summary-retrieval-scope-gap.closed_at; (2) CHK-27 harness built at eval/content/judge_harness.py
+    (T6 owns the at-scale production run); (3) CHK-26a.rung_assignments.exec_summary flipped to judge in this
+    same commit. Row closed for the build/flip scope this row itself defines. PB-exec_summary-chk27-judge-harness
+    stays open — its own closes_when ("CHK-27 judge harness executes exec_summary at scale") is a separate,
+    still-open gate that this OI-row''s closure does not discharge; confirmed via grep that
+    PB-exec_summary-retrieval-scope-gap and PB-exec_summary-chk27-judge-harness are the only two
+    product_backlog.yaml rows citing this registry_ref — no third citation exists.'
   tshirt: l
   evidence_refs:
   - .dev/plans/eval-multi-company-coverage-expansion/signoffs/T12-calibration-exec_summary-dual-source.json
@@ -1947,6 +1965,9 @@ items:
   - eval/content/spot_check.py
   - eval/program/product_backlog.yaml
   - eval/eval_program_playbook.md
+  - eval/content/judge_harness.py
+  - eval/content/tests/test_judge_harness.py
+  - .dev/plans/ledger-close-now-slice/decision-logs/T5.md
   rung_assignments: {}
   assessment_metrics: {}
 - id: M5-S5-onboarding-queue
