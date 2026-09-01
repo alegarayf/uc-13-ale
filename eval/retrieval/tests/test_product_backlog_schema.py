@@ -60,6 +60,21 @@ CLOSED_TARGET_IDS = frozenset(
         "PB-legal_register-retrieval-ip",
         "PB-exec_summary-008-locator-mismatch",
         "PB-exec_summary-retrieval-scope-gap",
+        # ledger-close-now-slice T10: closed from T1/T3/T4/T6/T7/T8/T9 artifacts
+        "PB-legal_register-elder-care-founder-privacy-extract",
+        "PB-legal_register-claim-failure-gkf",
+        "PB-legal_register-claim-failure-spg",
+        "PB-exec_summary-source-ref-mislabel",
+        "PB-exec_summary-chk27-judge-harness",
+        "PB-exec-summary-t2-artifacts-stale-post-m4",
+        "PB-agent-outputs-stale-post-m4-ingest",
+        "PB-fta_numeric-post-m4-chunk-citation-drift",
+    }
+)
+LEDGER_CLOSE_STAYS_OPEN_IDS = frozenset(
+    {
+        "PB-legal_register-extraction-depth-contracts",
+        "PB-legal_register-spg-legal-extract-gap",
     }
 )
 # Retired by iterate-pack-now-slice T9-bis (R2 amendment): this row closed via
@@ -237,24 +252,39 @@ def test_product_backlog_closed_row_set() -> None:
 
 
 def test_m8_t6_legal_register_rows_match_t3_field_set() -> None:
-    """New M8 T6 rows must use the existing legal_register field set and id convention."""
+    """M8 T6 legal_register rows keep the frozen field set and id convention."""
     backlog = _load_backlog()
     items = backlog["items"]
     by_id = {item["id"]: item for item in items}
+    extra_closed_keys = {"closed_at", "closed_evidence_refs", "registry_ref"}
     assert M8_T6_NEW_IDS <= set(by_id)
     for item_id in M8_T6_NEW_IDS:
         item = by_id[item_id]
-        assert set(item) == REQUIRED_ITEM_KEYS, f"{item_id}: extra or missing keys {set(item) ^ REQUIRED_ITEM_KEYS}"
+        extra = set(item) - REQUIRED_ITEM_KEYS
+        assert extra <= extra_closed_keys, f"{item_id}: unexpected extra keys {extra - extra_closed_keys}"
+        assert REQUIRED_ITEM_KEYS <= set(item)
         assert item["surface"] == "legal_register"
         assert item["kind"] == "claim_failure"
         assert item["company"] in {"gkf", "spg"}
         assert item_id == f"PB-legal_register-claim-failure-{item['company']}"
-        assert item.get("closed_at") is None
-        assert item_id not in CLOSED_TARGET_IDS
+        # ledger-close-now-slice T10: T3 recommended close via operator override;
+        # closure is permitted only via CLOSED_TARGET_IDS (never silent).
+        assert item.get("closed_at") is None or item_id in CLOSED_TARGET_IDS
     assert not any(
         item["company"] == "clearsulting" and item["surface"] == "legal_register"
         for item in items
     )
+
+
+def test_ledger_close_now_stays_open_rows_remain_open() -> None:
+    """T1-bis stays-open recommendations must not be closed by T10."""
+    backlog = _load_backlog()
+    by_id = {item["id"]: item for item in backlog["items"]}
+    assert LEDGER_CLOSE_STAYS_OPEN_IDS <= set(by_id)
+    for item_id in LEDGER_CLOSE_STAYS_OPEN_IDS:
+        item = by_id[item_id]
+        assert item.get("closed_at") is None, f"{item_id}: T1-bis recommended stays-open"
+        assert item_id not in CLOSED_TARGET_IDS, f"{item_id}: stays-open id leaked into CLOSED_TARGET_IDS"
 
 
 def test_iterate_pack_t1_new_rows_match_field_set() -> None:

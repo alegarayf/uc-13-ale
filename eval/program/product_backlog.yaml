@@ -48,6 +48,12 @@ items:
       CHK-27 judge harness executes exec_summary at scale; registry CHK-26a
       rung_assignments.exec_summary is judge (not human); human spot_check blocked for upgraded surface.
     registry_ref: OI-eval-content-exec-summary-judge-rung-build
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T6-closure-evidence.md
+      - .dev/plans/ledger-close-now-slice/artifacts/T6-run-evidence.md
+      - s2_scores:20260901T134541Z-7610
+      - eval/program/registry.yaml
 
   - id: PB-exec_summary-source-ref-mislabel
     company: elder_care
@@ -64,6 +70,10 @@ items:
     closes_when: >-
       prepare_spot_check emits source://...analysis.diligence_report.executive_summary for
       exec_summary surface in generated presentation packets.
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T4-closure-evidence.md
+      - eval/content/spot-check/exec_summary_elder_care_presentation.yaml
 
   - id: PB-exec_summary-chunk-truncation
     company: elder_care
@@ -362,6 +372,12 @@ items:
       T2 render_only or agents_render re-run for Elder Care and SPG records new word counts and volume
       artifact bytes in t2_baseline_run_log with post-M4 run_ids.
     registry_ref: OI-runbook-program-milestones-t2-exec-summary-post-m4-rerender
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T7-closure-evidence.md
+      - .dev/t2_baseline_run_log.json
+      - '853029099501505'
+      - '304858691364166'
 
   - id: PB-agent-outputs-stale-post-m4-ingest
     company: clearsulting
@@ -381,6 +397,12 @@ items:
       Full seven-agent pipeline re-run for Clearsulting, Elder Care, and GKF with post-M4 run_ids;
       company-analysis regen shows HTML agent panels match deep probe agent summaries.
     registry_ref: OI-agent-quality-post-m4-agent-rerun-three-companies
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T8-closure-evidence.md
+      - '605049684219049'
+      - '697743257281894'
+      - '660652868011762'
 
   - id: PB-fta_numeric-post-m4-chunk-citation-drift
     company: elder_care
@@ -400,6 +422,11 @@ items:
       FTA numeric spot-check re-run on post-M4 corpus documents which prior claim failures persist vs
       resolve due to chunk relocation; remaining failures re-triaged in product_backlog.
     registry_ref: OI-eval-harness-post-m4-retrieval-baseline-refresh
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-31.persist_vs_resolve.yaml
+      - eval/content/spot-check/fta_numeric_elder_care_2026-08-31.failure_modes.md
+      - .dev/plans/ledger-close-now-slice/artifacts/T9-closure-evidence.md
 
   - id: PB-gkf-retrieval-bloated-filename-closure
     company: gkf
@@ -474,6 +501,10 @@ items:
       GKF legal_register S2 re-run (same verifier) shows supported fraction improved vs
       14/28 on run 20260826T171705Z-ea6b; contradicted/unsupported claim_ids in
       employment, insurance, and privacy_security registers resolve without operator override.
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T3-closure-evidence.md
+      - s2_scores:gkf:legal_register:20260831T191629Z-c97a
 
   - id: PB-legal_register-claim-failure-spg
     company: spg
@@ -496,6 +527,10 @@ items:
       SPG legal_register S2 re-run shows supported fraction improved vs 1/5 on run
       20260826T171712Z-3975; insurance, ip, and privacy_security claim_ids supported
       without operator override.
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T3-closure-evidence.md
+      - s2_scores:spg:legal_register:20260831T192950Z-34a0
 
   - id: PB-agent-kpi-overlay-scorer-healthcare-hardcode
     company: clearsulting
@@ -540,6 +575,9 @@ items:
       Fresh Elder Care Legal G1 ≥9/11 or founder and privacy items leave
       retrieved_no_terms / 4-of-5 partial state without operator override.
     registry_ref: A-09
+    closed_at: '2026-09-01'
+    closed_evidence_refs:
+      - .dev/plans/ledger-close-now-slice/artifacts/T1-closure-evidence.md
 
   - id: PB-legal_register-spg-legal-extract-gap
     company: spg
