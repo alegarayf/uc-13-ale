@@ -260,7 +260,7 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 | ASDK-08 | P1: Credencial desde Secret Scope | T8 ✅ | Verified |
 | ASDK-09 | P1: Los 11 call sites migrados | T6, T9 (gateway listo; 11 call sites en T12-T21) | Implementing |
 | ASDK-10 | P2: MLflow tracing | T11 ✅ | Verified |
-| ASDK-11 | P2: Contabilidad de tokens | T5 ✅ (normalización); T12 pendiente (resumen con backend/degradaciones) | Implementing |
+| ASDK-11 | P2: Contabilidad de tokens | T5, T12 ✅ | Verified |
 | ASDK-12 | P2: Paridad end-to-end | Tasks | In Design |
 | ASDK-13 | P1: Gate de egress | T3 ✅ | Verified |
 | ASDK-14 | P3: Investigación MLflow 3 / Agent Bricks | Tasks | In Design |
