@@ -245,16 +245,17 @@ T23 → T24
 - Skill: `claude-api`
 
 **Done when**:
-- [ ] Un data-URI `data:image/png;base64,...` produce `{"type":"image","source":{"type":"base64","media_type":"image/png","data":...}}`
-- [ ] Los bloques `text` pasan sin alterar y se preserva el orden original de los bloques
-- [ ] Una entrada `str` se envuelve en un único bloque `text`
-- [ ] Un data-URI malformado lanza `ValueError` nombrando el bloque
-- [ ] Tests unitarios cubren los cuatro casos
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/test_llm_client_vision.py -v`
-- [ ] Test count: 5 tests pasan (sin borrados silenciosos)
+- [x] Un data-URI `data:image/png;base64,...` produce `{"type":"image","source":{"type":"base64","media_type":"image/png","data":...}}`
+- [x] Los bloques `text` pasan sin alterar y se preserva el orden original de los bloques
+- [x] Una entrada `str` se envuelve en un único bloque `text`
+- [x] Un data-URI malformado lanza `ValueError` nombrando el bloque
+- [x] Tests unitarios cubren los cuatro casos, incluido el shape exacto de producción (imagen primero, texto después)
+- [x] Gate check pasa: `5 passed`; suite completa `1052 passed, 34 skipped`
+- [x] Test count: 5 tests pasan (sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 **Commit**: `feat(llm): convert OpenAI image_url blocks to Anthropic image blocks`
 

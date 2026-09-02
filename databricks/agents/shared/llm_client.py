@@ -14,6 +14,7 @@ Embeddings never go through this module -- Anthropic has no embeddings API.
 from __future__ import annotations
 
 import os
+import re
 
 # Explicit table, never a string transform (e.g. `alias.replace("databricks-",
 # "")`) -- an unmapped alias must fail loudly with ValueError instead of
@@ -73,3 +74,44 @@ def _normalize_usage(usage) -> dict:
         "completion_tokens": completion_tokens,
         "total_tokens": prompt_tokens + completion_tokens,
     }
+
+
+# Matches the data-URI shape jobs/scripts/ingestion_parser.py builds:
+# f"data:image/png;base64,{img_b64}"
+_DATA_URI_RE = re.compile(r"^data:(?P<media_type>[^;]+);base64,(?P<data>.+)$", re.DOTALL)
+
+
+def _to_anthropic_content(user_content: str | list[dict]) -> list[dict]:
+    """Translate OpenAI-style content blocks to the Anthropic SDK's shape.
+
+    A plain str is wrapped in a single text block. A list of blocks is
+    translated element by element, preserving order: an "image_url" block with
+    a base64 data-URI becomes {"type": "image", "source": {"type": "base64",
+    "media_type": ..., "data": ...}}; "text" blocks pass through unchanged.
+    Only the "databricks" backend path sends the original image_url shape --
+    this conversion is Anthropic-only (ASDK-09 AC3).
+    """
+    if isinstance(user_content, str):
+        return [{"type": "text", "text": user_content}]
+
+    converted: list[dict] = []
+    for block in user_content:
+        block_type = block.get("type")
+        if block_type == "image_url":
+            url = block.get("image_url", {}).get("url", "")
+            match = _DATA_URI_RE.match(url)
+            if not match:
+                raise ValueError(
+                    f"Malformed image_url data-URI in vision block: {block!r}"
+                )
+            converted.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": match.group("media_type"),
+                    "data": match.group("data"),
+                },
+            })
+        else:
+            converted.append(block)
+    return converted
