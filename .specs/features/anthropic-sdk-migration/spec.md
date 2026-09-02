@@ -258,7 +258,7 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 | ASDK-06 | P1: Fallback automático | T10 ✅ | Verified |
 | ASDK-07 | P1: Fallback automático | T10 ✅ | Verified |
 | ASDK-08 | P1: Credencial desde Secret Scope | T8 ✅ | Verified |
-| ASDK-09 | P1: Los 11 call sites migrados | T6, T9, T13-T17 ✅ (5/11 call sites); T18-T21 pendientes | Implementing |
+| ASDK-09 | P1: Los 11 call sites migrados | T6, T9, T13-T18 ✅ (6/11 call sites); T19-T21 pendientes | Implementing |
 | ASDK-10 | P2: MLflow tracing | T11 ✅ | Verified |
 | ASDK-11 | P2: Contabilidad de tokens | T5, T12 ✅ | Verified |
 | ASDK-12 | P2: Paridad end-to-end | Tasks | In Design |
