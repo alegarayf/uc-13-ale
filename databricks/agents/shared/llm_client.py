@@ -230,3 +230,142 @@ def _get_anthropic_client():
                 api_key=api_key, timeout=600, max_retries=2
             )
         return _client_state["client"]
+
+
+# --- Databricks serving path (fallback + LLM_BACKEND=databricks) ------------
+
+_databricks_client_lock = threading.Lock()
+_databricks_client_state: dict = {"client": None}
+
+
+def _get_databricks_client():
+    """Build the MLflow deploy client lazily, once per process, under a lock.
+
+    Mirrors agent_base.WorkstreamAgent._get_llm_client's timeout override:
+    the deploy client's HTTP read timeout defaults to 120s
+    (MLFLOW_HTTP_REQUEST_TIMEOUT), which is too short for a 12-16K-token
+    generation. Assigning 1800s (not setdefault) ensures a cluster-preset
+    value can't win.
+    """
+    with _databricks_client_lock:
+        if _databricks_client_state["client"] is None:
+            import mlflow.deployments
+
+            os.environ["MLFLOW_HTTP_REQUEST_TIMEOUT"] = "1800"
+            os.environ["DATABRICKS_HTTP_TIMEOUT"] = "1800"
+            _databricks_client_state["client"] = mlflow.deployments.get_deploy_client(
+                "databricks"
+            )
+        return _databricks_client_state["client"]
+
+
+def _call_anthropic(
+    *,
+    system_prompt: str | None,
+    user_content: str | list[dict],
+    model_id: str,
+    max_tokens: int,
+    temperature: float,
+) -> tuple[str, dict]:
+    """Call the Anthropic SDK. Returns (text, usage) in the counter shape.
+
+    stop_reason == "max_tokens" returns the partial text as-is (no special
+    handling needed -- whatever text accumulated in the response is returned,
+    matching the serving path's behavior so
+    agent_base._recover_truncated_json() keeps working unchanged).
+    stop_reason == "refusal" raises, naming the refusal category, rather than
+    returning empty text the JSON parser would misread as a corrupt response.
+    """
+    client = _get_anthropic_client()
+    content = _to_anthropic_content(user_content)
+    kwargs = {"system": system_prompt} if system_prompt is not None else {}
+    response = client.messages.create(
+        model=model_id,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        messages=[{"role": "user", "content": content}],
+        **kwargs,
+    )
+
+    if response.stop_reason == "refusal":
+        category = response.stop_details.category if response.stop_details else None
+        raise RuntimeError(
+            f"Anthropic refused the request (stop_details.category={category!r})."
+        )
+
+    text = ""
+    for block in response.content:
+        if getattr(block, "type", None) == "text":
+            text = block.text
+            break
+    if not text:
+        print("  ⚠ Anthropic response contained no text block.")
+
+    return text, _normalize_usage(response.usage)
+
+
+def _call_databricks(
+    *,
+    system_prompt: str | None,
+    user_content: str | list[dict],
+    endpoint: str,
+    max_tokens: int,
+    temperature: float,
+) -> tuple[str, dict]:
+    """Call the Databricks Model Serving endpoint. Returns (text, usage).
+
+    Sends `user_content` unmodified -- including a vision block list in its
+    original "image_url" shape (ASDK-09 AC3). This is the exact predict() body
+    already used by agent_base._call_llm and the eight narrative call sites,
+    now shared instead of duplicated.
+    """
+    client = _get_databricks_client()
+    messages = []
+    if system_prompt is not None:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_content})
+
+    response = client.predict(
+        endpoint=endpoint,
+        inputs={
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        },
+    )
+    text = response["choices"][0]["message"]["content"]
+    return text, response.get("usage", {})
+
+
+def chat(
+    *,
+    system_prompt: str | None,
+    user_content: str | list[dict],
+    endpoint: str,
+    max_tokens: int,
+    temperature: float = 0.0,
+) -> tuple[str, dict]:
+    """Route a single chat/vision call to whichever backend LLM_BACKEND selects.
+
+    `endpoint` is the Databricks-style alias every call site already passes
+    (e.g. "databricks-claude-sonnet-4-6") -- unchanged from today, so no
+    workflow YAML, widget default, or notebook needs to change. No fallback
+    yet: a failure on the Anthropic path propagates here (T10 adds the
+    automatic degrade-to-Databricks behavior).
+    """
+    if _active_backend() == "anthropic":
+        model_id = resolve_model(endpoint)
+        return _call_anthropic(
+            system_prompt=system_prompt,
+            user_content=user_content,
+            model_id=model_id,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+    return _call_databricks(
+        system_prompt=system_prompt,
+        user_content=user_content,
+        endpoint=endpoint,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )

@@ -333,18 +333,19 @@ T23 → T24
 - Skill: `claude-api`
 
 **Done when**:
-- [ ] `chat()` devuelve `(texto, usage)` con la forma del contador para ambos backends
-- [ ] `max_tokens` y `temperature` llegan al SDK sin recorte ni elevación
-- [ ] `stop_reason == "max_tokens"` devuelve el texto parcial sin lanzar
-- [ ] `stop_reason == "refusal"` lanza excepción nombrando `stop_details.category`
-- [ ] Respuesta sin bloque `text` devuelve `""` y emite advertencia
-- [ ] La ruta Databricks envía el contenido de visión en formato `image_url`, sin la conversión de T6
-- [ ] Tests unitarios cubren ambas rutas, los tres `stop_reason`, y el paso literal de `max_tokens`
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/test_llm_client_chat.py -v`
-- [ ] Test count: 9 tests pasan (sin borrados silenciosos)
+- [x] `chat()` devuelve `(texto, usage)` con la forma del contador para ambos backends
+- [x] `max_tokens` y `temperature` llegan al SDK sin recorte ni elevación
+- [x] `stop_reason == "max_tokens"` devuelve el texto parcial sin lanzar
+- [x] `stop_reason == "refusal"` lanza excepción nombrando `stop_details.category`
+- [x] Respuesta sin bloque `text` devuelve `""` y emite advertencia
+- [x] La ruta Databricks envía `user_content` sin modificar (incluida visión en formato `image_url`), sin la conversión de T6
+- [x] Tests unitarios cubren ambas rutas, los tres `stop_reason`, y el paso literal de `max_tokens`/`temperature`, con instancias reales de `anthropic.types.Message`/`RefusalStopDetails`
+- [x] Gate check pasa: `9 passed`; suite completa `1083 passed, 34 skipped`
+- [x] Test count: 9 tests pasan (sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 **Commit**: `feat(llm): add the chat entry point with Anthropic and serving backends`
 
