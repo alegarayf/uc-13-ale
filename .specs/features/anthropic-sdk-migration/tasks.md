@@ -304,16 +304,17 @@ T23 → T24
 - Skill: `claude-api`
 
 **Done when**:
-- [ ] Key resuelta vía `get_secret()` sobre el scope de `get_param("anthropic_secret_scope", default="uc13")`, con fallback a `ANTHROPIC_API_KEY`
-- [ ] Cliente construido una sola vez por proceso, bajo `threading.Lock`, con `timeout=600` y `max_retries=2`
-- [ ] Sin key y con backend `anthropic`: excepción que nombra el scope y la variable, y no contiene ningún valor de secreto
-- [ ] Sin el paquete `anthropic` instalado y con backend `anthropic`: `ImportError` con la instrucción de instalación, sin degradar a Databricks
-- [ ] Tests unitarios cubren: resolución por secreto, resolución por env, ausencia de key, ausencia del paquete, y que dos llamadas devuelven la misma instancia
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/test_llm_client_credentials.py -v`
-- [ ] Test count: 6 tests pasan (sin borrados silenciosos)
+- [x] Key resuelta vía `get_secret()` sobre el scope de `get_param("anthropic_secret_scope", default="uc13")`, con fallback a `ANTHROPIC_API_KEY`
+- [x] Cliente construido una sola vez por proceso, bajo `threading.Lock`, con `timeout=600` y `max_retries=2`
+- [x] Sin key y con backend `anthropic`: excepción que nombra el scope y la variable, y no contiene ningún valor de secreto
+- [x] Sin el paquete `anthropic` instalado y con backend `anthropic`: `ImportError` con la instrucción de instalación, sin degradar a Databricks
+- [x] Tests unitarios cubren: resolución por secreto, resolución por env, scope parametrizado, ausencia de key, ausencia del paquete, y que dos llamadas devuelven la misma instancia
+- [x] Gate check pasa: `8 passed`; suite completa `1074 passed, 34 skipped`
+- [x] Test count: **8** tests pasan (planeados 6; se sumaron scope parametrizado y la separación explícita del caso "no filtra el secreto", sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 **Commit**: `feat(llm): resolve the Anthropic credential from the Databricks secret scope`
 

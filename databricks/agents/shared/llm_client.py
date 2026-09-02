@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 
 # Explicit table, never a string transform (e.g. `alias.replace("databricks-",
 # "")`) -- an unmapped alias must fail loudly with ValueError instead of
@@ -139,3 +140,93 @@ def _is_retryable(exc: Exception) -> bool:
     if isinstance(exc, anthropic.APIStatusError):
         return exc.status_code >= 500
     return False
+
+
+# --- Credential resolution and client construction --------------------------
+#
+# Duplicates the get_param()/get_secret()/_get_dbutils() pattern already used
+# across agents/workstreams/*.py (e.g. financial_trends_agent.py:60-104) and
+# jobs/scripts/check_anthropic_egress.py. Not refactored into one shared
+# helper -- design.md Risk C-2 registers that as deliberate, pre-existing debt
+# out of scope for this migration.
+
+_SECRET_KEY = "anthropic_api_key"
+_ENV_VAR = "ANTHROPIC_API_KEY"
+
+_client_lock = threading.Lock()
+_client_state: dict = {"client": None}
+
+
+def _get_dbutils():
+    """Return dbutils when running inside a Databricks notebook, else None."""
+    try:
+        import IPython
+
+        return IPython.get_ipython().user_ns.get("dbutils")
+    except Exception:
+        return None
+
+
+def get_param(key: str, default: str | None = None) -> str | None:
+    _dbutils = _get_dbutils()
+    if _dbutils is not None:
+        try:
+            value = _dbutils.widgets.get(key)
+            if value:
+                return value
+        except Exception:
+            pass
+    return os.environ.get(key, default)
+
+
+def _resolve_api_key() -> str:
+    """Read the Anthropic API key from the secret scope, falling back to env.
+
+    Never includes the key value in the raised message -- only the names of
+    the places consulted (ASDK-08 AC2/AC4).
+    """
+    scope = get_param("anthropic_secret_scope", default="uc13")
+    _dbutils = _get_dbutils()
+    if _dbutils is not None:
+        try:
+            value = _dbutils.secrets.get(scope, _SECRET_KEY)
+            if value:
+                return value
+        except Exception:
+            pass
+    value = os.environ.get(_ENV_VAR)
+    if value:
+        return value
+    raise RuntimeError(
+        f"Anthropic API key not found. On Databricks: add '{_SECRET_KEY}' to "
+        f"the '{scope}' secret scope. Locally: export {_ENV_VAR}."
+    )
+
+
+def _get_anthropic_client():
+    """Build the Anthropic client lazily, once per process, under a lock.
+
+    A 600s timeout with the SDK's own retry logic (max_retries=2) replaces the
+    ~120s serving read-timeout ceiling that forced BMA's two-pass split (C37).
+    Guarded by threading.Lock because pipeline.py runs agents concurrently via
+    ThreadPoolExecutor (design.md edge case) -- without it, two threads racing
+    on first use could construct two clients.
+
+    Raises ImportError (not degrading to Databricks) when the `anthropic`
+    package itself is missing -- a missing dependency is a deployment defect,
+    not a transient failure the fallback should paper over.
+    """
+    with _client_lock:
+        if _client_state["client"] is None:
+            try:
+                import anthropic
+            except ImportError as exc:
+                raise ImportError(
+                    "The 'anthropic' package is required for LLM_BACKEND="
+                    "'anthropic'. Install it with: pip install anthropic>=1.3.0"
+                ) from exc
+            api_key = _resolve_api_key()
+            _client_state["client"] = anthropic.Anthropic(
+                api_key=api_key, timeout=600, max_retries=2
+            )
+        return _client_state["client"]
