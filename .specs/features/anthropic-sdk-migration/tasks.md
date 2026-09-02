@@ -218,14 +218,15 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] `input_tokens`→`prompt_tokens`, `output_tokens`→`completion_tokens`, `total_tokens` como suma
-- [ ] Campos ausentes se tratan como 0 sin lanzar
-- [ ] Tests unitarios cubren: usage completo, usage parcial, usage vacío
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/test_llm_client_usage.py -v`
-- [ ] Test count: 3 tests pasan (sin borrados silenciosos)
+- [x] `input_tokens`→`prompt_tokens`, `output_tokens`→`completion_tokens`, `total_tokens` como suma
+- [x] Campos ausentes o `None` se tratan como 0 sin lanzar
+- [x] Tests unitarios cubren: usage completo, usage parcial, usage vacío, campos `None` explícitos
+- [x] Gate check pasa: `4 passed`; suite completa `1047 passed, 34 skipped`
+- [x] Test count: 4 tests pasan (sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 **Commit**: `feat(llm): normalize Anthropic usage to the existing token counter shape`
 

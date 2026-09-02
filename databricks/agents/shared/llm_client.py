@@ -55,3 +55,21 @@ def _active_backend() -> str:
             f"Valid values: {sorted(_VALID_BACKENDS)}."
         )
     return backend
+
+
+def _normalize_usage(usage) -> dict:
+    """Convert an Anthropic `Usage` object to the shape the token counters expect.
+
+    `usage` is the Pydantic model on `response.usage` (attribute access, e.g.
+    `usage.input_tokens`) -- not a dict. Missing fields are treated as 0 rather
+    than raising, matching the Databricks-serving path's tolerance for a
+    partial `usage` payload. See agents/shared/agent_base.accumulate_tokens for
+    the consumer of this shape.
+    """
+    prompt_tokens = getattr(usage, "input_tokens", None) or 0
+    completion_tokens = getattr(usage, "output_tokens", None) or 0
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    }
