@@ -32,6 +32,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: tasks.md T2 SPEC_DEVIATION; databricks/jobs/scripts/check_anthropic_egress.py (egress-gate)
 - last seen: 2026-09-02T22:58:07Z
 
+### L-004 - Pin a static guard's argument-extraction and scan-scope helpers with their own tests, not just its call matcher, or the guard can be defanged without any test failing
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `static-scan` · harmful: 0
+- features: anthropic-sdk-migration
+- evidence: validation.md round-2 sensor mutations 12 and 13; tests/test_llm_gateway_convention.py:113-120 and :23 (static-scan)
+- last seen: 2026-09-02T23:22:28Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

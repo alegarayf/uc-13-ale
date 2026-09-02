@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 4,
+  "next_id": 5,
   "lessons": [
     {
       "id": "L-001",
@@ -58,6 +58,24 @@
       ],
       "created": "2026-09-02T22:58:07Z",
       "last_seen": "2026-09-02T22:58:07Z"
+    },
+    {
+      "id": "L-004",
+      "key": "surviving_mutant::pin a static guard s argument extraction and scan scope helpers with their own tests not just its call matcher or the guard can be defanged without any test failing",
+      "text": "Pin a static guard's argument-extraction and scan-scope helpers with their own tests, not just its call matcher, or the guard can be defanged without any test failing",
+      "signal": "surviving_mutant",
+      "scope": "static-scan",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md round-2 sensor mutations 12 and 13; tests/test_llm_gateway_convention.py:113-120 and :23 (static-scan)"
+      ],
+      "created": "2026-09-02T23:22:28Z",
+      "last_seen": "2026-09-02T23:22:28Z"
     }
   ]
 }

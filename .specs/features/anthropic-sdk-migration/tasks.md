@@ -857,7 +857,34 @@ T23 → T24
 **Status**: ✅ Complete
 
 ---
+
+### T27: Fix -- el guard de convención tiene un segundo bypass, por posición del argumento
+
+**What**: Inspeccionar todo literal string de una llamada `predict()`, no solo el kwarg `endpoint=`.
+**Where**: `tests/test_llm_gateway_convention.py:113`
+**Depends on**: T26
+**Requirement**: ASDK-09
+**Origen**: sensor de discriminación del Verifier, ronda 2 — mutantes 12 y 13 **sobrevivientes**.
+
+**El defecto**: `_endpoint_literal()` leía únicamente `kw.arg == "endpoint"`. La firma de mlflow es `predict(deployment_name=None, inputs=None, endpoint=None)`, así que `client.predict("databricks-claude-sonnet-4-6", inputs={})` pasa el endpoint **posicionalmente** como `deployment_name` y marcaba cero hits. El Verifier lo demostró apendando esa línea al archivo **permitido** `company_profiler.py`: la suite del guard daba `8 passed` con un call site de Claude saltándose el gateway.
+
+Misma familia que T26 —el guard solo veía una de las formas sintácticas posibles— pero en otra dimensión: T26 era la forma de *invocación*, esta es la forma de *paso de argumentos*. El Verifier la graduó Minor y dejó explícito que podía overrulearse; se overruleó porque el alcance en producción es real y el fix cuesta una función.
+
+**Segundo mutante cerrado en la misma tarea**: quitar `databricks/jobs/scripts` de `_SCAN_ROOTS` encogía la superficie de escaneo a nada sin fallar nada — el guard se volvía vacuo en silencio.
+
+**Done when**:
+- [x] `_endpoint_literal()` sustituido por `_string_literal_args()`, que recoge literales posicionales y de keyword
+- [x] Tres casos parametrizados (`endpoint=`, posicional, `deployment_name=`) más un caso negativo que confirma que un endpoint no-Claude no se marca
+- [x] `test_scan_roots_still_cover_both_production_trees` afirma los dos roots **y** que cada uno aporta archivos, para que el guard no pueda volverse vacuo
+- [x] Verificado con el exploit exacto del Verifier: apendado el `predict()` posicional a `company_profiler.py` en un worktree temporal, el guard falla nombrando archivo y literal (antes: `8 passed`). Mutación 13 también muere. Worktree removido, `git status --porcelain` idéntico al baseline
+- [x] Gate: `1162 passed, 34 skipped`; ruff limpio
+
+**Tests**: unit
+**Gate**: build
+**Status**: ✅ Complete
+
 ---
+
 
 ## Phase Execution Map
 
@@ -870,10 +897,11 @@ Phase 2:  T8 ------→ T9 ------→ T10 -----→ T11
 Phase 3:  T12 -----→ T13 -----→ T14 -----→ T15 -----→ T16 -----→ T17
 Phase 4:  T18 -----→ T19 -----→ T20 -----→ T21 -----→ T22
 Phase 5:  T23 -----→ T24
-Phase 6:  T25       T26        (fix tasks del Verifier -- independientes entre sí)
+Phase 6:  T26 -----→ T27
+Phase 6:  T25
 ```
 
-**Phase 6** no estaba en el plan original: son las dos fix tasks que produjo el sensor de discriminación del Verifier tras T24. Cada una cuelga de la tarea cuyo guard resultó no discriminar (T25 ← T23 por ASDK-06; T26 ← T22 por la convención AD-001), no una de la otra: tocan archivos distintos y pueden correr en cualquier orden.
+**Phase 6** no estaba en el plan original: son las dos fix tasks que produjo el sensor de discriminación del Verifier tras T24. Cada cadena cuelga de la tarea cuyo guard resultó no discriminar: T25 depende de T23 (ASDK-06), y T26 depende de T22 (convención AD-001), con T27 encadenada tras T26 porque toca el mismo archivo. T25 es independiente de esa cadena: toca otro archivo y puede correr en cualquier orden respecto a ella.
 
 Las fronteras entre fases también son aristas de dependencia:
 
@@ -885,6 +913,7 @@ T17 -----→ T18
 T22 -----→ T23
 T23 -----→ T25
 T22 -----→ T26
+T26 -----→ T27
 ```
 
 Ejecución estrictamente secuencial — no hay paralelismo dentro de una fase.

@@ -110,14 +110,33 @@ def _find_predict_calls(tree: ast.Module) -> list[ast.Call]:
     ]
 
 
-def _endpoint_literal(call: ast.Call) -> str | None:
-    """Return the literal string value of a .predict(endpoint=...) kwarg, or
-    None if the endpoint is a variable/expression (not a hardcoded string)."""
-    for kw in call.keywords:
-        if kw.arg == "endpoint" and isinstance(kw.value, ast.Constant):
-            if isinstance(kw.value.value, str):
-                return kw.value.value
-    return None
+def _string_literal_args(call: ast.Call) -> list[str]:
+    """Every hardcoded string argument of a call -- positional and keyword.
+
+    Deliberately broader than the old `_endpoint_literal()`, which read only
+    `kw.arg == "endpoint"`. That was a second bypass of the same family as the
+    ast.Name one: mlflow's signature is
+    `predict(deployment_name=None, inputs=None, endpoint=None)`, so
+    `client.predict("databricks-claude-sonnet-4-6", inputs={})` passes the
+    endpoint positionally as `deployment_name` and scored zero hits -- a Claude
+    call site bypassing the gateway with the guard green.
+
+    The check this feeds asks "does any hardcoded Claude endpoint appear in a
+    predict() call outside the gateway", so every literal is in scope, not just
+    one blessed kwarg name. A variable or expression still yields nothing --
+    that case is unknowable statically and is covered by the allowlist check.
+    """
+    literals = [
+        arg.value
+        for arg in call.args
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+    ]
+    literals += [
+        kw.value.value
+        for kw in call.keywords
+        if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str)
+    ]
+    return literals
 
 
 @pytest.fixture(scope="module")
@@ -156,9 +175,9 @@ def test_no_predict_call_hardcodes_a_claude_endpoint_outside_the_gateway(_all_py
             continue
         tree = _parse(rel_path)
         for call in _find_predict_calls(tree):
-            endpoint = _endpoint_literal(call)
-            if endpoint and "claude" in endpoint.lower():
-                violations.append(f"{rel_path}: predict(endpoint={endpoint!r})")
+            for literal in _string_literal_args(call):
+                if "claude" in literal.lower():
+                    violations.append(f"{rel_path}: predict(... {literal!r} ...)")
 
     assert not violations, (
         f"Found .predict() calls hardcoding a Claude endpoint outside the "
@@ -221,3 +240,48 @@ def test_scanner_still_detects_the_attribute_form():
     tree = ast.parse(source, filename="<attribute-form>")
     assert len(_find_get_deploy_client_calls(tree)) == 1
     assert len(_find_predict_calls(tree)) == 1
+
+
+# --- Regression: a Claude endpoint passed positionally must not slip past ---
+
+
+@pytest.mark.parametrize(
+    ("source", "shape"),
+    [
+        ("client.predict(endpoint='databricks-claude-sonnet-4-6', inputs={})", "keyword endpoint="),
+        ("client.predict('databricks-claude-sonnet-4-6', inputs={})", "positional"),
+        ("client.predict(deployment_name='databricks-claude-sonnet-4-6')", "keyword deployment_name="),
+    ],
+)
+def test_claude_literal_is_detected_in_every_predict_call_shape(source, shape):
+    """mlflow's signature is predict(deployment_name, inputs, endpoint), so the
+    endpoint can arrive positionally or under either kwarg name. Reading only
+    `endpoint=` let `predict('databricks-claude-...', inputs={})` bypass the
+    guard -- verified by the T24 Verifier against the allowlisted
+    company_profiler.py, where the whole file's suite stayed green.
+    """
+    call = _find_predict_calls(ast.parse(source, filename=f"<{shape}>"))[0]
+    assert any("claude" in lit.lower() for lit in _string_literal_args(call)), shape
+
+
+def test_a_non_claude_literal_is_not_flagged():
+    """The broadened matcher must not turn every string into a violation."""
+    call = _find_predict_calls(
+        ast.parse("client.predict(endpoint='databricks-bge-large-en', inputs={})")
+    )[0]
+    assert not any("claude" in lit.lower() for lit in _string_literal_args(call))
+
+
+def test_scan_roots_still_cover_both_production_trees(_all_python_files):
+    """Pins the scan surface itself.
+
+    Dropping a root from _SCAN_ROOTS silently shrinks every check in this file
+    to nothing without failing anything -- the Verifier's mutation 13 survived
+    exactly that way. Asserting the roots AND that each actually yields files
+    keeps the guard from going vacuous.
+    """
+    assert _SCAN_ROOTS == ["databricks/agents", "databricks/jobs/scripts"]
+    for root in _SCAN_ROOTS:
+        assert any(p.startswith(root + "/") for p in _all_python_files), (
+            f"{root} contributed no files to the scan -- the guard is vacuous for it"
+        )
