@@ -579,14 +579,17 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] El módulo ya no construye un deploy client para un endpoint `claude`
-- [ ] `max_tokens=3_000` conservado
-- [ ] Test unitario afirma la delegación con argumentos exactos
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 2 tests pasan (sin borrados silenciosos)
+- [x] El módulo ya no construye un deploy client para un endpoint `claude`
+- [x] `max_tokens=3_000` conservado
+- [x] Test unitario afirma la delegación con argumentos exactos
+- [x] Gate check pasa: `1130 passed, 34 skipped`
+- [x] Test count: **3** tests pasan (planeados 2; sumada preservación de `accumulate_tokens()`, sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: full
+**Status**: ✅ Complete
+
+**Nota**: mismo patrón que T16 (CQA) — narrativa troceada por secciones vía `_extract_section()`, `accumulate_tokens()` preexistente preservado, `os.environ.setdefault(...)` huérfano eliminado.
 
 **Commit**: `refactor(qoe): route the assessment narrative through the LLM gateway`
 
