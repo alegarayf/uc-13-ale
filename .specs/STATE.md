@@ -13,10 +13,11 @@
 ## Handoff
 
 - **Feature**: anthropic-sdk-migration (`.specs/features/anthropic-sdk-migration/`)
-- **Phase / Task**: **Phase 1 completa (T4-T7).** Núcleo puro del gateway listo: mapeo, normalización de usage, conversión de visión, clasificación de errores. Siguiente: Phase 2 (T8-T11)
-- **Completed**: Specify, Discuss, Design, Tasks, Phase 0 (T1-T3, gate PASS), Phase 1 (T4 `e5295b5`, T5 `f6b2724`, T6 `0c38b2f`, T7 pendiente de commit)
-- **In-progress** (file:line): T7 implementada y verificada (`databricks/agents/shared/llm_client.py`, `tests/test_llm_client_errors.py`), falta el commit
-- **Next step**: commitear T7, luego T8 (credencial + construcción del cliente Anthropic bajo lock)
+- **Phase / Task**: **Phase 2 completa (T8-T11).** Gateway completo: credencial, chat() con ambos backends, fallback automático, tracing MLflow. Siguiente: Phase 3 (T12-T17)
+- **Completed**: Phase 0 (T1-T3), Phase 1 (T4-T7), Phase 2: T8 `f6536eb`, T9 `57101c8`, T10 `905dc40`, T11 `00c9627`
+- **In-progress** (file:line): none
+- **Next step**: T12 — extender `print_token_summary()` en `agent_base.py` con backend y degradaciones; actualizar `_ENDPOINT_PRICING` a tarifas first-party
 - **Blockers**: none
-- **Uncommitted files**: `databricks/agents/shared/llm_client.py`, `tests/test_llm_client_errors.py`, `.specs/features/anthropic-sdk-migration/tasks.md`
+- **Incidente registrado (resuelto, sin daño)**: durante T11 se ejecutó por error `git checkout HEAD~15 -- .`, sobrescribiendo el árbol de trabajo. HEAD nunca se movió; `git reset --hard HEAD` restauró todo sin pérdida de historial. Detalle completo en la nota de T11 en `tasks.md`. Lección aplicada: no volver a usar `git checkout <ref> -- .` para explorar.
+- **Uncommitted files**: none
 - **Branch**: feature/anthropic-sdk-migration (sin pushear)
