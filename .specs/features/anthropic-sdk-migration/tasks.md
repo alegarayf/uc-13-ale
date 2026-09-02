@@ -550,14 +550,17 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] El módulo ya no construye un deploy client para un endpoint `claude`
-- [ ] `max_tokens=3_000` conservado
-- [ ] Test unitario afirma la delegación con argumentos exactos
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 2 tests pasan (sin borrados silenciosos)
+- [x] El módulo ya no construye un deploy client para un endpoint `claude`
+- [x] `max_tokens=3_000` conservado
+- [x] Test unitario afirma la delegación con argumentos exactos
+- [x] Gate check pasa: `1127 passed, 34 skipped`
+- [x] Test count: **3** tests pasan (planeados 2; se sumó la preservación de `accumulate_tokens()`, que a diferencia de BMA/FTA sí existía en este call site, sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: full
+**Status**: ✅ Complete
+
+**Nota**: a diferencia de BMA/FTA, esta narrativa sí llamaba `accumulate_tokens()` antes de la migración — preservado usando el `usage` real devuelto por `llm_client.chat()`. También eliminado `os.environ.setdefault("DATABRICKS_HTTP_TIMEOUT", "600")`, huérfano.
 
 **Commit**: `refactor(cqa): route the assessment narrative through the LLM gateway`
 
