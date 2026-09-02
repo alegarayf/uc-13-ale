@@ -24,21 +24,21 @@ Verificados antes de diseñar. Cada uno cambió una decisión.
 
 ## Architecture Overview
 
-Un único punto de entrada (`llm_client.chat`) absorbe las 11 llamadas de chat/visión. Los call sites siguen pasando el mismo string de endpoint estilo Databricks que pasan hoy; la traducción a model ID de Anthropic ocurre dentro del gateway. Los embeddings no cruzan el gateway: siguen yendo directo al deploy client.
+Un único punto de entrada (`llm_client.chat`) absorbe las 10 llamadas de chat/visión que sí llaman a Claude. Los call sites siguen pasando el mismo string de endpoint estilo Databricks que pasan hoy; la traducción a model ID de Anthropic ocurre dentro del gateway. Los embeddings no cruzan el gateway: siguen yendo directo al deploy client.
+
+> **Corrección post-Design (T19, 2026-09-02):** el diagrama original incluía `document_classifier` como call site del gateway. Se descubrió durante T19 que su endpoint hardcodeado es `databricks-meta-llama-3-3-70b-instruct` (Llama, no Claude) — investigación insuficiente en esta fase de Design, que verificó el nombre de la variable `_CLASSIFIER_ENDPOINT` pero no su valor. Movido al subgrafo "fuera del gateway".
 
 ```mermaid
 graph TD
     subgraph Call sites
         A1[agent_base._call_llm]
         A2["generate_*_assessment<br/>BMA · FTA · CQA · QoE · KPI"]
-        A3[document_classifier]
         A4[company_profiler]
         A5["ingestion_parser<br/>vision"]
     end
 
     A1 --> GW[llm_client.chat]
     A2 --> GW
-    A3 --> GW
     A4 --> GW
     A5 --> GW
 
@@ -55,11 +55,13 @@ graph TD
         E2[ingestion_parser.get_embeddings_batch]
         E3[doc_worker]
         E4[ensure_coverage]
+        E5["document_classifier<br/>Llama 3.3 70B, no Claude"]
     end
     E1 --> DEP["mlflow.deployments<br/>databricks-bge-large-en"]
     E2 --> DEP
     E3 --> DEP
     E4 --> DEP
+    E5 --> DEP2["mlflow.deployments<br/>databricks-meta-llama-3-3-70b-instruct"]
 ```
 
 ### Contrato de traducción

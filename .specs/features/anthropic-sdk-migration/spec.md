@@ -8,7 +8,7 @@ Migrar al SDK oficial de Anthropic elimina ambos límites y abre la puerta al tr
 
 ## Goals
 
-- [ ] Los 11 call sites de chat y visión llaman a Claude a través del SDK oficial de Anthropic usando los **mismos modelos** que hoy (Sonnet 4.6 y Haiku 4.5), sin cambios en widgets, YAMLs de workflow, ni notebooks de entrada.
+- [ ] Los 10 call sites de chat y visión que sí llaman a Claude lo hacen a través del SDK oficial de Anthropic usando los **mismos modelos** que hoy (Sonnet 4.6 y Haiku 4.5), sin cambios en widgets, YAMLs de workflow, ni notebooks de entrada. (Corregido en T19: de los 11 call sites originalmente contados, uno — el clasificador de documentos — resultó ser Llama 3.3 70B, no Claude; ver Out of Scope.)
 - [ ] Cualquier fallo de la ruta Anthropic degrada automáticamente al serving endpoint equivalente dentro de la misma llamada, dejando registro explícito de cada degradación.
 - [ ] Una corrida completa del job VDR (`617196299594076`) sobre una data room de referencia produce los mismos artefactos y las mismas tablas Delta pobladas que la corrida baseline pre-migración.
 - [ ] Cada llamada al modelo emite un span de MLflow con modelo, tokens y backend usado — capacidad que hoy no existe.
@@ -21,7 +21,8 @@ Migrar al SDK oficial de Anthropic elimina ambos límites y abre la puerta al tr
 | Migrar embeddings (`databricks-bge-large-en`) | Anthropic no ofrece API de embeddings. `retrieval.py`, `ingestion_parser.get_embeddings_batch`, `doc_worker.py` y `ensure_coverage.py` siguen usando el deploy client de Databricks sin cambios. Frontera dura. |
 | Revertir o modificar el fallback de dos pasadas C37 en BMA | Cambiaría el comportamiento de extracción. El SDK directo elimina la causa raíz (timeout de ~120s), pero cobrar esa deuda es un cambio de comportamiento separado que requiere su propia validación de calidad. |
 | Subir `max_tokens` por encima de los valores actuales en cualquier call site | Mismo motivo: es un cambio de comportamiento, no de transporte. La migración es a iso-comportamiento. |
-| Cambiar de modelo (a Opus 5, Sonnet 5, etc.) | El usuario pidió explícitamente "los mismos modelos". Además Sonnet 4.6 acepta `temperature`, que los modelos 5 rechazan con 400 — cambiar de modelo rompería `temperature=0.0` en los 11 call sites. |
+| Cambiar de modelo (a Opus 5, Sonnet 5, etc.) | El usuario pidió explícitamente "los mismos modelos". Además Sonnet 4.6 acepta `temperature`, que los modelos 5 rechazan con 400 — cambiar de modelo rompería `temperature=0.0` en los 10 call sites de Claude. |
+| Migrar el clasificador de documentos (`document_classifier.classify_batch()`) | **Descubierto en T19**: su endpoint hardcodeado es `databricks-meta-llama-3-3-70b-instruct` — Llama, no Claude. El SDK de Anthropic no puede servir ese modelo; enrutarlo por `llm_client.chat()` habría lanzado `ValueError` en cada llamada (`resolve_model()` no reconoce el alias) y roto la clasificación de documentos en producción. Mismo tratamiento que embeddings: fuera de esta migración, sin cambios. |
 | Implementar Agent Bricks, `log_model`, registro de agentes o `mlflow.genai.evaluate()` | Ninguno existe hoy en el repo. Esta entrega investiga viabilidad y no introduce bloqueos; construirlos es trabajo posterior. |
 | Añadir streaming, tool use, o prompt caching | Ninguno existe en la ruta actual. Son mejoras posteriores, no paridad. |
 | Migrar `vs_filter_pushdown_probe.py` | Script de diagnóstico manual, no está en ninguna ruta de producción. |
@@ -35,7 +36,7 @@ Migrar al SDK oficial de Anthropic elimina ambos límites y abre la puerta al tr
 | Assumption / decision | Chosen default | Rationale | Confirmed? |
 |---|---|---|---|
 | Semántica del fallback | Automático por llamada, con logging obligatorio de cada degradación | Decisión del usuario (context.md D-1). Prioriza continuidad operativa del job VDR sobre determinismo | y |
-| Alcance de la entrega | 11 call sites: 10 de chat + 1 de visión | Decisión del usuario (context.md D-2). Es el mínimo que hace verificable "mismo funcionamiento end-to-end" | y |
+| Alcance de la entrega | 10 call sites de Claude: 9 de chat + 1 de visión | Decisión del usuario (context.md D-2). Es el mínimo que hace verificable "mismo funcionamiento end-to-end" | y — **corregido en T19**: el conteo original de 11 (10+1) incluía por error el clasificador de documentos, que resultó ser Llama, no Claude |
 | Fuente de la API key | Databricks Secret Scope vía el patrón `get_secret()` existente; nombre del scope parametrizable con `get_param("anthropic_secret_scope")` | Decisión del usuario (context.md D-3). Consistente con cómo ya se manejan las credenciales de SharePoint | y |
 | Egress serverless hacia `api.anthropic.com` | Desconocido; smoke test real como gate bloqueante antes de tocar producción | Decisión del usuario (context.md D-4). No se asume conectividad | y — **resuelto 2026-09-01: hay egress**, ver `signoffs/ASDK-13-egress-gate.md` |
 | Mapeo de modelos | `databricks-claude-sonnet-4-6` ↔ `claude-sonnet-4-6`; `databricks-claude-haiku-4-5` ↔ `claude-haiku-4-5` | Convención de nombres observada en el workspace. El mapeo es una tabla explícita en código, no un `str.replace("databricks-", "")`, para que un endpoint desconocido falle ruidosamente en vez de inventar un model ID | **y — confirmado 2026-09-01** con una llamada real desde local: ambos model IDs respondieron `ANTHROPIC_EGRESS_OK` |
@@ -112,7 +113,7 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 
 ---
 
-### P1: Los 11 call sites migrados sin cambiar su contrato ⭐ MVP
+### P1: Los 10 call sites de Claude migrados sin cambiar su contrato ⭐ MVP
 
 **User Story**: Como desarrollador, quiero que todos los call sites de chat y visión pasen por el gateway, para que no queden rutas mixtas donde parte del pipeline usa un proveedor y parte otro.
 
@@ -120,7 +121,7 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 
 **Acceptance Criteria**:
 
-1. The system SHALL enrutar por el gateway las diez llamadas de chat: `agent_base._call_llm`, las narrativas de BMA, FTA, CQA, QoE y KPI, `document_classifier.classify_batch`, `company_profiler`, y las dos rutas restantes de extracción que hoy construyen su propio deploy client.
+1. The system SHALL enrutar por el gateway las nueve llamadas de chat que sí llaman a Claude: `agent_base._call_llm`, las narrativas de BMA, FTA, CQA, QoE y KPI, `company_profiler`, y las dos rutas restantes de extracción que hoy construyen su propio deploy client. `document_classifier.classify_batch` queda excluido — su endpoint es Llama 3.3 70B, no Claude.
 2. WHEN el gateway recibe contenido de visión THEN el sistema SHALL convertir el bloque `image_url` con data-URI base64 al bloque `{"type": "image", "source": {"type": "base64", "media_type": ..., "data": ...}}` que exige el SDK de Anthropic.
 3. WHILE el backend activo es `databricks` el sistema SHALL enviar el contenido de visión en el formato `image_url` original, sin la conversión.
 4. The system SHALL dejar sin modificar toda llamada de embeddings, que sigue usando `mlflow.deployments` directamente.
@@ -258,7 +259,7 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 | ASDK-06 | P1: Fallback automático | T10 ✅ | Verified |
 | ASDK-07 | P1: Fallback automático | T10 ✅ | Verified |
 | ASDK-08 | P1: Credencial desde Secret Scope | T8 ✅ | Verified |
-| ASDK-09 | P1: Los 11 call sites migrados | T6, T9, T13-T18 ✅ (6/11 call sites); T19-T21 pendientes | Implementing |
+| ASDK-09 | P1: Los 10 call sites de Claude migrados | T6, T9, T13-T18 ✅ (6/10); T19 N/A (Llama, excluido); T20-T21 pendientes | Implementing |
 | ASDK-10 | P2: MLflow tracing | T11 ✅ | Verified |
 | ASDK-11 | P2: Contabilidad de tokens | T5, T12 ✅ | Verified |
 | ASDK-12 | P2: Paridad end-to-end | Tasks | In Design |

@@ -623,30 +623,35 @@ T23 → T24
 
 ---
 
-### T19: Migrar el clasificador de documentos
+### T19: Migrar el clasificador de documentos — **N/A, documentado (no migrado)**
 
-**What**: Sustituir el deploy client de `classify_batch()` por el gateway.
-**Where**: `databricks/jobs/scripts/document_classifier.py` (modificar)
+**What**: ~~Sustituir el deploy client de `classify_batch()` por el gateway.~~ **Investigación reveló que no aplica**: `_CLASSIFIER_ENDPOINT = "databricks-meta-llama-3-3-70b-instruct"` — es Llama 3.3 70B, no Claude. Enrutarlo por `llm_client.chat()` habría lanzado `ValueError` en cada llamada (`resolve_model()` no reconoce el alias) y roto la clasificación de documentos en producción.
+**Where**: ningún cambio en `databricks/jobs/scripts/document_classifier.py`; documento nuevo `tests/test_document_classifier_not_migrated.py`
 **Depends on**: T18
-**Reuses**: `llm_client.chat()`
-**Requirement**: ASDK-09
+**Reuses**: N/A
+**Requirement**: ASDK-09 (alcance corregido: 9 llamadas de chat, no 10)
 
 **Tools**:
 - MCP: NONE
 - Skill: NONE
 
 **Done when**:
-- [ ] El módulo ya no construye un deploy client para un endpoint `claude`
-- [ ] `max_tokens=4000` y el batching de 20 archivos conservados
-- [ ] `_backfill_missing_doc_ids()` queda sin modificar
-- [ ] Test unitario afirma la delegación con argumentos exactos
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 2 tests pasan (sin borrados silenciosos)
+- [x] Confirmado con el usuario (pregunta directa) que el call site queda excluido, como embeddings
+- [x] `spec.md` corregido: Goals, Out of Scope, Assumptions, la historia de ASDK-09 y su AC1, y traceability — el conteo pasa de "11 call sites" a "10 call sites de Claude"
+- [x] `design.md` corregido: diagrama de arquitectura mueve `document_classifier` al subgrafo "fuera del gateway"
+- [x] `STATE.md` AD-001 corregido: el scope de exención ahora nombra explícitamente al clasificador junto a embeddings
+- [x] `document_classifier.py` **sin ningún cambio** — verificado con `git diff` vacío
+- [x] Test dedicado afirma que `classify_batch()` sigue llamando al deploy client crudo (no al gateway) y que el endpoint sigue siendo Llama, no Claude — para que esto sea una aserción permanente, no una coincidencia del regex de T22
+- [x] Gate check pasa: `1135 passed, 34 skipped`
+- [x] Test count: 1 test pasa
 
 **Tests**: unit
-**Gate**: full
+**Gate**: build
+**Status**: ✅ Complete (como no-migración documentada)
 
-**Commit**: `refactor(classifier): route document classification through the LLM gateway`
+**Hallazgo**: descubierto leyendo el código antes de migrar, no asumido de la spec. La investigación de Design había verificado el nombre de la variable `_CLASSIFIER_ENDPOINT` pero nunca su valor — gap de Knowledge Verification Chain (paso 1, codebase) que Design debió cerrar y no cerró.
+
+**Commit**: `docs(spec): exclude the Llama-backed document classifier from the migration`
 
 ---
 
@@ -719,6 +724,7 @@ T23 → T24
 **Done when**:
 - [ ] Recorre `databricks/agents/` y `databricks/jobs/scripts/` y falla ante un deploy client con endpoint que contenga `claude`
 - [ ] Lista permitida explícita para los call sites de embeddings, con comentario que explica por qué están exentos
+- [ ] `document_classifier.classify_batch()` no necesita entrar en la lista permitida: su endpoint es `databricks-meta-llama-3-3-70b-instruct` y el escaneo solo busca `claude`, así que ya pasa sin cambios — pero un test dedicado debe afirmarlo explícitamente (ver T19), no dejarlo como una coincidencia del regex
 - [ ] El test pasa contra el árbol migrado
 - [ ] Gate check pasa: `databricks/.venv/bin/ruff check <archivos tocados> && databricks/.venv/bin/python -m pytest tests/ -q`
 - [ ] Test count: 3 tests pasan (sin borrados silenciosos)
