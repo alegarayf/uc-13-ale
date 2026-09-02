@@ -298,7 +298,15 @@ def _call_anthropic(
     response = client.messages.create(
         model=model_id,
         max_tokens=max_tokens,
-        temperature=temperature,
+        # anthropic 1.x removed `temperature` from messages.create()'s typed
+        # signature entirely -- passing it as a direct kwarg is a TypeError,
+        # not an API-level rejection (confirmed live in T23, 2026-09-02, and
+        # in the SDK's own v1 migration guide). claude-sonnet-4-6 and
+        # claude-haiku-4-5 still honor the setting server-side, and every
+        # extraction call site in this codebase deliberately depends on
+        # temperature=0.0 for determinism, so it goes through extra_body
+        # rather than being dropped.
+        extra_body={"temperature": temperature},
         messages=[{"role": "user", "content": content}],
         **kwargs,
     )

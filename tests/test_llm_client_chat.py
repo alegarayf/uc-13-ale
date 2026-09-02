@@ -117,7 +117,11 @@ def test_chat_anthropic_passes_max_tokens_and_temperature_exactly(_anthropic_cli
     )
     kwargs = _anthropic_client.messages.create.call_args.kwargs
     assert kwargs["max_tokens"] == 8_192
-    assert kwargs["temperature"] == 0.1
+    # temperature travels via extra_body, not a direct kwarg -- anthropic 1.x
+    # removed it from messages.create()'s typed signature (T23 finding,
+    # 2026-09-02); see test_llm_client_real_sdk_call_shape.py for the
+    # real-SDK regression test.
+    assert kwargs["extra_body"] == {"temperature": 0.1}
     assert kwargs["model"] == "claude-haiku-4-5"
 
 
