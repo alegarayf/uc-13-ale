@@ -337,6 +337,35 @@ def _call_databricks(
     return text, response.get("usage", {})
 
 
+# --- Fallback bookkeeping ----------------------------------------------------
+#
+# Mirrors the threading.Lock-guarded counter pattern in
+# agent_base.py's _token_lock / _token_totals.
+
+_fallback_lock = threading.Lock()
+_fallback_count = 0
+
+
+def get_fallback_count() -> int:
+    """Number of Anthropic-to-Databricks degradations so far this run."""
+    with _fallback_lock:
+        return _fallback_count
+
+
+def reset_fallback_count() -> None:
+    """Reset the degradation counter. Call alongside agent_base.reset_token_counter()."""
+    global _fallback_count
+    with _fallback_lock:
+        _fallback_count = 0
+
+
+def _record_fallback(endpoint: str, exc: Exception) -> None:
+    global _fallback_count
+    with _fallback_lock:
+        _fallback_count += 1
+    print(f"  [llm_fallback] {endpoint}: {type(exc).__name__}: {exc}")
+
+
 def chat(
     *,
     system_prompt: str | None,
@@ -349,12 +378,28 @@ def chat(
 
     `endpoint` is the Databricks-style alias every call site already passes
     (e.g. "databricks-claude-sonnet-4-6") -- unchanged from today, so no
-    workflow YAML, widget default, or notebook needs to change. No fallback
-    yet: a failure on the Anthropic path propagates here (T10 adds the
-    automatic degrade-to-Databricks behavior).
+    workflow YAML, widget default, or notebook needs to change.
+
+    On the "anthropic" backend, a transient failure (per _is_retryable)
+    degrades once to the Databricks serving endpoint of the same alias and
+    logs it with the "[llm_fallback]" marker; a non-retryable failure (a bad
+    key, an unmapped model, a policy refusal) propagates immediately instead
+    of silently falling back. If the Databricks fallback itself fails, that
+    exception propagates with the original Anthropic exception chained as its
+    cause (`raise ... from ...`). There is no retry loop between backends --
+    at most one degradation per call.
     """
-    if _active_backend() == "anthropic":
-        model_id = resolve_model(endpoint)
+    if _active_backend() != "anthropic":
+        return _call_databricks(
+            system_prompt=system_prompt,
+            user_content=user_content,
+            endpoint=endpoint,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
+    model_id = resolve_model(endpoint)
+    try:
         return _call_anthropic(
             system_prompt=system_prompt,
             user_content=user_content,
@@ -362,10 +407,17 @@ def chat(
             max_tokens=max_tokens,
             temperature=temperature,
         )
-    return _call_databricks(
-        system_prompt=system_prompt,
-        user_content=user_content,
-        endpoint=endpoint,
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
+    except Exception as exc:
+        if not _is_retryable(exc):
+            raise
+        _record_fallback(endpoint, exc)
+        try:
+            return _call_databricks(
+                system_prompt=system_prompt,
+                user_content=user_content,
+                endpoint=endpoint,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except Exception as databricks_exc:
+            raise databricks_exc from exc

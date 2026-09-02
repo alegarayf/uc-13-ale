@@ -364,18 +364,19 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] Error retryable degrada a Databricks y devuelve su resultado
-- [ ] Cada degradación emite a stdout una línea con `[llm_fallback]`, el alias del endpoint y el tipo de excepción originante
-- [ ] Error no retryable propaga sin intentar el fallback
-- [ ] Si Databricks también falla, propaga su excepción con la de Anthropic encadenada como `__cause__`
-- [ ] El fallback ocurre a lo más una vez por llamada, sin bucle entre backends
-- [ ] `get_fallback_count()` / `reset_fallback_count()` expuestos y thread-safe
-- [ ] Tests unitarios cubren: degradación exitosa, propagación no retryable, doble fallo con causa encadenada, ausencia de bucle, y el contador bajo llamadas concurrentes
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/test_llm_client_fallback.py -v`
-- [ ] Test count: 8 tests pasan (sin borrados silenciosos)
+- [x] Error retryable degrada a Databricks y devuelve su resultado
+- [x] Cada degradación emite a stdout una línea con `[llm_fallback]`, el alias del endpoint y el tipo de excepción originante
+- [x] Error no retryable propaga sin intentar el fallback
+- [x] Si Databricks también falla, propaga su excepción con la de Anthropic encadenada como `__cause__` (verificado por identidad de objeto)
+- [x] El fallback ocurre a lo más una vez por llamada, sin bucle entre backends
+- [x] `get_fallback_count()` / `reset_fallback_count()` expuestos y thread-safe (verificado con 20 hilos reales)
+- [x] Tests unitarios cubren: degradación exitosa, propagación no retryable, refusal (no degrada — decisión de contenido, no caída de infra), doble fallo con causa encadenada, ausencia de bucle, y el contador bajo llamadas concurrentes
+- [x] Gate check pasa: `8 passed`; suite completa `1091 passed, 34 skipped`
+- [x] Test count: 8 tests pasan (sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 **Commit**: `feat(llm): degrade to Databricks serving on transient Anthropic failures`
 
