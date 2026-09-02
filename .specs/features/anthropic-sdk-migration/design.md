@@ -14,7 +14,7 @@ Verificados antes de diseñar. Cada uno cambió una decisión.
 | # | Hallazgo | Fuente | Impacto en el diseño |
 |---|---|---|---|
 | R-1 | `mlflow.anthropic.autolog()` existe y captura prompts, latencias, modelo, tokens y excepciones. Rango de `anthropic` probado: `0.55.0 ≤ v ≤ 0.107.1`. No registra streaming. | [MLflow — Tracing Anthropic](https://mlflow.org/docs/latest/genai/tracing/integrations/listing/anthropic) | La versión actual del SDK es 1.3.0, fuera del rango. Autolog pasa a ser enriquecimiento opcional con detección de versión; la instrumentación primaria es manual en el gateway. Enmienda a ASDK-10 aprobada por el usuario. |
-| R-2 | El SDK `anthropic` 1.x corre sobre `httpx2` (no `httpx`) y requiere Python ≥ 3.10. Última versión: 1.3.0. | [PyPI — anthropic](https://pypi.org/pypi/anthropic/json) | El proyecto ya pide `>=3.11`, sin conflicto. Riesgo C-4: `httpx2` es una dependencia transitiva nueva en el cluster serverless. |
+| R-2 | El SDK `anthropic` 1.x corre sobre `httpx2` (no `httpx`) y requiere Python ≥ 3.10. Última versión: 1.3.0. | [PyPI — anthropic](https://pypi.org/pypi/anthropic/json) | El proyecto ya pide `>=3.11`, sin conflicto. Abrió el riesgo C-4 (`httpx2` como dependencia transitiva nueva), **cerrado el 2026-09-01 por T3**: importa limpio en serverless. |
 | R-3 | Databricks Model Serving soporta **External Models** con provider `anthropic` nativo, la API key vía `{{secrets/scope/key}}`, y se consulta con el mismo `client.predict()` OpenAI-compatible. | [Databricks — External models in Model Serving](https://docs.databricks.com/aws/en/generative-ai/external-models/) | Habilita la ruta de contingencia B sin reescribir código: solo cambian los strings de endpoint. |
 | R-4 | Mosaic AI Agent Evaluation y Agent Bricks operan sobre Model Serving endpoints; Agent Bricks "Custom LLM" está marcado **legacy** en la documentación actual. | [Databricks — Custom agent endpoints](https://developers.databricks.com/docs/agents/custom-agents), [Agent Bricks Custom LLM (legacy)](https://docs.databricks.com/aws/en/agents/agent-bricks/custom-llm) | Refuerza que ASDK-14 sea spike con veredicto citado y no promesa. Señal temprana: Agent Bricks probablemente exige un endpoint servido, no un cliente Anthropic in-process. |
 
@@ -192,10 +192,10 @@ La API key nunca aparece aquí (ASDK-08 AC4).
 | **C-1 — El fallback reintroduce el cap de 8K de Haiku en silencio.** Una degradación en una llamada de extracción grande produce JSON truncado que `_recover_truncated_json()` "salva" parcialmente. El deliverable sale completo y plausible, con datos faltantes. | `agent_base.py:274` + gateway | Es la variante moderna de la trampa de "hollow success" ya documentada en `CLAUDE.md:334` | Contador de degradaciones expuesto en `print_token_summary()` (ASDK-06 AC6) + `[llm_fallback]` obligatorio en el log. Tarea de seguimiento: escribir el contador al registro VDR para que sea auditable post-hoc |
 | **C-2 — `get_param`/`get_secret` está copiado 18 veces**, con el scope `uc13` hardcodeado en cada copia. | 18 archivos bajo `agents/` y `jobs/scripts/` | Cambiar el scope exige 18 ediciones; una omisión pasa desapercibida | El gateway replica el patrón en vez de refactorizarlo (fuera de alcance). Se registra como deuda; la nueva copia parametriza el scope vía `get_param("anthropic_secret_scope", default="uc13")` |
 | **C-3 — El único gate real es una corrida VDR completa.** No hay suite de integración que ejerza el pipeline con un LLM stub. | Todo `agents/workstreams/` | Una regresión de forma de respuesta no se detecta hasta una corrida de horas | Los tests unitarios del gateway usan stubs de ambos clientes y cubren la matriz de errores. La paridad end-to-end (ASDK-12) sigue siendo manual y así se declara |
-| **C-4 — `anthropic` 1.x arrastra `httpx2`** como dependencia transitiva nueva en el cluster serverless. | `requirements.txt` | Posible conflicto con `httpx` que ya traigan `mlflow[databricks]` o el SDK de Databricks | El smoke test ASDK-13 importa `anthropic` en el entorno serverless real; un conflicto se manifiesta ahí, antes de tocar producción |
+| ~~**C-4 — `anthropic` 1.x arrastra `httpx2`**~~ **CERRADO 2026-09-01** | `requirements.txt` | Era: posible conflicto con `httpx` de `mlflow[databricks]` o del SDK de Databricks | Materializado y descartado: T3 importó `anthropic 1.3.0` en el runtime serverless real y reportó la versión. Sin conflicto. Evidencia: `signoffs/ASDK-13-egress-gate.md` |
 | **C-5 — Un Git folder alimenta ambos jobs VDR** y puede intercambiar código a mitad de corrida. | `CLAUDE.md:218` | Un `repos update` durante una corrida mezcla código viejo y nuevo | Restricción operativa preexistente. Rama `prod-known-good-fc47a29` sigue siendo el rollback. No desplegar durante una corrida activa |
 | **C-6 — Los tests corren contra un Spark stub** que nunca ejecuta DDL real. | `CLAUDE.md:332` | Los tests no pueden probar nada del lado Delta | Sin impacto en esta feature: el gateway no toca Delta. Se registra para que nadie confunda "tests verdes" con "paridad verificada" |
-| **C-7 — Autolog fuera de rango probado** (R-1). | `requirements.txt` | Trazas incompletas o excepción al activar | Resuelto por diseño: instrumentación manual primaria, autolog condicionado a detección de versión |
+| **C-7 — Autolog fuera de rango probado** (R-1). **CONFIRMADO 2026-09-01, no es hipotético.** | `requirements.txt` | El entorno real corre `1.3.0`, fuera de `0.55.0`–`0.107.1`: autolog quedará **inerte** en producción | Resuelto por diseño: instrumentación manual primaria, autolog condicionado a detección de versión. Consecuencia para T11: la rama que se ejecuta en este entorno es la de "fuera de rango", así que el tracing descansa **enteramente** en los spans manuales. Los tests de T11 deben cubrir igual la rama en-rango, porque un upgrade futuro de MLflow puede ampliar el rango soportado |
 
 ---
 
@@ -216,9 +216,11 @@ La API key nunca aparece aquí (ASDK-08 AC4).
 
 ---
 
-## Apéndice A — Ruta de contingencia B (solo si ASDK-13 sale `BLOCKED`)
+## Apéndice A — Ruta de contingencia B (External Model endpoint)
 
-No se implementa en esta entrega. Se documenta para que el bloqueo no deje al equipo sin salida.
+> **NO ACTIVADA.** ASDK-13 salió `OK` el 2026-09-01: hay egress desde serverless a `api.anthropic.com` (`signoffs/ASDK-13-egress-gate.md`). Este apéndice se conserva como diseño de respaldo, por si una política de red del workspace cambia más adelante y corta la ruta directa.
+
+No se implementa en esta entrega. Se documenta para que un bloqueo futuro no deje al equipo sin salida.
 
 Se crea un endpoint external-model por modelo, apuntando a la API de Anthropic con nuestra key:
 

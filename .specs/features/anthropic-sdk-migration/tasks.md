@@ -381,6 +381,8 @@ T23 → T24
 **Reuses**: El patrón `import mlflow` dentro de `try/except ImportError` de `agents/orchestration/pipeline.py:417`
 **Requirement**: ASDK-10
 
+> **Dato de T3 que condiciona esta tarea:** el entorno real corre `anthropic 1.3.0`, fuera del rango de autolog. La rama que se ejecutará en producción es la de "fuera de rango", así que autolog quedará **inerte** y el tracing descansa enteramente en los spans manuales. Los tests deben cubrir igual la rama en-rango: un upgrade de MLflow puede ampliar el rango soportado.
+
 **Tools**:
 - MCP: NONE
 - Skill: NONE
