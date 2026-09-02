@@ -801,6 +801,7 @@ T23 → T24
 - [x] Documenta cómo se inyecta la API key de Anthropic en un endpoint de Model Serving (`environment_vars` + `{{secrets/scope/key}}`, reutilizando el secreto `uc13/anthropic_api_key` ya existente)
 - [x] **Agent Bricks cerrado con prueba ejecutada (2026-09-02)** — la pregunta se resolvió disolviendo su premisa: **el tipo de agente "Custom LLM" no existe en la consola de este workspace**, así que no hay selector de modelo base que pueda aceptar o rechazar un External Model. El diálogo *Create new Agent* ofrece siete tipos; bajo el filtro `Custom` queda solo "Code your own agent" (OSS libraries + Agent Framework), que es la ruta donde el código controla el cliente del modelo y `llm_client.chat()` sirve sin adaptación. Los otros seis son agentes gestionados sobre modelos alojados por Databricks, sin punto de inyección para un cliente propio. Además se verificó end-to-end que Model Serving **sí** sirve Anthropic vía External Models en este workspace: endpoint `asdk-14-anthropic-external-test` creado (`DEPLOYMENT_READY`) y consultado con respuesta real de `claude-sonnet-4-6` — convierte en hecho lo que R-3 de `design.md` tenía como inferencia. Se deja creado por decisión del usuario. Ver §4 de `platform-capabilities.md`.
 - [x] Gate check pasa: `1152 passed, 34 skipped` (sin cambios de código, ruff sin archivos `.py` que revisar en `docs/`)
+  - *Nota de lectura*: este número es **correcto para el momento en que corrió T24**, no está desfasado. T24 se commiteó en `323e156`, **antes** de `23e04e1`, que añadió los 3 tests del discriminador de firma del SDK (AD-004). Por eso T23, más arriba en este archivo pero cronológicamente posterior, registra `1155`. La cobertura nunca retrocedió: 1152 → 1155. Se anota en vez de reescribir el número, porque sobrescribirlo falsificaría la evidencia de un gate que jamás corrió a 1155.
 
 **Tests**: none
 **Gate**: build
@@ -814,6 +815,50 @@ T23 → T24
 
 ---
 
+### T25: Fix -- el guard de ASDK-06 AC5 no discrimina en la rama que importa
+
+**What**: Afirmar el conteo de llamadas a serving en el test de fallback **exitoso**, no solo en el que también falla.
+**Where**: `tests/test_llm_client_fallback.py:72`
+**Depends on**: T23
+**Requirement**: ASDK-06
+**Origen**: sensor de discriminación del Verifier (T24 validation) — mutante **sobreviviente**.
+
+**El defecto**: `test_fallback_attempted_exactly_once_not_looped` ya afirmaba `predict.call_count == 1`, pero con la llamada a serving **también fallando** — el primer `raise` corta el flujo, así que ese test no puede observar una llamada duplicada en la rama de éxito. `test_connection_error_degrades_to_databricks_and_returns_its_result` cubría la rama de éxito pero solo afirmaba `get_fallback_count() == 1`, que se incrementa una vez en el `except` sin importar cuántas veces se llame a serving después. Resultado: un segundo `_call_databricks()` tras el try/except (`llm_client.py:488-490`) pasaba la suite entera en verde.
+
+**Done when**:
+- [x] `assert _databricks_client.predict.call_count == 1` y `assert _anthropic_client.messages.create.call_count == 1` añadidos a la rama de éxito, con comentario que explica por qué el otro test no basta
+- [x] Verificado como discriminador real: reinyectada la mutación en un worktree temporal, el test falla en `tests/test_llm_client_fallback.py:97`; worktree removido y `git status --porcelain` idéntico al baseline
+- [x] Gate: `1157 passed, 34 skipped`; ruff limpio en los archivos tocados
+
+**Tests**: unit
+**Gate**: build
+**Status**: ✅ Complete
+
+---
+
+### T26: Fix -- el guard de convención AD-001 tiene un bypass por forma de llamada
+
+**What**: Reconocer `get_deploy_client(...)`/`predict(...)` importados directo (`ast.Name`), no solo la forma con atributo.
+**Where**: `tests/test_llm_gateway_convention.py:81`
+**Depends on**: T22
+**Requirement**: ASDK-09
+**Origen**: sensor de discriminación del Verifier (T24 validation) — **Major**.
+
+**El defecto**: `_find_get_deploy_client_calls()` y `_find_predict_calls()` exigían `isinstance(node.func, ast.Attribute)`. Un módulo que hiciera `from mlflow.deployments import get_deploy_client` y luego `get_deploy_client("databricks")` produce un `ast.Name`, así que marcaba **cero hits en ambos escáneres** y podía construir un deploy client crudo de Claude con la suite en verde. T22 dio por probado el guard inyectando una violación, pero solo en la forma con atributo — por eso el hueco sobrevivió a esa tarea. **Un guard estático solo cubre las formas sintácticas que su prueba de inyección ejerció.**
+
+**Done when**:
+- [x] Extraído `_called_name()`, que resuelve el nombre del callee para `ast.Attribute` y `ast.Name`
+- [x] Test de regresión para la forma de import directo, y test que confirma que la forma con atributo (la que T22 cubría) no se perdió
+- [x] Verificado como discriminador real: revertido `_called_name()` a solo-atributo en un worktree temporal, el test de regresión falla; worktree removido y `git status --porcelain` idéntico al baseline
+- [x] Gate: `1157 passed, 34 skipped`; ruff limpio en los archivos tocados
+
+**Tests**: unit
+**Gate**: build
+**Status**: ✅ Complete
+
+---
+---
+
 ## Phase Execution Map
 
 ```
@@ -825,7 +870,10 @@ Phase 2:  T8 ------→ T9 ------→ T10 -----→ T11
 Phase 3:  T12 -----→ T13 -----→ T14 -----→ T15 -----→ T16 -----→ T17
 Phase 4:  T18 -----→ T19 -----→ T20 -----→ T21 -----→ T22
 Phase 5:  T23 -----→ T24
+Phase 6:  T25       T26        (fix tasks del Verifier -- independientes entre sí)
 ```
+
+**Phase 6** no estaba en el plan original: son las dos fix tasks que produjo el sensor de discriminación del Verifier tras T24. Cada una cuelga de la tarea cuyo guard resultó no discriminar (T25 ← T23 por ASDK-06; T26 ← T22 por la convención AD-001), no una de la otra: tocan archivos distintos y pueden correr en cualquier orden.
 
 Las fronteras entre fases también son aristas de dependencia:
 
@@ -835,6 +883,8 @@ T7 ------→ T8
 T11 -----→ T12
 T17 -----→ T18
 T22 -----→ T23
+T23 -----→ T25
+T22 -----→ T26
 ```
 
 Ejecución estrictamente secuencial — no hay paralelismo dentro de una fase.

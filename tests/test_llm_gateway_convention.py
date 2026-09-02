@@ -78,13 +78,27 @@ def _parse(rel_path: str) -> ast.Module:
     return ast.parse(source, filename=rel_path)
 
 
+def _called_name(node: ast.Call) -> str | None:
+    """The bare callee name of a call, for both `a.b()` and `b()`.
+
+    Matching only `ast.Attribute` was a real bypass: `from mlflow.deployments
+    import get_deploy_client` followed by `get_deploy_client("databricks")`
+    parses as `ast.Name`, so it scored zero hits on both checks and slipped
+    past the AD-001 guard entirely. T22's injected-violation evidence used the
+    attribute form only, which is why the hole survived that task.
+    """
+    if isinstance(node.func, ast.Attribute):
+        return node.func.attr
+    if isinstance(node.func, ast.Name):
+        return node.func.id
+    return None
+
+
 def _find_get_deploy_client_calls(tree: ast.Module) -> list[ast.Call]:
     return [
         node
         for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "get_deploy_client"
+        if isinstance(node, ast.Call) and _called_name(node) == "get_deploy_client"
     ]
 
 
@@ -92,9 +106,7 @@ def _find_predict_calls(tree: ast.Module) -> list[ast.Call]:
     return [
         node
         for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "predict"
+        if isinstance(node, ast.Call) and _called_name(node) == "predict"
     ]
 
 
@@ -174,3 +186,38 @@ def test_t19_t20_t21_findings_are_named_in_their_allowlist_reason(rel_path, expe
     """Makes the T19/T20/T21 discoveries a checked fact, not just prose in
     tasks.md that nothing re-verifies."""
     assert expected_keyword in _ALLOWED_RAW_CLIENT_FILES[rel_path]
+
+
+# --- Regression: the scanner must see both call shapes, not just `a.b()` ----
+
+
+def test_scanner_detects_the_bare_name_import_form_of_get_deploy_client():
+    """A directly-imported `get_deploy_client(...)` must not evade the guard.
+
+    Before this, both finders required `isinstance(node.func, ast.Attribute)`,
+    so this exact source scored zero hits and a new module could build a raw
+    Claude deploy client in full view of a green suite. Found by the T24
+    discrimination sensor, not by T22 -- T22's injected violation only ever
+    used the `mlflow.deployments.get_deploy_client(...)` attribute form, so it
+    could not have probed this shape.
+    """
+    source = (
+        "from mlflow.deployments import get_deploy_client\n"
+        "client = get_deploy_client('databricks')\n"
+        "client.predict(endpoint='databricks-claude-sonnet-4-6', inputs={})\n"
+    )
+    tree = ast.parse(source, filename="<bare-name-form>")
+    assert len(_find_get_deploy_client_calls(tree)) == 1
+    assert len(_find_predict_calls(tree)) == 1
+
+
+def test_scanner_still_detects_the_attribute_form():
+    """The broadened matcher must not lose the shape T22 originally covered."""
+    source = (
+        "import mlflow.deployments\n"
+        "client = mlflow.deployments.get_deploy_client('databricks')\n"
+        "client.predict(endpoint='databricks-claude-sonnet-4-6', inputs={})\n"
+    )
+    tree = ast.parse(source, filename="<attribute-form>")
+    assert len(_find_get_deploy_client_calls(tree)) == 1
+    assert len(_find_predict_calls(tree)) == 1

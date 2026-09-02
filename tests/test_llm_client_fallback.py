@@ -87,6 +87,14 @@ def test_connection_error_degrades_to_databricks_and_returns_its_result(
     assert "databricks-claude-sonnet-4-6" in out
     assert "APIConnectionError" in out
     assert llm_client.get_fallback_count() == 1
+    # ASDK-06 AC5 on the branch that actually matters: exactly one serving call
+    # when the fallback SUCCEEDS. test_fallback_attempted_exactly_once_not_looped
+    # pins the same counts, but only with the serving call also failing -- so it
+    # can never observe a duplicate call on the success path, because the first
+    # raise short-circuits it. Without this pair of assertions a second
+    # _call_databricks() after the try/except survives the whole suite.
+    assert _anthropic_client.messages.create.call_count == 1
+    assert _databricks_client.predict.call_count == 1
 
 
 def test_5xx_status_error_also_degrades(_anthropic_client, _databricks_client):
