@@ -730,15 +730,17 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] Recorre `databricks/agents/` y `databricks/jobs/scripts/` y falla ante un deploy client con endpoint que contenga `claude`
-- [ ] Lista permitida explícita para los call sites de embeddings, con comentario que explica por qué están exentos
-- [ ] `document_classifier.classify_batch()` no necesita entrar en la lista permitida: su endpoint es `databricks-meta-llama-3-3-70b-instruct` y el escaneo solo busca `claude`, así que ya pasa sin cambios — pero un test dedicado debe afirmarlo explícitamente (ver T19), no dejarlo como una coincidencia del regex
-- [ ] El test pasa contra el árbol migrado
-- [ ] Gate check pasa: `databricks/.venv/bin/ruff check <archivos tocados> && databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 3 tests pasan (sin borrados silenciosos)
+- [x] Recorre `databricks/agents/` y `databricks/jobs/scripts/` y falla ante un deploy client fuera de la lista permitida, o ante un endpoint literal con `claude` fuera del gateway
+- [x] Lista permitida explícita (8 archivos, verificados contra el inventario completo de T21) con comentario que explica por qué cada uno está exento
+- [x] `document_classifier.classify_batch()`, `company_profiler.py` e `ingestion_parser.py` (T19/T20/T21) están en la lista con su razón documentada — afirmado por test parametrizado, no dejado como coincidencia del regex
+- [x] El test pasa contra el árbol migrado
+- [x] **Verificado con una violación real inyectada y removida** (no solo lectura del código): un archivo temporal con `get_deploy_client` + `predict(endpoint="databricks-claude-sonnet-4-6")` hizo fallar ambos checks con mensajes claros; removido, el árbol vuelve a pasar
+- [x] Gate check pasa: `1152 passed, 34 skipped`
+- [x] Test count: **6** tests pasan (planeados 3; se sumaron validación de documentación y 3 casos parametrizados de T19/T20/T21, sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: build
+**Status**: ✅ Complete
 
 **Commit**: `test(llm): enforce the gateway convention with a static scan`
 
