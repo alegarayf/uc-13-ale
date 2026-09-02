@@ -746,10 +746,18 @@ T23 → T24
 
 ---
 
-### T23: Verificación de paridad end-to-end contra el baseline
+### T23: Verificación de paridad end-to-end contra el baseline — **EN CURSO, 2 bugs de producción encontrados y corregidos**
 
 **What**: Correr el job VDR sobre la data room de referencia con `LLM_BACKEND=anthropic` y comparar manifiesto y artefactos contra el baseline pre-migración.
-**Where**: `signoffs/ASDK-12-parity.md`
+**Where**: `signoffs/ASDK-12-parity.md`, `signoffs/ASDK-12-parity-baseline-snapshot.md` (ya escrito)
+
+**Estado al pausar por límite de contexto (2026-09-02)**: ninguna corrida ha completado exitosamente aún. Dos rondas lanzadas y canceladas:
+1. Ronda 1 (GKF/32, Clearsulting/63, Elder Care/64) — falló con `ModuleNotFoundError: No module named 'anthropic'` en todos los agentes. Causa: los jobs VDR instalan paquetes desde `environments[].spec.dependencies` de la config del job, **no** desde `requirements.txt`/`pyproject.toml` (T1 solo tocó estos últimos). Corregido en `67ae3b5`: ambos YAMLs del repo + config en vivo de los dos jobs vía Jobs API. Registrado como **AD-003** en `STATE.md`.
+2. Ronda 2 (mismos tres, tras el fix del Bug 1) — falló con `TypeError: Messages.create() got an unexpected keyword argument 'temperature'` en cada llamada a Claude. Causa: `anthropic` 1.x eliminó `temperature` de la firma tipada de `messages.create()` en la migración 0.x→1.x — confirmado con `inspect.signature()` contra el SDK real y con la guía oficial de migración. Corregido en `23e04e1`: `extra_body={"temperature": temperature}` en `_call_anthropic()`. Ningún test de Phase 1-4 lo detectó porque todos mockean `client.messages.create` completo — se añadió `tests/test_llm_client_real_sdk_call_shape.py`, que ejerce la firma real del SDK con un transporte HTTP mockeado en vez de mockear la función. Registrado como **AD-004**.
+
+**El baseline autoritativo fue redefinido por el usuario a mitad de tarea**: no el `record_id=32` (GKF) identificado inicialmente, sino los registros **62 (GKF), 63 (Clearsulting), 64 (Elder Care)**, todos del 2026-08-26 — snapshot completo ya capturado en `signoffs/ASDK-12-parity-baseline-snapshot.md` antes de cualquier corrida post-migración (para que una corrida nueva sobre el mismo `id` no destruya la evidencia del baseline al sobreescribir `results_location`).
+
+**Próximo paso inmediato**: relanzar las tres corridas (`record_id` 62, 63, 64) con el código ya corregido (Git folder sincronizado a `23e04e1`), monitorear, y si terminan en `SUCCESS`, comparar contra el snapshot y completar el resto del Done-when abajo. Ver el Handoff de `STATE.md` para el procedimiento paso a paso.
 **Depends on**: T22
 **Reuses**: El manifiesto de corrida de `agents/orchestration/pipeline.py` y el listado de artefactos del volumen VDR
 **Requirement**: ASDK-12
@@ -763,7 +771,7 @@ T23 → T24
 - [ ] Manifiestos baseline y post-migración comparados agente por agente; ningún `SUCCESS` degradado a `FAILED` o `SKIPPED`
 - [ ] Mismo conjunto de artefactos producido; ninguna tabla de `analysis` con cero filas donde el baseline tenía filas
 - [ ] Contador de degradaciones y resumen de tokens de la corrida registrados
-- [ ] Segunda corrida con key inválida documentada: completa vía serving, con `[llm_fallback]` en logs y contador distinto de cero
+- [ ] **Corregido antes de ejecutar** (contradecía T7/T10): segunda corrida con key inválida documentada — confirma que **falla fuerte** con `AuthenticationError`, sin producir un entregable silenciosamente incompleto (la trampa de "hollow success" que `CLAUDE.md` ya documenta). No se espera `[llm_fallback]`: 401 está deliberadamente excluida del fallback desde T7 (`_is_retryable()` → `False`), y eso ya está probado exhaustivamente por 8 tests unitarios en T10. El Done-when original asumía lo contrario y quedó obsoleto en cuanto se refinó ese diseño.
 - [ ] Gate check pasa: `databricks/.venv/bin/ruff check <archivos tocados> && databricks/.venv/bin/python -m pytest tests/ -q`
 
 **Tests**: none

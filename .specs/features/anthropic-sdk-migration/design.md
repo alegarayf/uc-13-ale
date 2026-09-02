@@ -215,6 +215,8 @@ La API key nunca aparece aquí (ASDK-08 AC4).
 
 ## Tech Decisions
 
+> **Dos hallazgos de T23 (2026-09-02, en vivo, no anticipados en Design)** promovidos a `STATE.md` como AD-003 y AD-004 porque son decisiones de nivel proyecto, no locales a esta feature: (1) los jobs VDR instalan paquetes desde `environments[].spec.dependencies` de la config del job, una fuente completamente separada de `requirements.txt`/`pyproject.toml` — T1 nunca la tocó, y la primera corrida real falló con `ModuleNotFoundError`. (2) `anthropic` 1.x eliminó `temperature` de la firma tipada de `messages.create()` — pasarlo directo es `TypeError`, no un 400 de la API; ningún test de Phase 1-4 lo detectó porque todos mockean la función completa. Ver `STATE.md` para el detalle completo de ambas.
+
 | Decisión | Elección | Rationale |
 |---|---|---|
 | Frontera de la abstracción | Función `chat()`, no una clase cliente | Los 11 call sites son sin estado y de un solo turno. Una clase implicaría un ciclo de vida que nadie necesita |
