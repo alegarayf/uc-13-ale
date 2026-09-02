@@ -491,15 +491,18 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] El módulo ya no construye un deploy client para un endpoint `claude`
-- [ ] `max_tokens=3000` y el resto de argumentos conservan sus valores actuales
-- [ ] El fallback de dos pasadas C37 queda sin modificar
-- [ ] Test unitario afirma la delegación con argumentos exactos
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 2 tests pasan (sin borrados silenciosos)
+- [x] El módulo ya no construye un deploy client para un endpoint `claude`
+- [x] `max_tokens=3000` y el resto de argumentos conservan sus valores actuales
+- [x] El fallback de dos pasadas C37 queda sin modificar (usa `self._call_llm`, ya migrado en T13; sin diff en esas líneas)
+- [x] Test unitario afirma la delegación con argumentos exactos
+- [x] Gate check pasa: `1122 passed, 34 skipped`
+- [x] Test count: 2 tests pasan (sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: full
+**Status**: ✅ Complete
+
+**Nota**: esta llamada narrativa nunca acumulaba tokens (sin `accumulate_tokens()`) incluso antes de la migración — comportamiento preexistente preservado, no una omisión nueva.
 
 **Commit**: `refactor(bma): route the assessment narrative through the LLM gateway`
 
