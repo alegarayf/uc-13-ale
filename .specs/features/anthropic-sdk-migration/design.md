@@ -24,11 +24,13 @@ Verificados antes de diseñar. Cada uno cambió una decisión.
 
 ## Architecture Overview
 
-Un único punto de entrada (`llm_client.chat`) absorbe las 10 llamadas de chat/visión que sí llaman a Claude. Los call sites siguen pasando el mismo string de endpoint estilo Databricks que pasan hoy; la traducción a model ID de Anthropic ocurre dentro del gateway. Los embeddings no cruzan el gateway: siguen yendo directo al deploy client.
+Un único punto de entrada (`llm_client.chat`) absorbe las 8 llamadas de chat/visión que sí llaman a Claude (2 de ellas, `company_profiler` e `ingestion_parser` vision, condicionalmente — ver AD-002). Los call sites siguen pasando el mismo string de endpoint estilo Databricks que pasan hoy; la traducción a model ID de Anthropic ocurre dentro del gateway. Los embeddings no cruzan el gateway: siguen yendo directo al deploy client.
 
 > **Corrección post-Design (T19, 2026-09-02):** el diagrama original incluía `document_classifier` como call site del gateway. Se descubrió durante T19 que su endpoint hardcodeado es `databricks-meta-llama-3-3-70b-instruct` (Llama, no Claude) — investigación insuficiente en esta fase de Design, que verificó el nombre de la variable `_CLASSIFIER_ENDPOINT` pero no su valor. Movido al subgrafo "fuera del gateway".
 >
-> **Corrección post-Design (T20, 2026-09-02):** `company_profiler` no es un call site incondicional del gateway. Su `llm_endpoint` es paramétrico: el job standalone de Phase 1-2 (`uc13_ingestion_pipeline.yml`) lo defaultea a Llama; `run_full_pipeline.py` (Phase 1-5) lo defaultea a Claude Sonnet. `call_llm()` consulta `llm_client.is_claude_endpoint(endpoint)` antes de decidir la ruta — el diagrama muestra ambas ramas.
+> **Corrección post-Design (T20, 2026-09-02):** `company_profiler` no es un call site incondicional del gateway. Su `llm_endpoint` es paramétrico: el job standalone de Phase 1-2 (`uc13_ingestion_pipeline.yml`) lo defaultea a Llama; `run_full_pipeline.py` (Phase 1-5) lo defaultea a Claude Sonnet. `call_llm()` consulta `llm_client.is_claude_endpoint(endpoint)` antes de decidir la ruta.
+>
+> **Corrección post-Design (T21, 2026-09-02):** mismo hallazgo (AD-002) en la extracción de visión de `ingestion_parser`. Su `vision_endpoint` también es paramétrico, y el propio código fuente nombra `databricks-meta-llama-3-2-11b-vision-instruct` como valor válido. El diagrama muestra ambas ramas condicionales.
 
 ```mermaid
 graph TD
@@ -36,13 +38,13 @@ graph TD
         A1[agent_base._call_llm]
         A2["generate_*_assessment<br/>BMA · FTA · CQA · QoE · KPI"]
         A4{"company_profiler.call_llm<br/>is_claude_endpoint?"}
-        A5["ingestion_parser<br/>vision"]
+        A5{"ingestion_parser vision<br/>is_claude_endpoint?"}
     end
 
     A1 --> GW[llm_client.chat]
     A2 --> GW
     A4 -- "sí (Claude)" --> GW
-    A5 --> GW
+    A5 -- "sí (Claude)" --> GW
 
     GW --> RES[_resolve: alias → model_id + backend]
     RES --> SPAN[_traced: abre span MLflow]
@@ -58,13 +60,16 @@ graph TD
         E3[doc_worker]
         E4[ensure_coverage]
         E5["document_classifier<br/>Llama 3.3 70B, no Claude"]
+        E6["deploy client crudo<br/>shape image_url original"]
     end
     A4 -- "no (Llama u otro)" --> E5
+    A5 -- "no (Llama u otro)" --> E6
     E1 --> DEP["mlflow.deployments<br/>databricks-bge-large-en"]
     E2 --> DEP
     E3 --> DEP
     E4 --> DEP
     E5 --> DEP2["mlflow.deployments<br/>databricks-meta-llama-3-3-70b-instruct"]
+    E6 --> DEP3["mlflow.deployments<br/>vision_endpoint no-Claude"]
 ```
 
 ### Contrato de traducción

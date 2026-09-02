@@ -686,12 +686,12 @@ T23 → T24
 
 ---
 
-### T21: Migrar la extracción de visión
+### T21: Migrar la extracción de visión — **enrutamiento condicional (AD-002), como T20**
 
-**What**: Sustituir el deploy client de la extracción de visión por el gateway, usando la conversión de contenido de T6.
+**What**: Sustituir el deploy client de la extracción de visión por el gateway **solo cuando `vision_endpoint` es Claude**. Verificado antes de tocar código (a raíz de T20): `vision_endpoint` es paramétrico, y el propio comentario del código fuente en `ingestion_parser.py` nombra `databricks-meta-llama-3-2-11b-vision-instruct` como valor válido. Enrutamiento incondicional habría lanzado `ValueError`. Aplica AD-002 directamente, sin re-preguntar al usuario (ya decidido).
 **Where**: `databricks/jobs/scripts/ingestion_parser.py` (modificar)
 **Depends on**: T20
-**Reuses**: `llm_client.chat()` y `_to_anthropic_content()` de T6
+**Reuses**: `llm_client.chat()`, `llm_client.is_claude_endpoint()` (T20), conversión T6 (ocurre dentro de `chat()`, no en este call site)
 **Requirement**: ASDK-09
 
 **Tools**:
@@ -699,18 +699,21 @@ T23 → T24
 - Skill: `claude-api`
 
 **Done when**:
-- [ ] La llamada de visión pasa por el gateway con `max_tokens=2000` (y el valor de páginas financieras conservado)
-- [ ] La selección entre `_VISION_PROMPT` y `_VISION_PROMPT_FINANCIAL` queda sin modificar
-- [ ] `get_embeddings_batch()` queda intacto y sigue usando el deploy client
-- [ ] La respuesta `NO_DATA` se sigue tratando igual
-- [ ] Test unitario afirma la delegación con el payload de imagen convertido y que la ruta de embeddings no cambió
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 3 tests pasan (sin borrados silenciosos)
+- [x] La llamada de visión pasa por el gateway con `max_tokens=2000` **solo si `is_claude_endpoint(vision_endpoint)`**; si no, sigue usando el deploy client crudo con el shape `image_url` original
+- [x] La selección entre `_VISION_PROMPT` y `_VISION_PROMPT_FINANCIAL` queda sin modificar
+- [x] `get_embeddings_batch()` queda intacto y sigue usando el deploy client (verificado por inspección de código fuente en el test, no solo lectura)
+- [x] La respuesta `NO_DATA` se sigue tratando igual
+- [x] Test unitario afirma la delegación con el payload de imagen sin convertir en el call site (la conversión T6 ocurre dentro de `chat()`) y que la ruta de embeddings no cambió
+- [x] Gate check pasa: `1146 passed, 34 skipped`
+- [x] Test count: 4 tests pasan (sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: full
+**Status**: ✅ Complete
 
-**Commit**: `refactor(parser): route vision extraction through the LLM gateway`
+**SPEC_DEVIATION confirmada con el usuario**: la llamada original nunca especificaba `temperature` (default implícito del serving). La rama del gateway pasa `temperature=0.0` explícito, consistente con los otros 8 call sites de extracción ya migrados. La rama no-Claude conserva el comportamiento original exacto (sin `temperature` en el payload).
+
+**Commit**: `refactor(parser): route vision extraction through the LLM gateway conditionally`
 
 ---
 

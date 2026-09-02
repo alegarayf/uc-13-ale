@@ -21,11 +21,12 @@
 ## Handoff
 
 - **Feature**: anthropic-sdk-migration (`.specs/features/anthropic-sdk-migration/`)
-- **Phase / Task**: **Phase 2 completa (T8-T11).** Gateway completo: credencial, chat() con ambos backends, fallback automático, tracing MLflow. Siguiente: Phase 3 (T12-T17)
-- **Completed**: Phase 0 (T1-T3), Phase 1 (T4-T7), Phase 2: T8 `f6536eb`, T9 `57101c8`, T10 `905dc40`, T11 `00c9627`
-- **In-progress** (file:line): none
-- **Next step**: T12 — extender `print_token_summary()` en `agent_base.py` con backend y degradaciones; actualizar `_ENDPOINT_PRICING` a tarifas first-party
+- **Phase / Task**: **Phase 4 completa (T18-T21).** Los 8 call sites de Claude migrados (6 incondicionales, 2 condicionales por AD-002). ASDK-09 verificado. Siguiente: T22 (test de convención estático) cierra Phase 4; luego Phase 5 (T23-T24).
+- **Completed**: Phase 0-3 completas. Phase 4: T18 `b2663c2`, T19 `88f5c17` (N/A documentado), T20 `c151a59` (condicional), T21 (pendiente de commit — reconciliación de conteo final a 8/8 incluida)
+- **In-progress** (file:line): T21 implementada y verificada (`ingestion_parser.py`, `tests/test_ingestion_parser_vision_gateway.py`), spec.md/design.md reconciliados con el conteo final verificado (8 call sites, no 10 ni 11), falta el commit
+- **Next step**: commitear T21, luego T22 — test estático que estas 2 tareas ya confirmaron indirectamente (T19/T20/T21 cada una probó que su endpoint no-Claude no toca el gateway)
 - **Blockers**: none
-- **Incidente registrado (resuelto, sin daño)**: durante T11 se ejecutó por error `git checkout HEAD~15 -- .`, sobrescribiendo el árbol de trabajo. HEAD nunca se movió; `git reset --hard HEAD` restauró todo sin pérdida de historial. Detalle completo en la nota de T11 en `tasks.md`. Lección aplicada: no volver a usar `git checkout <ref> -- .` para explorar.
-- **Uncommitted files**: none
+- **Decisiones nuevas de esta fase**: AD-002 (STATE.md) — cualquier call site con endpoint paramétrico debe consultar `llm_client.is_claude_endpoint()` antes de despachar al gateway. Aplicó a T20 (company_profiler) y T21 (vision).
+- **Conteo final de call sites de Claude (verificado 2026-09-02, no una resta del original de 11)**: 8 — `agent_base._call_llm`, BMA, FTA, CQA, QoE, KPI (6 incondicionales) + `company_profiler` + `ingestion_parser` vision (2 condicionales). `document_classifier` excluido (Llama). `doc_worker.py`/`ensure_coverage.py` son embeddings puros, ya exentos por AD-001.
+- **Uncommitted files**: `databricks/jobs/scripts/ingestion_parser.py`, `tests/test_ingestion_parser_vision_gateway.py`, `.specs/features/anthropic-sdk-migration/{spec,design,tasks}.md`, `.specs/STATE.md`
 - **Branch**: feature/anthropic-sdk-migration (sin pushear)

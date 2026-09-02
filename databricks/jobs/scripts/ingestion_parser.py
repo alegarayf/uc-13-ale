@@ -692,7 +692,7 @@ def _extract_figure_pages_with_vision(
         )
         return []
 
-    import mlflow.deployments
+    from agents.shared import llm_client
 
     _VISION_PROMPT = (
         "This page is from a financial due diligence or business overview document. "
@@ -735,7 +735,17 @@ def _extract_figure_pages_with_vision(
         print(f"  ⚠ PyMuPDF could not open {file_name}: {exc}")
         return []
 
-    client = mlflow.deployments.get_deploy_client("databricks")
+    # vision_endpoint is runtime-parametrized (get_param("vision_endpoint", ...))
+    # and its own code comment upstream names a Llama vision model as a valid
+    # value -- same AD-002 finding as company_profiler.call_llm() (T20). Route
+    # through the gateway only for a known Claude alias; anything else keeps
+    # using the raw deploy client exactly as before.
+    use_gateway = llm_client.is_claude_endpoint(vision_endpoint)
+    if use_gateway:
+        client = None
+    else:
+        import mlflow.deployments
+        client = mlflow.deployments.get_deploy_client("databricks")
 
     for page_id, section_header in sorted(figure_page_header_map.items()):
         if page_id >= len(pdf_doc):
@@ -752,35 +762,46 @@ def _extract_figure_pages_with_vision(
             _is_fin_section = bool(_PDF_FIN_SECTION_RE.search(section_header or ""))
             _active_prompt  = _VISION_PROMPT_FINANCIAL if _is_fin_section else _VISION_PROMPT
 
-            response = client.predict(
-                endpoint=vision_endpoint,
-                inputs={
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/png;base64,{img_b64}"
-                                    },
-                                },
-                                {"type": "text", "text": _active_prompt},
-                            ],
-                        }
-                    ],
-                    "max_tokens": 2000,
+            _user_content = [
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{img_b64}"},
                 },
-            )
+                {"type": "text", "text": _active_prompt},
+            ]
 
-            _try_accumulate_tokens(response.get("usage", {}), endpoint=vision_endpoint)
-
-            text = (
-                (response.get("choices") or [{}])[0]
-                .get("message", {})
-                .get("content", "")
-                .strip()
-            )
+            if use_gateway:
+                # SPEC_DEVIATION: the original serving call never set
+                # "temperature" (implicit provider default). chat() always
+                # sends an explicit value; 0.0 matches every other extraction
+                # call site in this codebase (agent_base._call_llm and the
+                # narrative calls use 0.0-0.1) -- the original omission reads
+                # as an oversight, not a deliberate choice, for a data-
+                # extraction task. Confirmed with the user before implementing.
+                text, usage = llm_client.chat(
+                    system_prompt=None,
+                    user_content=_user_content,
+                    endpoint=vision_endpoint,
+                    max_tokens=2000,
+                    temperature=0.0,
+                )
+                _try_accumulate_tokens(usage, endpoint=vision_endpoint)
+                text = text.strip()
+            else:
+                response = client.predict(
+                    endpoint=vision_endpoint,
+                    inputs={
+                        "messages": [{"role": "user", "content": _user_content}],
+                        "max_tokens": 2000,
+                    },
+                )
+                _try_accumulate_tokens(response.get("usage", {}), endpoint=vision_endpoint)
+                text = (
+                    (response.get("choices") or [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                    .strip()
+                )
 
             if not text or text.upper() == "NO_DATA":
                 continue
