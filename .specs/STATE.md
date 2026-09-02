@@ -13,10 +13,10 @@
 ## Handoff
 
 - **Feature**: anthropic-sdk-migration (`.specs/features/anthropic-sdk-migration/`)
-- **Phase / Task**: Design completado y pendiente de aprobación del usuario; Tasks aún no iniciado
-- **Completed**: Specify (spec.md, gate limpio), Discuss (context.md), Design (design.md), reconciliación spec↔design tras los hallazgos de investigación (ASDK-10 enmendado, ASDK-15 añadido, 3 assumptions nuevas, Out of Scope actualizado)
+- **Phase / Task**: Phase 0 (gate de egress) — T1 y T2 completas y commiteadas; **T3 bloqueada**
+- **Completed**: Specify, Discuss, Design, Tasks (24 tareas, gate limpio), T1 (`588aa51`), T2 (`e1b2029`)
 - **In-progress** (file:line): none
-- **Next step**: Obtener aprobación del design y generar `tasks.md` con la fase 0 = gate de egress ASDK-13 como bloqueante
-- **Blockers**: none — ASDK-13 es un gate planificado, no un bloqueo actual
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/anthropic-sdk-migration/{spec,context,design}.md`
+- **Next step**: T3 — ejecutar `databricks/jobs/scripts/check_anthropic_egress.py` como tarea serverless en el workspace Rallyday y registrar la evidencia en `signoffs/ASDK-13-egress-gate.md`
+- **Blockers**: (1) el secreto `anthropic_api_key` no está en el scope `uc13`, y el token local **no tiene el scope `secrets`** (`databricks secrets list-scopes` falla), así que Hector debe crearlo. (2) Enviar el job es una acción externa al entorno local y requiere go-ahead explícito. Acceso a jobs sí funciona (perfil `rallyday`, `jobs list` responde).
+- **Uncommitted files**: none
 - **Branch**: feature/anthropic-sdk-migration
