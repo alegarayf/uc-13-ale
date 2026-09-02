@@ -45,6 +45,22 @@ def resolve_model(endpoint: str) -> str:
         ) from None
 
 
+def is_claude_endpoint(endpoint: str) -> bool:
+    """True when `endpoint` is a known Claude alias (present in _MODEL_MAP).
+
+    Some call sites (e.g. jobs/scripts/company_profiler.py) receive a
+    runtime-parametrized endpoint that legitimately resolves to a non-Claude
+    model (Llama) on some invocation paths and a Claude model on others --
+    discovered during T20 (uc13_ingestion_pipeline.yml defaults
+    company_profiler's llm_endpoint to Llama for the standalone Phase 1-2
+    job, while run_full_pipeline.py defaults it to Claude Sonnet for Phase
+    1-5). Such a call site must check this before calling chat(): resolve_model()
+    raises on an unmapped alias by design (ASDK-03), so an unconditional
+    dispatch would break the Llama path instead of falling back gracefully.
+    """
+    return endpoint in _MODEL_MAP
+
+
 def _active_backend() -> str:
     """Read LLM_BACKEND from the environment, defaulting to 'anthropic'.
 

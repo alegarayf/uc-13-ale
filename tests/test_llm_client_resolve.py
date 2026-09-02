@@ -73,3 +73,22 @@ def test_active_backend_invalid_value_raises_naming_valid_values(monkeypatch):
         llm_client._active_backend()
     assert "anthropic" in str(exc_info.value)
     assert "databricks" in str(exc_info.value)
+
+
+# --- is_claude_endpoint: T20 finding -- some call sites receive a runtime-
+# parametrized endpoint that can legitimately be Llama or Claude -----------
+
+
+@pytest.mark.parametrize(
+    "alias", ["databricks-claude-sonnet-4-6", "databricks-claude-haiku-4-5"]
+)
+def test_is_claude_endpoint_true_for_known_claude_aliases(alias):
+    assert llm_client.is_claude_endpoint(alias) is True
+
+
+def test_is_claude_endpoint_false_for_llama():
+    assert llm_client.is_claude_endpoint("databricks-meta-llama-3-3-70b-instruct") is False
+
+
+def test_is_claude_endpoint_false_for_unknown_alias():
+    assert llm_client.is_claude_endpoint("databricks-something-else") is False

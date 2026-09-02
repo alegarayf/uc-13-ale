@@ -226,6 +226,32 @@ def _try_accumulate_tokens(usage: dict, endpoint: str = "unknown") -> None:
 
 
 def call_llm(client, endpoint: str, prompt: str) -> str:
+    """Call `endpoint`, routing through the LLM gateway only when it's Claude.
+
+    `endpoint` is runtime-parametrized (get_param("llm_endpoint", ...)) and
+    legitimately resolves to a non-Claude model on some invocation paths:
+    uc13_ingestion_pipeline.yml defaults it to
+    "databricks-meta-llama-3-3-70b-instruct" for the standalone Phase 1-2 job,
+    while run_full_pipeline.py defaults it to Claude Sonnet for Phase 1-5.
+    llm_client.resolve_model() raises on an unmapped alias by design
+    (ASDK-03), so dispatch must check is_claude_endpoint() first rather than
+    calling chat() unconditionally -- that would break the Llama path instead
+    of falling back gracefully. `client` (the raw deploy client) is only used
+    on the non-Claude branch.
+    """
+    from agents.shared import llm_client
+
+    if llm_client.is_claude_endpoint(endpoint):
+        text, usage = llm_client.chat(
+            system_prompt=None,
+            user_content=prompt,
+            endpoint=endpoint,
+            max_tokens=1500,
+            temperature=0.0,
+        )
+        _try_accumulate_tokens(usage, endpoint=endpoint)
+        return text.strip()
+
     response = client.predict(
         endpoint=endpoint,
         inputs={

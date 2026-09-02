@@ -655,10 +655,10 @@ T23 → T24
 
 ---
 
-### T20: Migrar el perfilador de compañía
+### T20: Migrar el perfilador de compañía — **enrutamiento condicional (hallazgo)**
 
-**What**: Sustituir el deploy client de `company_profiler` por el gateway, sin tocar sus llamadas de embeddings.
-**Where**: `databricks/jobs/scripts/company_profiler.py` (modificar)
+**What**: Sustituir el deploy client de `company_profiler.call_llm()` por el gateway, **solo cuando el endpoint es Claude**. `llm_endpoint` es paramétrico y legítimamente resuelve a Llama (`uc13_ingestion_pipeline.yml` lo defaultea a `databricks-meta-llama-3-3-70b-instruct` para el job standalone de Phase 1-2) o a Claude (`run_full_pipeline.py` lo defaultea a `databricks-claude-sonnet-4-6` para Phase 1-5). Enrutar sin condición habría lanzado `ValueError` en el job standalone. Confirmado con el usuario: enrutamiento condicional en el call site, vía un nuevo predicado público `llm_client.is_claude_endpoint()`.
+**Where**: `databricks/jobs/scripts/company_profiler.py` (modificar), `databricks/agents/shared/llm_client.py` (añade `is_claude_endpoint()`)
 **Depends on**: T19
 **Reuses**: `llm_client.chat()`
 **Requirement**: ASDK-09
@@ -668,16 +668,21 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] La llamada de chat pasa por el gateway con `max_tokens=1500`
-- [ ] Las llamadas a `semantic_search()` y el `embedding_endpoint` quedan intactas
-- [ ] Test unitario afirma la delegación con argumentos exactos y que la ruta de embeddings no cambió
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 2 tests pasan (sin borrados silenciosos)
+- [x] `llm_client.is_claude_endpoint(endpoint)` público, basado en `_MODEL_MAP`
+- [x] `call_llm()` enruta por el gateway solo si `is_claude_endpoint(endpoint)` es `True`; si no, sigue llamando al deploy client crudo exactamente como hoy
+- [x] La llamada de chat (rama Claude) pasa por el gateway con `max_tokens=1500`, sin `system_prompt`
+- [x] Las llamadas a `semantic_search()` y el `embedding_endpoint` quedan intactas
+- [x] Test unitario afirma: rama Claude delega al gateway con argumentos exactos; rama Llama **no** toca el gateway y no lanza `ValueError`; un alias futuro desconocido también evita el gateway
+- [x] Gate check pasa: `1142 passed, 34 skipped`
+- [x] Test count: **7** tests pasan (4 en `test_llm_client_resolve.py` para `is_claude_endpoint`, 3 en `test_company_profiler_conditional_gateway.py`; planeados 2, sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: full
+**Status**: ✅ Complete
 
-**Commit**: `refactor(profiler): route company profiling through the LLM gateway`
+**Hallazgo**: a diferencia de T19 (Llama hardcodeado, exclusión total), aquí el mismo call site legítimamente sirve ambos proveedores según el entry point. Confirmado con el usuario antes de implementar: enrutamiento condicional, no exclusión total ni migración incondicional. `spec.md`/`design.md` no requirieron corrección de conteo (company_profiler sigue contando como "migrado", ahora con matiz condicional documentado aquí).
+
+**Commit**: `refactor(profiler): route company profiling through the LLM gateway conditionally`
 
 ---
 

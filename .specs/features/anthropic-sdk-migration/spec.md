@@ -121,7 +121,8 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 
 **Acceptance Criteria**:
 
-1. The system SHALL enrutar por el gateway las nueve llamadas de chat que sí llaman a Claude: `agent_base._call_llm`, las narrativas de BMA, FTA, CQA, QoE y KPI, `company_profiler`, y las dos rutas restantes de extracción que hoy construyen su propio deploy client. `document_classifier.classify_batch` queda excluido — su endpoint es Llama 3.3 70B, no Claude.
+1. The system SHALL enrutar por el gateway las nueve llamadas de chat que sí llaman a Claude: `agent_base._call_llm`, las narrativas de BMA, FTA, CQA, QoE y KPI, `company_profiler` (condicionalmente — ver AC7), y la ruta restante de extracción que hoy construye su propio deploy client. `document_classifier.classify_batch` queda excluido — su endpoint es Llama 3.3 70B, no Claude.
+7. WHERE `company_profiler.call_llm()` recibe un endpoint que no está en la tabla de mapeo (p. ej. Llama, el default del job standalone de Phase 1-2) el sistema SHALL seguir llamando al deploy client de Databricks sin pasar por el gateway, usando `llm_client.is_claude_endpoint()` para decidir — nunca `ValueError` fuera del gateway mismo.
 2. WHEN el gateway recibe contenido de visión THEN el sistema SHALL convertir el bloque `image_url` con data-URI base64 al bloque `{"type": "image", "source": {"type": "base64", "media_type": ..., "data": ...}}` que exige el SDK de Anthropic.
 3. WHILE el backend activo es `databricks` el sistema SHALL enviar el contenido de visión en el formato `image_url` original, sin la conversión.
 4. The system SHALL dejar sin modificar toda llamada de embeddings, que sigue usando `mlflow.deployments` directamente.
@@ -259,7 +260,7 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 | ASDK-06 | P1: Fallback automático | T10 ✅ | Verified |
 | ASDK-07 | P1: Fallback automático | T10 ✅ | Verified |
 | ASDK-08 | P1: Credencial desde Secret Scope | T8 ✅ | Verified |
-| ASDK-09 | P1: Los 10 call sites de Claude migrados | T6, T9, T13-T18 ✅ (6/10); T19 N/A (Llama, excluido); T20-T21 pendientes | Implementing |
+| ASDK-09 | P1: Los 10 call sites de Claude migrados | T6, T9, T13-T18, T20 ✅ (7/10, T20 condicional); T19 N/A (Llama, excluido); T21 pendiente | Implementing |
 | ASDK-10 | P2: MLflow tracing | T11 ✅ | Verified |
 | ASDK-11 | P2: Contabilidad de tokens | T5, T12 ✅ | Verified |
 | ASDK-12 | P2: Paridad end-to-end | Tasks | In Design |

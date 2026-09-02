@@ -27,19 +27,21 @@ Verificados antes de diseñar. Cada uno cambió una decisión.
 Un único punto de entrada (`llm_client.chat`) absorbe las 10 llamadas de chat/visión que sí llaman a Claude. Los call sites siguen pasando el mismo string de endpoint estilo Databricks que pasan hoy; la traducción a model ID de Anthropic ocurre dentro del gateway. Los embeddings no cruzan el gateway: siguen yendo directo al deploy client.
 
 > **Corrección post-Design (T19, 2026-09-02):** el diagrama original incluía `document_classifier` como call site del gateway. Se descubrió durante T19 que su endpoint hardcodeado es `databricks-meta-llama-3-3-70b-instruct` (Llama, no Claude) — investigación insuficiente en esta fase de Design, que verificó el nombre de la variable `_CLASSIFIER_ENDPOINT` pero no su valor. Movido al subgrafo "fuera del gateway".
+>
+> **Corrección post-Design (T20, 2026-09-02):** `company_profiler` no es un call site incondicional del gateway. Su `llm_endpoint` es paramétrico: el job standalone de Phase 1-2 (`uc13_ingestion_pipeline.yml`) lo defaultea a Llama; `run_full_pipeline.py` (Phase 1-5) lo defaultea a Claude Sonnet. `call_llm()` consulta `llm_client.is_claude_endpoint(endpoint)` antes de decidir la ruta — el diagrama muestra ambas ramas.
 
 ```mermaid
 graph TD
     subgraph Call sites
         A1[agent_base._call_llm]
         A2["generate_*_assessment<br/>BMA · FTA · CQA · QoE · KPI"]
-        A4[company_profiler]
+        A4{"company_profiler.call_llm<br/>is_claude_endpoint?"}
         A5["ingestion_parser<br/>vision"]
     end
 
     A1 --> GW[llm_client.chat]
     A2 --> GW
-    A4 --> GW
+    A4 -- "sí (Claude)" --> GW
     A5 --> GW
 
     GW --> RES[_resolve: alias → model_id + backend]
@@ -57,6 +59,7 @@ graph TD
         E4[ensure_coverage]
         E5["document_classifier<br/>Llama 3.3 70B, no Claude"]
     end
+    A4 -- "no (Llama u otro)" --> E5
     E1 --> DEP["mlflow.deployments<br/>databricks-bge-large-en"]
     E2 --> DEP
     E3 --> DEP
@@ -111,6 +114,7 @@ Tabla explícita, no derivación por string. Un alias ausente es `ValueError` (A
   - `get_fallback_count() -> int` — número de degradaciones de la corrida (ASDK-06 AC6).
   - `reset_fallback_count() -> None` — llamado junto a `reset_token_counter()` al inicio de cada corrida.
   - `resolve_model(endpoint: str) -> str` — traducción alias → model ID; pública porque el smoke test la ejerce.
+  - `is_claude_endpoint(endpoint: str) -> bool` — predicado público (**añadido en T20**). Para call sites con endpoint paramétrico que legítimamente puede resolver a un modelo no-Claude (`company_profiler.call_llm`, descubierto en T20) — deciden si llamar a `chat()` o al deploy client crudo, en vez de dejar que `resolve_model()` lance `ValueError` a mitad de una corrida.
 - **Dependencias**: `anthropic>=1.3.0`, `mlflow` (opcional en tiempo de ejecución), `mlflow.deployments` (para la ruta de fallback).
 - **Reutiliza**: `accumulate_tokens`, patrón `get_param`/`get_secret`, patrón `mlflow.start_span` de `pipeline.py`.
 
