@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 # Model IDs mirror the alias table the gateway will own (design.md
 # "Contrato de traducción"). Verifying both here is what confirms that
@@ -56,6 +57,23 @@ def _get_dbutils():
         return IPython.get_ipython().user_ns.get("dbutils")
     except Exception:
         return None
+
+
+def _load_dotenv_if_local() -> None:
+    """Load databricks/.env when running off-cluster.
+
+    Mirrors the helper the production modules already use (see
+    financial_trends_agent._load_dotenv_if_local). Without it, a local run only
+    sees an exported env var, so the key sitting in databricks/.env is ignored
+    and the gate reports a missing credential that is actually present.
+    """
+    if _get_dbutils() is not None:
+        return
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 def get_param(key: str, default: str | None = None) -> str | None:
@@ -130,6 +148,7 @@ def _import_anthropic():
 
 
 def main() -> int:
+    _load_dotenv_if_local()
     try:
         anthropic = _import_anthropic()
     except Exception as exc:  # noqa: BLE001 - any import failure is the signal

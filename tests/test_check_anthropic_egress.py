@@ -41,6 +41,19 @@ def _stub_sdk(version: str = "1.3.0", side_effect=None):
     return sdk, client
 
 
+@pytest.fixture(autouse=True)
+def _no_real_dotenv(monkeypatch, request):
+    """Keep main() from reading the developer's real databricks/.env.
+
+    Without this, a machine that happens to have a key in .env silently
+    satisfies the missing-credential branch and the test passes for the wrong
+    reason. The two tests that exercise _load_dotenv_if_local itself opt out.
+    """
+    if request.node.name.endswith(("_loads_the_databricks_dotenv", "_does_not_load_a_dotenv")):
+        return
+    monkeypatch.setattr(gate, "_load_dotenv_if_local", lambda: None)
+
+
 @pytest.fixture
 def _key(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
@@ -149,6 +162,35 @@ def test_missing_credential_names_scope_and_env_var_without_leaking(capsys, monk
     assert "uc13" in out
     assert "ANTHROPIC_API_KEY" in out
     sdk.Anthropic.assert_not_called()
+
+
+def test_local_run_loads_the_databricks_dotenv(monkeypatch):
+    """Off-cluster, the key in databricks/.env must be picked up.
+
+    Without this the gate reports a missing credential that is present, which
+    is what happened on the first real local run.
+    """
+    loaded: list = []
+    monkeypatch.setattr(gate, "_get_dbutils", lambda: None)
+    monkeypatch.setitem(
+        sys.modules,
+        "dotenv",
+        type("m", (), {"load_dotenv": staticmethod(lambda p: loaded.append(p))}),
+    )
+    gate._load_dotenv_if_local()
+    assert loaded == [_DATABRICKS_ROOT / ".env"]
+
+
+def test_on_cluster_run_does_not_load_a_dotenv(monkeypatch):
+    loaded: list = []
+    monkeypatch.setattr(gate, "_get_dbutils", lambda: MagicMock(name="dbutils"))
+    monkeypatch.setitem(
+        sys.modules,
+        "dotenv",
+        type("m", (), {"load_dotenv": staticmethod(lambda p: loaded.append(p))}),
+    )
+    gate._load_dotenv_if_local()
+    assert loaded == []
 
 
 def test_api_key_value_never_appears_in_output(capsys, monkeypatch):
