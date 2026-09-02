@@ -125,6 +125,14 @@ def _string_literal_args(call: ast.Call) -> list[str]:
     predict() call outside the gateway", so every literal is in scope, not just
     one blessed kwarg name. A variable or expression still yields nothing --
     that case is unknowable statically and is covered by the allowlist check.
+
+    **Broad on arity, deliberately narrow on depth.** Only TOP-LEVEL string
+    arguments are collected. Do not "improve" this into an ast.walk() over the
+    call: prompt text lives nested in `inputs={"messages": [...]}`, and any
+    prompt mentioning Claude would start tripping the guard. That direction
+    only makes the guard noisier, never permissive -- so no test objects to it,
+    which is exactly why it is written down here instead. A guard that cries
+    wolf is a guard someone eventually deletes.
     """
     literals = [
         arg.value

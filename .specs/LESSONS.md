@@ -38,6 +38,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md round-2 sensor mutations 12 and 13; tests/test_llm_gateway_convention.py:113-120 and :23 (static-scan)
 - last seen: 2026-09-02T23:22:28Z
 
+### L-005 - Pin a static matcher's depth boundary as well as its breadth, because broadening it to nested nodes only adds false positives and no test will object
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `static-scan` · harmful: 0
+- features: anthropic-sdk-migration
+- evidence: validation.md round-3 sensor mutation 16; tests/test_llm_gateway_convention.py:130-139 (static-scan)
+- last seen: 2026-09-02T23:46:27Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 5,
+  "next_id": 6,
   "lessons": [
     {
       "id": "L-001",
@@ -76,6 +76,24 @@
       ],
       "created": "2026-09-02T23:22:28Z",
       "last_seen": "2026-09-02T23:22:28Z"
+    },
+    {
+      "id": "L-005",
+      "key": "surviving_mutant::pin a static matcher s depth boundary as well as its breadth because broadening it to nested nodes only adds false positives and no test will object",
+      "text": "Pin a static matcher's depth boundary as well as its breadth, because broadening it to nested nodes only adds false positives and no test will object",
+      "signal": "surviving_mutant",
+      "scope": "static-scan",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md round-3 sensor mutation 16; tests/test_llm_gateway_convention.py:130-139 (static-scan)"
+      ],
+      "created": "2026-09-02T23:46:27Z",
+      "last_seen": "2026-09-02T23:46:27Z"
     }
   ]
 }
