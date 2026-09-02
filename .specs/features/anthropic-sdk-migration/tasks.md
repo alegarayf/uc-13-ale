@@ -190,15 +190,16 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] Tabla `_MODEL_MAP` explícita con las dos entradas; sin derivación por manipulación de string
-- [ ] `resolve_model()` lanza `ValueError` nombrando el alias desconocido
-- [ ] `_active_backend()` lee `LLM_BACKEND`, default `anthropic`, y lanza `ValueError` nombrando los valores válidos ante uno inválido
-- [ ] Tests unitarios cubren: ambos aliases válidos, alias desconocido, default ausente, valor inválido de `LLM_BACKEND`
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/test_llm_client_resolve.py -v`
-- [ ] Test count: 6 tests pasan (sin borrados silenciosos)
+- [x] Tabla `_MODEL_MAP` explícita con las dos entradas; sin derivación por manipulación de string
+- [x] `resolve_model()` lanza `ValueError` nombrando el alias desconocido
+- [x] `_active_backend()` lee `LLM_BACKEND`, default `anthropic`, y lanza `ValueError` nombrando los valores válidos ante uno inválido
+- [x] Tests unitarios cubren: ambos aliases válidos, alias desconocido, default ausente, valor inválido de `LLM_BACKEND`, y no-derivación por string
+- [x] Gate check pasa: `7 passed`; suite completa `1043 passed, 34 skipped`
+- [x] Test count: **7** tests pasan (planeados 6; se sumó un caso de no-derivación por string, sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 **Commit**: `feat(llm): add backend resolution and model alias mapping`
 
