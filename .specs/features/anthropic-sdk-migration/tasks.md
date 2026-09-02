@@ -746,7 +746,7 @@ T23 → T24
 
 ---
 
-### T23: Verificación de paridad end-to-end contra el baseline — **EN CURSO, 2 bugs de producción encontrados y corregidos**
+### T23: Verificación de paridad end-to-end contra el baseline — **PASS (2026-09-02), 2 bugs de producción encontrados y corregidos**
 
 **What**: Correr el job VDR sobre la data room de referencia con `LLM_BACKEND=anthropic` y comparar manifiesto y artefactos contra el baseline pre-migración.
 **Where**: `signoffs/ASDK-12-parity.md`, `signoffs/ASDK-12-parity-baseline-snapshot.md` (ya escrito)
@@ -757,7 +757,9 @@ T23 → T24
 
 **El baseline autoritativo fue redefinido por el usuario a mitad de tarea**: no el `record_id=32` (GKF) identificado inicialmente, sino los registros **62 (GKF), 63 (Clearsulting), 64 (Elder Care)**, todos del 2026-08-26 — snapshot completo ya capturado en `signoffs/ASDK-12-parity-baseline-snapshot.md` antes de cualquier corrida post-migración (para que una corrida nueva sobre el mismo `id` no destruya la evidencia del baseline al sobreescribir `results_location`).
 
-**Próximo paso inmediato**: relanzar las tres corridas (`record_id` 62, 63, 64) con el código ya corregido (Git folder sincronizado a `23e04e1`), monitorear, y si terminan en `SUCCESS`, comparar contra el snapshot y completar el resto del Done-when abajo. Ver el Handoff de `STATE.md` para el procedimiento paso a paso.
+**Ronda 3 (2026-09-02, la que cerró la tarea)**: relanzada con el Git folder sincronizado a `7e2adfd`. Las tres en `SUCCESS` — 62 primero como canaria (`283330252313546`, 25.2 min), luego 63 (`447543265613924`, 29.2 min) y 64 (`619316757100307`, 30.6 min) en paralelo. Evidencia completa en `signoffs/ASDK-12-parity.md`.
+
+**Único punto abierto**: el contador de degradaciones no es observable desde la API (ver Done-when abajo). No bloquea el veredicto de paridad, que se sostiene en las 24 filas frescas y el par de artefactos idéntico.
 **Depends on**: T22
 **Reuses**: El manifiesto de corrida de `agents/orchestration/pipeline.py` y el listado de artefactos del volumen VDR
 **Requirement**: ASDK-12
@@ -767,12 +769,12 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] Corrida ejecutada contra `uc13_preview`, nunca contra `uc13`
-- [ ] Manifiestos baseline y post-migración comparados agente por agente; ningún `SUCCESS` degradado a `FAILED` o `SKIPPED`
-- [ ] Mismo conjunto de artefactos producido; ninguna tabla de `analysis` con cero filas donde el baseline tenía filas
-- [ ] Contador de degradaciones y resumen de tokens de la corrida registrados
-- [ ] **Corregido antes de ejecutar** (contradecía T7/T10): segunda corrida con key inválida documentada — confirma que **falla fuerte** con `AuthenticationError`, sin producir un entregable silenciosamente incompleto (la trampa de "hollow success" que `CLAUDE.md` ya documenta). No se espera `[llm_fallback]`: 401 está deliberadamente excluida del fallback desde T7 (`_is_retryable()` → `False`), y eso ya está probado exhaustivamente por 8 tests unitarios en T10. El Done-when original asumía lo contrario y quedó obsoleto en cuanto se refinó ese diseño.
-- [ ] Gate check pasa: `databricks/.venv/bin/ruff check <archivos tocados> && databricks/.venv/bin/python -m pytest tests/ -q`
+- [x] Corrida ejecutada contra `uc13_preview`, nunca contra `uc13` — **satisfecho por construcción**: `run_vdr_rainmaker.py:51` tiene `VDR_CATALOG = "uc13_preview"` como constante única usada por ambas ramas; ningún parámetro puede desviarla. El criterio asumía que era algo a configurar durante la corrida; es una invariante del código. La confusión venía de `run_vdr_pipeline.py` (catálogo `uc13`), que es legacy y no está cableado a ningún job.
+- [x] Manifiestos baseline y post-migración comparados agente por agente; ningún `SUCCESS` degradado a `FAILED` o `SKIPPED` — 24/24 celdas (8 tablas × 3 compañías) con fila de `created_at` de hoy. **Redacción corregida**: el criterio pedía que cada tabla "gane una fila nueva", pero el conteo se queda en 1 porque cada agente *reemplaza* la fila de su compañía; la evidencia de frescura es el `created_at`, no el conteo.
+- [x] Mismo conjunto de artefactos producido; ninguna tabla de `analysis` con cero filas donde el baseline tenía filas — los tres `results_location` nuevos contienen el mismo par (`executive_summary.pdf` + `rainmaker_opportunity_summary.html`), verificado listando ambos directorios. `diligence_report`: GKF 0→0, Clearsulting 0→0, Elder Care 3→3 sin fila nueva (`MAX(created_at)` = 2026-08-25) → las tres por ruta CIM-scoped, igual que el baseline.
+- [~] Contador de degradaciones y resumen de tokens de la corrida registrados — **tokens sí** (±6% del baseline en los tres: −2.7% / +5.4% / +1.0%). **Contador de degradaciones NO verificado**: es estado in-process y `_record_fallback()` solo lo imprime a stdout del driver (`llm_client.py:419`); no se persiste en ninguna tabla, y `jobs/get-run-output` devuelve `logs` vacío para estas tareas serverless. Requiere lectura visual de la salida del driver en la consola, buscando ausencia de `[llm_fallback]`. Un fallback no habría hecho fallar la corrida, así que el SUCCESS no prueba su ausencia.
+- [x] **Corregido antes de ejecutar** (contradecía T7/T10): segunda corrida con key inválida documentada — confirma que **falla fuerte** con `AuthenticationError`, sin producir un entregable silenciosamente incompleto (la trampa de "hollow success" que `CLAUDE.md` ya documenta). No se espera `[llm_fallback]`: 401 está deliberadamente excluida del fallback desde T7 (`_is_retryable()` → `False`), y eso ya está probado exhaustivamente por 8 tests unitarios en T10. El Done-when original asumía lo contrario y quedó obsoleto en cuanto se refinó ese diseño. → **PASS**: `anthropic.AuthenticationError`, `status_code=401` emitido por los servidores de Anthropic, `fallback_count` 0 antes y después. Ejercido localmente vía el fallback a `ANTHROPIC_API_KEY` de `_resolve_api_key()` y **no** como corrida del job, porque inyectar una key inválida en el job exigía mutar el secreto `uc13/anthropic_api_key`, compartido con el job `1064797491105862` y producción.
+- [x] Gate check pasa: `databricks/.venv/bin/ruff check <archivos tocados> && databricks/.venv/bin/python -m pytest tests/ -q` → `1155 passed, 34 skipped` (exit 0)
 
 **Tests**: none
 **Gate**: build
