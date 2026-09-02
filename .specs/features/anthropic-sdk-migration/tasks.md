@@ -776,7 +776,7 @@ T23 → T24
 ### T24: Spike de MLflow 3, Agent Bricks y Agent Evaluation
 
 **What**: Documento con veredicto citado para las cuatro capacidades de plataforma bajo el SDK directo.
-**Where**: `docs/plans/anthropic-sdk-platform-capabilities.md`
+**Where**: `.specs/features/anthropic-sdk-migration/platform-capabilities.md` (movido desde `docs/plans/` — esa ruta está gitignorada, `docs/*` a nivel de repo, con nota explícita "nada que un clone necesite va aquí"; el "Where" original de esta tarea nunca verificó eso)
 **Depends on**: T23
 **Reuses**: Los hallazgos R-1 a R-4 de `design.md`
 **Requirement**: ASDK-14
@@ -786,14 +786,17 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] Veredicto con cita para cada una: tracing MLflow 3, Agent Bricks, publicación/registro de agentes en Model Serving, `mlflow.genai.evaluate`
-- [ ] Toda incompatibilidad encontrada se registra explícitamente con su ruta alternativa, en vez de omitirse
-- [ ] Documenta cómo se inyecta la API key de Anthropic en un endpoint de Model Serving que aloje un agente registrado
-- [ ] La pregunta abierta de Agent Bricks se cierra con una prueba ejecutada, no solo con lectura de documentación
-- [ ] Gate check pasa: `databricks/.venv/bin/ruff check <archivos tocados> && databricks/.venv/bin/python -m pytest tests/ -q`
+- [x] Veredicto con cita para tracing MLflow 3, publicación/registro de agentes, y `mlflow.genai.evaluate` — los tres alcanzables, con evidencia citada
+- [x] Toda incompatibilidad o limitación encontrada se registra explícitamente (autolog fuera de rango, egress no verificado en el plano de Model Serving) con su ruta alternativa, en vez de omitirse
+- [x] Documenta cómo se inyecta la API key de Anthropic en un endpoint de Model Serving (`environment_vars` + `{{secrets/scope/key}}`, reutilizando el secreto `uc13/anthropic_api_key` ya existente)
+- [ ] **Agent Bricks NO se cierra con una prueba ejecutada** — ver nota abajo. Los tres caminos de verificación disponibles sin acción en el workspace (API REST, inventario de recursos existentes, documentación oficial) se agotaron sin resolver la pregunta.
+- [x] Gate check pasa: `1152 passed, 34 skipped` (sin cambios de código, ruff sin archivos `.py` que revisar en `docs/`)
 
 **Tests**: none
 **Gate**: build
+**Status**: ⚠️ Parcialmente completa — 3 de 4 capacidades cerradas con evidencia citada; Agent Bricks queda como pregunta abierta, explícitamente no resuelta (ver documento)
+
+**Por qué Agent Bricks no se cierra hoy**: cerrarla requiere crear un endpoint External Model real (acción visible en el workspace, con costo) y configurar un agente desde la consola de Databricks — ninguna es una acción de solo lectura, y Agent Bricks no tiene API pública (confirmado: `404` en `/api/2.0/agent-bricks` y variantes). El usuario pidió explícitamente coordinar acciones de workspace junto con T23; se propone verificar esto en esa misma sesión conjunta, no fabricar una prueba que no se corrió.
 
 **Commit**: `docs(plans): record platform capability verdicts under the Anthropic SDK`
 

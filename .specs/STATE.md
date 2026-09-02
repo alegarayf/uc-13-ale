@@ -21,10 +21,11 @@
 ## Handoff
 
 - **Feature**: anthropic-sdk-migration (`.specs/features/anthropic-sdk-migration/`)
-- **Phase / Task**: **Phase 4 completa (T18-T22).** Todos los 8 call sites de Claude migrados, convención AD-001 blindada con test estático verificado por inyección de violación real. Siguiente: Phase 5 (T23-T24) — paridad end-to-end y spike de plataforma.
-- **Completed**: Phase 0-3 completas. Phase 4: T18 `b2663c2`, T19 `88f5c17`, T20 `c151a59`, T21 `1748ea5`, T22 (pendiente de commit)
-- **In-progress** (file:line): T22 implementada y verificada (`tests/test_llm_gateway_convention.py`), falta el commit
-- **Next step**: commitear T22, luego T23 (corrida VDR real sobre `uc13_preview` comparada contra baseline — requiere acceso al workspace y probablemente go-ahead explícito para someter el job)
-- **Blockers**: T23 necesita coordinarse con el usuario — implica correr el job VDR real, una acción externa al entorno local
-- **Uncommitted files**: `tests/test_llm_gateway_convention.py`, `.specs/features/anthropic-sdk-migration/tasks.md`, `.specs/STATE.md`
+- **Phase / Task**: **Phase 5 en curso.** T24 completa al 75% (3/4 capacidades cerradas con cita; Agent Bricks pendiente de prueba práctica). T23 pausada explícitamente por el usuario — se retoma después de T24, en sesión conjunta.
+- **Completed**: Phases 0-4 completas (T1-T22). T24: documento `docs/plans/anthropic-sdk-platform-capabilities.md` (pendiente de commit)
+- **In-progress** (file:line): T24 implementada (documento + investigación), falta el commit
+- **Next step**: commitear T24, luego retomar T23 (corrida VDR real + verificación práctica de Agent Bricks, ambas en sesión conjunta con el usuario — implican acciones visibles en el workspace de Databricks)
+- **Blockers**: T23 requiere al usuario presente — corre el job VDR real y crea un endpoint External Model + agente de Agent Bricks para cerrar la pregunta que T24 dejó abierta
+- **Hallazgo de T24**: Agent Bricks no tiene API pública (404 confirmado en `/api/2.0/agent-bricks`), no hay recursos de Agent Bricks en este workspace hoy, y la documentación oficial no especifica si acepta un endpoint External Model como modelo base. Sin recursos existentes que inspeccionar, cerrarlo requiere crear uno — acción de workspace pendiente de T23.
+- **Uncommitted files**: `docs/plans/anthropic-sdk-platform-capabilities.md`, `.specs/features/anthropic-sdk-migration/tasks.md`, `.specs/STATE.md`
 - **Branch**: feature/anthropic-sdk-migration (sin pushear)
