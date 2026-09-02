@@ -131,16 +131,19 @@ T23 → T24
 - Skill: `claude-api`
 
 **Done when**:
-- [ ] Emite `ANTHROPIC_EGRESS_OK <model_id>` por cada modelo que responde
-- [ ] Emite `ANTHROPIC_EGRESS_BLOCKED <razón>` y sale distinto de cero ante fallo de red
-- [ ] Emite `ANTHROPIC_IMPORT_FAILED <error>` y sale distinto de cero si el import choca
-- [ ] Reporta la versión instalada de `anthropic` y si cae en el rango de autolog
-- [ ] Tests unitarios con cliente stub cubren las cuatro salidas y sus códigos de retorno
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/test_check_anthropic_egress.py -v`
-- [ ] Test count: 5 tests pasan (sin borrados silenciosos)
+- [x] Emite `ANTHROPIC_EGRESS_OK <model_id>` por cada modelo que responde
+- [x] Emite `ANTHROPIC_EGRESS_BLOCKED <razón>` y sale distinto de cero ante fallo de red
+- [x] Emite `ANTHROPIC_IMPORT_FAILED <error>` y sale distinto de cero si el import choca
+- [x] Reporta la versión instalada de `anthropic` y si cae en el rango de autolog
+- [x] Tests unitarios con cliente stub cubren las salidas y sus códigos de retorno
+- [x] Gate check pasa: `14 passed`; suite completa `1034 passed, 34 skipped` (línea base 1020 + 14)
+- [x] Test count: **14** tests pasan (planeados 5; se subió al escribirlos, sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
+**SPEC_DEVIATION**: se añadió una cuarta salida `ANTHROPIC_EGRESS_REACHABLE <model> status=<code>` para el caso en que la API responde con un status de error (401, 404). Razón: ASDK-13 AC2 solo define `BLOCKED` para "conectividad, DNS o política de red"; un status HTTP prueba que el egress **sí** funciona, y reportarlo como `BLOCKED` invertiría el único hecho que este gate existe para establecer. Sigue saliendo con código distinto de cero. Registrado como spec-precision gap en el docstring del script.
 
 **Commit**: `feat(egress): add Anthropic connectivity and runtime smoke test`
 
