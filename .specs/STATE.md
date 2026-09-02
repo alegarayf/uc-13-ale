@@ -13,10 +13,11 @@
 ## Handoff
 
 - **Feature**: anthropic-sdk-migration (`.specs/features/anthropic-sdk-migration/`)
-- **Phase / Task**: Phase 0 (gate de egress) — T1 y T2 completas y commiteadas; **T3 bloqueada**
-- **Completed**: Specify, Discuss, Design, Tasks (24 tareas, gate limpio), T1 (`588aa51`), T2 (`e1b2029`)
+- **Phase / Task**: **Phase 0 completa (T1, T2, T3).** Gate de egress PASS. Siguiente: Phase 1 (T4-T7)
+- **Completed**: Specify, Discuss, Design, Tasks (24 tareas), T1 `588aa51`, T2 `e1b2029` + fix `00b08f2`, T3 (signoff `signoffs/ASDK-13-egress-gate.md`)
 - **In-progress** (file:line): none
-- **Next step**: T3 — ejecutar `databricks/jobs/scripts/check_anthropic_egress.py` como tarea serverless en el workspace Rallyday y registrar la evidencia en `signoffs/ASDK-13-egress-gate.md`
-- **Blockers**: (1) el secreto `anthropic_api_key` no está en el scope `uc13`, y el token local **no tiene el scope `secrets`** (`databricks secrets list-scopes` falla), así que Hector debe crearlo. (2) Enviar el job es una acción externa al entorno local y requiere go-ahead explícito. Acceso a jobs sí funciona (perfil `rallyday`, `jobs list` responde).
+- **Next step**: T4 — crear `databricks/agents/shared/llm_client.py` con la tabla `_MODEL_MAP`, `_active_backend()` y `resolve_model()`
+- **Blockers**: none para la migración. Pendiente de seguridad ajeno al plan: rotar la API key de Anthropic y `sp_client_secret`, ambos escritos en texto plano en celdas de notebook durante la carga del secreto.
+- **Decisión que arrastra T3**: `anthropic 1.3.0` queda fuera del rango de `mlflow.anthropic.autolog()`, así que en T11 autolog estará desactivado y el tracing dependerá solo de los spans manuales del gateway.
 - **Uncommitted files**: none
-- **Branch**: feature/anthropic-sdk-migration
+- **Branch**: feature/anthropic-sdk-migration (sin pushear)

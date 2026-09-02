@@ -37,7 +37,7 @@ Migrar al SDK oficial de Anthropic elimina ambos límites y abre la puerta al tr
 | Semántica del fallback | Automático por llamada, con logging obligatorio de cada degradación | Decisión del usuario (context.md D-1). Prioriza continuidad operativa del job VDR sobre determinismo | y |
 | Alcance de la entrega | 11 call sites: 10 de chat + 1 de visión | Decisión del usuario (context.md D-2). Es el mínimo que hace verificable "mismo funcionamiento end-to-end" | y |
 | Fuente de la API key | Databricks Secret Scope vía el patrón `get_secret()` existente; nombre del scope parametrizable con `get_param("anthropic_secret_scope")` | Decisión del usuario (context.md D-3). Consistente con cómo ya se manejan las credenciales de SharePoint | y |
-| Egress serverless hacia `api.anthropic.com` | Desconocido; smoke test real como gate bloqueante antes de tocar producción | Decisión del usuario (context.md D-4). No se asume conectividad | y |
+| Egress serverless hacia `api.anthropic.com` | Desconocido; smoke test real como gate bloqueante antes de tocar producción | Decisión del usuario (context.md D-4). No se asume conectividad | y — **resuelto 2026-09-01: hay egress**, ver `signoffs/ASDK-13-egress-gate.md` |
 | Mapeo de modelos | `databricks-claude-sonnet-4-6` ↔ `claude-sonnet-4-6`; `databricks-claude-haiku-4-5` ↔ `claude-haiku-4-5` | Convención de nombres observada en el workspace. El mapeo es una tabla explícita en código, no un `str.replace("databricks-", "")`, para que un endpoint desconocido falle ruidosamente en vez de inventar un model ID | **y — confirmado 2026-09-01** con una llamada real desde local: ambos model IDs respondieron `ANTHROPIC_EGRESS_OK` |
 | Firma pública de los call sites | Los call sites siguen pasando el string de endpoint estilo Databricks (`databricks-claude-sonnet-4-6`); el gateway traduce internamente | Evita tocar los defaults de `get_param`, los widgets de notebook, y los cuatro YAMLs de workflow. Reduce la superficie de cambio y mantiene el fallback trivial de resolver | y |
 | Contabilidad de tokens | Se preserva `accumulate_tokens()` con la clave de endpoint estilo Databricks, para no romper la escritura a la tabla VDR ni `_ENDPOINT_PRICING` | La clave alimenta el resumen de costos y la columna de tokens del registro VDR. Cambiar la clave rompería consumidores existentes sin beneficio | y |
@@ -46,8 +46,8 @@ Migrar al SDK oficial de Anthropic elimina ambos límites y abre la puerta al tr
 | Timeout del cliente Anthropic | 600s con `max_retries=2` (el default del SDK) | El SDK reintenta 429/5xx/conexión por sí solo. 600s cubre generaciones largas de 12–16K tokens sin el techo artificial del serving | y |
 | Compatibilidad de `temperature=0.0` | Se mantiene tal cual | Sonnet 4.6 y Haiku 4.5 aceptan `temperature`. Es otra razón para no cambiar de modelo en esta entrega | y |
 | Viabilidad de Agent Bricks con el SDK directo | Desconocida; se trata como spike con entregable documental, no como código comprometido | Agent Bricks es producto Databricks sobre modelos alojados en Databricks, y su modo "Custom LLM" aparece marcado *legacy* en la documentación actual. Prometer compatibilidad sin verificarla sería fabricar | n — es el objeto del spike ASDK-14 |
-| Versión de `anthropic` a instalar | La última estable (`1.3.0`), aceptando que queda fuera del rango probado por `mlflow.anthropic.autolog()` (`0.55.0`–`0.107.1`) | La instrumentación primaria es manual y no depende de autolog (ASDK-10 enmendado). Fijar el SDK a una 0.x por una funcionalidad opcional sería pagar deuda por adelantado. ASDK-15 mide el costo real | n — ASDK-15 lo resuelve empíricamente |
-| Conflicto de dependencias transitivas en serverless | Se detecta, no se previene: el gate importa `anthropic` en el runtime real antes de tocar producción | `anthropic` 1.x corre sobre `httpx2`, que puede chocar con lo que ya traen `mlflow[databricks]` y el SDK de Databricks. Predecirlo desde local no es fiable; el único entorno que da la respuesta es el cluster | n — ASDK-15 lo resuelve empíricamente |
+| Versión de `anthropic` a instalar | La última estable (`1.3.0`); **confirmado fuera** del rango probado por `mlflow.anthropic.autolog()` (`0.55.0`–`0.107.1`), así que autolog quedará desactivado | La instrumentación primaria es manual y no depende de autolog (ASDK-10 enmendado). Fijar el SDK a una 0.x por una funcionalidad opcional sería pagar deuda por adelantado. ASDK-15 mide el costo real | n — ASDK-15 lo resuelve empíricamente |
+| Conflicto de dependencias transitivas en serverless | **Resuelto: no hay conflicto.** `anthropic 1.3.0` importa limpio en serverless (T3) | `anthropic` 1.x corre sobre `httpx2`, que puede chocar con lo que ya traen `mlflow[databricks]` y el SDK de Databricks. Predecirlo desde local no es fiable; el único entorno que da la respuesta es el cluster | n — ASDK-15 lo resuelve empíricamente |
 | Qué pasa si el gate de egress falla | Se activa la contingencia B (External Model endpoint), no se cancela la feature | Databricks soporta provider `anthropic` nativo en External Models, con la key desde secret scope y el mismo `client.predict()`. Convierte un bloqueo de infraestructura en un cambio de tabla de mapeo | y |
 
 **Open questions:** none — todas resueltas con el usuario o registradas arriba como assumption con default y rationale.
@@ -262,9 +262,9 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 | ASDK-10 | P2: MLflow tracing | Tasks | In Design |
 | ASDK-11 | P2: Contabilidad de tokens | Tasks | In Design |
 | ASDK-12 | P2: Paridad end-to-end | Tasks | In Design |
-| ASDK-13 | P1: Gate de egress | Tasks | In Design |
+| ASDK-13 | P1: Gate de egress | T3 ✅ | Verified |
 | ASDK-14 | P3: Investigación MLflow 3 / Agent Bricks | Tasks | In Design |
-| ASDK-15 | P1: Gate de egress (verificación del runtime) | T1, T2, T3 | Implementing |
+| ASDK-15 | P1: Gate de egress (verificación del runtime) | T1, T2, T3 ✅ | Verified |
 
 **ID format:** `ASDK-[NUMBER]`
 
