@@ -366,6 +366,179 @@ def _record_fallback(endpoint: str, exc: Exception) -> None:
     print(f"  [llm_fallback] {endpoint}: {type(exc).__name__}: {exc}")
 
 
+def _route_and_maybe_fallback(
+    *,
+    system_prompt: str | None,
+    user_content: str | list[dict],
+    endpoint: str,
+    max_tokens: int,
+    temperature: float,
+) -> tuple[str, dict, bool]:
+    """Route to a backend, falling back once on a retryable Anthropic failure.
+
+    Returns (text, usage, fallback_used). fallback_used is a value returned
+    from this specific call, not derived from a diff on the shared
+    _fallback_count counter -- pipeline.py runs agents concurrently via
+    ThreadPoolExecutor, so a counter-diff approach would attribute another
+    thread's fallback to this call under a race.
+
+    On the "anthropic" backend, a transient failure (per _is_retryable)
+    degrades once to the Databricks serving endpoint of the same alias and
+    logs it with the "[llm_fallback]" marker; a non-retryable failure (a bad
+    key, an unmapped model, a policy refusal) propagates immediately instead
+    of silently falling back. If the Databricks fallback itself fails, that
+    exception propagates with the original Anthropic exception chained as its
+    cause (`raise ... from ...`). There is no retry loop between backends --
+    at most one degradation per call.
+    """
+    if _active_backend() != "anthropic":
+        text, usage = _call_databricks(
+            system_prompt=system_prompt,
+            user_content=user_content,
+            endpoint=endpoint,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return text, usage, False
+
+    model_id = resolve_model(endpoint)
+    try:
+        text, usage = _call_anthropic(
+            system_prompt=system_prompt,
+            user_content=user_content,
+            model_id=model_id,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return text, usage, False
+    except Exception as exc:
+        if not _is_retryable(exc):
+            raise
+        _record_fallback(endpoint, exc)
+        try:
+            text, usage = _call_databricks(
+                system_prompt=system_prompt,
+                user_content=user_content,
+                endpoint=endpoint,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except Exception as databricks_exc:
+            raise databricks_exc from exc
+        return text, usage, True
+
+
+# --- MLflow instrumentation ---------------------------------------------------
+#
+# Manual spans are the PRIMARY tracing mechanism -- not mlflow.anthropic.autolog().
+# Two reasons, both confirmed rather than assumed (design.md R-1, and the
+# ASDK-13 egress gate on 2026-09-01): MLflow's autolog is only tested against
+# anthropic 0.55.0-0.107.1, while this project runs 1.3.0 (outside that
+# range -- autolog is inert in this environment, not hypothetically); and
+# autolog only instruments the Anthropic SDK call itself, so it would produce
+# no trace at all for a call that degraded to Databricks -- exactly the call
+# most worth seeing. Autolog is enabled only as an opportunistic enrichment
+# when the installed version happens to support it.
+
+_AUTOLOG_MIN = (0, 55, 0)
+_AUTOLOG_MAX = (0, 107, 1)
+_autolog_state: dict = {"attempted": False}
+
+
+def _parse_version(raw: str) -> tuple[int, ...]:
+    """Parse a dotted version into a comparable tuple, ignoring suffixes."""
+    parts: list[int] = []
+    for chunk in raw.split("."):
+        digits = ""
+        for ch in chunk:
+            if not ch.isdigit():
+                break
+            digits += ch
+        if not digits:
+            break
+        parts.append(int(digits))
+    return tuple(parts)
+
+
+def _autolog_version_supported(version: str) -> bool:
+    """True when `version` falls inside MLflow's autolog-tested range."""
+    parsed = _parse_version(version)
+    if not parsed:
+        return False
+    padded = parsed + (0,) * (3 - len(parsed)) if len(parsed) < 3 else parsed[:3]
+    return _AUTOLOG_MIN <= padded <= _AUTOLOG_MAX
+
+
+def _maybe_enable_autolog() -> None:
+    """Enable mlflow.anthropic.autolog() once, only if the SDK version supports it."""
+    if _autolog_state["attempted"]:
+        return
+    _autolog_state["attempted"] = True
+    try:
+        import anthropic
+
+        version = getattr(anthropic, "__version__", "")
+        if not _autolog_version_supported(version):
+            print(
+                f"  ⚠ Skipping mlflow.anthropic.autolog(): anthropic {version!r} "
+                f"is outside the tested range 0.55.0-0.107.1. Manual gateway "
+                f"spans remain the tracing mechanism."
+            )
+            return
+        import mlflow.anthropic
+
+        mlflow.anthropic.autolog()
+    except Exception as exc:
+        print(
+            f"  ⚠ Could not enable mlflow.anthropic.autolog(): "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+
+def _try_open_span():
+    """Open an MLflow span for one chat() call, or (None, None) if unavailable.
+
+    Any failure importing mlflow, calling start_span(), or entering the
+    context manager is treated the same way: log a warning and let the caller
+    proceed without tracing. Tracing must never block a model call.
+    """
+    try:
+        import mlflow
+
+        span_cm = mlflow.start_span(name="llm_client.chat")
+        span = span_cm.__enter__()
+        return span, span_cm
+    except Exception as exc:
+        print(
+            f"  ⚠ MLflow tracing unavailable, continuing without a span: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return None, None
+
+
+def _safe_set_span_attributes(
+    span, *, endpoint: str, max_tokens: int, fallback_used: bool, backend: str, usage: dict | None
+) -> None:
+    """Set span attributes, never letting a tracing failure surface to the caller.
+
+    The API key never appears here -- only the endpoint alias, resolved
+    backend, fallback flag, max_tokens, and token counts.
+    """
+    try:
+        attributes = {
+            "llm.endpoint_alias": endpoint,
+            "llm.backend": backend,
+            "llm.fallback_used": fallback_used,
+            "llm.max_tokens": max_tokens,
+        }
+        if usage is not None:
+            attributes["llm.prompt_tokens"] = usage.get("prompt_tokens", 0)
+            attributes["llm.completion_tokens"] = usage.get("completion_tokens", 0)
+        span.set_attributes(attributes)
+    except Exception as exc:
+        print(f"  ⚠ Could not set MLflow span attributes: {type(exc).__name__}: {exc}")
+
+
 def chat(
     *,
     system_prompt: str | None,
@@ -378,46 +551,62 @@ def chat(
 
     `endpoint` is the Databricks-style alias every call site already passes
     (e.g. "databricks-claude-sonnet-4-6") -- unchanged from today, so no
-    workflow YAML, widget default, or notebook needs to change.
+    workflow YAML, widget default, or notebook needs to change. See
+    _route_and_maybe_fallback for the backend/fallback contract.
 
-    On the "anthropic" backend, a transient failure (per _is_retryable)
-    degrades once to the Databricks serving endpoint of the same alias and
-    logs it with the "[llm_fallback]" marker; a non-retryable failure (a bad
-    key, an unmapped model, a policy refusal) propagates immediately instead
-    of silently falling back. If the Databricks fallback itself fails, that
-    exception propagates with the original Anthropic exception chained as its
-    cause (`raise ... from ...`). There is no retry loop between backends --
-    at most one degradation per call.
+    Every call opens an MLflow span (nested under whatever span is already
+    active, e.g. pipeline.py's `agent::{key}`) recording the endpoint alias,
+    resolved backend, fallback flag, max_tokens, and token usage -- unless
+    MLflow itself is unavailable, in which case the call still completes.
     """
-    if _active_backend() != "anthropic":
-        return _call_databricks(
+    _maybe_enable_autolog()
+
+    span, span_cm = _try_open_span()
+    if span is None:
+        text, usage, _fallback_used = _route_and_maybe_fallback(
             system_prompt=system_prompt,
             user_content=user_content,
             endpoint=endpoint,
             max_tokens=max_tokens,
             temperature=temperature,
         )
+        return text, usage
 
-    model_id = resolve_model(endpoint)
     try:
-        return _call_anthropic(
+        text, usage, fallback_used = _route_and_maybe_fallback(
             system_prompt=system_prompt,
             user_content=user_content,
-            model_id=model_id,
+            endpoint=endpoint,
             max_tokens=max_tokens,
             temperature=temperature,
         )
-    except Exception as exc:
-        if not _is_retryable(exc):
-            raise
-        _record_fallback(endpoint, exc)
+    except BaseException as exc:
+        # exc.__cause__ is set only when _route_and_maybe_fallback attempted
+        # the Databricks fallback and it also failed (`raise ... from exc`).
+        # A non-retryable failure re-raises bare, leaving __cause__ None. This
+        # is call-local and race-free, unlike diffing the shared counter.
+        fallback_attempted = exc.__cause__ is not None
+        backend = (
+            "databricks" if (fallback_attempted or _active_backend() != "anthropic")
+            else "anthropic"
+        )
+        _safe_set_span_attributes(
+            span, endpoint=endpoint, max_tokens=max_tokens,
+            fallback_used=fallback_attempted, backend=backend, usage=None,
+        )
         try:
-            return _call_databricks(
-                system_prompt=system_prompt,
-                user_content=user_content,
-                endpoint=endpoint,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-        except Exception as databricks_exc:
-            raise databricks_exc from exc
+            span_cm.__exit__(type(exc), exc, exc.__traceback__)
+        except Exception:
+            pass
+        raise
+
+    backend = "databricks" if (fallback_used or _active_backend() != "anthropic") else "anthropic"
+    _safe_set_span_attributes(
+        span, endpoint=endpoint, max_tokens=max_tokens,
+        fallback_used=fallback_used, backend=backend, usage=usage,
+    )
+    try:
+        span_cm.__exit__(None, None, None)
+    except Exception as exc:
+        print(f"  ⚠ MLflow span exit failed: {type(exc).__name__}: {exc}")
+    return text, usage
