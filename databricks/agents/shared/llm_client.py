@@ -115,3 +115,27 @@ def _to_anthropic_content(user_content: str | list[dict]) -> list[dict]:
         else:
             converted.append(block)
     return converted
+
+
+def _is_retryable(exc: Exception) -> bool:
+    """True when `exc` justifies falling back to the Databricks serving path.
+
+    Retryable: connection/timeout errors, an exhausted 429 (RateLimitError),
+    and any 5xx APIStatusError. NOT retryable: BadRequestError (400),
+    AuthenticationError (401), PermissionDeniedError (403), NotFoundError
+    (404) -- these are all APIStatusError subclasses whose status_code is
+    < 500, so the generic 5xx check below already excludes them without an
+    explicit exclusion list. A bad key or an unmapped model should fail fast,
+    not degrade silently for 200 calls (design.md Error Handling Strategy).
+    Any exception this module doesn't recognize is treated as NOT retryable --
+    degrading on an unknown failure mode is the riskier default.
+    """
+    import anthropic
+
+    if isinstance(exc, anthropic.APIConnectionError):  # covers APITimeoutError too
+        return True
+    if isinstance(exc, anthropic.RateLimitError):
+        return True
+    if isinstance(exc, anthropic.APIStatusError):
+        return exc.status_code >= 500
+    return False

@@ -274,15 +274,18 @@ T23 → T24
 - Skill: `claude-api`
 
 **Done when**:
-- [ ] Devuelve `True` para `APIConnectionError`, `APITimeoutError`, `RateLimitError`, y `APIStatusError` con `status_code >= 500`
-- [ ] Devuelve `False` para `BadRequestError`, `AuthenticationError`, `PermissionDeniedError`, `NotFoundError`
-- [ ] Una excepción desconocida devuelve `False` (no degradar ante lo que no se entiende)
-- [ ] Tests unitarios cubren cada clase de excepción nombrada, ambos lados de la frontera de status, y el caso desconocido
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/test_llm_client_errors.py -v`
-- [ ] Test count: 10 tests pasan (sin borrados silenciosos)
+- [x] Devuelve `True` para `APIConnectionError`, `APITimeoutError`, `RateLimitError`, y `APIStatusError` con `status_code >= 500`
+- [x] Devuelve `False` para `BadRequestError`, `AuthenticationError`, `PermissionDeniedError`, `NotFoundError`
+- [x] Una excepción desconocida devuelve `False` (no degradar ante lo que no se entiende)
+- [x] Tests unitarios cubren cada clase de excepción nombrada (con instancias reales del SDK, no stubs), ambos lados de la frontera de status (499/500), y el caso desconocido
+- [x] Gate check pasa: `14 passed`; suite completa `1066 passed, 34 skipped`
+- [x] Test count: **14** tests pasan (planeados 10; se sumaron la frontera exacta 499/500 y el caso desconocido, sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
+**Nota de diseño**: `RateLimitError` es subclase de `APIStatusError` (status 429), igual que las cuatro no-retryables (400/401/403/404). El chequeo `status_code >= 500` las excluye automáticamente sin lista de exclusión explícita — la jerarquía del SDK ya codifica la distinción, más simple que lo dibujado en `design.md`.
 
 **Commit**: `feat(llm): classify which SDK errors justify a serving fallback`
 

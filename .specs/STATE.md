@@ -13,11 +13,10 @@
 ## Handoff
 
 - **Feature**: anthropic-sdk-migration (`.specs/features/anthropic-sdk-migration/`)
-- **Phase / Task**: **Phase 0 completa (T1, T2, T3).** Gate de egress PASS. Siguiente: Phase 1 (T4-T7)
-- **Completed**: Specify, Discuss, Design, Tasks (24 tareas), T1 `588aa51`, T2 `e1b2029` + fix `00b08f2`, T3 (signoff `signoffs/ASDK-13-egress-gate.md`)
-- **In-progress** (file:line): none
-- **Next step**: T4 — crear `databricks/agents/shared/llm_client.py` con la tabla `_MODEL_MAP`, `_active_backend()` y `resolve_model()`
-- **Blockers**: none para la migración. Pendiente de seguridad ajeno al plan: rotar la API key de Anthropic y `sp_client_secret`, ambos escritos en texto plano en celdas de notebook durante la carga del secreto.
-- **Decisión que arrastra T3**: `anthropic 1.3.0` queda fuera del rango de `mlflow.anthropic.autolog()`, así que en T11 autolog estará desactivado y el tracing dependerá solo de los spans manuales del gateway.
-- **Uncommitted files**: none
+- **Phase / Task**: **Phase 1 completa (T4-T7).** Núcleo puro del gateway listo: mapeo, normalización de usage, conversión de visión, clasificación de errores. Siguiente: Phase 2 (T8-T11)
+- **Completed**: Specify, Discuss, Design, Tasks, Phase 0 (T1-T3, gate PASS), Phase 1 (T4 `e5295b5`, T5 `f6b2724`, T6 `0c38b2f`, T7 pendiente de commit)
+- **In-progress** (file:line): T7 implementada y verificada (`databricks/agents/shared/llm_client.py`, `tests/test_llm_client_errors.py`), falta el commit
+- **Next step**: commitear T7, luego T8 (credencial + construcción del cliente Anthropic bajo lock)
+- **Blockers**: none
+- **Uncommitted files**: `databricks/agents/shared/llm_client.py`, `tests/test_llm_client_errors.py`, `.specs/features/anthropic-sdk-migration/tasks.md`
 - **Branch**: feature/anthropic-sdk-migration (sin pushear)
