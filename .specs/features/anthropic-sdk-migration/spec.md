@@ -253,10 +253,10 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| ASDK-01 | P1: Gateway unificado | Tasks | In Design |
-| ASDK-02 | P1: Gateway unificado | Tasks | In Design |
-| ASDK-03 | P1: Gateway unificado | Tasks | In Design |
-| ASDK-04 | P1: Gateway unificado | Tasks | In Design |
+| ASDK-01 | P1: Gateway unificado | T9 ✅ | Verified |
+| ASDK-02 | P1: Gateway unificado | T4 ✅ | Verified |
+| ASDK-03 | P1: Gateway unificado | T4 ✅ | Verified |
+| ASDK-04 | P1: Gateway unificado | T9 ✅ | Verified |
 | ASDK-05 | P1: Fallback automático | T10 ✅ | Verified |
 | ASDK-06 | P1: Fallback automático | T10 ✅ | Verified |
 | ASDK-07 | P1: Fallback automático | T10 ✅ | Verified |
@@ -264,9 +264,9 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 | ASDK-09 | P1: Los 8 call sites de Claude migrados | T6, T9, T13-T18, T20, T21 ✅ (8/8, T20 y T21 condicionales por AD-002); T19 N/A (Llama, excluido) | Verified |
 | ASDK-10 | P2: MLflow tracing | T11 ✅ | Verified |
 | ASDK-11 | P2: Contabilidad de tokens | T5, T12 ✅ | Verified |
-| ASDK-12 | P2: Paridad end-to-end | Tasks | In Design |
+| ASDK-12 | P2: Paridad end-to-end | T23 ✅ | Verified |
 | ASDK-13 | P1: Gate de egress | T3 ✅ | Verified |
-| ASDK-14 | P3: Investigación MLflow 3 / Agent Bricks | Tasks | In Design |
+| ASDK-14 | P3: Investigación MLflow 3 / Agent Bricks | T24 ✅ | Verified |
 | ASDK-15 | P1: Gate de egress (verificación del runtime) | T1, T2, T3 ✅ | Verified |
 
 **ID format:** `ASDK-[NUMBER]`

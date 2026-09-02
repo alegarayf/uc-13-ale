@@ -783,7 +783,7 @@ T23 → T24
 
 ---
 
-### T24: Spike de MLflow 3, Agent Bricks y Agent Evaluation
+### T24: Spike de MLflow 3, Agent Bricks y Agent Evaluation — **COMPLETA (2026-09-02), 4/4 capacidades cerradas**
 
 **What**: Documento con veredicto citado para las cuatro capacidades de plataforma bajo el SDK directo.
 **Where**: `.specs/features/anthropic-sdk-migration/platform-capabilities.md` (movido desde `docs/plans/` — esa ruta está gitignorada, `docs/*` a nivel de repo, con nota explícita "nada que un clone necesite va aquí"; el "Where" original de esta tarea nunca verificó eso)
@@ -799,14 +799,16 @@ T23 → T24
 - [x] Veredicto con cita para tracing MLflow 3, publicación/registro de agentes, y `mlflow.genai.evaluate` — los tres alcanzables, con evidencia citada
 - [x] Toda incompatibilidad o limitación encontrada se registra explícitamente (autolog fuera de rango, egress no verificado en el plano de Model Serving) con su ruta alternativa, en vez de omitirse
 - [x] Documenta cómo se inyecta la API key de Anthropic en un endpoint de Model Serving (`environment_vars` + `{{secrets/scope/key}}`, reutilizando el secreto `uc13/anthropic_api_key` ya existente)
-- [ ] **Agent Bricks NO se cierra con una prueba ejecutada** — ver nota abajo. Los tres caminos de verificación disponibles sin acción en el workspace (API REST, inventario de recursos existentes, documentación oficial) se agotaron sin resolver la pregunta.
+- [x] **Agent Bricks cerrado con prueba ejecutada (2026-09-02)** — la pregunta se resolvió disolviendo su premisa: **el tipo de agente "Custom LLM" no existe en la consola de este workspace**, así que no hay selector de modelo base que pueda aceptar o rechazar un External Model. El diálogo *Create new Agent* ofrece siete tipos; bajo el filtro `Custom` queda solo "Code your own agent" (OSS libraries + Agent Framework), que es la ruta donde el código controla el cliente del modelo y `llm_client.chat()` sirve sin adaptación. Los otros seis son agentes gestionados sobre modelos alojados por Databricks, sin punto de inyección para un cliente propio. Además se verificó end-to-end que Model Serving **sí** sirve Anthropic vía External Models en este workspace: endpoint `asdk-14-anthropic-external-test` creado (`DEPLOYMENT_READY`) y consultado con respuesta real de `claude-sonnet-4-6` — convierte en hecho lo que R-3 de `design.md` tenía como inferencia. Se deja creado por decisión del usuario. Ver §4 de `platform-capabilities.md`.
 - [x] Gate check pasa: `1152 passed, 34 skipped` (sin cambios de código, ruff sin archivos `.py` que revisar en `docs/`)
 
 **Tests**: none
 **Gate**: build
-**Status**: ⚠️ Parcialmente completa — 3 de 4 capacidades cerradas con evidencia citada; Agent Bricks queda como pregunta abierta, explícitamente no resuelta (ver documento)
+**Status**: ✅ Completa — 4 de 4 capacidades cerradas con evidencia citada. Agent Bricks se cerró el 2026-09-02 con inspección de consola más un endpoint External Model creado y consultado end-to-end.
 
-**Por qué Agent Bricks no se cierra hoy**: cerrarla requiere crear un endpoint External Model real (acción visible en el workspace, con costo) y configurar un agente desde la consola de Databricks — ninguna es una acción de solo lectura, y Agent Bricks no tiene API pública (confirmado: `404` en `/api/2.0/agent-bricks` y variantes). El usuario pidió explícitamente coordinar acciones de workspace junto con T23; se propone verificar esto en esa misma sesión conjunta, no fabricar una prueba que no se corrió.
+**Por qué Agent Bricks no se cerró en la primera pasada** (histórico, resuelto el 2026-09-02): cerrarla requiere crear un endpoint External Model real (acción visible en el workspace, con costo) y configurar un agente desde la consola de Databricks — ninguna es una acción de solo lectura, y Agent Bricks no tiene API pública (confirmado: `404` en `/api/2.0/agent-bricks` y variantes). El usuario pidió explícitamente coordinar acciones de workspace junto con T23, y así se hizo: se verificó en la sesión conjunta del 2026-09-02, en vez de fabricar una prueba que no se había corrido.
+
+**Lo que la espera reveló, y que una inferencia habría errado**: la respuesta esperada era un sí o un no sobre si Agent Bricks acepta un External Model como modelo base. La respuesta real es que **el tipo de agente "Custom LLM" ya no está en la consola**, así que la pregunta no tenía objeto. Cerrarla por inferencia arquitectónica —"un External Model *es* un Model Serving endpoint, así que probablemente sí"— habría producido un veredicto afirmativo sobre un flujo inexistente.
 
 **Commit**: `docs(plans): record platform capability verdicts under the Anthropic SDK`
 

@@ -13,7 +13,7 @@
 | Tracing MLflow 3 | **Sí, alcanzable** — ya implementado (T11), agnóstico de proveedor | Alta — evidencia ejecutada en este repo |
 | Publicación/registro de agentes en Model Serving | **Sí, alcanzable, con una advertencia de red no verificada** | Media-alta — documentado, no probado end-to-end en este workspace |
 | `mlflow.genai.evaluate()` (Mosaic AI Agent Evaluation) | **Sí, alcanzable** — opera sobre traces, agnóstico de qué SDK los produjo | Alta — documentación oficial explícita |
-| Agent Bricks | **No determinado — requiere prueba práctica**, no se cierra hoy | Ninguna — ver §4 |
+| Agent Bricks | **Resuelto disolviendo la premisa**: el tipo "Custom LLM" no existe en la consola de este workspace, así que no hay selector de modelo base que aceptar o rechazar un External Model. La ruta compatible es "Code your own agent", donde el código controla el cliente y `llm_client.chat()` sirve tal cual | Alta — inspección de consola ejecutada + endpoint External Model creado y consultado end-to-end; ver §4 |
 
 ---
 
@@ -72,24 +72,62 @@ No hay una dependencia oculta de "debe ser un modelo servido por Databricks" en 
 
 ---
 
-## 4. Agent Bricks — No determinado
+## 4. Agent Bricks — Resuelto (2026-09-02), disolviendo la premisa de la pregunta
 
-Esta es la pregunta que el spec (ASDK-14) identificó desde el spike de Design como la de mayor incertidumbre, y **sigue sin resolverse hoy** — no por falta de esfuerzo, sino porque los tres caminos de verificación disponibles se agotaron sin dar una respuesta:
+**Veredicto: la pregunta original —"¿acepta Agent Bricks un endpoint External Model de Anthropic como modelo base de un agente Custom LLM?"— no tiene respuesta porque el tipo de agente que presupone no existe en la consola de este workspace.** Y para lo que la migración necesita, la respuesta práctica es que Agent Bricks no le estorba: el único camino "Custom" que la consola ofrece hoy es precisamente el que deja el cliente del modelo en manos del código.
 
-1. **API de Databricks**: no existe un endpoint REST público bajo `/api/2.0/agent-bricks` ni similar — probado directamente contra el workspace (`404 Not Found` en ambos intentos, 2026-09-02).
-2. **Inventario del workspace**: cero recursos de Agent Bricks existen hoy en este workspace — `GET /api/2.0/serving-endpoints` no muestra ningún endpoint `external_model` ni ningún endpoint con el patrón de nombres típico de Agent Bricks (`ka-*`, `mas-*`, etc.). No hay nada que inspeccionar.
-3. **Documentación oficial**: consultada directamente ([Databricks — Agent Bricks overview](https://developers.databricks.com/docs/agents/overview), [Databricks — Custom LLM](https://docs.databricks.com/aws/en/agents/agent-bricks/custom-llm)) — ninguna de las dos páginas especifica qué tipos de serving endpoint acepta Agent Bricks como modelo base. Ambas confirman que Agent Bricks "se llama a través de un Model Serving endpoint", pero no si ese endpoint puede ser un External Model (Anthropic) o debe ser un Foundation Model API de Databricks.
+### Lo que se ejecutó
 
-**Lo que sí se sabe con certeza:** Model Serving soporta External Models con provider `anthropic` nativo ([Databricks — External models in Model Serving](https://docs.databricks.com/aws/en/generative-ai/external-models/), hallazgo R-3 de `design.md`) — arquitectónicamente, un External Model endpoint **es** un Model Serving endpoint como cualquier otro. Que Agent Bricks lo acepte como su modelo base es plausible por esa razón, pero plausible no es lo mismo que confirmado, y T24 exige explícitamente que esta pregunta se cierre con una prueba ejecutada, no con una inferencia arquitectónica.
+**(a) El endpoint External Model funciona.** Creado vía API y consultado end-to-end:
 
-**Por qué no se cierra hoy:** cerrarla requiere crear un endpoint External Model real (una acción visible en el workspace, con costo asociado) y luego configurar un agente de Agent Bricks desde la consola de Databricks apuntándolo a ese endpoint — ninguna de las dos cosas es una acción de solo lectura, y la segunda no tiene API pública, solo consola. Es exactamente el tipo de acción que el usuario pidió coordinar junto con T23.
+```
+POST /api/2.0/serving-endpoints
+  name              : asdk-14-anthropic-external-test
+  external_model    : { name: "claude-sonnet-4-6", provider: "anthropic",
+                        task: "llm/v1/chat" }
+  anthropic_config  : { anthropic_api_key: "{{secrets/uc13/anthropic_api_key}}" }
+  → state.deployment: DEPLOYMENT_READY
 
-**Propuesta concreta**: verificar esto como parte de la sesión conjunta de T23 — crear el endpoint External Model (reutilizando el secreto `uc13/anthropic_api_key` ya existente) y, desde la consola, intentar seleccionarlo como modelo base al crear un agente Custom LLM de Agent Bricks. Es una prueba de ~10 minutos que responde la pregunta de forma definitiva, en vez de dejarla como una suposición razonable.
+POST /serving-endpoints/asdk-14-anthropic-external-test/invocations
+  → { "model": "claude-sonnet-4-6", "choices": [{ "message":
+      { "content": "EXTERNAL_MODEL_OK" }}], "usage": { "total_tokens": 26 }}
+```
+
+Esto convierte en hecho verificado lo que antes era inferencia arquitectónica (hallazgo R-3 de `design.md`): Model Serving sirve Anthropic vía External Models **en este workspace**, reutilizando el secreto `uc13/anthropic_api_key` ya existente, sin duplicarlo ni rotarlo.
+
+Detalle operativo que vale registrar: la resolución del secreto la hace el plano de serving, no la credencial del llamante. El token que creó el endpoint **no** tiene el scope `secrets` (`databricks secrets list-secrets uc13` → `Provided access token does not have required scopes: secrets`) y el endpoint resolvió la key igual. Así que no hace falta ampliar permisos de un token para montar un External Model.
+
+**(b) No existe el tipo de agente "Custom LLM".** Inspección del diálogo *Create new Agent* (consola, 2026-09-02). La vista `All` ofrece siete tipos:
+
+| Tipo | Naturaleza |
+|---|---|
+| Supervisor Agent | Gestionado por Databricks |
+| Knowledge Assistant | Gestionado por Databricks |
+| Genie Agent | Gestionado por Databricks |
+| Information Extraction | Gestionado (`ai_extract`) |
+| Document Parsing | Gestionado (`ai_parse_document`) |
+| Text Classification | Gestionado (`ai_classify`) |
+| **Code your own agent** | **Código propio — OSS libraries + Agent Framework** |
+
+Bajo el filtro `Custom` queda **solo** "Code your own agent". Ningún tipo se llama "Custom LLM", y ninguno de los siete expone un selector de modelo base donde apuntar un serving endpoint arbitrario.
+
+Es coherente con lo que ya se había leído en la documentación: la página [Custom LLM](https://docs.databricks.com/aws/en/agents/agent-bricks/custom-llm) marcaba ese modo como *legacy*. La consola ya no lo ofrece.
+
+**Alcance de esta afirmación**: es lo que la consola de *este* workspace muestra el 2026-09-02. No se afirma que Databricks haya retirado Custom LLM del producto a nivel global — podría ser cuestión de rollout o de entitlement. Lo verificable es que aquí no está.
+
+### Qué significa para la migración
+
+Los seis tipos gestionados corren sobre modelos que Databricks aloja; no hay dónde inyectar un cliente de Anthropic, con o sin External Model. Si en el futuro se quisiera un Knowledge Assistant o un Supervisor Agent, ese agente usaría un modelo de Databricks — y eso es una decisión de producto independiente de esta migración, no una regresión que la migración cause.
+
+"Code your own agent" (OSS libraries + Agent Framework) es la ruta donde el código controla el cliente del modelo. Ahí `llm_client.chat()` funciona tal como está, sin adaptación: no hay selector de modelo base que satisfacer. **Esa es la ruta compatible, y no requiere el endpoint External Model en absoluto** — el SDK directo llama a Anthropic sin pasar por Model Serving.
+
+El endpoint `asdk-14-anthropic-external-test` **se deja creado** en el workspace (decisión del usuario, 2026-09-02): es la vía útil si algún día se quiere que un consumidor que exige un serving endpoint de Databricks —publicación/registro de agentes (§2), o el AI Gateway— llegue a Anthropic. Para el pipeline VDR de hoy no se usa.
 
 ---
 
 ## Resumen para decisiones futuras
 
-- El trabajo de esta migración (T1–T22) **no bloquea** ninguna de las tres primeras capacidades — ya están alcanzables o casi verificadas.
-- Agent Bricks es la única incógnita real, y **no es una incógnita que el código de esta migración pueda resolver** — es una pregunta de producto/plataforma que solo la consola de Databricks puede responder.
+- El trabajo de esta migración (T1–T22) **no bloquea** ninguna de las cuatro capacidades.
+- Agent Bricks quedó resuelto (§4), pero no con un sí ni un no: **el tipo de agente que la pregunta presuponía no existe en la consola de este workspace.** La ruta "Custom" que sí existe —"Code your own agent"— es justamente la que deja el cliente del modelo en el código, así que el gateway sirve sin adaptación. Los seis tipos gestionados corren sobre modelos alojados por Databricks y no admiten un cliente propio; usarlos sería una decisión de producto, no una regresión de esta migración.
+- Model Serving **sí** sirve Anthropic vía External Models en este workspace — verificado creando y consultando `asdk-14-anthropic-external-test`, ya no por inferencia. El secreto `uc13/anthropic_api_key` existente sirve tal cual, y su resolución la hace el plano de serving, no la credencial del llamante.
 - Ninguna de las cuatro capacidades requiere revertir ni modificar el gateway (`llm_client.py`) construido en Phase 1-2. El diseño de spans manuales (§1) fue, de hecho, la decisión correcta para no depender de una combinación de versiones de `autolog()` fuera de nuestro control.
