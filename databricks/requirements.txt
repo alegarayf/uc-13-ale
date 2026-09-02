@@ -17,6 +17,14 @@ typing_extensions>=4.6.0
 mlflow[databricks]>=3.1
 pydantic>=2.0.0
 
+# Anthropic SDK — the primary backend of agents/shared/llm_client.py.
+# NOT pinned into MLflow's autolog-tested range (0.55.0 <= anthropic <= 0.107.1).
+# The gateway instruments its own MLflow spans, so autolog is an optional
+# enrichment only; pinning the SDK to a 0.x for it would be paying debt up
+# front. llm_client._maybe_enable_autolog() detects the installed version and
+# skips autolog when it falls outside that range.
+anthropic>=1.3.0
+
 # PDF parsing (ingestion_parser.py vision pages)
 pymupdf>=1.24.0
 
