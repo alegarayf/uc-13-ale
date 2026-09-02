@@ -254,13 +254,13 @@ Alcance Large/Complex → todas las dimensiones resueltas explícitamente.
 | ASDK-02 | P1: Gateway unificado | Tasks | In Design |
 | ASDK-03 | P1: Gateway unificado | Tasks | In Design |
 | ASDK-04 | P1: Gateway unificado | Tasks | In Design |
-| ASDK-05 | P1: Fallback automático | Tasks | In Design |
-| ASDK-06 | P1: Fallback automático | Tasks | In Design |
-| ASDK-07 | P1: Fallback automático | Tasks | In Design |
-| ASDK-08 | P1: Credencial desde Secret Scope | Tasks | In Design |
-| ASDK-09 | P1: Los 11 call sites migrados | Tasks | In Design |
-| ASDK-10 | P2: MLflow tracing | Tasks | In Design |
-| ASDK-11 | P2: Contabilidad de tokens | Tasks | In Design |
+| ASDK-05 | P1: Fallback automático | T10 ✅ | Verified |
+| ASDK-06 | P1: Fallback automático | T10 ✅ | Verified |
+| ASDK-07 | P1: Fallback automático | T10 ✅ | Verified |
+| ASDK-08 | P1: Credencial desde Secret Scope | T8 ✅ | Verified |
+| ASDK-09 | P1: Los 11 call sites migrados | T6, T9 (gateway listo; 11 call sites en T12-T21) | Implementing |
+| ASDK-10 | P2: MLflow tracing | T11 ✅ | Verified |
+| ASDK-11 | P2: Contabilidad de tokens | T5 ✅ (normalización); T12 pendiente (resumen con backend/degradaciones) | Implementing |
 | ASDK-12 | P2: Paridad end-to-end | Tasks | In Design |
 | ASDK-13 | P1: Gate de egress | T3 ✅ | Verified |
 | ASDK-14 | P3: Investigación MLflow 3 / Agent Bricks | Tasks | In Design |

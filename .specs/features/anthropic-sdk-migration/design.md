@@ -123,7 +123,10 @@ Tabla explícita, no derivación por string. Un alias ausente es `ValueError` (A
 | `_call_anthropic(...)` | Una llamada `client.messages.create`. Traduce `stop_reason` según la tabla de errores. |
 | `_call_databricks(...)` | La llamada `client.predict()` actual, extraída tal cual del código existente. |
 | `_is_retryable(exc)` | Clasifica la excepción. Es la función que decide si hay degradación — se testea aislada. |
-| `_maybe_enable_autolog()` | Detecta versión de `anthropic` y activa autolog solo si cae en el rango probado (ASDK-10 AC3/AC4). |
+| `_route_and_maybe_fallback(...)` | Envuelve `_call_anthropic`/`_call_databricks` con la lógica de degradación de T10. Devuelve `(texto, usage, fallback_used)` — **`fallback_used` es el valor de retorno de esta llamada específica, no un diff sobre `_fallback_count`**. Implementado así (no como se bocetó al inicio de Design) porque `pipeline.py` corre agentes concurrentes vía `ThreadPoolExecutor`: un diff sobre el contador global atribuiría a esta llamada la degradación de otro hilo bajo una carrera. |
+| `_maybe_enable_autolog()` | Detecta versión de `anthropic` y activa autolog solo si cae en el rango probado (ASDK-10 AC3/AC4). Confirmado en el gate de egress (2026-09-01): el entorno real corre `1.3.0`, fuera de rango — esta rama es la que se ejecuta en producción, no una hipótesis. |
+| `_try_open_span()` | Abre el span de MLflow para una llamada de `chat()`, o devuelve `(None, None)` si falla cualquier paso (import, `start_span()`, `__enter__`). Nunca deja que un fallo de tracing bloquee la llamada al modelo. |
+| `_safe_set_span_attributes(...)` | Fija los atributos del span (`llm.endpoint_alias`, `llm.backend`, `llm.fallback_used`, `llm.max_tokens`, tokens) sin dejar que un fallo de MLflow propague. La API key nunca aparece aquí. |
 
 ### `check_anthropic_egress` — el gate
 
