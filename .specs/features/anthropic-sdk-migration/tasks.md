@@ -461,15 +461,18 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] `_call_llm()` conserva firma y default `max_tokens=12_000`
-- [ ] `_get_llm_client()` deja de ser usado por `_call_llm()`; si queda sin consumidores, se elimina junto a su test
-- [ ] `_parse_json_response()` y `_recover_truncated_json()` quedan sin modificar
-- [ ] Test unitario afirma que `_call_llm()` invoca al gateway con endpoint, `max_tokens` y `temperature` exactos
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 3 tests pasan (sin borrados silenciosos)
+- [x] `_call_llm()` conserva firma y default `max_tokens=12_000`
+- [x] `_get_llm_client()` eliminado (sin consumidores); `self._llm_client` en `__init__` y los imports huérfanos (`os`, `mlflow.deployments`) también removidos
+- [x] `_parse_json_response()` y `_recover_truncated_json()` quedan sin modificar
+- [x] Test unitario afirma que `_call_llm()` invoca al gateway con endpoint, `max_tokens` y `temperature` exactos
+- [x] Gate check pasa: `1120 passed, 34 skipped` (1116 base − 2 del test viejo eliminado + 3 portados de C33 + 3 nuevos de `_call_llm`)
+- [x] Test count: 3 tests nuevos en `test_agent_base_call_llm.py` + 3 portados a `test_llm_client_credentials.py` (sin pérdida neta de cobertura)
 
 **Tests**: unit
 **Gate**: full
+**Status**: ✅ Complete
+
+**Nota de integridad de tests:** el Done-when original decía "eliminar `_get_llm_client()` junto a su test" sin más. Antes de borrar `tests/test_agent_base_llm_timeout.py`, se verificó que su cobertura del fix de timeout C33 (`1800`, no `setdefault`, override de un preset `600`) ya vivía sin testear en `llm_client._get_databricks_client()` desde T9 — todos los tests de T9-T11 la mockean por completo. Se portaron los dos casos a `test_llm_client_credentials.py` antes del borrado, para no violar la regla de integridad de tests (nunca reducir cobertura al eliminar código).
 
 **Commit**: `refactor(agents): route WorkstreamAgent._call_llm through the LLM gateway`
 

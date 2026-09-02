@@ -8,6 +8,8 @@ raise ImportError -- the same mechanism Python itself uses.
 
 from __future__ import annotations
 
+import os
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -25,8 +27,10 @@ from agents.shared import llm_client  # noqa: E402
 def _reset_client_cache():
     """The client is a module-level singleton -- isolate tests from each other."""
     llm_client._client_state["client"] = None
+    llm_client._databricks_client_state["client"] = None
     yield
     llm_client._client_state["client"] = None
+    llm_client._databricks_client_state["client"] = None
 
 
 @pytest.fixture
@@ -125,3 +129,47 @@ def test_get_client_passes_timeout_and_retries(monkeypatch, _no_dbutils):
     llm_client._get_anthropic_client()
     assert captured["timeout"] == 600
     assert captured["max_retries"] == 2
+
+
+# --- _get_databricks_client: HTTP timeout pin (C33, ported from the retired
+# WorkstreamAgent._get_llm_client when T13 migrated _call_llm to the gateway) --
+
+
+@pytest.fixture
+def _clean_timeout_env(monkeypatch):
+    for key in ("MLFLOW_HTTP_REQUEST_TIMEOUT", "DATABRICKS_HTTP_TIMEOUT"):
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_get_databricks_client_sets_http_timeouts_to_1800(monkeypatch, _clean_timeout_env):
+    import mlflow.deployments
+
+    mock_get = MagicMock(return_value=MagicMock(name="deploy_client"))
+    monkeypatch.setattr(mlflow.deployments, "get_deploy_client", mock_get)
+    llm_client._get_databricks_client()
+    assert os.environ["MLFLOW_HTTP_REQUEST_TIMEOUT"] == "1800"
+    assert os.environ["DATABRICKS_HTTP_TIMEOUT"] == "1800"
+    mock_get.assert_called_once_with("databricks")
+
+
+def test_get_databricks_client_overrides_a_preset_600(monkeypatch):
+    import mlflow.deployments
+
+    monkeypatch.setenv("MLFLOW_HTTP_REQUEST_TIMEOUT", "600")
+    monkeypatch.setenv("DATABRICKS_HTTP_TIMEOUT", "600")
+    mock_get = MagicMock(return_value=MagicMock(name="deploy_client"))
+    monkeypatch.setattr(mlflow.deployments, "get_deploy_client", mock_get)
+    llm_client._get_databricks_client()
+    assert os.environ["MLFLOW_HTTP_REQUEST_TIMEOUT"] == "1800"
+    assert os.environ["DATABRICKS_HTTP_TIMEOUT"] == "1800"
+
+
+def test_get_databricks_client_returns_same_instance_across_calls(monkeypatch, _clean_timeout_env):
+    import mlflow.deployments
+
+    monkeypatch.setattr(
+        mlflow.deployments, "get_deploy_client", MagicMock(return_value=MagicMock())
+    )
+    first = llm_client._get_databricks_client()
+    second = llm_client._get_databricks_client()
+    assert first is second

@@ -4,7 +4,7 @@ Shared base class, data structures, and helpers for all Phase 3 workstream agent
 All Phase 3 agents extend WorkstreamAgent. The base class provides:
   - ToolResult, Flag, Citation dataclasses
   - _tool_call(): logs every retrieval step to the reasoning trace
-  - _call_llm(): calls the Databricks MLflow LLM endpoint
+  - _call_llm(): calls the LLM gateway (agents/shared/llm_client.py)
   - _parse_json_response(): strips markdown fences, parses JSON
   - _add_flag(), _add_citation(), _add_gap(): accumulate findings
   - _reset_state(): clears state at the start of each run()
@@ -12,7 +12,6 @@ All Phase 3 agents extend WorkstreamAgent. The base class provides:
 """
 
 import json
-import os
 import re
 import threading
 from dataclasses import dataclass, field
@@ -20,7 +19,6 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import mlflow.pyfunc
-import mlflow.deployments
 
 from agents.shared import llm_client
 
@@ -179,22 +177,7 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
         self._flags: list[Flag] = []
         self._citations: list[Citation] = []
         self._data_room_gaps: list[str] = []
-        self._llm_client = None
         self._company_name: Optional[str] = None  # set at the top of each run()
-
-    def _get_llm_client(self):
-        if self._llm_client is None:
-            # Claude Sonnet at max_tokens=16,000 needs ~400s to generate output.
-            # The mlflow deploy client's HTTP read timeout defaults to 120s
-            # (MLFLOW_HTTP_REQUEST_TIMEOUT) — the earlier DATABRICKS_HTTP_TIMEOUT
-            # name was not honored, so long generations died at 120s and retried
-            # until the outer 10-min budget. Assign 1800s (not setdefault("600"))
-            # so a cluster-preset 600 cannot win. This raises the client HTTP
-            # timeout; it does not claim to defeat a serving ~120s floor.
-            os.environ["MLFLOW_HTTP_REQUEST_TIMEOUT"] = "1800"
-            os.environ["DATABRICKS_HTTP_TIMEOUT"] = "1800"
-            self._llm_client = mlflow.deployments.get_deploy_client("databricks")
-        return self._llm_client
 
     def _call_llm(
         self,
@@ -203,27 +186,22 @@ class WorkstreamAgent(mlflow.pyfunc.PythonModel):
         endpoint: str,
         max_tokens: int = 12_000,
     ) -> str:
-        """Call the Databricks MLflow LLM endpoint. Returns response text.
+        """Call the LLM gateway (Anthropic SDK, falling back to Databricks serving).
 
         max_tokens default raised to 12,000 — the financial trends schema
         (10 top-level arrays × multiple periods) regularly exceeds 6,000 tokens.
         Agents with smaller schemas inherit the higher default at no cost;
         agents with especially large schemas can override upward (e.g. 16,000).
         """
-        client = self._get_llm_client()
-        response = client.predict(
+        text, usage = llm_client.chat(
+            system_prompt=system_prompt,
+            user_content=user_prompt,
             endpoint=endpoint,
-            inputs={
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user",   "content": user_prompt},
-                ],
-                "max_tokens": max_tokens,
-                "temperature": 0.0,  # deterministic extraction
-            },
+            max_tokens=max_tokens,
+            temperature=0.0,  # deterministic extraction
         )
-        accumulate_tokens(response.get("usage", {}), endpoint=endpoint)
-        return response["choices"][0]["message"]["content"]
+        accumulate_tokens(usage, endpoint=endpoint)
+        return text
 
     @staticmethod
     def _recover_truncated_json(cleaned: str) -> Optional[dict]:
