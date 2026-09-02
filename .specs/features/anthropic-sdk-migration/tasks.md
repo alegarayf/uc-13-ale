@@ -430,16 +430,19 @@ T23 → T24
 - Skill: NONE
 
 **Done when**:
-- [ ] El resumen incluye el backend por endpoint y el total de degradaciones
-- [ ] `_ENDPOINT_PRICING` actualizado a tarifas first-party de Anthropic, con nota de que aplican cuando el backend fue `anthropic`
-- [ ] Las claves del breakdown siguen siendo los aliases estilo Databricks
-- [ ] `reset_fallback_count()` se invoca junto a `reset_token_counter()`
-- [ ] Tests unitarios cubren: forma del resumen con y sin degradaciones, y estabilidad de las claves del breakdown
-- [ ] Gate check pasa: `databricks/.venv/bin/python -m pytest tests/ -q`
-- [ ] Test count: 4 tests pasan (sin borrados silenciosos)
+- [x] El resumen incluye el backend por endpoint y el total de degradaciones
+- [x] `_ENDPOINT_PRICING` actualizado a tarifas first-party de Anthropic (confirmadas con el skill `claude-api`: Sonnet 4.6 $3/$15, Haiku 4.5 $1/$5 — el valor previo de Haiku, $0.80/$4, era la estimación del contrato Databricks)
+- [x] Las claves del breakdown siguen siendo los aliases estilo Databricks
+- [x] `reset_token_counter()` invoca `llm_client.reset_fallback_count()` y `llm_client.reset_endpoint_backends()`
+- [x] Tests unitarios cubren: forma del resumen con y sin degradaciones, endpoint de embeddings sin entrada en `llm_client`, estabilidad de las claves del breakdown, y el reset arrastrando el estado de `llm_client`
+- [x] Gate check pasa: `10 passed`; suite completa `1116 passed, 34 skipped`
+- [x] Test count: **10** tests pasan (planeados 4; ampliados por el hallazgo de diseño abajo, sin borrados silenciosos)
 
 **Tests**: unit
 **Gate**: full
+**Status**: ✅ Complete
+
+**Hallazgo de diseño (resuelto, no bloqueante):** ASDK-11 AC3 pide "qué backend sirvió cada endpoint", pero `chat()` (T9) devuelve solo `(texto, usage)` — el backend real nunca sale del gateway. Leer `_active_backend()` al momento de imprimir habría sido engañoso: `LLM_BACKEND` no cambia a mitad de corrida, así que un endpoint que degradó repetidamente seguiría reportándose como `"anthropic"`. Se extendió `llm_client.py` (fuera del "Where" original de esta tarea, pero ya implicado por el propio Done-when de `reset_fallback_count()`) con `_endpoint_backends`, `get_endpoint_backends()`, `reset_endpoint_backends()`, y `_resolved_backend()` — registrado en las tres salidas de `chat()` (éxito con y sin span, y excepción), no solo la rama con tracing. `test_summary_reports_databricks_backend_after_a_fallback` es la prueba que habría fallado con la implementación ingenua.
 
 **Commit**: `feat(llm): report backend and fallback count in the token summary`
 

@@ -22,6 +22,8 @@ from typing import Any, Optional
 import mlflow.pyfunc
 import mlflow.deployments
 
+from agents.shared import llm_client
+
 
 # ---------------------------------------------------------------------------
 # Global token counter — flat total + per-endpoint breakdown.
@@ -29,12 +31,15 @@ import mlflow.deployments
 # Flat total  (get_token_totals)   : backward-compatible; written to VDR table.
 # Per-endpoint (get_token_breakdown): used for cost estimation and log summary.
 #
-# Pricing table (USD per 1 million tokens). Update if your Databricks contract
-# differs from Anthropic's standard pay-per-token rates.
+# Pricing table (USD per 1 million tokens). The Claude entries are Anthropic's
+# first-party API list rates (confirmed 2026-09-02) -- they apply when
+# llm_client's backend is "anthropic". When the backend is "databricks", the
+# actual bill comes from the Databricks contract, which may differ; these
+# numbers are still shown as the best available estimate.
 # ---------------------------------------------------------------------------
 _ENDPOINT_PRICING: dict = {
     "databricks-claude-sonnet-4-6":          {"input": 3.00,  "output": 15.00},
-    "databricks-claude-haiku-4-5":           {"input": 0.80,  "output":  4.00},
+    "databricks-claude-haiku-4-5":           {"input": 1.00,  "output":  5.00},
     "databricks-bge-large-en":               {"input": 0.10,  "output":  0.00},
     "databricks-meta-llama-3-3-70b-instruct":{"input": 0.54,  "output":  1.62},
 }
@@ -62,10 +67,17 @@ def accumulate_tokens(usage: dict, endpoint: str = "unknown") -> None:
 
 
 def reset_token_counter() -> None:
-    """Reset both counters to zero. Call before starting a pipeline run."""
+    """Reset both counters to zero. Call before starting a pipeline run.
+
+    Also resets llm_client's fallback counter and per-endpoint backend
+    record, so a new run doesn't inherit degradation state from the previous
+    one (ASDK-06 AC6 / ASDK-11 AC3).
+    """
     with _token_lock:
         _token_totals.update({"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
         _endpoint_totals.clear()
+    llm_client.reset_fallback_count()
+    llm_client.reset_endpoint_backends()
 
 
 def get_token_totals() -> dict:
@@ -81,10 +93,19 @@ def get_token_breakdown() -> dict:
 
 
 def print_token_summary() -> None:
-    """Print a formatted token usage and estimated cost summary to stdout."""
+    """Print a formatted token usage, cost, backend, and fallback summary to stdout.
+
+    The backend shown per endpoint is llm_client's record of which backend
+    actually served that endpoint's most recent call -- not the LLM_BACKEND
+    setting, which never changes mid-run and would still say "anthropic" for
+    an endpoint that degraded to Databricks on every call.
+    """
     with _token_lock:
         breakdown = {ep: dict(counts) for ep, counts in _endpoint_totals.items()}
         totals    = dict(_token_totals)
+
+    endpoint_backends = llm_client.get_endpoint_backends()
+    fallback_count = llm_client.get_fallback_count()
 
     lines = ["\n" + "=" * 60, "  TOKEN USAGE SUMMARY", "=" * 60]
     grand_cost = 0.0
@@ -98,7 +119,9 @@ def print_token_summary() -> None:
         ep_cost    = cost_in + cost_out
         grand_cost += ep_cost
         unknown_price = ep not in _ENDPOINT_PRICING
+        backend = endpoint_backends.get(ep, "databricks")  # embeddings never route through llm_client
         lines.append(f"\n  {ep}{'  [price: estimated default]' if unknown_price else ''}")
+        lines.append(f"    backend           : {backend}")
         lines.append(f"    prompt_tokens     : {p_tok:>12,}")
         lines.append(f"    completion_tokens : {c_tok:>12,}")
         lines.append(f"    estimated cost    : ${ep_cost:>8.4f}  (in ${cost_in:.4f} + out ${cost_out:.4f})")
@@ -106,6 +129,7 @@ def print_token_summary() -> None:
     lines.append("\n" + "-" * 60)
     lines.append(f"  TOTAL tokens  : {totals.get('total_tokens', 0):,}")
     lines.append(f"  TOTAL cost    : ${grand_cost:.4f}  (estimated — verify against Databricks billing)")
+    lines.append(f"  LLM fallbacks : {fallback_count}  (Anthropic → Databricks degradations this run)")
     lines.append("=" * 60 + "\n")
     print("\n".join(lines))
 

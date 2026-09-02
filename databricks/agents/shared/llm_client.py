@@ -359,11 +359,49 @@ def reset_fallback_count() -> None:
         _fallback_count = 0
 
 
+# Per-endpoint "which backend actually served the most recent call" -- ASDK-11
+# AC3 needs the resolved backend per endpoint, not the LLM_BACKEND setting.
+# LLM_BACKEND never changes mid-run, so reading _active_backend() at report
+# time would still say "anthropic" for an endpoint that degraded to
+# Databricks on every call. This is scoped state chat() already computes
+# (the same `backend` value it sets on the MLflow span); recording it here is
+# what makes the report accurate instead of an approximation.
+_endpoint_backend_lock = threading.Lock()
+_endpoint_backends: dict = {}
+
+
+def get_endpoint_backends() -> dict:
+    """Copy of {endpoint_alias: backend} for the backend that served each
+    endpoint's most recent call."""
+    with _endpoint_backend_lock:
+        return dict(_endpoint_backends)
+
+
+def reset_endpoint_backends() -> None:
+    """Reset the per-endpoint backend record. Call alongside reset_fallback_count()."""
+    with _endpoint_backend_lock:
+        _endpoint_backends.clear()
+
+
+def _record_endpoint_backend(endpoint: str, backend: str) -> None:
+    with _endpoint_backend_lock:
+        _endpoint_backends[endpoint] = backend
+
+
 def _record_fallback(endpoint: str, exc: Exception) -> None:
     global _fallback_count
     with _fallback_lock:
         _fallback_count += 1
     print(f"  [llm_fallback] {endpoint}: {type(exc).__name__}: {exc}")
+
+
+def _resolved_backend(fallback_occurred: bool) -> str:
+    """The backend that actually served (or attempted to serve) a call.
+
+    "databricks" when a fallback occurred, or when LLM_BACKEND itself is set
+    to "databricks"; "anthropic" otherwise.
+    """
+    return "databricks" if (fallback_occurred or _active_backend() != "anthropic") else "anthropic"
 
 
 def _route_and_maybe_fallback(
@@ -558,18 +596,23 @@ def chat(
     active, e.g. pipeline.py's `agent::{key}`) recording the endpoint alias,
     resolved backend, fallback flag, max_tokens, and token usage -- unless
     MLflow itself is unavailable, in which case the call still completes.
+    Recording which backend served `endpoint` (for get_endpoint_backends(),
+    consumed by agent_base.print_token_summary()) happens independently of
+    whether tracing succeeded -- it must not go stale just because MLflow was
+    unavailable for this call.
     """
     _maybe_enable_autolog()
 
     span, span_cm = _try_open_span()
     if span is None:
-        text, usage, _fallback_used = _route_and_maybe_fallback(
+        text, usage, fallback_used = _route_and_maybe_fallback(
             system_prompt=system_prompt,
             user_content=user_content,
             endpoint=endpoint,
             max_tokens=max_tokens,
             temperature=temperature,
         )
+        _record_endpoint_backend(endpoint, _resolved_backend(fallback_used))
         return text, usage
 
     try:
@@ -586,10 +629,8 @@ def chat(
         # A non-retryable failure re-raises bare, leaving __cause__ None. This
         # is call-local and race-free, unlike diffing the shared counter.
         fallback_attempted = exc.__cause__ is not None
-        backend = (
-            "databricks" if (fallback_attempted or _active_backend() != "anthropic")
-            else "anthropic"
-        )
+        backend = _resolved_backend(fallback_attempted)
+        _record_endpoint_backend(endpoint, backend)
         _safe_set_span_attributes(
             span, endpoint=endpoint, max_tokens=max_tokens,
             fallback_used=fallback_attempted, backend=backend, usage=None,
@@ -600,7 +641,8 @@ def chat(
             pass
         raise
 
-    backend = "databricks" if (fallback_used or _active_backend() != "anthropic") else "anthropic"
+    backend = _resolved_backend(fallback_used)
+    _record_endpoint_backend(endpoint, backend)
     _safe_set_span_attributes(
         span, endpoint=endpoint, max_tokens=max_tokens,
         fallback_used=fallback_used, backend=backend, usage=usage,
