@@ -60,6 +60,8 @@ El gate de T3 (`signoffs/ASDK-13-egress-gate.md`) confirmó egress a `api.anthro
 
 **Siguiente paso concreto** (fuera del alcance de T24, propuesto para cuando se retome T23 con el usuario): desplegar `KPIAgentEndpoint` a un endpoint de Model Serving real, con la key inyectada como arriba, y confirmar una predicción exitosa.
 
+> **Actualización 2026-09-02 — el destino de despliegue cambió en la plataforma.** Al verificar la documentación vigente: *"Deploying a custom agent to its own Model Serving endpoint with `agents.deploy()` is a legacy path"* ([Databricks — Custom agent endpoints](https://developers.databricks.com/docs/agents/custom-agents)). Databricks ahora recomienda **Databricks Apps**; la Supervisor API (Beta) figura deprecada. El "siguiente paso" de arriba apuntaría a una ruta que la plataforma está retirando — **decidir el destino antes de invertir en desplegar.** Análisis completo en `evaluation-readiness.md`.
+
 ---
 
 ## 3. `mlflow.genai.evaluate()` (Mosaic AI Agent Evaluation) — Sí, alcanzable
