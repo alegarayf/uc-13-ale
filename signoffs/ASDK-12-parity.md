@@ -1,6 +1,6 @@
 # ASDK-12 — Paridad end-to-end contra el baseline (T23)
 
-**Veredicto: PASS.** Las tres corridas post-migración reproducen el baseline en estado del registro, cobertura de las 8 tablas de análisis, y el par de artefactos entregados. La corrida con key inválida falla fuerte con `AuthenticationError` sin activar el fallback.
+**Veredicto: PASS.** Las tres corridas post-migración reproducen el baseline en estado del registro, cobertura de las 8 tablas de análisis, y el par de artefactos entregados. Las 266 llamadas al modelo se sirvieron por el SDK directo de Anthropic, con **cero degradaciones a serving**. La corrida con key inválida falla fuerte con `AuthenticationError` sin activar el fallback.
 
 **Fecha**: 2026-09-02
 **Commit ejecutado**: `7e2adfd` (Git folder de Databricks `63672178662438`, rama `feature/anthropic-sdk-migration`)
@@ -83,9 +83,22 @@ El snapshot advertía que una fila nueva en Elder Care indicaría una corrida fu
 
 Los tres dentro de ±6% del baseline — consistente con el mismo trabajo hecho por la misma familia de modelos, sin señal de re-trabajo ni de truncamiento. `model_name` registrado en los tres: `databricks-claude-sonnet-4-6`.
 
-**Contador de degradaciones — no verificado desde la API.** El contador (`get_fallback_count()`) es estado in-process, y `_record_fallback()` lo reporta imprimiendo `[llm_fallback] <endpoint>: …` a stdout del driver (`llm_client.py:419`). No se persiste en ninguna tabla ni columna. `jobs/get-run-output` devuelve `logs` vacío para estas tareas serverless de notebook, así que el número exacto solo es observable en la salida del driver en la consola de Databricks.
+**Contador de degradaciones: 0.** Verificado por MLflow, no por lectura de stdout.
 
-Lo que sí está establecido: un fallback a serving no habría hecho fallar la corrida, así que el SUCCESS no prueba su ausencia por sí solo. Este punto queda pendiente de una lectura visual de la salida del driver de los tres runs, buscando la ausencia de `[llm_fallback]`. **No se declara satisfecho aquí.**
+El contador in-process (`get_fallback_count()`) efectivamente no se persiste — `_record_fallback()` solo imprime `[llm_fallback] <endpoint>: …` al driver (`llm_client.py:419`), y `jobs/get-run-output` devuelve `logs` vacío en tareas serverless de notebook. Pero el dato vive además en un segundo canal, estructurado: `_safe_set_span_attributes` graba `llm.fallback_used` y `llm.backend` como atributos de span en **cada** llamada (T11), y MLflow los persiste.
+
+Consultando el experimento del notebook (`250e0a2c79064562a950a6cddb00afd2`) acotado a la ventana de las tres corridas:
+
+```
+spans de gateway con llm.fallback_used : 266
+fallback_used                          : {'False': 266}
+backend                                : {'anthropic': 266}
+degradaciones                          : 0
+```
+
+Las 266 llamadas al modelo de las tres corridas se sirvieron por el SDK directo de Anthropic. Ninguna degradó a serving.
+
+Esto es más fuerte que la lectura visual del stdout que se había planteado como única vía: cubre **toda** llamada en vez de depender de un barrido a ojo, y es reproducible. Vale la pena registrar por qué casi se cierra mal: se declaró "no observable desde la API" tras comprobar que `get-run-output` venía vacío, es decir, se buscó el dato en el canal equivocado. El diseño de tracing de T11 ya lo estaba persistiendo en otro. **Antes de declarar algo no observable, conviene revisar qué se persiste ya.**
 
 ## Criterio 5 — Key inválida: debe FALLAR FUERTE, no degradar
 

@@ -44,6 +44,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md round-3 sensor mutation 16; tests/test_llm_gateway_convention.py:130-139 (static-scan)
 - last seen: 2026-09-02T23:46:27Z
 
+### L-006 - Before declaring a runtime value unobservable, check every channel that already persists it -- a value missing from job logs may already be a trace attribute
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `observability` · harmful: 0
+- features: anthropic-sdk-migration
+- evidence: tasks.md T23 Done-when 4; signoffs/ASDK-12-parity.md criterio 4 (observability)
+- last seen: 2026-09-03T00:47:46Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

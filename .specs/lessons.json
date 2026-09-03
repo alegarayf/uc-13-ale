@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 6,
+  "next_id": 7,
   "lessons": [
     {
       "id": "L-001",
@@ -94,6 +94,24 @@
       ],
       "created": "2026-09-02T23:46:27Z",
       "last_seen": "2026-09-02T23:46:27Z"
+    },
+    {
+      "id": "L-006",
+      "key": "ac_gap::before declaring a runtime value unobservable check every channel that already persists it a value missing from job logs may already be a trace attribute",
+      "text": "Before declaring a runtime value unobservable, check every channel that already persists it -- a value missing from job logs may already be a trace attribute",
+      "signal": "ac_gap",
+      "scope": "observability",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "tasks.md T23 Done-when 4; signoffs/ASDK-12-parity.md criterio 4 (observability)"
+      ],
+      "created": "2026-09-03T00:47:46Z",
+      "last_seen": "2026-09-03T00:47:46Z"
     }
   ]
 }
