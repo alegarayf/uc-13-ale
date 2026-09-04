@@ -118,6 +118,13 @@ hand Hector the checklist for a real run:
   Report that finding to whoever owns that UI; do **not** work around it by
   flipping `processing_status` early;
 - confirm the final report's MPS page shows two score columns;
+- **confirm the CIM is still in scope for stage 2** (plan §1.3): after the run,
+  check that `classification.doc_relevance` holds the CIM with `should_parse=true`
+  and a tier inside the agents' `tier_filter`, and that
+  `ingestion.chunks` still holds its stage-1 chunks. `retrieval.py:168-208` joins
+  on that table for `priority_tier` and filters `should_parse` on one path, so a
+  CIM misclassified by the stage-2 classifier would quietly drop out of the final
+  report's evidence;
 - trigger a no-CIM company and confirm one score column and five stages;
 - check `progress_json` renders a sensible stage list at a few points mid-run.
 

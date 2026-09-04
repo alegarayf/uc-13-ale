@@ -61,6 +61,22 @@ skipped and should be expected in stage-2 wall-clock: `download_upload` re-lists
 and re-downloads the whole room, and `document_classifier` re-classifies it.
 Neither is avoidable without touching `run_ingestion_pipeline` (out of scope).
 
+**The CIM stays in scope for stage 2 — "skipped" means "not re-parsed", not
+"excluded".** Its chunks and embeddings from stage 1 are never deleted (the
+per-doc clean only runs when a doc is actually re-parsed), stage 2 passes no
+`file_whitelist`, and so the agents retrieve over the CIM *plus* everything else.
+The final report and its MPS are scored over the whole room, CIM included — which
+is what makes the two MPS columns comparable.
+
+One dependency worth knowing, because it is not obvious: `retrieval.py` takes
+`priority_tier` from `classification.doc_relevance` via a JOIN, and one of its
+query paths also filters `r.should_parse = true` (`retrieval.py:168-208`). So the
+CIM's presence in stage-2 retrieval depends on the row the **stage-2** classifier
+wrote for it, not on stage-1 state. A CIM classified as tier 1 with
+`should_parse=true` — the normal and expected outcome, and exactly what already
+happens on Branch B today for any CIM-bearing room — is fully in scope. T10's
+operator checklist verifies it on the first real run rather than assuming it.
+
 ### 1.4 None of the eight bundle fields the view layer wants exist today
 
 Grepped against `field_mapping.py`, `bundle_builder.py` and `populate.py`:
