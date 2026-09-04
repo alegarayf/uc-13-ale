@@ -266,6 +266,45 @@ movement; nothing in this change explains it in prose.
 
 ---
 
+## 3.5 Prose: the template has nine slots and the existing narrative feeds two
+
+The final report is not purely deterministic. `final_report.html.j2` carries a
+cover recommendation block, thesis bullets, watchouts, business-model bullets, and
+**six "Analyst take" boxes**, one per section page (`j2:521, 591, 649, 696, 745,
+788`). The takes are the analyst's voice on each topic — what the number the
+reader just saw actually means.
+
+`rainmaker_narrative.py` produces eight keys
+(`rainmaker_narrative.py:300-308`) and only two of them are what those slots
+need:
+
+| Slot | Fed today? |
+|---|---|
+| `business_model` bullets, `key_watchouts` | ✅ |
+| `thesis_bullets` | ⚠️ absent — the view falls back to `bundle.executive.thesis_bullets` |
+| `recommendation` | ⚠️ shape mismatch — the ER returns a sentence, the template reads `rec.verdict`/`rec.rationale`/`rec.conditions`, so the cover silently prints "Not yet concluded" over a usable sentence |
+| the six analyst takes | ❌ none; `kpis.take` is hardcoded `None` at `final_report_view.py:399` |
+
+Left alone, the final report would ship six empty take boxes and read **thinner in
+prose than the executive review** — the opposite of its purpose.
+`rainmaker_narrative.py` is read-only, so the fix cannot live there.
+
+**Decision (Hector, 2026-09-03):** build a new, additive
+`final_report_narrative.py` — one bounded LLM call through the gateway producing
+the six takes plus a structured recommendation, degrading to all-`None` exactly
+the way the ER narrative degrades. `build_final_report` merges the two dicts, the
+section layer winning on the single overlapping key (`recommendation`). Nothing
+read-only is touched. Specified in [T11](tasks/T11_final_report_narrative.md).
+
+Two rules that carry over from the deterministic layer and matter more here,
+because a language model is involved: the prompt forbids introducing any figure
+not present in the digest, and forbids producing a take for a section whose digest
+is empty — a section where the agents extracted nothing renders **no** box. An
+analyst take over absent data is fabrication in a confident voice, which is worse
+than the blank the template already handles.
+
+---
+
 ## 4. Progress-stage vocabulary, and the one place it deviates from the prompt
 
 `processing_status` keeps its exact current vocabulary (`submitted` → `processing`
@@ -408,10 +447,12 @@ here.
 | `databricks/agents/exec_summary/templates/_mps_page.html.j2` | The shared MPS partial — **only if D-01 is approved**. |
 | `databricks/agents/exec_summary/final_report_view.py` | The attached deterministic bundle→template projection. |
 | `databricks/agents/exec_summary/final_report_entry.py` | The bridge: bundle → validate → verify → narrative → MPS → render. Sibling of `rainmaker_entry.py`. |
+| `databricks/agents/exec_summary/final_report_narrative.py` | The section-level prose the template needs and the ER narrative does not produce — six analyst takes + a structured recommendation (§3.5). |
 | `databricks/jobs/scripts/vdr_progress.py` | The thin progress emitter the runner calls between steps. |
 | `tests/fixtures/final_report_sample_bundle.py` | The illustrative bundle — test fixture only, never shipped in the package. |
 | `tests/test_final_report_view.py` | The numeric contract (`None` never becomes `0`, caps, screens, CAGR). |
 | `tests/test_final_report_render.py` | Four render scenarios + the MPS parity assertion. |
+| `tests/test_final_report_narrative.py` | One gateway call, pinned `max_tokens`/`temperature`, and three degradation paths. |
 | `tests/test_vdr_progress.py` | Stage transitions, monotonic pct, emitter swallows a raising spark. |
 
 ### Modified
@@ -453,6 +494,7 @@ line. T08 is independent of T01-T07 and can run at any point.
 | [T07](tasks/T07_render_tests.md) | `test_final_report_render.py` — four scenarios | green |
 | [T08](tasks/T08_vdr_progress.md) | `vdr_progress.py` + the ALTER + `test_vdr_progress.py` | green |
 | [T09](tasks/T09_runner_stage_two.md) | `_run_final_report_stage()` wired into both branches | green |
+| [T11](tasks/T11_final_report_narrative.md) | The six analyst takes + the structured recommendation (§3.5) | green |
 | [T10](tasks/T10_docs_and_closeout.md) | `databricks/CLAUDE.md`, the YAML description, the read-only diff proof | DoD closed |
 
 ---
@@ -578,6 +620,10 @@ named next to it.
       §4/§6 of this plan record the actual answers. *(T08, T09)*
 - [ ] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
       into §9. *(T02)*
+- [ ] **DoD-13** — The final report's six analyst takes and its cover
+      recommendation render from `final_report_narrative`, and a degraded
+      narrative renders zero take boxes with no page missing (§3.5). *(T11;
+      evidence: the six-boxes / zero-boxes render assertions)*
 - [ ] **DoD-12** — On Branch B, the final report's MPS page carries the *same*
       run as the executive review's — one column, same total, same verdict — with
       no second `MPSAgent().score` call (D-02, §3). *(T05 + T09; evidence: a test

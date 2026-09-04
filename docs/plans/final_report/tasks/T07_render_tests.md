@@ -59,6 +59,22 @@ A bundle with `meta` and nothing else meaningful. Assert:
   construct the two runs with different totals and thresholds so this is
   distinguishable.
 
+## The prose layer (T11)
+
+Add to scenario (a) and (b):
+
+- **(a) with a full final narrative:** exactly **six** `class="take"` boxes render,
+  and the cover's recommendation block shows the verdict, not the
+  `'Not yet concluded'` default (`final_report.html.j2:392`).
+- **(b) with a degraded final narrative** (every take `None`, `recommendation`
+  `None`): **zero** take boxes render, the cover falls back to
+  `'Not yet concluded'`, and **no page is missing**. A quieter report is the
+  correct degradation; a broken one is not.
+- **A take for an empty section must not appear.** Feed a bundle with no `qoe` and
+  a narrative that (incorrectly) supplies a `quality_take`, and assert the page
+  still renders — then note in a comment that suppressing that case is T11's
+  prompt-side responsibility, not the template's.
+
 ## The MPS appears exactly once
 
 In every scenario, assert the rendered final report contains exactly **one**

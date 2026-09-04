@@ -62,6 +62,9 @@ bundle = BundleBuilder().build(company_name, catalog, spark, llm_endpoint)
 validate_bundle(bundle)
 checked = verify_bundle_claims(bundle, spark, catalog, company_name)
 narrative = synthesize_rainmaker_narrative(checked, llm_endpoint, spark)
+# T11 adds the section-level layer here; until it lands, the six analyst-take
+# boxes and the structured cover recommendation render empty (plan §3.5):
+#   narrative = {**narrative, **synthesize_final_report_narrative(checked, ...)}
 mps = reuse_mps_run or MPSAgent().score(checked, catalog, company_name, spark,
                                         llm_endpoint, run_mode=run_mode)
 rendered = render_final_report(checked, catalog, company_name,
