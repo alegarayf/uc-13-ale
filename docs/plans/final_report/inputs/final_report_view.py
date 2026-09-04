@@ -1,0 +1,761 @@
+"""final_report_view.py — deterministic projection for final_report.html.j2.
+
+PROPOSAL / v0.1. Sibling of ``rainmaker_view.py``, same contract and same
+discipline:
+
+  * Pure and deterministic. No LLM call, no Spark read, never mutates
+    ``bundle``. Narrative prose still comes from the narrative layer and is
+    passed in, not generated here.
+  * Every chart arrives at the template pre-scaled. ``*_pct`` fields are
+    0-100 relative to that chart's own maximum, so ``final_report.html.j2``
+    only ever multiplies a percentage by a fixed geometry constant.
+  * Never fabricates. A figure the agents did not extract stays ``None`` all
+    the way to the page, where it renders as "not extracted". A ``None`` bar
+    is omitted, never drawn at zero — a zero bar is a claim.
+  * Caps live here, not in the template. The report's readability is a
+    function of these constants.
+
+The threshold screens in ``_SCREENS`` are Austin's directional first-pass
+numbers (tech services / healthcare services). They are screens, not rules:
+the output labels a metric "below screen" and never "unacceptable".
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+# --- Caps: the length budget of the report -------------------------------
+CAP_TILES = 6
+CAP_THESIS = 3
+CAP_WATCHOUTS = 3
+CAP_BULLETS = 4
+CAP_SEGMENTS = 6
+CAP_TOP_CUSTOMERS = 5
+CAP_KPIS = 8
+CAP_RISKS = 8
+CAP_QUESTIONS = 8
+CAP_GAPS = 10
+
+MPS_MAX_SCORE = 5
+
+# --- Rallyday first-pass screens -----------------------------------------
+# (metric_key, display, threshold, direction, sector) — direction "min" means
+# a value below the threshold is flagged; "max" means above it is flagged.
+_SCREENS: tuple[dict[str, Any], ...] = (
+    {"key": "nrr_pct", "name": "Net revenue retention", "threshold": 90, "dir": "min", "sector": "tech_services"},
+    {"key": "grr_pct", "name": "Gross revenue retention", "threshold": 85, "dir": "min", "sector": "tech_services"},
+    {"key": "gross_margin_pct", "name": "Gross margin", "threshold": 40, "dir": "min", "sector": "tech_services"},
+    {"key": "top1_pct", "name": "Top customer concentration", "threshold": 25, "dir": "max", "sector": "tech_services"},
+    {"key": "organic_growth_pct", "name": "Organic revenue growth", "threshold": 10, "dir": "min", "sector": "tech_services"},
+    {"key": "ebitda_margin_pct", "name": "EBITDA margin", "threshold": 10, "dir": "min", "sector": "tech_services"},
+    {"key": "avg_account_size", "name": "Average account size", "threshold": 100, "dir": "min", "sector": "tech_services"},
+    {"key": "revenue_growth_pct", "name": "Revenue growth", "threshold": 5, "dir": "min", "sector": "healthcare_services"},
+    {"key": "ebitda_margin_pct", "name": "EBITDA margin", "threshold": 10, "dir": "min", "sector": "healthcare_services"},
+    {"key": "gross_margin_pct", "name": "Gross margin", "threshold": 30, "dir": "min", "sector": "healthcare_services"},
+    {"key": "top1_pct", "name": "Top referral source / customer", "threshold": 20, "dir": "max", "sector": "healthcare_services"},
+    {"key": "government_payor_pct", "name": "Government payor share", "threshold": 50, "dir": "max", "sector": "healthcare_services"},
+    {"key": "employee_turnover_pct", "name": "Employee turnover", "threshold": 30, "dir": "max", "sector": "healthcare_services"},
+    {"key": "utilization_pct", "name": "Utilization", "threshold": 70, "dir": "min", "sector": "healthcare_services"},
+)
+
+_SEVERITY_CLASS = {"high": "high", "red": "high", "medium": "medium", "yellow": "medium", "low": "low", "green": "low"}
+_SEVERITY_LABEL = {"high": "High", "red": "High", "medium": "Medium", "yellow": "Medium", "low": "Low", "green": "Low"}
+
+_MONEY_STRIP = re.compile(r"[^0-9.\-]")
+_NUM_LEADING = re.compile(r"-?\d+(\.\d+)?")
+
+
+# =========================================================================
+# Numeric helpers. In-repo these should import from
+# ``agents.exec_summary.rainmaker_view`` (``_parse_money`` / ``_parse_percent``)
+# rather than being duplicated — they are inlined here only so this module
+# runs standalone for the stakeholder preview.
+# =========================================================================
+
+def parse_money(value: Any) -> float | None:
+    """Leading numeric value of a money string, honouring (parentheses) as
+    negative and k/m/bn suffixes. Returns ``None`` for anything unparseable —
+    never 0.0, because 0 is a figure and ``None`` is an absence."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text in {"-", "—", "n/a", "N/A"}:
+        return None
+    negative = text.startswith("(") and text.endswith(")")
+    multiplier = 1.0
+    low = text.lower()
+    if low.endswith(("bn", "b")):
+        multiplier = 1_000.0
+    elif low.endswith("k"):
+        multiplier = 0.001
+    cleaned = _MONEY_STRIP.sub("", text)
+    if cleaned in {"", "-", "."}:
+        return None
+    try:
+        num = float(cleaned) * multiplier
+    except ValueError:
+        return None
+    return -num if negative else num
+
+
+def parse_percent(value: Any) -> float | None:
+    """Leading numeric fragment of a percent string. Tolerates the narrative
+    padding agents sometimes emit, e.g. ``"42.3% (Historical) / 44.3% (Pro
+    Forma — DISCREPANCY)"`` -> ``42.3``."""
+    if value is None:
+        return None
+    match = _NUM_LEADING.search(str(value))
+    if not match:
+        return None
+    try:
+        return float(match.group())
+    except ValueError:
+        return None
+
+
+def scale(values: list[float | None], max_value: float | None = None) -> list[float | None]:
+    """Normalise to 0-100 against the series maximum (or an explicit
+    ``max_value`` when two charts must share an axis — page 4 and page 8 do).
+    ``None`` in, ``None`` out."""
+    present = [v for v in values if v is not None]
+    if not present:
+        return [None] * len(values)
+    top = max_value if max_value is not None else max(present)
+    if not top:
+        return [None] * len(values)
+    return [None if v is None else max(0.0, min(100.0, (v / top) * 100.0)) for v in values]
+
+
+def severity_class(value: Any) -> str:
+    return _SEVERITY_CLASS.get(str(value or "").lower(), "neutral")
+
+
+def severity_label(value: Any) -> str:
+    return _SEVERITY_LABEL.get(str(value or "").lower(), str(value or "—").title())
+
+
+# Confidence runs the opposite way to severity: HIGH confidence is reassuring,
+# LOW confidence is the warning. Same chip vocabulary, inverted mapping — a
+# green "High" and a red "Low", never the reverse.
+_CONFIDENCE_CLASS = {"high": "low", "medium": "medium", "low": "high"}
+
+
+def confidence_class(value: Any) -> str:
+    return _CONFIDENCE_CLASS.get(str(value or "").lower(), "neutral")
+
+
+# =========================================================================
+# Section builders. Each returns exactly the shape the matching page of
+# final_report.html.j2 consumes. Add a section here and a page there — never
+# only one of the two.
+# =========================================================================
+
+def _pnl_table(bundle: dict[str, Any]) -> dict[str, Any]:
+    """The generic P&L block. Every row is optional: a row whose cells are all
+    absent is dropped, so a services business, a SaaS business and an
+    industrial business all render cleanly from one row set. The ``calc``
+    column is CAGR where three or more periods exist, otherwise last-period
+    YoY — pure arithmetic on figures the agents already extracted."""
+    rows_in = [r for r in ((bundle.get("financials") or {}).get("table_rows") or []) if isinstance(r, dict)]
+    periods, seen = [], set()
+    ordered: list[dict[str, Any]] = []
+    for r in rows_in:
+        year = str(r.get("year") or "").strip()
+        if not year or year in seen:
+            continue
+        seen.add(year)
+        periods.append(year)
+        ordered.append(r)
+
+    specs = (
+        ("Revenue", "revenue", "total", "money"),
+        ("Cost of revenue", "cogs", "sub", "money"),
+        ("Gross profit", "gross_profit", "", "money"),
+        ("Gross margin %", "gross_margin_pct", "sub", "percent"),
+        ("Operating expenses", "opex", "sub", "money"),
+        ("EBITDA", "ebitda", "total", "money"),
+        ("EBITDA margin %", "ebitda_margin_pct", "sub", "percent"),
+        ("Adjusted EBITDA", "adjusted_ebitda", "", "money"),
+        ("Adj. EBITDA margin %", "adjusted_ebitda_margin_pct", "sub", "percent"),
+        ("Capital expenditure", "capex", "sub", "money"),
+        ("Free cash flow", "free_cash_flow", "", "money"),
+    )
+
+    rows: list[dict[str, Any]] = []
+    for label, field, emphasis, kind in specs:
+        cells = [None if r.get(field) in (None, "") else str(r.get(field)).strip() for r in ordered]
+        if not any(cells):
+            continue  # self-pruning: never show an empty row
+        nums = [parse_money(c) if kind == "money" else parse_percent(c) for c in cells]
+        rows.append({
+            "label": label,
+            "cells": cells,
+            "emphasis": emphasis,
+            "calc": _calc_column(nums, kind, len(periods)),
+            "cite": None,
+        })
+
+    return {
+        "periods": periods,
+        "rows": rows,
+        "currency": (bundle.get("financials") or {}).get("currency") or "$",
+        "unit": (bundle.get("financials") or {}).get("unit") or "",
+        "unit_label": (bundle.get("financials") or {}).get("unit_label") or "as reported",
+        "calc_col_label": "CAGR" if len(periods) >= 3 else "YoY",
+    }
+
+
+def _calc_column(nums: list[float | None], kind: str, n_periods: int) -> str | None:
+    """CAGR for money rows across 3+ periods; percentage-point delta for
+    percent rows; YoY otherwise. Returns ``None`` when the inputs do not
+    support the calculation — an unresolvable cell is left blank, not zeroed."""
+    present = [(i, v) for i, v in enumerate(nums) if v is not None]
+    if len(present) < 2:
+        return None
+    (i0, first), (i1, last) = present[0], present[-1]
+    if kind == "percent":
+        return f"{last - first:+.1f} pp"
+    if first <= 0 or last <= 0:
+        return None
+    span = i1 - i0
+    if n_periods >= 3 and span >= 2:
+        return f"{(((last / first) ** (1.0 / span)) - 1) * 100:.1f}%"
+    return f"{((last / first) - 1) * 100:+.1f}%"
+
+
+def _trend_chart(bundle: dict[str, Any], shared_max: float | None = None) -> dict[str, Any]:
+    """Revenue columns with the EBITDA-margin line overlaid.
+
+    EBITDA is deliberately NOT a second column here. On a revenue axis an
+    11% margin business draws an EBITDA bar a tenth the height of revenue,
+    which reads as an error rather than as information. Reported vs adjusted
+    EBITDA gets its own chart on its own axis instead (``_ebitda_chart``).
+    """
+    rows = [r for r in ((bundle.get("financials") or {}).get("table_rows") or []) if isinstance(r, dict)]
+    labels = [str(r.get("year") or "") for r in rows]
+    rev = [parse_money(r.get("revenue")) for r in rows]
+    margin = [parse_percent(r.get("ebitda_margin_pct")) for r in rows]
+
+    axis_max = shared_max if shared_max is not None else max([v for v in rev if v is not None] or [0])
+    rev_pct = scale(rev, axis_max)
+
+    return {
+        "series": [
+            {
+                "label": labels[i],
+                "bar1_pct": rev_pct[i], "bar1_value": _short(rev[i]),
+                "bar2_pct": None, "bar2_value": None,
+                "line_pct": None if margin[i] is None else max(0.0, min(100.0, margin[i])),
+                "line_value": None if margin[i] is None else f"{margin[i]:.1f}%",
+            }
+            for i in range(len(rows))
+        ],
+        "bar1_name": "Revenue", "bar2_name": None, "line_name": "EBITDA margin %",
+        "axis_max_label": _short(axis_max),
+        "footnote": "Revenue columns on the left axis; margin line on a 0-100% axis.",
+    }
+
+
+def _ebitda_chart(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Reported against adjusted EBITDA, on a shared EBITDA axis. The gap
+    between the two columns IS the earnings-quality question, and this is the
+    only place in the report where it is visible rather than described."""
+    rows = [r for r in ((bundle.get("financials") or {}).get("table_rows") or []) if isinstance(r, dict)]
+    reported = [parse_money(r.get("ebitda")) for r in rows]
+    adjusted = [parse_money(r.get("adjusted_ebitda")) for r in rows]
+    axis_max = max([v for v in (reported + adjusted) if v is not None] or [0])
+    rep_pct = scale(reported, axis_max)
+    adj_pct = scale(adjusted, axis_max)
+    return {
+        "series": [
+            {
+                "label": str(rows[i].get("year") or ""),
+                "bar1_pct": rep_pct[i], "bar1_value": _short(reported[i]),
+                "bar2_pct": adj_pct[i], "bar2_value": _short(adjusted[i]),
+                "line_pct": None, "line_value": None,
+            }
+            for i in range(len(rows))
+        ],
+        "bar1_name": "Reported EBITDA", "bar2_name": "Adjusted EBITDA", "line_name": None,
+        "axis_max_label": _short(axis_max),
+        "footnote": "The widening gap between the two columns is the addback question.",
+    }
+
+
+def _short(value: float | None) -> str | None:
+    """Compact label for a bar. Never rounds a figure into a different order
+    of magnitude, and returns ``None`` (not "0") for an absent value."""
+    if value is None:
+        return None
+    if abs(value) >= 1_000:
+        return f"{value / 1_000:.1f}bn"
+    if abs(value) >= 1:
+        return f"{value:.1f}"
+    return f"{value:.2f}"
+
+
+def _axis_bars(items: list[dict[str, Any]], threshold: float | None) -> dict[str, Any]:
+    """Shared normaliser for every horizontal-bar chart. The axis maximum is
+    the larger of the biggest value and the threshold, with 20% headroom, so
+    a chart of 6-14% values still fills the page and the threshold marker
+    always lands inside the frame."""
+    values = [i["value_num"] for i in items if i.get("value_num") is not None]
+    axis_max = max(values + ([threshold] if threshold is not None else []) or [1]) * 1.2
+    if not axis_max:
+        axis_max = 1.0
+    for i in items:
+        i["pct"] = None if i.get("value_num") is None else (i["value_num"] / axis_max) * 100.0
+    return {
+        "bars": [i for i in items if i.get("pct") is not None],
+        "threshold_pct": None if threshold is None else (threshold / axis_max) * 100.0,
+        "threshold_label": None if threshold is None else f"{threshold:g}% screen",
+    }
+
+
+def _concentration(bundle: dict[str, Any], sector: str) -> dict[str, Any]:
+    """Top-account bars against the sector screen (25% tech services, 20%
+    healthcare services). The threshold marker is the point of this chart —
+    it turns a table of percentages into a judgment a VP can read at a
+    glance."""
+    rq = bundle.get("revenue_quality") or {}
+    customers = [c for c in (rq.get("top_customers") or []) if isinstance(c, dict)]
+    threshold = 20.0 if sector == "healthcare_services" else 25.0
+    items = []
+    for c in customers[:CAP_TOP_CUSTOMERS]:
+        pct = parse_percent(c.get("revenue_pct_yr1"))
+        if pct is None:
+            continue
+        items.append({
+            "label": _trunc(c.get("customer_name") or "Account", 26),
+            "value": f"{pct:.1f}%",
+            "value_num": pct,
+            "flag": pct > threshold,
+        })
+    out = _axis_bars(items, threshold)
+    out["title"] = "Concentration"
+    return out
+
+
+def _trunc(text: Any, n: int) -> str:
+    """Chart labels and narrow table cells are truncated HERE, not in the
+    template, so the cap is testable and consistent across charts."""
+    value = str(text or "").strip()
+    return value if len(value) <= n else value[: n - 1].rstrip() + "\u2026"
+
+
+def _kpi_scorecard(bundle: dict[str, Any], sector: str) -> dict[str, Any]:
+    """KPI dashboard rows rendered as bullet bars against the applicable
+    screens. Rows the agents could not extract are moved to a separate
+    ``not_extracted`` list with the stated reason rather than shown as a
+    zero-length bar."""
+    screens = {s["key"]: s for s in _SCREENS if s["sector"] == sector}
+    rows, flagged, missing, others = [], [], [], []
+    for kpi in (bundle.get("kpi_dashboard") or [])[: CAP_KPIS * 2]:
+        if not isinstance(kpi, dict):
+            continue
+        key = str(kpi.get("metric_id") or "")
+        screen = screens.get(key)
+        raw_value = kpi.get("stated_value")
+        value_num = parse_percent(raw_value)
+        name = str(kpi.get("display_name") or key or "KPI")
+        if value_num is None:
+            missing.append({"name": name, "reason": str(kpi.get("fill_state") or "not extracted").replace("_", " ")})
+            continue
+        # A bullet bar is only meaningful on a 0-100 scale. Counts, dollars and
+        # ratios go to a plain table rather than being drawn as if they were
+        # percentages — a $40.6 revenue-per-client bar filled to 40% would be
+        # a made-up claim.
+        if "%" not in str(raw_value) and key not in screens:
+            others.append({"name": name, "value": str(raw_value)})
+            continue
+        threshold = screen["threshold"] if screen else None
+        flag = bool(
+            screen
+            and ((screen["dir"] == "min" and value_num < threshold) or (screen["dir"] == "max" and value_num > threshold))
+        )
+        row = {
+            "name": name,
+            "value": str(kpi.get("stated_value")),
+            "pct": max(0.0, min(100.0, value_num)),
+            "threshold_pct": threshold,
+            "threshold_label": f"vs {threshold}%" if threshold is not None else "",
+            "flag": flag,
+        }
+        rows.append(row)
+        if flag:
+            flagged.append({
+                "name": name, "value": row["value"],
+                "threshold_label": row["threshold_label"].replace("vs ", ""),
+                "note": str(kpi.get("flag_note") or "Below the first-pass screen for this sector; materiality is a deal-team call."),
+                "cite": None,
+            })
+    return {
+        "overlay_label": sector.replace("_", " ").title(),
+        "rows": rows[:CAP_KPIS],
+        "flagged": flagged,
+        "other_metrics": others[:5],
+        "not_extracted": missing[:5],
+        "take": None,
+    }
+
+
+def _risks(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Risk register, severity-sorted and capped. The suppressed count is
+    reported rather than silently dropped — a VP needs to know the report is
+    a view, not the whole register."""
+    order = {"high": 0, "red": 0, "medium": 1, "yellow": 1, "low": 2, "green": 2}
+    raw = [r for r in (bundle.get("risks") or []) if isinstance(r, dict)]
+    raw.sort(key=lambda r: order.get(str(r.get("severity") or "").lower(), 3))
+    grid = [
+        {
+            "risk": str(r.get("risk") or ""),
+            "evidence": str(r.get("evidence") or ""),
+            "mitigant": str(r.get("mitigant_or_question") or ""),
+            "severity_label": severity_label(r.get("severity")),
+            "severity_class": severity_class(r.get("severity")),
+            "cite": None,
+        }
+        for r in raw[:CAP_RISKS]
+    ]
+    counts = []
+    for level, label in (("high", "High severity"), ("medium", "Medium"), ("low", "Low")):
+        n = sum(1 for r in raw if severity_class(r.get("severity")) == level)
+        counts.append({"label": label, "count": n, "flag": level == "high" and n > 0})
+    return {"grid": grid, "counts": counts, "suppressed": max(0, len(raw) - CAP_RISKS)}
+
+
+def _appendix(bundle: dict[str, Any]) -> dict[str, Any]:
+    gaps = [
+        {
+            "item": str(g.get("item") or ""),
+            "why": g.get("why") or g.get("rationale"),
+            "priority_label": severity_label(g.get("priority")),
+            "priority_class": severity_class(g.get("priority")),
+        }
+        for g in (bundle.get("data_room_gaps") or [])[:CAP_GAPS]
+        if isinstance(g, dict)
+    ]
+    confidence = [
+        {"area": k.replace("_", " ").title(), "level": severity_label(v), "level_class": confidence_class(v)}
+        for k, v in (bundle.get("confidence_by_area") or {}).items()
+    ]
+    return {"gaps": gaps, "confidence": confidence, "sources": [], "manifest": (bundle.get("meta") or {}).get("manifest") or {}}
+
+
+_CONTENTS = (
+    {"no": "1", "title": "Business and revenue model", "question": "What is this and how does it make money?", "page": 3},
+    {"no": "2", "title": "Financial performance", "question": "Is the financial story improving, and is it real?", "page": 4},
+    {"no": "3", "title": "Customer quality and concentration", "question": "Is the revenue durable, and who could take it away?", "page": 5},
+    {"no": "4", "title": "Operating KPIs vs our screens", "question": "Where does this sit against how we screen the sector?", "page": 6},
+    {"no": "5", "title": "Quality of earnings", "question": "Is the EBITDA real?", "page": 7},
+    {"no": "6", "title": "Contract and legal risk", "question": "Anything that changes the price or the close?", "page": 7},
+    {"no": "7", "title": "Forecast and value creation", "question": "Is the plan achievable, and what would we do with it?", "page": 8},
+    {"no": "8", "title": "Risks and what to test first", "question": "What breaks the thesis, and what do we ask on Monday?", "page": 9},
+    {"no": "9", "title": "Minimum Pursuit Score", "question": "Does it clear our own screen?", "page": 10},
+    {"no": "—", "title": "Appendix", "question": "Gaps, confidence, sources, run manifest.", "page": 11},
+)
+
+
+def final_report_view(
+    bundle: dict[str, Any],
+    narrative: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the ``report`` context for ``final_report.html.j2``.
+
+    ``narrative`` is the existing Capa B synthesis output (prose bullets,
+    thesis, watchouts, analyst takes, recommendation).
+
+    This function deliberately knows NOTHING about the MPS. The MPS page
+    renders from ``rainmaker_view._mps_table`` — the same projection the
+    executive review uses — passed to the template as its own top-level
+    ``mps`` key by the caller. Nothing about the score is summarised,
+    previewed or restated anywhere else in the report: it appears once, on
+    its own page, in the form it already has.
+    """
+    narrative = narrative or {}
+    meta = bundle.get("meta") or {}
+    sector = str(meta.get("vertical_overlay") or "tech_services")
+    headline = bundle.get("headline_metrics") or {}
+    framing = bundle.get("company_framing") or {}
+
+    return {
+        "meta": {
+            "company_name": str(meta.get("company_name") or "Company"),
+            "sector_label": sector.replace("_", " ").title(),
+            "prepared_for": "Rallyday Partners",
+            "date": str(meta.get("generated_at") or "")[:10],
+            "mode_label": "CIM-first" if meta.get("run_mode") == "cim_only" else "Full data room",
+            "doc_count": meta.get("doc_count"),
+            "overall_confidence": severity_label(meta.get("overall_confidence")),
+            "status": str(meta.get("disclaimer_text") or "").strip()
+            or "Preliminary — for internal discussion only. Subject to confirmatory diligence.",
+            "template_version": "final_report.html.j2 v0.1",
+        },
+        "contents": list(_CONTENTS),
+        "headline": {
+            "recommendation": narrative.get("recommendation") or {"verdict": None, "rationale": None, "conditions": []},
+            "one_liner": (bundle.get("executive") or {}).get("in_one_line"),
+            "tiles": _headline_tiles(headline)[:CAP_TILES],
+            "thesis": (narrative.get("thesis_bullets") or (bundle.get("executive") or {}).get("thesis_bullets") or [])[:CAP_THESIS],
+            "watchouts": (narrative.get("key_watchouts") or (bundle.get("executive") or {}).get("key_watchouts") or [])[:CAP_WATCHOUTS],
+        },
+        "business": {
+            "what_it_does": (framing.get("overview_bullets") or [])[:CAP_BULLETS],
+            "how_it_makes_money": (narrative.get("business_model") or [])[:CAP_BULLETS],
+            "revenue_mix": _mix(bundle, "revenue_type_mix", "Recurring vs project revenue"),
+            "client_distribution": _mix(bundle, "client_distribution", "Clients by segment"),
+            "performance_by": _performance_by(bundle),
+            "take": narrative.get("business_take"),
+        },
+        "financials": {
+            "table": _pnl_table(bundle),
+            "trend_chart": _trend_chart(bundle),
+            "ebitda_chart": _ebitda_chart(bundle),
+            "observations": ((bundle.get("financials") or {}).get("observations") or [])[:CAP_BULLETS],
+            "bridge": (bundle.get("financials") or {}).get("growth_bridge") or [],
+            "take": narrative.get("financial_take"),
+        },
+        "customers": {
+            "tiles": _customer_tiles(bundle),
+            "concentration": _concentration(bundle, sector),
+            "retention_rows": _retention_rows(bundle, sector),
+            "top_customers": _top_customers(bundle),
+            "take": narrative.get("customer_take"),
+        },
+        "kpis": _kpi_scorecard(bundle, sector),
+        "quality": _quality(bundle, narrative),
+        "legal": _legal(bundle),
+        "forecast": _forecast(bundle, narrative),
+        "risks": _risks(bundle),
+        "questions": _questions(bundle),
+        "appendix": _appendix(bundle),
+    }
+
+
+# --- Small builders -------------------------------------------------------
+
+def _headline_tiles(h: dict[str, Any]) -> list[dict[str, Any]]:
+    specs = (
+        ("Revenue (LTM)", "ltm_revenue", None),
+        ("Revenue CAGR", "revenue_cagr", None),
+        ("EBITDA (LTM)", "ltm_ebitda", None),
+        ("EBITDA margin", "ltm_ebitda_margin_pct", None),
+        ("Top customer", "top1_concentration_pct", None),
+        ("Indicated EV", "enterprise_value_indicated", None),
+    )
+    return [{"label": label, "value": h.get(field), "sub": sub, "flag": False} for label, field, sub in specs if h.get(field)]
+
+
+def _mix(bundle: dict[str, Any], field: str, caption: str) -> dict[str, Any]:
+    """100% stacked-bar input. Segments whose share is absent are excluded —
+    a mix chart that does not sum is worse than no chart."""
+    raw = (bundle.get("revenue_quality") or {}).get(field) or []
+    segments = []
+    for s in raw:
+        if not isinstance(s, dict):
+            continue
+        pct = parse_percent(s.get("pct_of_revenue") or s.get("pct"))
+        if pct is None:
+            continue
+        segments.append({"label": str(s.get("label") or s.get("category") or ""), "pct": pct, "value": f"{pct:.0f}%"})
+    return {"segments": segments[:CAP_SEGMENTS], "caption": caption, "dimension": caption}
+
+
+def _performance_by(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Revenue and gross margin by segment / service line / location. The
+    dimension is whatever the agents actually populated — multi-site
+    healthcare gives locations, tech services gives practice areas."""
+    raw = (bundle.get("financials") or {}).get("segment_performance") or []
+    rows, revs, margins = [], [], []
+    for s in raw[:CAP_SEGMENTS]:
+        if not isinstance(s, dict):
+            continue
+        rev = parse_money(s.get("revenue"))
+        gm = parse_percent(s.get("gross_margin_pct"))
+        revs.append(rev)
+        margins.append(gm)
+        rows.append({
+            "name": str(s.get("name") or ""),
+            "revenue": s.get("revenue"),
+            "share": s.get("share_pct"),
+            "gross_margin": s.get("gross_margin_pct"),
+            "growth": s.get("growth_pct"),
+            "read_label": s.get("read_label") or "—",
+            "read_class": severity_class(s.get("read")),
+        })
+    rev_pct = scale(revs)
+    return {
+        "dimension": (bundle.get("financials") or {}).get("segment_dimension") or "Segment",
+        "rows": rows,
+        "chart": {
+            "series": [
+                {
+                    "label": rows[i]["name"][:14],
+                    "bar1_pct": rev_pct[i], "bar1_value": _short(revs[i]),
+                    "bar2_pct": None, "bar2_value": None,
+                    "line_pct": None if margins[i] is None else max(0.0, min(100.0, margins[i])),
+                    "line_value": None if margins[i] is None else f"{margins[i]:.0f}%",
+                }
+                for i in range(len(rows))
+            ],
+            "bar1_name": "Revenue", "bar2_name": None, "line_name": "Gross margin %",
+            "axis_max_label": _short(max([v for v in revs if v is not None] or [0])),
+            "footnote": "Segment revenue as extracted; margin line on a 0-100% axis.",
+        },
+    }
+
+
+def _customer_tiles(bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    rq = bundle.get("revenue_quality") or {}
+    conc = rq.get("concentration_summary") or {}
+    ret = rq.get("retention") or {}
+    specs = (
+        ("Clients", rq.get("client_count")),
+        ("Top 1", conc.get("top1_pct")),
+        ("Top 5", conc.get("top5_pct")),
+        ("NRR", ret.get("nrr_pct")),
+        ("Avg tenure", (rq.get("customer_tenure") or {}).get("average_tenure_years")),
+    )
+    return [{"label": label, "value": value, "sub": None, "flag": False} for label, value in specs if value not in (None, "")]
+
+
+def _retention_rows(bundle: dict[str, Any], sector: str) -> list[dict[str, Any]]:
+    ret = (bundle.get("revenue_quality") or {}).get("retention") or {}
+    screens = {s["key"]: s for s in _SCREENS if s["sector"] == sector}
+    out = []
+    for key, label in (("nrr_pct", "Net revenue retention"), ("grr_pct", "Gross revenue retention"),
+                       ("logo_churn_rate_annual_pct", "Annual logo churn")):
+        value = ret.get(key)
+        if value in (None, ""):
+            continue
+        num = parse_percent(value)
+        screen = screens.get(key)
+        flag = bool(screen and num is not None and num < screen["threshold"])
+        out.append({
+            "metric": label, "value": value,
+            "read_label": "Below screen" if flag else ("At screen" if screen else "No screen"),
+            "read_class": "high" if flag else ("low" if screen else "neutral"),
+        })
+    return out
+
+
+def _top_customers(bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": str(c.get("customer_name") or ""),
+            "share": c.get("revenue_pct_yr1"),
+            "trend": _trunc(c.get("revenue_trend_note"), 34) if c.get("revenue_trend_note") else None,
+            "gross_margin": c.get("gm_pct"),
+            "contract_status": c.get("contract_status"),
+            "tenure": c.get("years_as_customer"),
+            "cite": None,
+        }
+        for c in ((bundle.get("revenue_quality") or {}).get("top_customers") or [])[:CAP_TOP_CUSTOMERS]
+        if isinstance(c, dict)
+    ]
+
+
+def _quality(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, Any]:
+    """Reported → adjusted EBITDA as horizontal bars: the addback stack made
+    visible instead of described. Bars are shares of adjusted EBITDA."""
+    qoe = bundle.get("qoe") or {}
+    addbacks = [a for a in (qoe.get("addbacks") or []) if isinstance(a, dict)]
+    values = [parse_money(a.get("amount")) for a in addbacks]
+    total = sum(v for v in values if v is not None) or None
+    items = []
+    for i, a in enumerate(addbacks[:6]):
+        if values[i] is None or not total:
+            continue
+        items.append({
+            "label": _trunc(a.get("label"), 26),
+            "value": str(a.get("amount")),
+            "value_num": values[i],
+            "flag": str(a.get("tier") or "").lower() in {"tier 3", "unsupported", "high"},
+        })
+    return {
+        "addback_bars": {**_axis_bars(items, None), "title": "Addbacks"},
+        "addback_caption": f"Addbacks total {qoe.get('addback_pct_of_ebitda') or '—'} of reported EBITDA. {qoe.get('tier_summary') or ''}".strip(),
+        "flags": [
+            {"text": str(f.get("description") or f.get("flag") or f), "severity_label": severity_label((f or {}).get("severity") if isinstance(f, dict) else None),
+             "severity_class": severity_class((f or {}).get("severity") if isinstance(f, dict) else None), "cite": None}
+            for f in (qoe.get("flags") or [])[:5]
+        ],
+        "take": narrative.get("quality_take"),
+    }
+
+
+def _legal(bundle: dict[str, Any]) -> dict[str, Any]:
+    legal = bundle.get("legal") or {}
+    return {
+        "tiles": [
+            {"label": "Checklist assessed", "value": f"{legal.get('assessed_count', '—')}/{legal.get('checklist_total', 11)}", "flag": False},
+            {"label": "CoC consents", "value": legal.get("coc_consent_count") or "—", "flag": bool(legal.get("coc_consent_count"))},
+            {"label": "Section confidence", "value": severity_label(legal.get("section_confidence")), "flag": False},
+        ],
+        "flags": [
+            {"issue": str((f or {}).get("flag") or (f or {}).get("summary") or f)[:70] if isinstance(f, dict) else str(f)[:70],
+             "impact": (f or {}).get("impact") or (f or {}).get("description") or "—" if isinstance(f, dict) else "—",
+             "severity_label": severity_label((f or {}).get("severity") if isinstance(f, dict) else None),
+             "severity_class": severity_class((f or {}).get("severity") if isinstance(f, dict) else None),
+             "cite": None}
+            for f in (legal.get("top_flags") or [])[:5]
+        ],
+    }
+
+
+def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, Any]:
+    """Plan against historical run-rate on the SAME axis maximum as page 4, so
+    the step-up the plan assumes is visible rather than asserted."""
+    fin = bundle.get("financials") or {}
+    hist = [r for r in (fin.get("table_rows") or []) if isinstance(r, dict)]
+    plan = [r for r in (fin.get("forecast_rows") or []) if isinstance(r, dict)]
+    rows = hist + plan
+    revs = [parse_money(r.get("revenue")) for r in rows]
+    margins = [parse_percent(r.get("ebitda_margin_pct")) for r in rows]
+    rev_pct = scale(revs)
+    return {
+        "chart": {
+            "series": [
+                {
+                    "label": f"{rows[i].get('year')}{'P' if i >= len(hist) else ''}",
+                    "bar1_pct": rev_pct[i], "bar1_value": _short(revs[i]),
+                    "bar2_pct": None, "bar2_value": None,
+                    "line_pct": None if margins[i] is None else max(0.0, min(100.0, margins[i])),
+                    "line_value": None if margins[i] is None else f"{margins[i]:.0f}%",
+                }
+                for i in range(len(rows))
+            ],
+            "bar1_name": "Revenue (P = plan)", "bar2_name": None, "line_name": "EBITDA margin %",
+            "axis_max_label": _short(max([v for v in revs if v is not None] or [0])),
+            "footnote": "Plan periods marked P. Same axis as the historical chart on the financial performance page.",
+        },
+        "assumptions": [
+            {"assumption": str(a.get("assumption") or ""), "support_label": severity_label(a.get("support")),
+             "support_class": severity_class(a.get("support")), "test": str(a.get("test") or "—")}
+            for a in (fin.get("forecast_assumptions") or [])[:5] if isinstance(a, dict)
+        ],
+        "levers": [
+            {"lever": str(l.get("lever") if isinstance(l, dict) else l), "size": (l or {}).get("size") if isinstance(l, dict) else None,
+             "owner": (l or {}).get("owner") if isinstance(l, dict) else None}
+            for l in ((bundle.get("company_framing") or {}).get("thesis") or {}).get("value_creation_levers", [])[:4]
+        ],
+        "take": narrative.get("forecast_take"),
+    }
+
+
+def _questions(bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    """Deduped, capped, and each carrying a "why it matters" line — a question
+    without a reason is not usable in a management meeting."""
+    out, seen = [], set()
+    for q in bundle.get("diligence_questions") or []:
+        if not isinstance(q, dict):
+            continue
+        text = str(q.get("question") or "").strip()
+        if not text or text.lower() in seen:
+            continue
+        seen.add(text.lower())
+        out.append({"category": str(q.get("category") or "General"), "question": text, "why": q.get("why_it_matters")})
+        if len(out) >= CAP_QUESTIONS:
+            break
+    return out

@@ -1,0 +1,486 @@
+# UC13 — Final Diligence Report + full-VDR MPS + UI progress signal · Plan
+
+> **Step 0 deliverable** for `CLAUDE_CODE_PROMPT_final_report_and_progress.md`.
+> Branch: `feature/uc13-final-report-and-progress` (cut from `feature/anthropic-sdk-migration`).
+> Working catalog: **`uc13_preview`**. `uc13` is not touched.
+>
+> **Status: awaiting review.** No production code has been written yet. The
+> executable task files live in [`tasks/`](tasks/) and are meant to be run in
+> order; each one closes its own line in §10 (Definition of Done).
+
+---
+
+## 1. What was read, and what the code actually says
+
+Everything in §8 of the task prompt was read before this plan was written. Four
+findings changed the design, so they are recorded here rather than in a task file.
+
+### 1.1 `_mps_table` is genuinely column-generic — verified, not assumed
+
+`rainmaker_view.py:743` `_mps_table(mps_runs)` iterates `mps_runs`, appending one
+`{"header": …}` per run to `columns`, one `mps_total(scores)` per run to
+`total_cells`, and one cell per run to each row's `score_cells`. Threshold,
+verdict, `mps_status`, `degraded_reason` and the commentary bullets all come from
+`mps_runs[-1]` (`rainmaker_view.py:786-789`, `:805`). The ER template loops
+`mps.columns` / `row.score_cells` / `mps.total_cells`
+(`rainmaker_opportunity_summary.html.j2:338, :348, :364`), so **two runs render as
+two score columns and two total cells with no template change.**
+
+Consequence for ordering: pass `[cim_run, full_run]`, never the reverse. The
+*last* run owns the verdict, the threshold, and the commentary — and the verdict
+we want on the page is the one scored over the whole data room.
+
+### 1.2 The CIM-stage MPS run must be read back from Delta, not held in memory
+
+`build_rainmaker_summary` returns only `{"html", "pdf", "synthesis_status",
+"mps_status"}` (`rainmaker_entry.py:76-80`) — the MPS run dict itself is discarded.
+`rainmaker_entry.py` is read-only for this task, so there is no in-memory route to
+the CIM run.
+
+The Delta route works. `mps_agent.py:454-488` persists `run_mode`, `generated_at`,
+`total`, `threshold`, `verdict`, `mps_status`, `categories_json`, `cim_detected`,
+`retrieval_used` to `{catalog}.analysis.mps_score`, append-only, one row per
+generation. Rehydrating `{"run_mode", "generated_at", "categories":
+json.loads(categories_json), "threshold", "mps_status"}` is exactly the shape
+`_mps_table` consumes for a non-last column.
+
+**Answer to §8 question 2: yes.** One caveat, and it is harmless: `degraded_reason`
+is *not* a persisted column, so a rehydrated run carries `degraded_reason=None`.
+That value is only read off `mps_runs[-1]`, and the CIM run is never last.
+
+### 1.3 Stage-2 ingestion really does skip what the CIM pass already parsed
+
+`parse_manifest.py:350-370`: a doc is re-queued only when `force_all`, or its
+`doc_id` is in `force_ids`, or its `source_mtime`/`source_size` differ from
+`doc_status`; a doc whose `status == COMPLETE` and whose stat is unchanged is
+skipped. Stage 2 passes **no** `force`, so the CIM documents parsed in stage 1
+(which ran with `force="company"`) are skipped rather than re-parsed.
+
+**Answer to §8 question 1: yes**, for the parse step. Two costs that are *not*
+skipped and should be expected in stage-2 wall-clock: `download_upload` re-lists
+and re-downloads the whole room, and `document_classifier` re-classifies it.
+Neither is avoidable without touching `run_ingestion_pipeline` (out of scope).
+
+### 1.4 None of the eight bundle fields the view layer wants exist today
+
+Grepped against `field_mapping.py`, `bundle_builder.py` and `populate.py`:
+
+| Field the view reads | Exists? | Nearest thing that does exist |
+|---|---|---|
+| `financials.segment_performance` | ✗ | `revenue_by_segment` (field_mapping.py:223) |
+| `financials.forecast_rows` | ✗ | — |
+| `financials.forecast_assumptions` | ✗ | — |
+| `financials.growth_bridge` | ✗ | — |
+| `revenue_quality.revenue_type_mix` | ✗ | — |
+| `revenue_quality.client_distribution` | ✗ | `clients` (field_mapping.py:523) |
+| `qoe.addbacks` | ✗ | `addback_schedule` (field_mapping.py:586) |
+| `diligence_questions[].why_it_matters` | ✗ | — |
+
+Per §4.1 of the prompt: where the difference is a **rename with a compatible
+shape**, the view layer reads the existing name; where the field genuinely does
+not exist, the section renders its "not extracted" state and the field goes on the
+follow-up list in §9. **T02 does that audit shape-by-shape and is the only task
+allowed to touch those reads.** Nothing is invented in the view layer.
+
+---
+
+## 2. Exact call sequence after the change
+
+### Branch A — a CIM exists
+
+```
+run_vdr_rainmaker(table_name, record_id, special_folder, no_cim_mode)
+├─ _get_spark / _read_vdr_record
+├─ ensure_progress_columns(spark, table_name)                      # NEW, idempotent ALTER
+├─ _update_vdr_record(processing_status="processing")              # unchanged
+├─ progress = Progress(spark, table_name, record_id, _STAGES_CIM)  # NEW
+│
+│  ── STAGE 1 — the executive review. Byte-for-byte the flow that ships today. ──
+├─ progress.start("cim_detection")
+├─ cim_files = _detect_cim_files(...)                              # unchanged
+├─ progress.complete("cim_detection", {"cim_files": cim_files})
+├─ progress.start("cim_ingestion")
+├─ run_ingestion_pipeline(file_whitelist=cim_files,
+│                         parse_priority_tiers="all", force="company")   # unchanged
+├─ strict parse guard → raises on != SUCCESS                       # unchanged (whole run fails)
+├─ progress.complete("cim_ingestion")
+├─ progress.start("cim_agents")
+├─ run_pipeline(run_orchestrator=False)                            # unchanged
+├─ progress.complete("cim_agents")
+├─ progress.start("executive_review_ready")
+├─ rendered = build_rainmaker_summary(run_mode="cim_only")         # unchanged
+├─ output_dir = _build_output_dir(company_name); copy executive_summary.pdf
+│               + rainmaker_opportunity_summary.html                # unchanged
+├─ progress.complete("executive_review_ready", artifacts=[…])
+├─ _update_vdr_record(results_location=output_dir + "/")           # NEW: published EARLY
+│
+│  ── STAGE 2 — the final report. New. Cannot fail the run. ──────────────────
+├─ stage2 = _run_final_report_stage(
+│       spark, table_name, record_id, company_name, output_dir, progress,
+│       run_mode="full_vdr_after_cim", run_ingest=True, run_agents=True,
+│       prior_run_modes=("cim_only",), llm_endpoint=…, vision_endpoint=…)
+│   ├─ progress.start("vdr_ingestion")
+│   ├─ run_ingestion_pipeline(company_name, catalog=VDR_CATALOG,
+│   │                         vision_endpoint=…, parse_priority_tiers="1,2")
+│   │                         # NO file_whitelist, NO force → incremental (§1.3)
+│   ├─ strict parse guard → on != SUCCESS: progress.fail("vdr_ingestion", …)
+│   │                       and RETURN {"status": "failed", …}   (no raise)
+│   ├─ progress.complete("vdr_ingestion")
+│   ├─ progress.start("vdr_agents"); run_pipeline(run_orchestrator=False)
+│   ├─ progress.complete("vdr_agents")
+│   ├─ progress.start("final_report")
+│   ├─ built = build_final_report(company_name, VDR_CATALOG, spark, llm_endpoint,
+│   │                             run_mode="full_vdr_after_cim",
+│   │                             prior_mps_runs=_load_prior_mps_runs(…, ("cim_only",)))
+│   │          # never raises; returns {"status", "html"?, "pdf"?, "pdf_degraded"?, …}
+│   ├─ copy final_report.pdf / final_report.html → output_dir
+│   └─ progress.complete("final_report") ; progress.complete("final_report_ready", artifacts=[…])
+│
+└─ _update_vdr_record(processing_status="done",
+                      completion_status="success" | "partial",
+                      results_location=output_dir + "/",  error_message=… if partial,
+                      token counters, updated_at)
+```
+
+### Branch B — no CIM
+
+```
+run_vdr_rainmaker(...) → _run_full_room_flow(...)
+├─ progress = Progress(spark, table_name, record_id, _STAGES_FULL)
+├─ progress.start("vdr_scan")      # the detect_cim call that returned []
+├─ progress.complete("vdr_scan")
+├─ progress.start("vdr_pipeline")                                  # see §4 for why one stage
+├─ run_full_pipeline(company_name, catalog=VDR_CATALOG, …)         # unchanged
+├─ strict parse guard + "no successful agents" guard → raise       # unchanged
+├─ progress.complete("vdr_pipeline")
+├─ progress.start("executive_review_ready")
+├─ build_rainmaker_summary(run_mode="full_vdr_no_cim")             # unchanged
+├─ copy executive_summary.pdf + rainmaker_opportunity_summary.html + full_report.docx
+├─ progress.complete("executive_review_ready", artifacts=[…])
+├─ _update_vdr_record(results_location=output_dir + "/")           # NEW: published EARLY
+├─ stage2 = _run_final_report_stage(..., run_mode="full_vdr_no_cim",
+│                                   run_ingest=False, run_agents=False,
+│                                   prior_run_modes=())             # the room is already ingested & scored
+│   └─ stages: final_report → final_report_ready
+└─ _update_vdr_record(done, success|partial, …)
+```
+
+The two branches share **one** stage-2 helper, `_run_final_report_stage()`. They
+differ only in three arguments: `run_mode`, whether ingestion/agents still have
+work (`run_ingest` / `run_agents`), and whether a prior MPS run exists
+(`prior_run_modes`).
+
+---
+
+## 3. MPS — where the two runs are read and written
+
+| | Branch A | Branch B |
+|---|---|---|
+| CIM run — written | `build_rainmaker_summary(run_mode="cim_only")` → `MPSAgent().score` → append row to `uc13_preview.analysis.mps_score` | n/a |
+| Final run — written | `build_final_report(run_mode="full_vdr_after_cim")` → a **new** `MPSAgent().score` call over the complete bundle → its own appended row | same, `run_mode="full_vdr_no_cim"` |
+| Read for the page | `_load_prior_mps_runs()` reads back the newest `run_mode="cim_only"` row for the company from `mps_score`; passed as `prior_mps_runs` | `prior_mps_runs=None` |
+| Passed to the view | `_mps_table(mps_runs=[cim_run, full_run])` → 2 columns, 2 totals | `[full_run]` → 1 column |
+
+Both runs go through `MPSAgent().score(...)`, which never raises: a failure
+degrades to `mps_status="degraded"` and the page still renders its seven-row
+skeleton. Nothing about the MPS page is redesigned, re-laid-out or re-summarised —
+it is `rainmaker_view._mps_table` rendered into the same markup (§5).
+
+**The one edit permitted in `rainmaker_view.py`** is the additive dictionary entry:
+
+```python
+_MPS_RUN_MODE_LABELS = {
+    "cim_only": "CIM-only preview",
+    "full_vdr_no_cim": "Full data room",
+    "full_vdr_after_cim": "Full data room",   # NEW
+}
+```
+
+Label choice: **"Full data room"**, deliberately identical to `full_vdr_no_cim`.
+The header already carries the date (`_mps_column_header`, `rainmaker_view.py:674`),
+so the two columns read "CIM-only preview · 2026-09-03" and "Full data room ·
+2026-09-03". The reader is being told *what was scored*, not which internal branch
+produced it, and `full_vdr_after_cim` vs `full_vdr_no_cim` is not a distinction the
+deal team has any use for.
+
+**Score-movement explanation (FEAT-04) — gap, not built.** `MPSAgent.score()` scores
+one bundle in isolation; it is never given a prior run and has no mechanism to
+explain a delta. Nothing in `mps_rubric.py` or the rubric file carries a
+"movement" concept either. Per §2.3 of the prompt this is **recorded as a gap
+rather than invented here** — see §9, follow-up F-1. The two columns show the
+movement; nothing in this change explains it in prose.
+
+---
+
+## 4. Progress-stage vocabulary, and the one place it deviates from the prompt
+
+`processing_status` keeps its exact current vocabulary (`submitted` → `processing`
+→ `done` | `error`) and stays `processing` until the whole run finishes. An
+unmodified UI is unaffected. Progress lives in four **additive, nullable** columns
+on `rallyday_partners_llc.default.companies_vdr_history`: `progress_stage`,
+`progress_pct`, `progress_json`, `stage_updated_at`.
+
+### Branch A (CIM) — as proposed
+
+| key | label |
+|---|---|
+| `cim_detection` | Scanning the data room for a CIM |
+| `cim_ingestion` | Ingesting the CIM |
+| `cim_agents` | Running the diligence agents on the CIM |
+| `executive_review_ready` | Executive review ready |
+| `vdr_ingestion` | Ingesting the full data room |
+| `vdr_agents` | Running the diligence agents on the full data room |
+| `final_report` | Building the final diligence report |
+| `final_report_ready` | Final report ready |
+
+### Branch B (no CIM) — **deviates: `vdr_ingestion` + `vdr_agents` collapse to `vdr_pipeline`**
+
+| key | label |
+|---|---|
+| `vdr_scan` | Scanning the data room |
+| `vdr_pipeline` | Ingesting the data room and running the diligence agents |
+| `executive_review_ready` | Executive review ready |
+| `final_report` | Building the final diligence report |
+| `final_report_ready` | Final report ready |
+
+**Why.** §5 of the prompt says "the progress granularity is whatever the runner can
+see from outside" and invites better boundaries if the code suggests them. On
+Branch B the runner makes **one** call — `run_full_pipeline()` — which does Phase 1-2
+*and* Phase 3-5 internally and returns only when both are finished. The runner
+cannot observe the ingestion→agents boundary from outside. Emitting two stages
+would mean either inventing a `finished_at` for `vdr_ingestion` (a fabricated
+timestamp on a record the deal team reads) or back-filling both stages as `done` at
+the same instant (a progress bar that sits at one stage for 40 minutes and then
+jumps two). One honest stage beats two dishonest ones.
+
+Rejected alternative: thread a progress callback into `run_full_pipeline()`. It is
+not on the read-only list, so it is legal — but it puts progress plumbing inside a
+shared Phase 1-5 entry point used by three other callers, for a cosmetic gain.
+Revisit only if the UI asks for it.
+
+`progress_json` payload, per stage: `key`, `label`, `status`
+(`pending`/`processing`/`done`/`failed`/`skipped`), `started_at`, `finished_at`,
+`artifacts`. The whole ordered list ships on every write, so the UI renders the bar
+from that one field without knowing the branch in advance.
+
+`progress_pct` is monotonic and never regresses: it is
+`round(100 * terminal_stages / total_stages)`, clamped to its own previous value,
+and is only forced to `100` when the run reaches its terminal update.
+
+### Publishing the ER early
+
+At `executive_review_ready`, **before stage 2 starts**, the runner writes
+`results_location` (the timestamped VDR volume dir, with the trailing `/` the
+existing code uses) onto the record. The ER filenames are unchanged
+(`executive_summary.pdf`, `rainmaker_opportunity_summary.html`) — the UI resolves
+them by name — and they are also listed in that stage's `artifacts`. The deal team
+can download the executive review while stage 2 is still running.
+
+### If the ALTER is refused
+
+Preferred and assumed: the four columns. If `ALTER TABLE … ADD COLUMNS IF NOT
+EXISTS` on the UI-owned table turns out not to be permitted (T08 checks this
+against the warehouse before writing the emitter), fall back to
+`uc13_preview.analysis.vdr_progress`, keyed by `record_id`, same payload — and
+record the refusal here. The columns are preferred because they keep the UI to one
+query.
+
+---
+
+## 5. MPS markup: one copy, not two — open decision D-01
+
+The attached `final_report.html.j2` carries a faithful **replica** of the ER's
+`mps-table` block and its CSS. Two copies of the same markup drift.
+
+**Proposal (D-01):** extract the block into
+`databricks/agents/exec_summary/templates/_mps_page.html.j2` and `{% include %}` it
+from both templates. This requires a *mechanical* edit to
+`rainmaker_opportunity_summary.html.j2` — which is otherwise read-only for this
+task — swapping the block for an include, with byte-identical rendered output.
+
+T06 produces the evidence before anything is swapped: it renders the ER from a
+fixture bundle before and after the change and diffs the two HTML files, and only
+proceeds if the diff is empty. **If D-01 is refused, T06's fallback path ships
+instead:** the replica stays, and a parity test renders both documents from the
+same bundle + MPS run and asserts the extracted MPS section markup is identical.
+Either way the parity test ships — it is what stops the replica from drifting, and
+it guards the include if the swap lands.
+
+D-01 is the only decision in this plan that needs an answer before its task runs.
+
+---
+
+## 6. How a stage-2 failure degrades
+
+By the time stage 2 starts, the ER is on disk, copied to the VDR volume, and
+`results_location` already points at it. Nothing in stage 2 may take that away.
+
+- `_run_final_report_stage()` is wrapped end-to-end in `try/except`. It **never
+  raises**; it returns `{"status": "success" | "failed", "stage": <key>, "error":
+  str | None, "files": [...]}`.
+- The **strict parse guard is kept** for stage-2 ingestion — a non-`SUCCESS`
+  `ingestion_parser` still refuses to build on stale chunks — but instead of
+  raising it marks that stage `failed` and returns early. The run does not die.
+- `build_final_report()` never raises either (same contract as
+  `build_rainmaker_summary`): internal failures degrade the affected section, and
+  an MPS failure degrades to `mps_status="degraded"` with the seven-row skeleton
+  still on the page.
+- Terminal record state:
+
+| Outcome | `processing_status` | `completion_status` | `results_location` | `progress_json` |
+|---|---|---|---|---|
+| Everything succeeded | `done` | `success` | ER + final report dir | all stages `done`, `progress_pct=100` |
+| ER ok, stage 2 failed | `done` | `partial` | still the ER dir | ER stages `done`, failing stage `failed`, later stages `pending`, `error_message` set |
+| Stage 1 failed | `error` | `failure` | unset | stage that failed marked `failed` |
+
+**`completion_status="partial"` is an assumption that T09 must verify first.** The
+only values this repo writes today are `success` and `failure`
+(`run_vdr_rainmaker.py:222/419/449`, `run_vdr_pipeline.py`); the column's DDL and
+any UI-side vocabulary are owned outside this repo. T09 checks the live table for a
+CHECK constraint and asks whether the UI switches on the value. If `partial` is not
+acceptable, the fallback is `completion_status="success"` with `error_message` set
+and `progress_json` carrying the failed stage — and that substitution gets recorded
+here.
+
+---
+
+## 7. Files created and modified
+
+### Created
+
+| Path | Why |
+|---|---|
+| `databricks/agents/exec_summary/templates/final_report.html.j2` | The attached 11-page template, moved into the package unchanged. |
+| `databricks/agents/exec_summary/templates/_mps_page.html.j2` | The shared MPS partial — **only if D-01 is approved**. |
+| `databricks/agents/exec_summary/final_report_view.py` | The attached deterministic bundle→template projection. |
+| `databricks/agents/exec_summary/final_report_entry.py` | The bridge: bundle → validate → verify → narrative → MPS → render. Sibling of `rainmaker_entry.py`. |
+| `databricks/jobs/scripts/vdr_progress.py` | The thin progress emitter the runner calls between steps. |
+| `tests/fixtures/final_report_sample_bundle.py` | The illustrative bundle — test fixture only, never shipped in the package. |
+| `tests/test_final_report_view.py` | The numeric contract (`None` never becomes `0`, caps, screens, CAGR). |
+| `tests/test_final_report_render.py` | Four render scenarios + the MPS parity assertion. |
+| `tests/test_vdr_progress.py` | Stage transitions, monotonic pct, emitter swallows a raising spark. |
+
+### Modified
+
+| Path | Why |
+|---|---|
+| `databricks/agents/exec_summary/renderers.py` | Add `render_final_report()`; add the optional `report=` kwarg to `ReportRenderer.render()`; give the PyMuPDF fallback an A4 **portrait** rect for this template. |
+| `databricks/agents/exec_summary/rainmaker_view.py` | One additive entry in `_MPS_RUN_MODE_LABELS`. Nothing else. |
+| `databricks/agents/exec_summary/templates/rainmaker_opportunity_summary.html.j2` | **Only if D-01 is approved** — mechanical block→include swap, byte-identical output. |
+| `databricks/jobs/scripts/run_vdr_rainmaker.py` | Stage 2 on both branches via one shared `_run_final_report_stage()`; progress calls; early `results_location`; the partial-completion terminal state. |
+| `databricks/workflows/vdr_rainmaker_poc.yml` | Description only — it now produces two deliverables. **No parameters added** (fixed params block the UI's `run-now`). |
+| `databricks/CLAUDE.md` | Required: the two-stage flow, the new deliverables, the progress columns, the stage vocabulary. |
+| `.gitignore` | One negation so `docs/plans/final_report/**` is tracked — `docs/*` is ignored, and this plan is a DoD artifact. |
+
+### Read-only — must show zero diff at the end (`git diff --stat`)
+
+`rainmaker_view.py`\* · `rainmaker_narrative.py` · `mps_agent.py` · `mps_rubric.py` ·
+`bundle_builder.py` · `validate.py` · `absence_check.py` ·
+`rainmaker_opportunity_summary.html.j2`\*\*
+
+\* except the one additive `_MPS_RUN_MODE_LABELS` entry (§3).
+\*\* except the D-01 mechanical include swap, if approved (§5).
+
+---
+
+## 8. Tasks
+
+Ordered. Each file in [`tasks/`](tasks/) is self-contained and closes its own DoD
+line. T08 is independent of T01-T07 and can run at any point.
+
+| # | Task | Gate |
+|---|---|---|
+| [T01](tasks/T01_land_inputs.md) | Land the template, the view module and the fixture in their final locations | imports clean |
+| [T02](tasks/T02_bundle_field_audit.md) | Audit the 8 bundle fields; wire renames, record the genuinely-absent ones | no invented fields |
+| [T03](tasks/T03_view_numeric_tests.md) | `test_final_report_view.py` — the numeric contract | green |
+| [T04](tasks/T04_render_final_report.md) | `render_final_report()` + `report=` kwarg + A4 portrait fallback | green |
+| [T05](tasks/T05_final_report_entry.md) | `build_final_report()` + MPS read-back + the run-mode label | green |
+| [T06](tasks/T06_mps_parity.md) | D-01 evidence, the include swap or the replica, and the parity test | **needs D-01 answer** |
+| [T07](tasks/T07_render_tests.md) | `test_final_report_render.py` — four scenarios | green |
+| [T08](tasks/T08_vdr_progress.md) | `vdr_progress.py` + the ALTER + `test_vdr_progress.py` | green |
+| [T09](tasks/T09_runner_stage_two.md) | `_run_final_report_stage()` wired into both branches | green |
+| [T10](tasks/T10_docs_and_closeout.md) | `databricks/CLAUDE.md`, the YAML description, the read-only diff proof | DoD closed |
+
+---
+
+## 9. Assumptions and follow-ups
+
+**Assumptions made because the repo did not answer the question.**
+
+- **A-1.** `completion_status="partial"` is accepted by the UI. Unverified — see §6;
+  T09 checks and substitutes if not.
+- **A-2.** `ALTER TABLE … ADD COLUMNS IF NOT EXISTS` is permitted on
+  `rallyday_partners_llc.default.companies_vdr_history`. Unverified — see §4;
+  T08 checks and falls back to a separate Delta table if not.
+- **A-3.** `bundle["meta"]` carries no `run_mode` key (`bundle_builder.py:652-668`
+  confirms it does not), yet `final_report_view` derives its cover `mode_label`
+  from `meta.get("run_mode")` — so today every report would read "Full data room",
+  including a CIM-first one. Resolution: `final_report_view()` takes an additive
+  `run_mode: str | None = None` parameter supplied by `build_final_report`, which
+  already knows the branch as a fact. This is an extension of a module we own, not
+  a restructure, and it keeps the rule that `run_mode` is never re-derived from
+  `bundle.meta`.
+- **A-4.** Two files named in §0 of the prompt were not delivered with the others:
+  `UC13_Final_Report_Template_Proposal.md` (design rationale, read-for-intent, not
+  shipped) and `render_preview.py` (the throwaway preview harness). Neither is
+  required to build anything here — the template and the view module are
+  self-describing and the rendered preview HTML *was* delivered — so work proceeds
+  without them. If the proposal document surfaces, re-read §5-§9 of it against
+  T02's field audit.
+- **A-5.** The stage-2 full-room ingestion uses `parse_priority_tiers="1,2"` (the
+  runner default), not `"all"`. `"all"` is a CIM-scoping choice that only makes
+  sense against a whitelist of a handful of files; running it over a whole data
+  room is a large, unbudgeted parse.
+
+**Follow-up work, deliberately not built here.**
+
+- **F-1.** Score-movement explanation between the two MPS columns (FEAT-04). No
+  agent produces it; see §3.
+- **F-2.** The bundle fields T02 confirms genuinely absent — each needs an agent
+  change to populate, and each corresponding report section renders "not
+  extracted" until then. T02 writes the final list into this section.
+- **F-3.** `docs/*` is gitignored repo-wide. This plan and its tasks are tracked
+  only because of the `.gitignore` negation listed in §7; if that negation is
+  reverted, this plan disappears from a fresh clone.
+
+---
+
+## 10. Definition of done
+
+Closed by the task that owns each line. Do not tick a box without the evidence
+named next to it.
+
+- [ ] **DoD-1** — `docs/plans/final_report/final_report_plan.md` exists, is
+      reviewed, and matches what was built. *(closed by T10, after every other box)*
+- [ ] **DoD-2** — Branch A produces, in one run: the existing ER PDF/HTML with its
+      CIM-only MPS, **then** the final report PDF/HTML whose MPS page is the same
+      page with a second score column for the full-data-room run.
+      *(T05 + T09; evidence: `test_final_report_render.py` two-column case +
+      `test_run_vdr_rainmaker.py` branch-A stage-2 case)*
+- [ ] **DoD-3** — Branch B produces the existing ER + MPS, then the final report
+      with a one-column MPS. In both branches the MPS appears exactly once, on its
+      own page. *(T07 + T09; evidence: the render test asserts a single
+      `class="page mps"` section)*
+- [ ] **DoD-4** — No file listed read-only in §7 has changed, beyond the two
+      documented exceptions. *(T10; evidence: `git diff --stat` against the branch
+      point, pasted into T10's report)*
+- [ ] **DoD-5** — A stage-2 failure leaves the ER downloadable and the record
+      honest about what failed. *(T09; evidence: a test that fails stage-2
+      ingestion and asserts `results_location` still points at the ER dir)*
+- [ ] **DoD-6** — The record exposes a progress stage list an unmodified UI can
+      ignore and an updated UI can render. *(T08 + T09; evidence:
+      `test_vdr_progress.py` + a runner test asserting `processing_status` never
+      leaves its three legal values)*
+- [ ] **DoD-7** — `databricks/CLAUDE.md` describes the new flow accurately. *(T10)*
+- [ ] **DoD-8** — The illustrative `sample_bundle.py` is not in the shipped
+      package — test fixtures only. *(T01; evidence: it lives under
+      `tests/fixtures/` and nothing under `databricks/` imports it)*
+
+### Extra gates this plan adds
+
+- [ ] **DoD-9** — D-01 (§5) has an explicit answer from Hector, and the code
+      matches it. *(T06)*
+- [ ] **DoD-10** — A-1 and A-2 (§9) are resolved against the live warehouse, and
+      §4/§6 of this plan record the actual answers. *(T08, T09)*
+- [ ] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
+      into §9. *(T02)*
