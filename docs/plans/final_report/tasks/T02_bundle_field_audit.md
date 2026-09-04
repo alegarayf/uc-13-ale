@@ -74,7 +74,33 @@ These are **leads, not answers** — verify the shape of each before using it.
 
 4. For every ABSENT field, change nothing in the code.
 
-5. **Implement A-3 from the plan while you are in this file.** Add an additive
+5. **De-duplicate the numeric helpers.** The module says so itself, in the comment
+   above them: `parse_money` / `parse_percent` are "inlined here only so this
+   module runs standalone for the stakeholder preview" and in-repo should import
+   from `agents.exec_summary.rainmaker_view` (`_parse_money` / `_parse_percent`).
+
+   Do it — two copies of the money/percent parser is the same drift risk D-01
+   addresses for the MPS markup, one layer down: if they diverge, the executive
+   review and the final report read the same extracted string as different
+   numbers.
+
+   How, carefully:
+   - `rainmaker_view.py` is **read-only** — import its existing private helpers,
+     do not rename them, do not add a public alias there.
+   - Keep the public names `parse_money` / `parse_percent` in
+     `final_report_view.py` (the template and the tests use them) as thin
+     delegations, so nothing else in the module changes shape.
+   - **Prove behavioural equivalence before deleting the inline bodies.** Write a
+     throwaway parametrized comparison over a spread of inputs — `None`, `""`,
+     `"$1.2M"`, `"1,234"`, `"(500)"`, `"12.5%"`, `"n/a"`, a bare `float`, a
+     negative — and assert both implementations agree. If they **disagree on any
+     input**, stop: keep the inline copy, and record the divergence in plan §9 as
+     a finding. A silent behaviour change in the parser would move numbers on the
+     page, which is worse than a duplicated helper.
+   - Keep the resulting comparison as a real test if it found nothing — it is
+     cheap and it pins the equivalence.
+
+6. **Implement A-3 from the plan while you are in this file.** Add an additive
    parameter to the public entry point:
 
    ```python
@@ -94,7 +120,7 @@ These are **leads, not answers** — verify the shape of each before using it.
    `run_mode` is a fact about which branch the caller took and is never re-derived
    from `bundle.meta`.
 
-6. Run the existing suite. Nothing should change: `pytest tests/ -q`.
+7. Run the existing suite. Nothing should change: `pytest tests/ -q`.
 
 ## Acceptance criteria
 
@@ -104,6 +130,9 @@ These are **leads, not answers** — verify the shape of each before using it.
       anywhere in `final_report_view.py`.
 - [ ] No file other than `final_report_view.py` was modified.
 - [ ] Caps are unchanged (`git diff` shows no `CAP_*` line touched).
+- [ ] `parse_money` / `parse_percent` delegate to `rainmaker_view`'s helpers, with
+      the equivalence evidence — or the inline copies survive with the divergence
+      written into plan §9. `rainmaker_view.py` itself has zero diff either way.
 - [ ] `final_report_view()` accepts `run_mode` and still works when it is omitted.
 - [ ] `pytest tests/ -q` unchanged.
 

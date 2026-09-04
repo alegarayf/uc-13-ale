@@ -493,6 +493,22 @@ line. T08 is independent of T01-T07 and can run at any point.
 - **F-2.** The bundle fields T02 confirms genuinely absent — each needs an agent
   change to populate, and each corresponding report section renders "not
   extracted" until then. T02 writes the final list into this section.
+- **F-5. The report's screening thresholds are Python constants, not config.**
+  `_SCREENS` in `final_report_view.py` is, in substance, a first-pass screening
+  rubric — 14 entries of `(metric, threshold, direction, sector)` covering
+  `tech_services` and `healthcare_services` — and it decides what the KPI page
+  flags. Unlike the MPS, whose rubric lives in `mps_rubric.yaml` and is editable
+  without a deploy, changing a screen here needs a code change. The same applies
+  to `_CONTENTS` (the 11-page table of contents) and the `CAP_*` format caps.
+
+  Not changed here: §0 of the task prompt says integrate the view module, not
+  restructure it, and the caps in particular are deliberately constants "at the
+  top of the view module". But if Rallyday wants to tune screens without shipping
+  code, the pattern already exists next door — a `report_screens.yaml` loaded the
+  way `mps_rubric.load_rubric()` loads its file, with the current tuple as the
+  default when the file is absent. Worth a decision once the first real reports
+  have been read.
+
 - **F-4. The early executive review needs a UI-side change to be *visible*
   early — this backend change alone does not deliver the time saving.** The
   backend does its part: on Branch A the ER lands in the usual timestamped VDR
