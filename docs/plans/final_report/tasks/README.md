@@ -45,5 +45,38 @@ point. **T06 is blocked** until decision D-01 (plan §5) has an explicit answer.
    dependencies mocked, no cluster needed). Do not introduce a new framework.
 10. **Every task ends by ticking its DoD lines** in `../final_report_plan.md` §10
     and appending a short evidence note. A box without evidence stays unticked.
-11. **One atomic Conventional Commit per task**, message given at the end of each
-    task file. Do not commit unrelated changes alongside.
+11. **One atomic Conventional Commit per task, then push.** Every task ends with
+    the same sequence, on the feature branch and nowhere else:
+
+    ```bash
+    git branch --show-current    # must be feature/uc13-final-report-and-progress
+    pytest tests/ -q             # green before the commit, not after
+    git add <only the files this task touched>
+    git commit -m "<the message at the end of the task file>"
+    git push -u origin feature/uc13-final-report-and-progress
+    ```
+
+    Rules that matter more than they look:
+
+    - **`git add` the files you touched, never `git add -A`.** This repo has a
+      large gitignore surface and untracked local workspaces; a blanket add sweeps
+      in things that must not ship.
+    - **Never commit on `main` or on `feature/anthropic-sdk-migration`.** Check the
+      branch before every commit — the plan branch was cut from the latter and it
+      is easy to end up back on it after a `git checkout`.
+    - **Do not commit unrelated changes alongside.** One task, one commit. If you
+      fixed something incidental, either revert it or commit it separately with its
+      own message.
+    - **Tests green before committing.** A red commit on this branch makes the
+      `git diff --stat` read-only proof in T10 much harder to interpret.
+    - Pushing this branch is safe with respect to the Databricks jobs: they run
+      whatever branch the shared Git folder is checked out to, and **nothing points
+      at this branch**. Do not run `databricks repos update` — one Git folder feeds
+      both VDR jobs and it can swap code mid-run (`databricks/CLAUDE.md`).
+    - **Never force-push**, and never rebase a commit that is already on the
+      remote.
+
+12. **If a task cannot be completed as written, stop and say so.** Write the reason
+    into `../final_report_plan.md` §9 and leave its DoD box unticked. A task that
+    half-lands silently is worse than one that reports a blocker — the DoD is the
+    only record of what actually shipped.
