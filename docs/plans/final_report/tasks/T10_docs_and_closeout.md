@@ -111,7 +111,12 @@ hand Hector the checklist for a real run:
 
 - trigger the VDR job for a CIM-bearing company and confirm two deliverables land
   in the timestamped volume dir;
-- confirm the record's `results_location` is populated **before** the run finishes;
+- confirm the record's `results_location` is populated **before** the run finishes,
+  and check what the Project Lighthouse UI actually does with it at that moment —
+  plan §9 F-4: if the UI gates the download on `processing_status == "done"`, the
+  early ER is invisible and the time saving is lost in the presentation layer.
+  Report that finding to whoever owns that UI; do **not** work around it by
+  flipping `processing_status` early;
 - confirm the final report's MPS page shows two score columns;
 - trigger a no-CIM company and confirm one score column and five stages;
 - check `progress_json` renders a sensible stage list at a few points mid-run.

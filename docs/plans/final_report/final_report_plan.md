@@ -477,6 +477,30 @@ line. T08 is independent of T01-T07 and can run at any point.
 - **F-2.** The bundle fields T02 confirms genuinely absent — each needs an agent
   change to populate, and each corresponding report section renders "not
   extracted" until then. T02 writes the final list into this section.
+- **F-4. The early executive review needs a UI-side change to be *visible*
+  early — this backend change alone does not deliver the time saving.** The
+  backend does its part: on Branch A the ER lands in the usual timestamped VDR
+  volume dir under its usual filenames, and `results_location` is written onto
+  the record at the `executive_review_ready` stage, long before the run ends
+  (§2, §4). But `processing_status` deliberately stays `processing` until the
+  whole run finishes (§5 of the task prompt, so the existing UI keeps working).
+  If the UI reveals the download only when the status reads `done`, the deal team
+  still waits for stage 2 and the whole point of the two-stage split is lost in
+  the presentation layer.
+
+  The fix belongs to whoever owns the Project Lighthouse UI — it is not in this
+  repo (`frontend/`, `backend-api/` and `backend-ai/` contain no reference to
+  `companies_vdr_history`, `processing_status` or `results_location`), so it
+  could not be verified from here. What that UI needs: surface `results_location`
+  as soon as it is non-null, without gating on `processing_status`, and
+  optionally render the stage list from `progress_json`. Everything it needs is
+  already on the record.
+
+  **Do not "solve" this by flipping `processing_status` to `done` after stage 1.**
+  It is forbidden by §5, it is untrue — the run has not finished — and a second
+  `done` at the end would break any consumer that treats the transition as
+  terminal.
+
 - **F-3.** `docs/*` is gitignored repo-wide. This plan and its tasks are tracked
   only because of the `.gitignore` negation listed in §7; if that negation is
   reverted, this plan disappears from a fresh clone.
