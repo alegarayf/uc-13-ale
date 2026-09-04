@@ -98,6 +98,43 @@ not exist, the section renders its "not extracted" state and the field goes on t
 follow-up list in §9. **T02 does that audit shape-by-shape and is the only task
 allowed to touch those reads.** Nothing is invented in the view layer.
 
+**The gap is wider than the eight fields the prompt named.** A spot-check of other
+fields the view reads found more with no producer anywhere in the bundle layer —
+`revenue_quality.top_customers` (the top-customer table on p.5),
+`revenue_quality.client_count` and `customer_tenure` (two of the five customer
+tiles), `legal.coc_consent_count` (a legal tile). So T02's audit is scoped to
+**every** bundle path `final_report_view.py` reads, not just the eight; the eight
+are a starting list, not the boundary.
+
+### 1.5 The forecast page has no data path at all — bigger than a rename
+
+`forecast_agent.py` genuinely extracts what page 8 wants: `forecast_assumptions`,
+`revenue_build`, `haircut_revenue_by_period`, assumption credibility, downside
+sensitivities. It writes them to `{catalog}.analysis.forecast`.
+
+But **`BundleBuilder` never reads that table.** `AGENT_DELTA_TABLE_SUFFIXES`
+(`constants.py:4-11`) lists six agents — business_model, financial_trends,
+customer_quality, kpi, legal, quality_of_earnings — and `forecast` is not among
+them; `field_mapping.py` does not mention forecast anywhere (zero hits). So the
+data exists in Delta and never reaches the bundle. This is not a rename T02 can
+resolve.
+
+Three ways out, in increasing order of blast radius:
+
+1. **Read it in `build_final_report` and inject.** That function has `spark`, and
+   the bundle it holds is a plain dict. It can read `{catalog}.analysis.forecast`
+   and add `financials.forecast_rows` / `forecast_assumptions` to *its own* copy
+   before rendering. Additive, contained in a module we own, touches nothing
+   read-only, and leaves the ER's bundle exactly as it is. **Recommended.**
+2. Extend `constants.py` + `field_mapping.py` so every consumer gets it. Wider
+   reach, and it changes the bundle the ER is built from — `bundle_builder.py` is
+   read-only and `validate_bundle` runs over the result, so this needs care.
+3. Leave page 8 rendering "not extracted" and list it as follow-up.
+
+**Open decision D-03.** Not resolved in this plan; it is the difference between
+page 8 carrying the plan-vs-history chart and page 8 saying the chart could not be
+built.
+
 ---
 
 ## 2. Exact call sequence after the change

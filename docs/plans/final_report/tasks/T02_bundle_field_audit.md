@@ -18,6 +18,23 @@ the field goes on the follow-up list.
 from guessed data is not.** Do not invent a field, a default, or a synthesized
 value anywhere in this task.
 
+## Scope: every bundle read, not only the eight
+
+The eight fields below are the prompt's starting list, **not the boundary**. A
+spot-check found more reads with no producer anywhere in the bundle layer —
+`revenue_quality.top_customers`, `revenue_quality.client_count`,
+`revenue_quality.customer_tenure`, `legal.coc_consent_count`. Enumerate **every**
+`bundle.get(...)` path the module reads (grep the module for `bundle.get` and for
+each section builder's reads), classify all of them, and report the full list.
+A stakeholder preview is being built on this audit's answer, so an incomplete list
+is worse than a slow one.
+
+The forecast page is a special case — see plan §1.5, decision **D-03**. Its data
+exists in `{catalog}.analysis.forecast` but `BundleBuilder` never reads that
+table, so it is not a rename you can resolve here. Classify
+`financials.forecast_rows` / `forecast_assumptions` as ABSENT-pending-D-03 and
+move on; do not try to wire the forecast agent from this task.
+
 ## The eight fields, and where the view reads them
 
 | # | View reads | Read at | Feeds |
