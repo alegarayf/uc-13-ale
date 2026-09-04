@@ -515,6 +515,28 @@ here.
 
 ---
 
+## 7.5 Stakeholder preview artifacts
+
+[`preview/`](preview/) holds two documents built from the shipped template and the
+illustrative bundle, plus the harness that regenerates them:
+
+- `UC13_Final_Report_ANNOTATED_PREVIEW.html` — the delivered preview with a
+  per-panel **Ready / Partial / Pending data** badge and a legend.
+- `UC13_Final_Report_TODAY_PREVIEW.html` — the same template rendered with every
+  field that has no producer stripped: what a real run produces today.
+- `coverage.py` — the panel audit both are built from. **T02 owns re-running it**
+  and must regenerate both files in the same commit, so an artifact a stakeholder
+  was shown never drifts from what the pipeline does.
+
+The harness reproduces the delivered preview **byte for byte**, which is worth
+more than the preview itself: it proves the template and the view module integrate
+through exactly the wiring T04 is implementing (`report=`, `mps=`, `narrative=`,
+autoescape on for `*.html.j2`).
+
+Current coverage: **20 ready · 3 partial · 11 pending**.
+
+---
+
 ## 8. Tasks
 
 Ordered. Each file in [`tasks/`](tasks/) is self-contained and closes its own DoD

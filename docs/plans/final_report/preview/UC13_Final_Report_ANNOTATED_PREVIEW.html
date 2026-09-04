@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Northwind Care Partners (ILLUSTRATIVE SAMPLE) — Final Diligence Report</title>
+<style>
+  /* --- Page + palette: inherited from rainmaker_opportunity_summary.html.j2
+         so the two deliverables look like one family. -------------------- */
+  @page { size: A4 portrait; margin: 14mm 14mm 12mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1A1A1A; font-size: 9pt; line-height: 1.35; margin: 0;
+  }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+
+  /* Screen preview only. In print, @page owns the margins and this block does
+     not apply. On screen there is no @page, so the body needs its own gutter or
+     the text sits flush against the viewport edge — which is what a reviewer
+     opening the HTML in a browser or an embedded viewer sees.
+
+     This block MUST come after the base `body` rule: both are single-element
+     selectors, so at equal specificity the later one wins, and the base rule's
+     `margin: 0` silently cancels the auto centring if this sits above it.
+
+     max-width 202mm + 10mm side padding reproduces the printed content width
+     (A4 210mm less 14mm margins = 182mm) exactly, so line breaks and chart
+     proportions on screen match the PDF. */
+  @media screen {
+    body {
+      max-width: 202mm;
+      margin: 0 auto;
+      margin-inline: auto;
+      padding: 8mm 10mm;
+    }
+    .page { border-bottom: 0.5pt dashed #BFD0E8; padding-bottom: 8mm; margin-bottom: 10mm; }
+    .page:last-child { border-bottom: 0; }
+  }
+
+
+  h1 { color: #1F3864; font-size: 20pt; margin: 0 0 1mm 0; text-transform: uppercase; letter-spacing: -0.01em; }
+  h2.section { color: #1F3864; font-size: 14pt; margin: 0 0 0.5mm 0; }
+  h3.block {
+    color: #FFF; background: #1F3864; font-size: 7.5pt; font-weight: bold;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 1.2mm 2.5mm; margin: 0 0 2mm 0;
+  }
+  h3.block.warn { background: #C2600D; }
+  h3.block.plain { background: #F2F4F7; color: #1F3864; }
+  h4.mini { color: #595959; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1.5mm 0; }
+  .eyebrow { color: #C2600D; font-weight: bold; font-size: 8pt; letter-spacing: 0.08em; text-transform: uppercase; }
+  .subtitle { color: #595959; font-size: 9.5pt; }
+  .meta { color: #595959; font-size: 7.5pt; }
+  .divider { border-top: 2pt solid #1F3864; margin: 2.5mm 0 4mm 0; }
+
+  .running-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    color: #595959; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.04em;
+    border-bottom: 0.5pt solid #BFD0E8; padding-bottom: 1.2mm; margin-bottom: 3.5mm;
+  }
+  .running-header .company { color: #1F3864; font-weight: bold; }
+  .footer { color: #595959; font-size: 6.5pt; border-top: 0.5pt solid #BFD0E8; padding-top: 1.2mm; margin-top: 4mm; }
+
+  /* --- Callouts ------------------------------------------------------- */
+  .verdict { border-left: 3pt solid #1F3864; background: #EEF3FA; padding: 3mm 4mm; margin: 0 0 4mm 0; }
+  .verdict .label { color: #1F3864; font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+  .verdict .call { font-size: 13pt; font-weight: bold; color: #1F3864; display: block; margin: 0.5mm 0 1mm 0; }
+  .verdict.pass { border-left-color: #C2600D; background: #FCEEE0; }
+  .verdict.pass .call, .verdict.pass .label { color: #C2600D; }
+  .one-liner { font-style: italic; background: #F2F4F7; border-left: 3pt solid #BFD0E8; padding: 2mm 3.5mm; margin: 0 0 4mm 0; }
+  .take { background: #F2F4F7; padding: 2mm 3mm; margin: 2mm 0 0 0; font-size: 8.5pt; }
+  .take strong { color: #1F3864; }
+  .nodata { color: #595959; font-style: italic; font-size: 8.5pt; }
+
+  /* --- Tiles ---------------------------------------------------------- */
+  .tiles { display: flex; gap: 2.5mm; margin: 0 0 4mm 0; flex-wrap: wrap; }
+  .tile { flex: 1 1 28mm; background: #F2F4F7; border: 0.5pt solid #BFD0E8; border-radius: 1.5mm; padding: 2.5mm 2mm; text-align: center; }
+  .tile .value { display: block; color: #1F3864; font-size: 14pt; font-weight: bold; line-height: 1.1; }
+  .tile .label { display: block; color: #595959; font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.03em; margin-top: 0.8mm; }
+  .tile .sub { display: block; color: #1A1A1A; font-size: 7pt; margin-top: 0.5mm; }
+  .tile.flag { border-color: #C2600D; background: #FCEEE0; }
+  .tile.flag .value { color: #C2600D; }
+
+  /* --- Tables --------------------------------------------------------- */
+  table.dt { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 0 3mm 0; }
+  table.dt th, table.dt td { border-bottom: 0.5pt solid #BFD0E8; padding: 1.2mm 1.8mm; text-align: right; vertical-align: top; font-size: 8pt; }
+  table.dt th { color: #FFF; background: #1F3864; font-size: 6.8pt; text-transform: uppercase; letter-spacing: 0.03em; font-weight: bold; }
+  table.dt th:first-child, table.dt td:first-child { text-align: left; }
+  table.dt tr.total td { background: #EEF3FA; font-weight: bold; color: #1F3864; }
+  table.dt tr.sub td:first-child { padding-left: 4mm; color: #595959; }
+  table.dt td.calc { background: #EEF3FA; font-weight: bold; color: #1F3864; }
+  table.dt th.calc { background: #17284C; }
+  table.dt.left td, table.dt.left th { text-align: left; }
+  .chip { display: inline-block; padding: 0.3mm 1.6mm; border-radius: 1mm; font-size: 6.8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em; }
+  .chip.high { background: #F8D7D5; color: #9C2A20; }
+  .chip.medium { background: #FCEEE0; color: #C2600D; }
+  .chip.low { background: #E4EFE1; color: #3D6B34; }
+  .chip.neutral { background: #F2F4F7; color: #595959; }
+  sup.cite { color: #4A72B8; font-size: 6pt; }
+
+  /* --- Layout helpers ------------------------------------------------- */
+  .cols-2 { display: flex; gap: 5mm; margin-bottom: 4mm; }
+  .cols-2 > * { flex: 1; min-width: 0; }
+  .cols-3 { display: flex; gap: 4mm; margin-bottom: 4mm; }
+  .cols-3 > * { flex: 1; min-width: 0; }
+  .card { border: 0.5pt solid #BFD0E8; border-radius: 1.5mm; overflow: hidden; }
+  .card .body { padding: 0 2.5mm 2mm 2.5mm; }
+  ul.b { margin: 0 0 2mm 0; padding-left: 3.5mm; }
+  ul.b li { margin-bottom: 0.8mm; }
+  ol.q { margin: 0; padding-left: 5mm; }
+  ol.q li { margin-bottom: 1.5mm; }
+  ol.q .cat { color: #C2600D; font-size: 6.8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; }
+  ol.q .why { color: #595959; font-size: 7.5pt; display: block; }
+  .legend { display: flex; gap: 4mm; flex-wrap: wrap; color: #595959; font-size: 7pt; margin: 0 0 2mm 0; }
+  .legend .k { display: inline-block; width: 2.4mm; height: 2.4mm; border-radius: 0.4mm; margin-right: 1mm; vertical-align: -0.2mm; }
+  svg { display: block; width: 100%; height: auto; }
+
+  /* --- MPS table: lifted verbatim from rainmaker_opportunity_summary.html.j2.
+         Keep in sync with that file, or better, share one partial. ------- */
+  .mps-page { page-break-inside: avoid; }
+  table.mps-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 1.5mm 0; }
+  table.mps-table th, table.mps-table td {
+    border-bottom: 0.5pt solid #BFD0E8; padding: 0.8mm 2mm; text-align: left; vertical-align: top;
+    font-size: 7.3pt; line-height: 1.1; overflow: hidden;
+  }
+  table.mps-table th { color: #fff; background: #1F3864; font-size: 7pt; text-transform: uppercase; }
+  table.mps-table th.mps-category-col, table.mps-table td.mps-category-col { background: #1F3864; color: #fff; font-weight: bold; }
+  table.mps-table tr { page-break-inside: avoid; }
+  table.mps-table td.mps-score-col { text-align: center; font-size: 12pt; font-weight: bold; color: #1F3864; }
+  table.mps-table td.mps-commentary-col ul.bullets { margin: 0; padding-left: 3mm; }
+  table.mps-table td.mps-commentary-col li { margin-bottom: 0.3mm; }
+  table.mps-table li.mps-counter-evidence { color: #595959; font-style: italic; }
+  table.mps-table tr.mps-total-row td { border-bottom: none; border-top: 1pt solid #1F3864; }
+  .mps-legend { color: #595959; font-size: 7pt; margin: 0 0 1mm 0; }
+  .mps-footer-note { color: #1F3864; font-weight: bold; font-size: 9pt; margin-top: 1mm; }
+
+  /* Contents page */
+  table.toc { width: 100%; border-collapse: collapse; }
+  table.toc td { padding: 1.8mm 2mm; border-bottom: 0.5pt solid #BFD0E8; font-size: 9pt; vertical-align: top; }
+  table.toc td.n { width: 8mm; color: #C2600D; font-weight: bold; }
+  table.toc td.p { width: 10mm; text-align: right; color: #595959; }
+  table.toc .q { color: #595959; font-size: 8pt; }
+</style>
+
+<style id="ng-annotation">
+  .ng-badge { display:inline-block; margin-left:2mm; padding:0.3mm 1.4mm; border-radius:1mm;
+              font-size:6.5pt; font-weight:bold; letter-spacing:0.04em; text-transform:uppercase;
+              vertical-align:middle; font-family:Arial,Helvetica,sans-serif; }
+  .ng-ready   { background:#1E7A46; color:#fff; }
+  .ng-partial { background:#C2600D; color:#fff; }
+  .ng-pending { background:#9B1C1C; color:#fff; }
+  /* Its own light chip rather than inherited colour: several of these headings sit
+     on a navy or orange band, where any dark note text disappears. */
+  .ng-note    { display:block; margin:0.8mm 0 0 0; padding:0.4mm 1.2mm; border-radius:0.8mm;
+                background:rgba(255,255,255,0.9); color:#3A3A3A; font-size:6.8pt;
+                font-style:italic; font-family:Arial,Helvetica,sans-serif; font-weight:normal;
+                text-transform:none; letter-spacing:0; }
+  .ng-legend  { border:0.5pt solid #1F3864; background:#F2F4F7; padding:3mm 4mm; margin:0 0 5mm 0;
+                font-family:Arial,Helvetica,sans-serif; font-size:8pt; color:#1A1A1A; }
+  .ng-legend h4 { margin:0 0 1.5mm 0; color:#1F3864; font-size:10pt; }
+  .ng-legend p  { margin:0 0 1.5mm 0; }
+  .ng-legend ul { margin:0; padding-left:5mm; }
+</style>
+</head>
+<body>
+<div class="ng-legend">
+  <h4>Reading this preview</h4>
+  <p><strong>The data in this document is invented.</strong> It describes a fictional company and exists to
+  show the format, the layout and the analytical structure of the final diligence report — not the output of a
+  real run.</p>
+  <p>Each panel carries a badge saying whether the pipeline can fill it from real data today:</p>
+  <ul>
+    <li><span class="ng-badge ng-ready">Ready</span> an agent populates this field today.</li>
+    <li><span class="ng-badge ng-partial">Partial</span> the panel renders, but one of its sub-fields has no producer yet.</li>
+    <li><span class="ng-badge ng-pending">Pending data</span> no agent populates this field yet. On a real run the
+    panel renders its "not extracted" state — the report says plainly that it could not build the chart rather
+    than drawing one from guessed numbers.</li>
+  </ul>
+  <p>Counts: 20 ready · 3 partial · 11 pending. The companion file
+  <code>UC13_Final_Report_TODAY_PREVIEW.html</code> shows the same template rendered with every
+  <em>pending</em> field removed — i.e. what this document looks like on today's agent output.</p>
+</div>
+<div class="page">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div class="eyebrow">Final Diligence Report</div>
+      <h1>Northwind Care Partners (ILLUSTRATIVE SAMPLE)</h1>
+      <div class="subtitle">Healthcare Services</div>
+    </div>
+  </div>
+  <div class="divider"></div>
+
+  <div class="meta" style="margin-bottom:4mm;">
+    Prepared for Rallyday Partners · 2026-09-03 ·
+    Generated from CIM-first ·
+    214 documents indexed ·
+    Overall confidence: <strong>Medium</strong>
+  </div>
+  <div class="verdict ">
+    <span class="label">Recommendation<span class="ng-badge ng-ready">Ready</span><span class="ng-note">narrative.recommendation — Structured verdict/rationale/conditions — built by T11.</span></span>
+    <span class="call">Pursue — proceed to management meetings, underwrite to run-rate not to plan</span><div>A genuinely private-pay, referral-diversified home care platform in a fragmented market is the right shape of asset. The reasons to hesitate are execution and earnings quality, both of which are testable in the next two weeks and both of which are priceable.</div>
+    <div style="margin-top:1.5mm;"><strong>Conditional on:</strong>
+      <ul class="b" style="margin-top:0.8mm;"><li>Adjusted EBITDA rebuilt on a defensible addback basis before any indicative range is given.</li><li>Caregiver hiring capacity confirmed at the branch level as the real growth constraint.</li><li>Management build cost included in the use of funds, not treated as a synergy.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="one-liner">Private-pay home care platform in three metro markets, 1,186 clients and 1,888 active caregivers, growing high-single-digit with margins held back by wage pressure and a thin management layer.</div>
+
+  <h3 class="block">The Numbers That Drive The Call<span class="ng-badge ng-ready">Ready</span><span class="ng-note">headline_metrics.* — Headline tiles come from the financial agents.</span></h3>
+  <div class="tiles">
+    <div class="tile ">
+      <span class="value">$48.2M</span>
+      <span class="label">Revenue (LTM)</span>
+    </div>
+    <div class="tile ">
+      <span class="value">8.4%</span>
+      <span class="label">Revenue CAGR</span>
+    </div>
+    <div class="tile ">
+      <span class="value">$5.3M</span>
+      <span class="label">EBITDA (LTM)</span>
+    </div>
+    <div class="tile ">
+      <span class="value">11.0%</span>
+      <span class="label">EBITDA margin</span>
+    </div>
+    <div class="tile ">
+      <span class="value">14%</span>
+      <span class="label">Top customer</span>
+    </div>
+    <div class="tile ">
+      <span class="value">$42-48M</span>
+      <span class="label">Indicated EV</span>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h3 class="block">Why This Could Work — Top 3<span class="ng-badge ng-ready">Ready</span><span class="ng-note">narrative.thesis_bullets / executive.thesis_bullets — Falls back to the bundle when the LLM layer degrades.</span></h3>
+      <ul class="b"><li>Private-pay only: no Medicaid or managed-care reimbursement exposure, and pricing has moved with wages for three consecutive years.</li><li>Referral base is genuinely diversified — no single source above 14% of new client starts across a 9-category mix.</li><li>Fragmented three-metro footprint with 40+ sub-scale operators in radius; a credible platform for tuck-in M&amp;A.</li>
+      </ul>
+    </div>
+    <div>
+      <h3 class="block warn">What Could Break It — Top 3<span class="ng-badge ng-ready">Ready</span><span class="ng-note">narrative.key_watchouts — Produced by the existing executive-review narrative.</span></h3>
+      <ul class="b"><li>Caregiver turnover at 38% sits above our 30% screen and caps growth before demand does.</li><li>Owner-operator runs sales, scheduling and payroll; no COO and no location-level P&amp;L discipline.</li><li>Adjusted EBITDA carries 22% of addbacks, of which the largest is a recurring rather than one-time cost.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Contents · 2</span>
+</div>
+  <h2 class="section">What this report answers<span class="ng-badge ng-ready">Ready</span><span class="ng-note">(static) — Fixed table of contents in the view module.</span></h2>
+  <p class="meta" style="margin-bottom:4mm;">Ten pages, ten questions. Workstream detail, full reconciliation logs and source extracts live in the accompanying files, not here.</p>
+  <table class="toc">
+    <tr>
+      <td class="n">1</td>
+      <td><strong>Business and revenue model</strong><div class="q">What is this and how does it make money?</div></td>
+      <td class="p">3</td>
+    </tr>
+    <tr>
+      <td class="n">2</td>
+      <td><strong>Financial performance</strong><div class="q">Is the financial story improving, and is it real?</div></td>
+      <td class="p">4</td>
+    </tr>
+    <tr>
+      <td class="n">3</td>
+      <td><strong>Customer quality and concentration</strong><div class="q">Is the revenue durable, and who could take it away?</div></td>
+      <td class="p">5</td>
+    </tr>
+    <tr>
+      <td class="n">4</td>
+      <td><strong>Operating KPIs vs our screens</strong><div class="q">Where does this sit against how we screen the sector?</div></td>
+      <td class="p">6</td>
+    </tr>
+    <tr>
+      <td class="n">5</td>
+      <td><strong>Quality of earnings</strong><div class="q">Is the EBITDA real?</div></td>
+      <td class="p">7</td>
+    </tr>
+    <tr>
+      <td class="n">6</td>
+      <td><strong>Contract and legal risk</strong><div class="q">Anything that changes the price or the close?</div></td>
+      <td class="p">7</td>
+    </tr>
+    <tr>
+      <td class="n">7</td>
+      <td><strong>Forecast and value creation</strong><div class="q">Is the plan achievable, and what would we do with it?</div></td>
+      <td class="p">8</td>
+    </tr>
+    <tr>
+      <td class="n">8</td>
+      <td><strong>Risks and what to test first</strong><div class="q">What breaks the thesis, and what do we ask on Monday?</div></td>
+      <td class="p">9</td>
+    </tr>
+    <tr>
+      <td class="n">9</td>
+      <td><strong>Minimum Pursuit Score</strong><div class="q">Does it clear our own screen?</div></td>
+      <td class="p">10</td>
+    </tr>
+    <tr>
+      <td class="n">—</td>
+      <td><strong>Appendix</strong><div class="q">Gaps, confidence, sources, run manifest.</div></td>
+      <td class="p">11</td>
+    </tr>
+  </table>
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Business &amp; Revenue Model · 3</span>
+</div>
+  <h2 class="section">1 · Business and revenue model</h2>
+
+  <div class="cols-2">
+    <div class="card">
+      <h3 class="block">What The Business Does<span class="ng-badge ng-ready">Ready</span><span class="ng-note">company_framing.overview_bullets</span></h3>
+      <div class="body"><ul class="b"><li>Non-medical home care across three metro markets: personal care, companionship and respite, billed hourly.</li><li>1,186 active clients served by 1,888 W-2 caregivers out of 7 branch offices.</li><li>Founded 2009, owner-operated, first institutional capital sought in this process.</li><li>Average client tenure 14 months; average 21 billable hours per client per week.</li>
+      </ul></div>
+    </div>
+    <div class="card">
+      <h3 class="block">How It Makes Money<span class="ng-badge ng-ready">Ready</span><span class="ng-note">narrative.business_model — Produced by the existing narrative.</span></h3>
+      <div class="body"><ul class="b"><li>Hourly billing, private pay only — no Medicaid, Medicare or managed-care reimbursement exposure.</li><li>Revenue is a function of caregiver hours available, not of demand: the constraint sits on the supply side.</li><li>68% of revenue is recurring weekly care plans; the balance is episodic respite and one-time assessments.</li><li>Rate increases have tracked wage inflation for three years, holding gross margin flat rather than expanding it.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Revenue mix — durability<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">revenue_quality.revenue_type_mix — No agent emits a recurring-vs-project split.</span></h4>
+      <svg viewBox="0 0 340 26" xmlns="http://www.w3.org/2000/svg" role="img"><rect x="0" y="2" width="231.2" height="14" fill="#1F3864"/>
+  <text x="115.6" y="11.5" font-size="6.4" fill="#FFF" text-anchor="middle" font-weight="bold">68%</text><rect x="231.2" y="2" width="74.8" height="14" fill="#4A72B8"/>
+  <text x="268.6" y="11.5" font-size="6.4" fill="#FFF" text-anchor="middle" font-weight="bold">22%</text><rect x="306.0" y="2" width="34.0" height="14" fill="#9FB8DC"/>
+  <text x="323.0" y="11.5" font-size="6.4" fill="#FFF" text-anchor="middle" font-weight="bold">10%</text>
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>Recurring weekly care plans 68%</span>
+  <span><span class="k" style="background:#4A72B8"></span>Episodic / respite 22%</span>
+  <span><span class="k" style="background:#9FB8DC"></span>One-time assessments 10%</span>
+</div>
+      <p class="meta">Recurring vs project revenue</p>
+    </div>
+    <div>
+      <h4 class="mini">Client distribution — Clients by segment<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">revenue_quality.client_distribution — Nearest existing field is `clients`; T02 checks whether the shape is compatible.</span></h4>
+      <svg viewBox="0 0 340 26" xmlns="http://www.w3.org/2000/svg" role="img"><rect x="0" y="2" width="207.4" height="14" fill="#1F3864"/>
+  <text x="103.7" y="11.5" font-size="6.4" fill="#FFF" text-anchor="middle" font-weight="bold">61%</text><rect x="207.4" y="2" width="91.8" height="14" fill="#4A72B8"/>
+  <text x="253.3" y="11.5" font-size="6.4" fill="#FFF" text-anchor="middle" font-weight="bold">27%</text><rect x="299.2" y="2" width="40.8" height="14" fill="#9FB8DC"/>
+  <text x="319.6" y="11.5" font-size="6.4" fill="#FFF" text-anchor="middle" font-weight="bold">12%</text>
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>Private pay — self 61%</span>
+  <span><span class="k" style="background:#4A72B8"></span>Private pay — family 27%</span>
+  <span><span class="k" style="background:#9FB8DC"></span>LTC insurance 12%</span>
+</div>
+      <p class="meta">Clients by segment</p>
+    </div>
+  </div>
+
+  <h3 class="block">Performance By Branch<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">financials.segment_performance — Nearest existing field is `revenue_by_segment` (field_mapping.py:223); T02 checks the shape.</span></h3>
+  <svg viewBox="0 0 340 132" xmlns="http://www.w3.org/2000/svg" role="img">
+  <line x1="30" y1="104.0" x2="336" y2="104.0"
+        stroke="#595959" stroke-width="0.7"/>
+  <line x1="30" y1="81.0" x2="336" y2="81.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="58.0" x2="336" y2="58.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="35.0" x2="336" y2="35.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="12.0" x2="336" y2="12.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <text x="28" y="14" font-size="6" fill="#595959" text-anchor="end">18.4</text>
+  <text x="28" y="106" font-size="6" fill="#595959" text-anchor="end">0</text>
+    <rect x="54.5" y="12.0"
+          width="12" height="92.0" fill="#1F3864"/>
+    <text x="60.5" y="8.0"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">18.4</text>
+  <text x="67.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">Metro North</text>
+    <rect x="129.5" y="28.5"
+          width="12" height="75.5" fill="#1F3864"/>
+    <text x="135.5" y="24.5"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">15.1</text>
+  <text x="142.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">Metro Central</text>
+    <rect x="204.5" y="48.0"
+          width="12" height="56.0" fill="#1F3864"/>
+    <text x="210.5" y="44.0"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">11.2</text>
+  <text x="217.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">Metro South</text>
+    <rect x="279.5" y="86.5"
+          width="12" height="17.5" fill="#1F3864"/>
+    <text x="285.5" y="82.5"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">3.5</text>
+  <text x="292.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">New branch</text>
+  <polyline points="67.5,73.55 142.5,75.11 217.5,78.33 292.5,84.68" fill="none" stroke="#C2600D" stroke-width="1.2"/><circle cx="67.5" cy="73.55" r="2" fill="#C2600D"/>
+    <text x="71.5" y="68.55"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">33%</text><circle cx="142.5" cy="75.11" r="2" fill="#C2600D"/>
+    <text x="146.5" y="70.11"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">31%</text><circle cx="217.5" cy="78.33" r="2" fill="#C2600D"/>
+    <text x="221.5" y="73.33"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">28%</text><circle cx="292.5" cy="84.68" r="2" fill="#C2600D"/>
+    <text x="296.5" y="79.68"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">21%</text>
+  <text x="30" y="128" font-size="5.8" fill="#595959">Segment revenue as extracted; margin line on a 0-100% axis.</text>
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>Revenue</span><span><span class="k" style="background:#C2600D"></span>Gross margin %</span>
+</div>
+  <table class="dt">
+    <tr>
+      <th>Branch</th>
+      <th>Revenue</th><th>% of total</th><th>Gross margin</th><th>Growth YoY</th><th class="calc">Read</th>
+    </tr>
+    <tr>
+      <td>Metro North</td>
+      <td>18.4</td>
+      <td>38%</td>
+      <td>33.1%</td>
+      <td>+9.2%</td>
+      <td class="calc"><span class="chip low">Strong</span></td>
+    </tr>
+    <tr>
+      <td>Metro Central</td>
+      <td>15.1</td>
+      <td>31%</td>
+      <td>31.4%</td>
+      <td>+7.8%</td>
+      <td class="calc"><span class="chip low">Solid</span></td>
+    </tr>
+    <tr>
+      <td>Metro South</td>
+      <td>11.2</td>
+      <td>23%</td>
+      <td>27.9%</td>
+      <td>+4.1%</td>
+      <td class="calc"><span class="chip medium">Lagging</span></td>
+    </tr>
+    <tr>
+      <td>New branch</td>
+      <td>3.5</td>
+      <td>7%</td>
+      <td>21.0%</td>
+      <td>n/a</td>
+      <td class="calc"><span class="chip high">Dilutive</span></td>
+    </tr>
+  </table><div class="take"><strong>Analyst take.</strong> This is a real business with a real moat on the payor side. The model is supply-constrained, which means every growth assumption has to be a hiring assumption.</div>
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Financial Performance · 4</span>
+</div>
+  <h2 class="section">2 · Financial performance</h2>
+
+  <h3 class="block">P&amp;L Summary — $ millions, fiscal years<span class="ng-badge ng-ready">Ready</span><span class="ng-note">financials.table_rows — The financial-trends agent populates this.</span></h3>
+  <table class="dt">
+    <tr>
+      <th style="width:32%">$ millions</th><th>FY2022</th><th>FY2023</th><th>FY2024</th><th>LTM Jun-26</th>
+      <th class="calc">CAGR</th>
+    </tr>
+    <tr class="total">
+      <td>Revenue</td><td>37.9</td><td>42.6</td><td>45.1</td><td>48.2</td>
+      <td class="calc">8.3%</td>
+    </tr>
+    <tr class="sub">
+      <td>Cost of revenue</td><td>26.3</td><td>29.4</td><td>31.2</td><td>33.4</td>
+      <td class="calc">8.3%</td>
+    </tr>
+    <tr class="">
+      <td>Gross profit</td><td>11.6</td><td>13.2</td><td>13.9</td><td>14.8</td>
+      <td class="calc">8.5%</td>
+    </tr>
+    <tr class="sub">
+      <td>Gross margin %</td><td>30.6%</td><td>31.0%</td><td>30.8%</td><td>30.7%</td>
+      <td class="calc">+0.1 pp</td>
+    </tr>
+    <tr class="sub">
+      <td>Operating expenses</td><td>8.0</td><td>8.7</td><td>9.1</td><td>9.5</td>
+      <td class="calc">5.9%</td>
+    </tr>
+    <tr class="total">
+      <td>EBITDA</td><td>3.6</td><td>4.5</td><td>4.8</td><td>5.3</td>
+      <td class="calc">13.8%</td>
+    </tr>
+    <tr class="sub">
+      <td>EBITDA margin %</td><td>9.5%</td><td>10.6%</td><td>10.6%</td><td>11.0%</td>
+      <td class="calc">+1.5 pp</td>
+    </tr>
+    <tr class="">
+      <td>Adjusted EBITDA</td><td>4.1</td><td>5.2</td><td>5.6</td><td>6.5</td>
+      <td class="calc">16.6%</td>
+    </tr>
+    <tr class="sub">
+      <td>Adj. EBITDA margin %</td><td>10.8%</td><td>12.2%</td><td>12.4%</td><td>13.5%</td>
+      <td class="calc">+2.7 pp</td>
+    </tr>
+  </table>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Revenue vs prior years, with EBITDA margin<span class="ng-badge ng-ready">Ready</span><span class="ng-note">financials.table_rows</span></h4>
+      <svg viewBox="0 0 340 132" xmlns="http://www.w3.org/2000/svg" role="img">
+  <line x1="30" y1="104.0" x2="336" y2="104.0"
+        stroke="#595959" stroke-width="0.7"/>
+  <line x1="30" y1="81.0" x2="336" y2="81.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="58.0" x2="336" y2="58.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="35.0" x2="336" y2="35.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="12.0" x2="336" y2="12.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <text x="28" y="14" font-size="6" fill="#595959" text-anchor="end">48.2</text>
+  <text x="28" y="106" font-size="6" fill="#595959" text-anchor="end">0</text>
+    <rect x="54.5" y="31.66"
+          width="12" height="72.34" fill="#1F3864"/>
+    <text x="60.5" y="27.66"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">37.9</text>
+  <text x="67.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2022</text>
+    <rect x="129.5" y="22.69"
+          width="12" height="81.31" fill="#1F3864"/>
+    <text x="135.5" y="18.69"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">42.6</text>
+  <text x="142.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2023</text>
+    <rect x="204.5" y="17.92"
+          width="12" height="86.08" fill="#1F3864"/>
+    <text x="210.5" y="13.92"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">45.1</text>
+  <text x="217.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2024</text>
+    <rect x="279.5" y="12.0"
+          width="12" height="92.0" fill="#1F3864"/>
+    <text x="285.5" y="8.0"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">48.2</text>
+  <text x="292.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">LTM Jun-26</text>
+  <polyline points="67.5,95.26 142.5,94.25 217.5,94.25 292.5,93.88" fill="none" stroke="#C2600D" stroke-width="1.2"/><circle cx="67.5" cy="95.26" r="2" fill="#C2600D"/>
+    <text x="71.5" y="90.26"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">9.5%</text><circle cx="142.5" cy="94.25" r="2" fill="#C2600D"/>
+    <text x="146.5" y="89.25"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">10.6%</text><circle cx="217.5" cy="94.25" r="2" fill="#C2600D"/>
+    <text x="221.5" y="89.25"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">10.6%</text><circle cx="292.5" cy="93.88" r="2" fill="#C2600D"/>
+    <text x="296.5" y="88.88"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">11.0%</text>
+  <text x="30" y="128" font-size="5.8" fill="#595959">Revenue columns on the left axis; margin line on a 0-100% axis.</text>
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>Revenue</span><span><span class="k" style="background:#C2600D"></span>EBITDA margin %</span>
+</div>
+    </div>
+    <div>
+      <h4 class="mini">Reported vs adjusted EBITDA<span class="ng-badge ng-ready">Ready</span><span class="ng-note">financials.table_rows</span></h4>
+      <svg viewBox="0 0 340 132" xmlns="http://www.w3.org/2000/svg" role="img">
+  <line x1="30" y1="104.0" x2="336" y2="104.0"
+        stroke="#595959" stroke-width="0.7"/>
+  <line x1="30" y1="81.0" x2="336" y2="81.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="58.0" x2="336" y2="58.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="35.0" x2="336" y2="35.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="12.0" x2="336" y2="12.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <text x="28" y="14" font-size="6" fill="#595959" text-anchor="end">6.5</text>
+  <text x="28" y="106" font-size="6" fill="#595959" text-anchor="end">0</text>
+    <rect x="54.5" y="53.05"
+          width="12" height="50.95" fill="#1F3864"/>
+    <text x="60.5" y="49.05"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">3.6</text>
+    <rect x="68.5" y="45.97"
+          width="12" height="58.03" fill="#9FB8DC"/>
+    <text x="74.5" y="41.97"
+          font-size="6.2" fill="#4A72B8" text-anchor="middle" font-weight="bold">4.1</text>
+  <text x="67.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2022</text>
+    <rect x="129.5" y="40.31"
+          width="12" height="63.69" fill="#1F3864"/>
+    <text x="135.5" y="36.31"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">4.5</text>
+    <rect x="143.5" y="30.4"
+          width="12" height="73.6" fill="#9FB8DC"/>
+    <text x="149.5" y="26.4"
+          font-size="6.2" fill="#4A72B8" text-anchor="middle" font-weight="bold">5.2</text>
+  <text x="142.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2023</text>
+    <rect x="204.5" y="36.06"
+          width="12" height="67.94" fill="#1F3864"/>
+    <text x="210.5" y="32.06"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">4.8</text>
+    <rect x="218.5" y="24.74"
+          width="12" height="79.26" fill="#9FB8DC"/>
+    <text x="224.5" y="20.74"
+          font-size="6.2" fill="#4A72B8" text-anchor="middle" font-weight="bold">5.6</text>
+  <text x="217.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2024</text>
+    <rect x="279.5" y="28.98"
+          width="12" height="75.02" fill="#1F3864"/>
+    <text x="285.5" y="24.98"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">5.3</text>
+    <rect x="293.5" y="12.0"
+          width="12" height="92.0" fill="#9FB8DC"/>
+    <text x="299.5" y="8.0"
+          font-size="6.2" fill="#4A72B8" text-anchor="middle" font-weight="bold">6.5</text>
+  <text x="292.5" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">LTM Jun-26</text>
+  <text x="30" y="128" font-size="5.8" fill="#595959">The widening gap between the two columns is the addback question.</text>
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>Reported EBITDA</span><span><span class="k" style="background:#9FB8DC"></span>Adjusted EBITDA</span>
+</div>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">What the trend says<span class="ng-badge ng-ready">Ready</span><span class="ng-note">financials.observations</span></h4>
+      <ul class="b"><li>Revenue compounding 8.4% since FY2022, all organic and all volume — hours grew 6.1%, rate 2.2%.</li><li>Gross margin flat within a 40bps band for three years: rate increases are covering wage inflation, not beating it.</li><li>Reported EBITDA margin improved 150bps, but the gap to adjusted widened from 130bps to 250bps.</li><li>LTM includes one branch opened in Q2; contribution is negative and not adjusted out.</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="mini">Growth bridge — latest period<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">financials.growth_bridge — No agent decomposes growth into a bridge.</span></h4>
+      <table class="dt left">
+        <tr><td>Volume — billable hours</td><td style="text-align:right">+$2.7M</td></tr>
+        <tr><td>Rate — pricing</td><td style="text-align:right">+$1.0M</td></tr>
+        <tr><td>New branch</td><td style="text-align:right">+$0.6M</td></tr>
+        <tr><td>Client churn</td><td style="text-align:right">-$1.2M</td></tr>
+      </table>
+    </div>
+  </div><div class="take"><strong>Analyst take.</strong> The growth is organic and volume-led, which is the good version. The concern is that three years of flat gross margin says pricing power is exactly sufficient to cover wages and no more.</div>
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Customer Quality · 5</span>
+</div>
+  <h2 class="section">3 · Customer quality and concentration</h2>
+
+  <div class="tiles">
+    <div class="tile ">
+      <span class="value">1,186</span><span class="label">Clients</span>
+    </div>
+    <div class="tile ">
+      <span class="value">14%</span><span class="label">Top 1</span>
+    </div>
+    <div class="tile ">
+      <span class="value">42%</span><span class="label">Top 5</span>
+    </div>
+    <div class="tile ">
+      <span class="value">94%</span><span class="label">NRR</span>
+    </div>
+    <div class="tile ">
+      <span class="value">1.2</span><span class="label">Avg tenure</span>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Concentration — share of revenue<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">revenue_quality.top_customers — The chart is built from the top-customer list (final_report_view.py:322); the Top 1 / Top 5 tiles come from concentration_summary and do render.</span></h4>
+      <svg viewBox="0 0 260 74" xmlns="http://www.w3.org/2000/svg" role="img">
+  <line x1="208.67" y1="2"
+        x2="208.67" y2="61"
+        stroke="#C2600D" stroke-width="0.7" stroke-dasharray="2,1.5"/>
+  <text x="207.67" y="69"
+        font-size="5.6" fill="#C2600D" font-weight="bold" text-anchor="middle">20% screen</text><text x="0" y="8.5" font-size="7" fill="#1A1A1A">Referral source A — hospi…</text>
+  <rect x="92" y="2" width="81.67" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="176.67" y="8.5" font-size="7"
+        fill="#1F3864" font-weight="bold">14.0%</text><text x="0" y="20.5" font-size="7" fill="#1A1A1A">Referral source B — senio…</text>
+  <rect x="92" y="14" width="64.17" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="159.17" y="20.5" font-size="7"
+        fill="#1F3864" font-weight="bold">11.0%</text><text x="0" y="32.5" font-size="7" fill="#1A1A1A">Referral source C — LTC i…</text>
+  <rect x="92" y="26" width="52.5" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="147.5" y="32.5" font-size="7"
+        fill="#1F3864" font-weight="bold">9.0%</text><text x="0" y="44.5" font-size="7" fill="#1A1A1A">Referral source D — physi…</text>
+  <rect x="92" y="38" width="40.83" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="135.83" y="44.5" font-size="7"
+        fill="#1F3864" font-weight="bold">7.0%</text><text x="0" y="56.5" font-size="7" fill="#1A1A1A">Referral source E — commu…</text>
+  <rect x="92" y="50" width="35.0" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="130.0" y="56.5" font-size="7"
+        fill="#1F3864" font-weight="bold">6.0%</text>
+</svg>
+    </div>
+    <div>
+      <h4 class="mini">Retention and tenure<span class="ng-badge ng-partial">Partial</span><span class="ng-note">revenue_quality.retention / customer_tenure — NRR/GRR/churn are populated; average tenure has no producer.</span></h4>
+      <table class="dt">
+        <tr><th>Metric</th><th>Value</th><th>Screen</th></tr>
+        <tr><td>Net revenue retention</td><td>94%</td><td><span class="chip neutral">No screen</span></td></tr>
+        <tr><td>Gross revenue retention</td><td>81%</td><td><span class="chip neutral">No screen</span></td></tr>
+        <tr><td>Annual logo churn</td><td>19%</td><td><span class="chip neutral">No screen</span></td></tr>
+      </table>
+    </div>
+  </div>
+  <h3 class="block">Top Accounts<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">revenue_quality.top_customers — No producer found in the bundle layer.</span></h3>
+  <table class="dt">
+    <tr><th style="width:26%">Account</th><th>% of revenue</th><th>Trend</th><th>Gross margin</th><th>Contract status</th><th>Tenure</th></tr>
+    <tr>
+      <td>Referral source A — hospital system</td>
+      <td>14%</td>
+      <td>Growing, but discharge-planner re…</td>
+      <td>31%</td>
+      <td>no contract</td>
+      <td>6</td>
+    </tr>
+    <tr>
+      <td>Referral source B — senior living</td>
+      <td>11%</td>
+      <td>Flat two years</td>
+      <td>33%</td>
+      <td>preferred provider</td>
+      <td>5</td>
+    </tr>
+    <tr>
+      <td>Referral source C — LTC insurer</td>
+      <td>9%</td>
+      <td>Growing, lower rate card</td>
+      <td>28%</td>
+      <td>contracted</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>Referral source D — physician group</td>
+      <td>7%</td>
+      <td>Declining</td>
+      <td>32%</td>
+      <td>no contract</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>Referral source E — community</td>
+      <td>6%</td>
+      <td>Stable</td>
+      <td>34%</td>
+      <td>n/a</td>
+      <td>7</td>
+    </tr>
+  </table><div class="take"><strong>Analyst take.</strong> Referral diversification is genuine and it is the strongest single fact in this file. The caveat is that concentration by revenue understates how much of it runs through two personal relationships.</div>
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>KPI Scorecard · 6</span>
+</div>
+  <h2 class="section">4 · Operating KPIs against our screens<span class="ng-badge ng-ready">Ready</span><span class="ng-note">kpi_dashboard + final_report_view._SCREENS — The screens are constants in the view module (plan F-5).</span></h2>
+  <p class="meta" style="margin-bottom:3mm;">
+    Sector overlay applied: <strong>Healthcare Services</strong>.
+    Thresholds are the directional first-pass screens, not hard rules — materiality is the deal team's call.
+  </p>
+
+  <svg viewBox="0 0 340 95" xmlns="http://www.w3.org/2000/svg" role="img"><text x="0" y="7" font-size="6.6" fill="#1A1A1A">Gross margin</text>
+  <rect x="118" y="2" width="150" height="8" fill="#F2F4F7"/>
+  <rect x="118" y="2" width="46.05" height="8"
+        fill="#1F3864"/>
+  <line x1="163.0" y1="0.5"
+        x2="163.0" y2="11.5"
+        stroke="#1A1A1A" stroke-width="1"/>
+  <text x="272" y="8" font-size="6.4" fill="#1F3864" font-weight="bold">30.7%</text>
+  <text x="304" y="8" font-size="5.8" fill="#595959">vs 30%</text><text x="0" y="20" font-size="6.6" fill="#1A1A1A">EBITDA margin</text>
+  <rect x="118" y="15" width="150" height="8" fill="#F2F4F7"/>
+  <rect x="118" y="15" width="16.5" height="8"
+        fill="#1F3864"/>
+  <line x1="133.0" y1="13.5"
+        x2="133.0" y2="24.5"
+        stroke="#1A1A1A" stroke-width="1"/>
+  <text x="272" y="21" font-size="6.4" fill="#1F3864" font-weight="bold">11.0%</text>
+  <text x="304" y="21" font-size="5.8" fill="#595959">vs 10%</text><text x="0" y="33" font-size="6.6" fill="#1A1A1A">Revenue growth</text>
+  <rect x="118" y="28" width="150" height="8" fill="#F2F4F7"/>
+  <rect x="118" y="28" width="12.6" height="8"
+        fill="#1F3864"/>
+  <line x1="125.5" y1="26.5"
+        x2="125.5" y2="37.5"
+        stroke="#1A1A1A" stroke-width="1"/>
+  <text x="272" y="34" font-size="6.4" fill="#1F3864" font-weight="bold">8.4%</text>
+  <text x="304" y="34" font-size="5.8" fill="#595959">vs 5%</text><text x="0" y="46" font-size="6.6" fill="#1A1A1A">Top referral source share</text>
+  <rect x="118" y="41" width="150" height="8" fill="#F2F4F7"/>
+  <rect x="118" y="41" width="21.0" height="8"
+        fill="#1F3864"/>
+  <line x1="148.0" y1="39.5"
+        x2="148.0" y2="50.5"
+        stroke="#1A1A1A" stroke-width="1"/>
+  <text x="272" y="47" font-size="6.4" fill="#1F3864" font-weight="bold">14.0%</text>
+  <text x="304" y="47" font-size="5.8" fill="#595959">vs 20%</text><text x="0" y="59" font-size="6.6" fill="#1A1A1A">Government payor share</text>
+  <rect x="118" y="54" width="150" height="8" fill="#F2F4F7"/>
+  <rect x="118" y="54" width="0.0" height="8"
+        fill="#1F3864"/>
+  <line x1="193.0" y1="52.5"
+        x2="193.0" y2="63.5"
+        stroke="#1A1A1A" stroke-width="1"/>
+  <text x="272" y="60" font-size="6.4" fill="#1F3864" font-weight="bold">0.0%</text>
+  <text x="304" y="60" font-size="5.8" fill="#595959">vs 50%</text><text x="0" y="72" font-size="6.6" fill="#1A1A1A">Caregiver turnover</text>
+  <rect x="118" y="67" width="150" height="8" fill="#F2F4F7"/>
+  <rect x="118" y="67" width="57.0" height="8"
+        fill="#C2600D"/>
+  <line x1="163.0" y1="65.5"
+        x2="163.0" y2="76.5"
+        stroke="#1A1A1A" stroke-width="1"/>
+  <text x="272" y="73" font-size="6.4" fill="#C2600D" font-weight="bold">38.0%</text>
+  <text x="304" y="73" font-size="5.8" fill="#595959">vs 30%</text><text x="0" y="85" font-size="6.6" fill="#1A1A1A">Caregiver utilization</text>
+  <rect x="118" y="80" width="150" height="8" fill="#F2F4F7"/>
+  <rect x="118" y="80" width="96.0" height="8"
+        fill="#C2600D"/>
+  <line x1="223.0" y1="78.5"
+        x2="223.0" y2="89.5"
+        stroke="#1A1A1A" stroke-width="1"/>
+  <text x="272" y="86" font-size="6.4" fill="#C2600D" font-weight="bold">64.0%</text>
+  <text x="304" y="86" font-size="5.8" fill="#595959">vs 70%</text>
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>At or above screen</span>
+  <span><span class="k" style="background:#C2600D"></span>Below screen — flagged</span>
+  <span><span class="k" style="background:#1A1A1A;width:0.8mm"></span>Rallyday threshold</span>
+</div>
+  <h3 class="block warn">Flagged — And What It Means<span class="ng-badge ng-ready">Ready</span><span class="ng-note">kpi_dashboard</span></h3>
+  <table class="dt left">
+    <tr><th style="width:24%">KPI</th><th style="width:14%">Value vs screen</th><th>Read</th></tr>
+    <tr><td>Caregiver turnover</td><td>38.0% vs 30%</td><td>Above the 30% screen. Every point of turnover costs roughly $1,900 in recruiting and onboarding at this scale.</td></tr>
+    <tr><td>Caregiver utilization</td><td>64.0% vs 70%</td><td>Below the 70% screen; scheduling is manual and branch-level, which is also the margin lever.</td></tr>
+  </table>
+  <h4 class="mini">Other operating metrics — no percentage screen applies</h4>
+  <table class="dt">
+    <tr><th style="width:40%">Metric</th><th>Value</th></tr>
+    <tr><td>Revenue per client</td><td>40.6</td></tr>
+  </table>
+  <h4 class="mini">Screens we could not run<span class="ng-badge ng-ready">Ready</span><span class="ng-note">kpi_dashboard — This panel is itself the honest-gap panel.</span></h4>
+  <ul class="b"><li>Compliance incidents — gap correct</li><li>Branch-level P&amp;L — not attempted</li>
+  </ul>
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Earnings Quality &amp; Legal · 7</span>
+</div>
+  <h2 class="section">5 · Quality of earnings</h2>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Reported to adjusted EBITDA<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">qoe.addbacks — Nearest existing field is `addback_schedule` (field_mapping.py:586); T02 checks the shape.</span></h4>
+      <svg viewBox="0 0 260 74" xmlns="http://www.w3.org/2000/svg" role="img"><text x="0" y="8.5" font-size="7" fill="#1A1A1A">Owner compensation above…</text>
+  <rect x="92" y="2" width="116.67" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="211.67" y="8.5" font-size="7"
+        fill="#1F3864" font-weight="bold">0.42</text><text x="0" y="20.5" font-size="7" fill="#1A1A1A">One-time legal settlement</text>
+  <rect x="92" y="14" width="86.11" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="181.11" y="20.5" font-size="7"
+        fill="#1F3864" font-weight="bold">0.31</text><text x="0" y="32.5" font-size="7" fill="#1A1A1A">Recruiting agency spend</text>
+  <rect x="92" y="26" width="77.78" height="8"
+        fill="#C2600D" rx="0.6"/>
+  <text x="172.78" y="32.5" font-size="7"
+        fill="#C2600D" font-weight="bold">0.28</text><text x="0" y="44.5" font-size="7" fill="#1A1A1A">Family payroll</text>
+  <rect x="92" y="38" width="38.89" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="133.89" y="44.5" font-size="7"
+        fill="#1F3864" font-weight="bold">0.14</text><text x="0" y="56.5" font-size="7" fill="#1A1A1A">Transaction preparation</text>
+  <rect x="92" y="50" width="25.0" height="8"
+        fill="#1F3864" rx="0.6"/>
+  <text x="120.0" y="56.5" font-size="7"
+        fill="#1F3864" font-weight="bold">0.09</text>
+</svg>
+      <p class="meta">Addbacks total 22% of reported EBITDA. Three of seven addbacks are Tier 3 (unsupported or recurring).</p>
+    </div>
+    <div>
+      <h4 class="mini">Earnings quality flags<span class="ng-badge ng-ready">Ready</span><span class="ng-note">qoe.flags</span></h4>
+      <table class="dt left">
+        <tr><td style="width:16%"><span class="chip high">High</span></td><td>Recruiting agency spend added back as one-time, but appears in all four years at similar magnitude.</td></tr>
+        <tr><td style="width:16%"><span class="chip medium">Medium</span></td><td>New branch losses are not adjusted out, understating the run-rate of the mature base.</td></tr>
+        <tr><td style="width:16%"><span class="chip medium">Medium</span></td><td>AR over 90 days rose from 4% to 9% of receivables with no reserve change.</td></tr>
+        <tr><td style="width:16%"><span class="chip medium">Medium</span></td><td>Q4 revenue includes a $0.3M retroactive rate adjustment recognised in one period.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2 class="section" style="margin-top:2mm;">6 · Contract and legal risk<span class="ng-badge ng-partial">Partial</span><span class="ng-note">legal.top_flags / coc_consent_count — Flags and section confidence are populated; the CoC-consent count has no producer.</span></h2>
+  <div class="cols-3">
+    <div class="tile "><span class="value">9/11</span><span class="label">Checklist assessed</span></div>
+    <div class="tile flag"><span class="value">3</span><span class="label">CoC consents</span></div>
+    <div class="tile "><span class="value">Medium</span><span class="label">Section confidence</span></div>
+  </div>
+  <table class="dt left">
+    <tr><th style="width:16%">Severity</th><th style="width:26%">Issue</th><th>Economic or closing impact</th></tr>
+    <tr><td><span class="chip high">High</span></td><td>Change-of-control consent in LTC insurer agreement</td><td>9% of revenue requires consent to assign; no fallback if withheld.</td></tr>
+    <tr><td><span class="chip medium">Medium</span></td><td>No caregiver non-solicit</td><td>Competitor could lift a branch&#39;s caregiver base; no contractual recourse.</td></tr>
+    <tr><td><span class="chip medium">Medium</span></td><td>Owner personally guarantees two branch leases</td><td>Requires release or replacement at close.</td></tr>
+    <tr><td><span class="chip high">High</span></td><td>State licensure renewal pending in one metro</td><td>Confirm status before signing; operating without it halts billing.</td></tr>
+  </table><div class="take"><strong>Analyst take.</strong> Expect a QoE haircut. The recruiting addback is the tell — it is a recurring cost of running a high-turnover model, not a one-time item.</div>
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Forecast &amp; Value Creation · 8</span>
+</div>
+  <h2 class="section">7 · Forecast credibility and value creation</h2>
+
+  <h3 class="block">Plan vs Historical Run-Rate<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">financials.forecast_rows — Decision D-03: forecast_agent extracts this into analysis.forecast, but BundleBuilder reads six agent tables and forecast is not one of them.</span></h3>
+  <svg viewBox="0 0 340 132" xmlns="http://www.w3.org/2000/svg" role="img">
+  <line x1="30" y1="104.0" x2="336" y2="104.0"
+        stroke="#595959" stroke-width="0.7"/>
+  <line x1="30" y1="81.0" x2="336" y2="81.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="58.0" x2="336" y2="58.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="35.0" x2="336" y2="35.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <line x1="30" y1="12.0" x2="336" y2="12.0"
+        stroke="#BFD0E8" stroke-width="0.4"/>
+  <text x="28" y="14" font-size="6" fill="#595959" text-anchor="end">64.1</text>
+  <text x="28" y="106" font-size="6" fill="#595959" text-anchor="end">0</text>
+    <rect x="42.0" y="49.6"
+          width="12" height="54.4" fill="#1F3864"/>
+    <text x="48.0" y="45.6"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">37.9</text>
+  <text x="55.0" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2022</text>
+    <rect x="92.0" y="42.86"
+          width="12" height="61.14" fill="#1F3864"/>
+    <text x="98.0" y="38.86"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">42.6</text>
+  <text x="105.0" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2023</text>
+    <rect x="142.0" y="39.27"
+          width="12" height="64.73" fill="#1F3864"/>
+    <text x="148.0" y="35.27"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">45.1</text>
+  <text x="155.0" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2024</text>
+    <rect x="192.0" y="34.82"
+          width="12" height="69.18" fill="#1F3864"/>
+    <text x="198.0" y="30.82"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">48.2</text>
+  <text x="205.0" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">LTM Jun-26</text>
+    <rect x="242.0" y="24.49"
+          width="12" height="79.51" fill="#1F3864"/>
+    <text x="248.0" y="20.49"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">55.4</text>
+  <text x="255.0" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2027P</text>
+    <rect x="292.0" y="12.0"
+          width="12" height="92.0" fill="#1F3864"/>
+    <text x="298.0" y="8.0"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">64.1</text>
+  <text x="305.0" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">FY2028P</text>
+  <polyline points="55.0,95.26 105.0,94.25 155.0,94.25 205.0,93.88 255.0,92.04 305.0,90.66" fill="none" stroke="#C2600D" stroke-width="1.2"/><circle cx="55.0" cy="95.26" r="2" fill="#C2600D"/>
+    <text x="59.0" y="90.26"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">10%</text><circle cx="105.0" cy="94.25" r="2" fill="#C2600D"/>
+    <text x="109.0" y="89.25"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">11%</text><circle cx="155.0" cy="94.25" r="2" fill="#C2600D"/>
+    <text x="159.0" y="89.25"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">11%</text><circle cx="205.0" cy="93.88" r="2" fill="#C2600D"/>
+    <text x="209.0" y="88.88"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">11%</text><circle cx="255.0" cy="92.04" r="2" fill="#C2600D"/>
+    <text x="259.0" y="87.04"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">13%</text><circle cx="305.0" cy="90.66" r="2" fill="#C2600D"/>
+    <text x="309.0" y="85.66"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">14%</text>
+  <text x="30" y="128" font-size="5.8" fill="#595959">Plan periods marked P. Same axis as the historical chart on the financial performance page.</text>
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>Revenue (P = plan)</span><span><span class="k" style="background:#C2600D"></span>EBITDA margin %</span>
+</div>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Assumptions that carry the plan<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">financials.forecast_assumptions — Same as above — decision D-03.</span></h4>
+      <table class="dt left">
+        <tr><th style="width:44%">Assumption</th><th style="width:20%">Support</th><th>Test</th></tr>
+        <tr><td>15% revenue growth, against an 8.4% three-year actual</td><td><span class="chip low">Low</span></td><td>Reconcile to branch-level capacity and caregiver hiring plan</td></tr>
+        <tr><td>200bps gross margin expansion from rate increases</td><td><span class="chip medium">Medium</span></td><td>Historical rate-increase acceptance by client cohort</td></tr>
+        <tr><td>Caregiver turnover falls to 28% without added cost</td><td><span class="chip low">Low</span></td><td>Cost of the retention programme and its effect on gross margin</td></tr>
+        <tr><td>Two tuck-ins close in FY2027 at 5.0x</td><td><span class="chip low">Low</span></td><td>Pipeline evidence and prior M&amp;A execution track record</td></tr>
+      </table>
+    </div>
+    <div>
+      <h4 class="mini">Value creation levers<span class="ng-badge ng-ready">Ready</span><span class="ng-note">company_framing.thesis.value_creation_levers</span></h4>
+      <table class="dt left">
+        <tr><th style="width:40%">Lever</th><th style="width:22%">Size</th><th>Owner of proof</th></tr>
+        <tr><td>Professionalise the management layer (COO, branch P&amp;L)</td><td>150-250bps margin</td><td>Sponsor / management</td></tr>
+        <tr><td>Caregiver retention programme</td><td>80-120bps margin</td><td>Management</td></tr>
+        <tr><td>Tuck-in M&amp;A in adjacent metros</td><td>$15-20M revenue</td><td>Sponsor</td></tr>
+        <tr><td>Rate optimisation on legacy clients</td><td>60-90bps margin</td><td>Management</td></tr>
+      </table>
+    </div>
+  </div><div class="take"><strong>Analyst take.</strong> The plan is a demand-side plan for a supply-side business. Underwrite to the 8.4% run-rate and treat 15% as the upside case that the retention programme has to earn.</div>
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Risks &amp; Next Tests · 9</span>
+</div>
+  <h2 class="section">8 · Risks, mitigants and what to test first<span class="ng-badge ng-ready">Ready</span><span class="ng-note">risks</span></h2>
+
+  <div class="tiles">
+    <div class="tile flag"><span class="value">4</span><span class="label">High severity</span></div>
+    <div class="tile "><span class="value">3</span><span class="label">Medium</span></div>
+    <div class="tile "><span class="value">2</span><span class="label">Low</span></div>
+  </div>
+  <table class="dt left">
+    <tr><th style="width:13%">Severity</th><th style="width:24%">Risk</th><th style="width:31%">Evidence</th><th>Mitigant or test</th></tr>
+    <tr>
+      <td><span class="chip high">High</span></td>
+      <td><strong>Caregiver supply caps growth</strong></td>
+      <td>38% turnover, 64% utilization, 41 unfilled shifts per week in the last quarter.</td>
+      <td>Model growth on hiring capacity, not demand. Price the retention programme into the plan.</td>
+    </tr>
+    <tr>
+      <td><span class="chip high">High</span></td>
+      <td><strong>Addback quality overstates EBITDA</strong></td>
+      <td>Recruiting spend of $0.28M added back in all four years; new-branch losses not adjusted.</td>
+      <td>Rebuild adjusted EBITDA on a defensible basis before pricing; expect a QoE haircut.</td>
+    </tr>
+    <tr>
+      <td><span class="chip high">High</span></td>
+      <td><strong>Referral relationships are personal, not contractual</strong></td>
+      <td>Top two sources, 25% of new starts combined, have no contract.</td>
+      <td>Meet the discharge planners. Test what happens if the owner steps back.</td>
+    </tr>
+    <tr>
+      <td><span class="chip high">High</span></td>
+      <td><strong>Single-point management dependency</strong></td>
+      <td>Owner runs sales, scheduling and payroll. No COO, no branch P&amp;L reporting.</td>
+      <td>Cost the management build into the first 12 months; this is a use-of-funds item, not a synergy.</td>
+    </tr>
+    <tr>
+      <td><span class="chip medium">Medium</span></td>
+      <td><strong>Forecast step-up unsupported</strong></td>
+      <td>Plan assumes 15% growth against 8.4% actual, with no change in capacity assumptions.</td>
+      <td>Underwrite to run-rate. Treat the plan as the upside case.</td>
+    </tr>
+    <tr>
+      <td><span class="chip medium">Medium</span></td>
+      <td><strong>Metro South margin drag</strong></td>
+      <td>27.9% gross margin against 33.1% in Metro North on similar service mix.</td>
+      <td>Diligence why: wage rates, client mix, or scheduling discipline.</td>
+    </tr>
+    <tr>
+      <td><span class="chip medium">Medium</span></td>
+      <td><strong>Licensure renewal outstanding</strong></td>
+      <td>One metro&#39;s licence is pending renewal at the time of the data room.</td>
+      <td>Confirm before signing; this is a condition, not a risk to price.</td>
+    </tr>
+    <tr>
+      <td><span class="chip low">Low</span></td>
+      <td><strong>AR aging deterioration</strong></td>
+      <td>90-day AR rose from 4% to 9% with no reserve change.</td>
+      <td>Working capital peg should reflect the true collectability.</td>
+    </tr>
+  </table>
+  <p class="meta">Showing the 8 highest-severity risks; 1 further items are in the diligence tracker.</p>
+
+  <h3 class="block warn">Top Questions For Management<span class="ng-badge ng-partial">Partial</span><span class="ng-note">diligence_questions[].why_it_matters — The questions are populated; the &#x27;why it matters&#x27; column has no producer.</span></h3>
+  <ol class="q">
+    <li><span class="cat">Caregiver supply</span> What is the fully loaded cost of reducing turnover from 38% to 28%, and where does it sit in the P&amp;L?<span class="why">Why it matters: The plan assumes the improvement is free. If it costs 100bps of gross margin, the margin expansion story reverses.</span>
+    </li>
+    <li><span class="cat">Earnings quality</span> Why is recruiting agency spend treated as one-time when it appears in all four years?<span class="why">Why it matters: This single line is roughly 5% of adjusted EBITDA and sets the tone for the rest of the addback schedule.</span>
+    </li>
+    <li><span class="cat">Referrals</span> Which referral relationships are institutional versus personal to the owner, source by source?<span class="why">Why it matters: 25% of new client starts sit with two uncontracted sources. Their durability post-close is the revenue question.</span>
+    </li>
+    <li><span class="cat">Management</span> What is the plan and cost for the management layer, and who has run a multi-site operation before?<span class="why">Why it matters: Every value creation lever in the plan requires a management team that does not exist yet.</span>
+    </li>
+    <li><span class="cat">Forecast</span> Reconcile the 15% growth plan to branch-level capacity and the hiring plan, branch by branch.<span class="why">Why it matters: Growth is capacity-constrained, not demand-constrained. A demand-based plan is the wrong model.</span>
+    </li>
+    <li><span class="cat">Margin</span> What explains the 520bps gross margin gap between Metro South and Metro North?<span class="why">Why it matters: If it is fixable it is a lever worth 60-90bps at the group level; if structural, it caps the platform.</span>
+    </li>
+    <li><span class="cat">Legal</span> What is the consent position with the LTC insurer, and what is the fallback if consent is withheld?<span class="why">Why it matters: 9% of revenue and the only contracted payor relationship in the business.</span>
+    </li>
+    <li><span class="cat">Reporting</span> Can the business produce branch-level revenue, margin, utilization and quality metrics monthly?<span class="why">Why it matters: If not, that is both a diligence gap and a statement about how the business is run.</span>
+    </li>
+  </ol>
+
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page mps-page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Minimum Pursuit Score · 10</span>
+</div>
+  <div class="eyebrow">Minimum Pursuit Score</div>
+  <h2 class="section">Does this clear Rallyday's bar for further pursuit?<span class="ng-badge ng-ready">Ready</span><span class="ng-note">analysis.mps_score — Already shipping in the executive review. On the CIM branch this page gains a second score column.</span></h2>
+  <div class="divider"></div>
+
+  
+  <table class="mps-table">
+    <thead>
+      <tr>
+        <th class="mps-category-col" style="width: 15%;"></th>
+        <th class="mps-score-col" style="width: 8.0%;">CIM-only preview</th><th class="mps-score-col" style="width: 8.0%;">Full data room</th>
+        <th>Commentary</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td class="mps-category-col">
+          Founder / Owner Mindset<sup>◇</sup>
+        </td>
+        <td class="mps-score-col">3</td><td class="mps-score-col">3</td>
+        <td class="mps-commentary-col">
+          
+          <ul class="bullets">
+            
+            <li>Owner is engaged and has run the business for 17 years.</li>
+            
+            <li class="mps-counter-evidence">No evidence yet of willingness to cede operating control; needs a management meeting.</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="mps-category-col">
+          Attractive Market
+        </td>
+        <td class="mps-score-col">4</td><td class="mps-score-col">4</td>
+        <td class="mps-commentary-col">
+          
+          <ul class="bullets">
+            
+            <li><strong>Demand:</strong> Ageing demographics and private-pay willingness in all three metros.</li>
+            
+            <li>40+ sub-scale operators in radius support a platform thesis.</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="mps-category-col">
+          Quality Growth
+        </td>
+        <td class="mps-score-col">3</td><td class="mps-score-col">3</td>
+        <td class="mps-commentary-col">
+          
+          <ul class="bullets">
+            
+            <li>8.4% organic CAGR, all volume-led.</li>
+            
+            <li class="mps-counter-evidence">Flat gross margin means growth is not creating operating leverage.</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="mps-category-col">
+          Manageable Systemic Risk
+        </td>
+        <td class="mps-score-col">4</td><td class="mps-score-col">3</td>
+        <td class="mps-commentary-col">
+          
+          <ul class="bullets">
+            
+            <li>No reimbursement or regulatory payor risk — the key structural strength.</li>
+            
+            <li class="mps-counter-evidence">Score cut on the full room: caregiver turnover at 38% and 41 unfilled shifts per week were only visible in the scheduling reports.</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="mps-category-col">
+          Untapped Growth Opportunities
+        </td>
+        <td class="mps-score-col">4</td><td class="mps-score-col">4</td>
+        <td class="mps-commentary-col">
+          
+          <ul class="bullets">
+            
+            <li>Branch P&amp;L discipline, scheduling, rate optimisation and tuck-in M&amp;A all unexploited.</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="mps-category-col">
+          Transformational Equity<sup>◇</sup>
+        </td>
+        <td class="mps-score-col">4</td><td class="mps-score-col">4</td>
+        <td class="mps-commentary-col">
+          
+          <ul class="bullets">
+            
+            <li>Clear use of funds: management layer, systems, M&amp;A.</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+      
+      <tr>
+        <td class="mps-category-col">
+          Financeable<sup>◇</sup>
+        </td>
+        <td class="mps-score-col">3</td><td class="mps-score-col">3</td>
+        <td class="mps-commentary-col">
+          
+          <ul class="bullets">
+            
+            <li>Indicated range implies 7-8x adjusted EBITDA before the QoE haircut.</li>
+            
+            <li class="mps-counter-evidence">Lender appetite for home care is present but wage-pressure sensitive.</li>
+            
+          </ul>
+          
+        </td>
+      </tr>
+      
+      <tr class="mps-total-row">
+        <td class="mps-category-col"><strong>Total</strong></td>
+        <td class="mps-score-col">19.4</td><td class="mps-score-col">21.6</td>
+        <td class="mps-commentary-col"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  
+  <p class="mps-legend">◇ assessed from proxies and judgment; not directly evidenced in the data room</p>
+  
+
+  
+  <div class="mps-footer-note">Threshold 15 · Above threshold</div>
+  
+
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div><div class="page">
+  <div class="running-header">
+  <span><span class="company">Northwind Care Partners (ILLUSTRATIVE SAMPLE)</span> · Final Diligence Report</span>
+  <span>Appendix · 11</span>
+</div>
+  <h2 class="section">Appendix</h2>
+
+  <h3 class="block">Data Room Gaps — Information Request<span class="ng-badge ng-ready">Ready</span><span class="ng-note">data_room_gaps</span></h3>
+  <table class="dt left">
+    <tr><th style="width:12%">Priority</th><th style="width:44%">Item requested</th><th>Why it matters</th></tr>
+    <tr><td><span class="chip high">High</span></td><td>Branch-level P&amp;L for FY2023-LTM</td><td>Required to test the Metro South margin gap and to underwrite branch-level levers.</td></tr>
+    <tr><td><span class="chip high">High</span></td><td>Caregiver turnover by branch and tenure band</td><td>Turnover is the binding growth constraint; group-level 38% hides the distribution.</td></tr>
+    <tr><td><span class="chip high">High</span></td><td>Full addback support schedule with invoices</td><td>Three addbacks are unsupported; they drive the price.</td></tr>
+    <tr><td><span class="chip medium">Medium</span></td><td>Referral source detail by new client starts, monthly</td><td>Revenue-share view understates the dependency on a few discharge planners.</td></tr>
+    <tr><td><span class="chip medium">Medium</span></td><td>LTC insurer agreement, executed copy</td><td>Consent and rate-card terms are only summarised in the CIM.</td></tr>
+    <tr><td><span class="chip medium">Medium</span></td><td>Client cohort retention by vintage</td><td>14-month average tenure needs a distribution to be underwritable.</td></tr>
+    <tr><td><span class="chip medium">Medium</span></td><td>State licensure correspondence</td><td>Renewal status is asserted but not evidenced.</td></tr>
+    <tr><td><span class="chip low">Low</span></td><td>Scheduling system reports on unfilled shifts</td><td>Quantifies the revenue lost to capacity today.</td></tr>
+  </table>
+
+  <h3 class="block">Confidence By Area<span class="ng-badge ng-ready">Ready</span><span class="ng-note">confidence_by_area</span></h3>
+  <table class="dt left">
+    <tr><th>Business Model</th><th>Financial Trends</th><th>Customer Quality</th><th>Kpi</th><th>Legal</th><th>Quality Of Earnings</th><th>Forecast Support</th></tr>
+    <tr><td><span class="chip low">High</span></td><td><span class="chip low">High</span></td><td><span class="chip medium">Medium</span></td><td><span class="chip medium">Medium</span></td><td><span class="chip medium">Medium</span></td><td><span class="chip low">High</span></td><td><span class="chip high">Low</span></td></tr>
+  </table>
+
+  <h3 class="block">Sources Cited<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">(citation index) — Already renders its own &#x27;not populated&#x27; line in the template.</span></h3><p class="nodata">Citation index not populated for this run.</p>
+
+  <h3 class="block plain">Run Manifest<span class="ng-badge ng-pending">Pending data</span><span class="ng-note">meta.manifest — No producer found in the bundle layer.</span></h3>
+  <p class="meta">
+    Generation mode: CIM-first ·
+    Documents indexed: 214 ·
+    Workstreams completed: 7 of 7 ·
+    Degraded workstreams: none ·
+    Template version final_report.html.j2 v0.1
+  </p>
+  <p class="meta">TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice.</p>
+  <div class="footer">
+  TEMPLATE PREVIEW — all figures are illustrative and invented to demonstrate layout. Not a real company and not investment advice. · Generated 2026-09-03 · Mode: CIM-first · Overall confidence: Medium
+</div>
+</div>
+
+</body>
+</html>
