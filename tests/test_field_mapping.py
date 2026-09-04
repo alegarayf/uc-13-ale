@@ -13,6 +13,7 @@ generalizes across verticals (plan §Principios rectores, P2).
 from __future__ import annotations
 
 from agents.exec_summary.field_mapping import (
+    _company_framing_from_bma,
     _fta_table_rows,
     _headline_from_fta,
     _revenue_quality_from_agents,
@@ -434,3 +435,73 @@ def test_fta_table_rows_ebitda_also_filters_non_data_sentinel_records():
     rows = _fta_table_rows(fta_yaml)
     assert rows[0]["ebitda"] == "2,000"
     assert "NOTE" not in [r["year"] for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# company_framing: the two facts the investment team kept having to ask for
+# (who is running the sale process, and who the important partners are) plus
+# the profiler's what-it-does/how-it-operates description. All three were
+# already produced upstream — the bundle was simply dropping them.
+# ---------------------------------------------------------------------------
+
+
+def test_key_partners_keeps_only_commercial_relationships():
+    bma_yaml = {
+        "key_dependencies": [
+            {"dependency_type": "platform", "name": "Platform A", "description": "Core stack"},
+            {"dependency_type": "partner", "name": "Partner B"},
+            {"dependency_type": "channel", "name": "Reseller C"},
+            {"dependency_type": "vendor", "name": "Vendor D"},
+            {"dependency_type": "person", "name": "Founder"},
+            {"dependency_type": "team", "name": "Delivery team"},
+            {"dependency_type": "geography", "name": "Region"},
+            {"dependency_type": "customer", "name": "Top account"},
+        ]
+    }
+    partners = _company_framing_from_bma(bma_yaml)["key_partners"]
+    assert [p["name"] for p in partners] == ["Platform A", "Partner B", "Reseller C", "Vendor D"]
+    assert partners[0] == {
+        "name": "Platform A",
+        "relationship_type": "platform",
+        "description": "Core stack",
+    }
+
+
+def test_key_partners_dedupe_by_name_and_cap():
+    bma_yaml = {
+        "key_dependencies": [{"dependency_type": "partner", "name": "Partner A"}]
+        + [{"dependency_type": "partner", "name": "partner a"}]
+        + [{"dependency_type": "platform", "name": f"Platform {i}"} for i in range(10)]
+    }
+    partners = _company_framing_from_bma(bma_yaml)["key_partners"]
+    assert len(partners) == 6
+    assert [p["name"] for p in partners].count("Partner A") == 1
+
+
+def test_business_description_and_sale_process_come_from_the_profile():
+    profile = {
+        "business_description": "Does a thing. Operates by doing it.",
+        "sale_process": "Brought to market by an investment bank running a broad auction.",
+    }
+    framing = _company_framing_from_bma({"executive_summary": "Summary"}, profile)
+    assert framing["business_description"] == "Does a thing. Operates by doing it."
+    assert framing["sale_process"] == "Brought to market by an investment bank running a broad auction."
+
+
+def test_sale_process_falls_back_to_the_banked_flag_when_no_advisor_is_named():
+    framing = _company_framing_from_bma({}, {"banked": True, "banked_note": "CIM present."})
+    assert "Banker-run process" in framing["sale_process"]
+    assert "CIM present." in framing["sale_process"]
+
+
+def test_sale_process_is_none_when_nothing_says_the_deal_is_banked():
+    assert _company_framing_from_bma({}, {"banked": False})["sale_process"] is None
+    assert _company_framing_from_bma({}, {"sale_process": "null"})["sale_process"] is None
+    assert _company_framing_from_bma({}, {})["sale_process"] is None
+
+
+def test_company_framing_carries_the_new_fields_even_with_no_bma_output():
+    framing = _company_framing_from_bma(None, {"business_description": "Desc.", "banked": True})
+    assert framing["business_description"] == "Desc."
+    assert framing["sale_process"]
+    assert framing["key_partners"] == []

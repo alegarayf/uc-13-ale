@@ -327,6 +327,34 @@ definitions:
               type: string
       workforce_notes:
         type: ["string", "null"]
+      business_description:
+        type: ["string", "null"]
+        description: >
+          Profiler's 2-3 sentence what-it-does / how-it-operates description —
+          the source for the summary's core-business lines.
+      sale_process:
+        type: ["string", "null"]
+        description: >
+          How the company is being brought to market and by whom (named
+          sell-side advisor/banker, process type). Null when no intermediary
+          is named in the data room.
+      key_partners:
+        type: array
+        description: >
+          Named partner / platform / channel relationships from the Business
+          Model agent's key_dependencies.
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - name
+          properties:
+            name:
+              type: string
+            relationship_type:
+              type: string
+            description:
+              type: string
 
   financials:
     type: object

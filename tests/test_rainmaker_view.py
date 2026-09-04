@@ -115,6 +115,7 @@ def test_stat_tiles_fall_back_generically_when_kpi_dashboard_is_sparse():
         {
             "LTM EBITDA Margin",
             "Revenue CAGR",
+            "Revenue Growth (YoY)",
             "Flagged Risks",
             "Data Room Gaps",
             "Overall Confidence",
@@ -748,3 +749,141 @@ def test_rainmaker_view_mps_defaults_to_degraded_skeleton(bundle):
     view = rainmaker_view(bundle)
     assert view["mps"]["mps_status"] == "degraded"
     assert len(view["mps"]["rows"]) == 7
+
+
+# ---------------------------------------------------------------------------
+# Period ordering, unit normalization and the revenue-growth tile — the three
+# numeric defects reported on the 2026-09-02 stakeholder previews (a period
+# column extracted in a different unit that made growth read "64572.4%", a
+# table whose periods ran 2023 → 2024 → LTM 2025 → 2022, a header hardcoded to
+# "in millions" over figures in thousands, and a CAGR tile that disagreed with
+# the CAGR column right above it).
+# ---------------------------------------------------------------------------
+
+
+def _financials_bundle(rows, **meta) -> dict:
+    return {
+        "meta": {"company_name": "Acme", **meta},
+        "headline_metrics": {},
+        "financials": {"table_rows": rows},
+    }
+
+
+def _row(year, revenue, gross_profit=None, ebitda=None):
+    return {
+        "year": year,
+        "revenue": revenue,
+        "gross_profit": gross_profit,
+        "gross_margin_pct": None,
+        "ebitda": ebitda,
+        "ebitda_margin_pct": None,
+    }
+
+
+def _cells(view, metric):
+    return next(r["cells"] for r in view["financials"]["rows"] if r["metric_name"] == metric)
+
+
+def test_financial_periods_are_sorted_chronologically():
+    view = rainmaker_view(
+        _financials_bundle(
+            [
+                _row("2023A", "$58,082"),
+                _row("2024A", "$58,518"),
+                _row("LTM MAY 2025", "$62,239"),
+                _row("2022", "$40,251"),
+            ]
+        )
+    )
+    assert view["financials"]["periods"] == ["2022", "2023A", "2024A", "LTM MAY 2025"]
+    assert _cells(view, "Total Revenue") == ["$40,251", "$58,082", "$58,518", "$62,239"]
+
+
+def test_periods_without_a_year_keep_their_order_and_go_last():
+    view = rainmaker_view(
+        _financials_bundle(
+            [_row("Budget", "$30"), _row("2025A", "$20"), _row("Plan", "$40"), _row("2024A", "$10")]
+        )
+    )
+    assert view["financials"]["periods"] == ["2024A", "2025A", "Budget", "Plan"]
+
+
+def test_fy_shorthand_periods_sort_by_the_year_they_name():
+    view = rainmaker_view(_financials_bundle([_row("FY25", "$30"), _row("FY23", "$10"), _row("FY24", "$20")]))
+    assert view["financials"]["periods"] == ["FY23", "FY24", "FY25"]
+
+
+def test_period_extracted_in_a_different_unit_is_rescaled_onto_the_table_unit():
+    # One period read in raw dollars while the rest of the P&L is in thousands
+    # — verbatim shape of the defect on the Clearsulting preview.
+    view = rainmaker_view(
+        _financials_bundle(
+            [
+                _row("2022", "$40,251,450", gross_profit="$18,000,000"),
+                _row("2023A", "$58,082"),
+                _row("2024A", "$58,518"),
+                _row("LTM MAY 2025", "$62,239"),
+            ]
+        )
+    )
+    assert _cells(view, "Total Revenue")[0] == "$40,251"
+    assert _cells(view, "Gross Profit")[0] == "$18,000"
+    # The growth row is now a real percentage rather than five digits of noise.
+    assert _cells(view, "% Growth")[1] == "44.3%"
+
+
+def test_unit_rescaling_never_mutates_the_input_bundle():
+    bundle = _financials_bundle(
+        [_row("2022", "$40,251,450"), _row("2023A", "$58,082"), _row("2024A", "$58,518")]
+    )
+    snapshot = copy.deepcopy(bundle)
+    rainmaker_view(bundle)
+    assert bundle == snapshot
+
+
+def test_two_periods_are_never_rescaled_against_each_other():
+    # With two figures there is no majority to identify the outlier — leave
+    # both exactly as the agent extracted them rather than guess.
+    view = rainmaker_view(_financials_bundle([_row("2023A", "$58,082"), _row("2024A", "$62,239,000")]))
+    assert _cells(view, "Total Revenue") == ["$58,082", "$62,239,000"]
+
+
+def test_unit_label_comes_from_the_headline_metric_when_it_carries_a_suffix():
+    bundle = _financials_bundle([_row("2023A", "$21,403"), _row("2024A", "$22,266"), _row("2025B", "$23,022")])
+    bundle["headline_metrics"] = {"ltm_revenue": "$23.0mm"}
+    assert rainmaker_view(bundle)["financials"]["unit_label"] == "in thousands"
+
+
+def test_unit_label_falls_back_to_the_magnitude_of_the_figures():
+    thousands = _financials_bundle([_row("2023A", "$21,403"), _row("2024A", "$22,266")])
+    assert rainmaker_view(thousands)["financials"]["unit_label"] == "in thousands"
+
+    millions = _financials_bundle([_row("2023A", "$21.4"), _row("2024A", "$22.3")])
+    assert rainmaker_view(millions)["financials"]["unit_label"] == "in millions"
+
+    dollars = _financials_bundle([_row("2023A", "$21,403,000"), _row("2024A", "$22,266,000")])
+    assert rainmaker_view(dollars)["financials"]["unit_label"] == "in dollars"
+
+
+def test_unit_label_is_empty_when_no_dollar_figures_were_extracted():
+    view = rainmaker_view(_financials_bundle([_row("2023A", None), _row("2024A", None)]))
+    assert view["financials"]["unit_label"] == ""
+
+
+def test_revenue_tile_reuses_the_cagr_the_table_already_displays():
+    bundle = _financials_bundle([_row("2023A", "$100"), _row("2024A", "$110"), _row("2025A", "$121")])
+    bundle["headline_metrics"] = {"revenue_cagr": "3%"}  # FTA's latest YoY, not a CAGR
+    view = rainmaker_view(bundle)
+    tile = next(t for t in view["stat_tiles"] if t["label"] == "Revenue CAGR")
+    table_growth = next(
+        r["growth"] for r in view["financials"]["rows"] if r["metric_name"] == "Total Revenue"
+    )
+    assert tile["value"] == table_growth == "10%"
+
+
+def test_revenue_tile_relabels_the_headline_figure_when_no_cagr_is_computable():
+    bundle = _financials_bundle([_row("2023A", None)])
+    bundle["headline_metrics"] = {"revenue_cagr": "3%"}
+    view = rainmaker_view(bundle)
+    assert {"value": "3%", "label": "Revenue Growth (YoY)"} in view["stat_tiles"]
+    assert not any(t["label"] == "Revenue CAGR" for t in view["stat_tiles"])

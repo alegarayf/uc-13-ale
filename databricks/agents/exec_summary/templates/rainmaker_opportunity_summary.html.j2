@@ -47,6 +47,8 @@
     background: #F2F4F7; border-left: 3pt solid #1F3864;
     padding: 2mm 3.5mm; font-style: italic; margin: 2mm 0 3mm 0;
   }
+  .one-liner .core-line { margin-bottom: 0.8mm; }
+  .one-liner .core-line:last-child { margin-bottom: 0; }
   .recommendation {
     background: #FCEEE0; border-left: 3pt solid #C2600D;
     padding: 2mm 3.5mm; margin: 3mm 0; font-weight: bold;
@@ -132,7 +134,11 @@
   <h2 class="section-header">What the business is &amp; why it could be interesting</h2>
   <div class="divider"></div>
 
-  {% if narrative and narrative.one_liner %}
+  {% if narrative and narrative.core_business %}
+  <div class="one-liner">
+    {% for line in narrative.core_business[:3] %}<div class="core-line">{{ line }}</div>{% endfor %}
+  </div>
+  {% elif narrative and narrative.one_liner %}
   <div class="one-liner">{{ narrative.one_liner }}</div>
   {% elif bundle.executive.in_one_line %}
   <div class="one-liner">{{ bundle.executive.in_one_line }}</div>
@@ -235,7 +241,7 @@
   <table class="data-table">
     <thead>
       <tr>
-        <th style="width: 18%;">({{ rainmaker.financials.currency }} in millions)</th>
+        <th style="width: 18%;">({{ rainmaker.financials.currency }}{{ ' ' ~ rainmaker.financials.unit_label if rainmaker.financials.unit_label }})</th>
         {% for period in rainmaker.financials.periods %}<th style="width: {{ period_col_pct }}%;">{{ period }}</th>{% endfor %}
         {% if has_growth_col %}<th class="growth-col" style="width: 18%;">{{ rainmaker.financials.growth_col_label }}</th>{% endif %}
       </tr>

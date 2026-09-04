@@ -618,3 +618,65 @@ def test_render_rainmaker_mps_section_never_embeds_bracketed_source_citations(mo
     result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], mps=mps)
     html = Path(result["html"]).read_text(encoding="utf-8")
     assert ".pdf" not in html
+
+
+# ---------------------------------------------------------------------------
+# The opening box now carries three core-business lines instead of a single
+# hook sentence, and the financial table's unit header is derived from the
+# figures rather than hardcoded to "in millions".
+# ---------------------------------------------------------------------------
+
+
+def _render_html(monkeypatch, tmp_path, bundle, **kwargs) -> str:
+    _patch_volume(monkeypatch, tmp_path)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], **kwargs)
+    return Path(result["html"]).read_text(encoding="utf-8")
+
+
+def test_core_business_lines_replace_the_single_hook_sentence(monkeypatch, tmp_path):
+    narrative = {
+        "one_liner": "The old single-sentence hook.",
+        "core_business": ["What it does.", "How it does it.", "KPI: 42 units."],
+    }
+    html = _render_html(monkeypatch, tmp_path, _load("gkf"), narrative=narrative)
+    assert html.count('class="core-line"') == 3
+    for line in narrative["core_business"]:
+        assert line in html
+    assert "The old single-sentence hook." not in html
+
+
+def test_one_liner_still_renders_when_the_narrative_has_no_core_business(monkeypatch, tmp_path):
+    html = _render_html(
+        monkeypatch, tmp_path, _load("gkf"), narrative={"one_liner": "The hook sentence."}
+    )
+    assert "The hook sentence." in html
+    assert 'class="core-line"' not in html
+
+
+def test_core_business_lines_are_capped_at_three(monkeypatch, tmp_path):
+    narrative = {"core_business": [f"Line {i}." for i in range(6)]}
+    html = _render_html(monkeypatch, tmp_path, _load("gkf"), narrative=narrative)
+    assert html.count('class="core-line"') == 3
+    assert "Line 3." not in html
+
+
+def test_financial_table_unit_header_is_derived_not_hardcoded(monkeypatch, tmp_path):
+    bundle = copy.deepcopy(_load("gkf"))
+    bundle["headline_metrics"]["ltm_revenue"] = "$23.0mm"
+    bundle["financials"]["table_rows"] = [
+        {"year": "2023A", "revenue": "$21,403", "gross_profit": None,
+         "gross_margin_pct": None, "ebitda": None, "ebitda_margin_pct": None},
+        {"year": "2024A", "revenue": "$22,266", "gross_profit": None,
+         "gross_margin_pct": None, "ebitda": None, "ebitda_margin_pct": None},
+        {"year": "2025B", "revenue": "$23,022", "gross_profit": None,
+         "gross_margin_pct": None, "ebitda": None, "ebitda_margin_pct": None},
+    ]
+    html = _render_html(monkeypatch, tmp_path, bundle)
+    assert "($ in thousands)" in html
+    assert "in millions" not in html
+
+
+def test_financial_table_header_states_no_unit_when_there_are_no_figures(monkeypatch, tmp_path):
+    html = _render_html(monkeypatch, tmp_path, _load("gkf"))
+    assert "($)" in html
+    assert "in millions" not in html

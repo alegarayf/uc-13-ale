@@ -1,22 +1,22 @@
 {
   "elder_care": {
-    "html_sha256": "890492a62c6115bf69124e3974fd2a6c4c5c230594ec483a884fb59982096073",
+    "html_sha256": "c26bd8839228bda4f0400627b48674d91a0b503b8ab4ecd24b53d0cf9cd262a0",
     "pdf_pages": 4
   },
   "elder_care_cim_only": {
-    "html_sha256": "ca42b6bc95521901d28a554bfe9f65e5c932ddfe04bab7623cfefbb40ad6e267",
+    "html_sha256": "9acb4b258334a671ddf928e21defbeeed595c45b3e83d9962719e18c6b9dfb9b",
     "pdf_pages": 4
   },
   "clearsulting": {
-    "html_sha256": "5d5c416fb0406e6e067da8301f1df686b2084b01cb72bc2442dabeda2dac4f9c",
+    "html_sha256": "a92424e3ff997693ccf1c75b36e204db8df49333a280fdad1a27b4a2dccf1743",
     "pdf_pages": 4
   },
   "gkf": {
-    "html_sha256": "1a7549af929a0dcc6ea8b8f6ef420195a1795dbf90d265ad972017a2fe98fd68",
+    "html_sha256": "8b04487695ec5e0184333f68562a9cfc3c1297bc74e83f4172d7a684c1c4449e",
     "pdf_pages": 4
   },
   "b2b_saas": {
-    "html_sha256": "8d47fa42501beaf0974cb1d46124b6224ee9bf6d7e6f1280ee95f135fb850b6c",
+    "html_sha256": "bbb90fe5ba54a54eacda62596a6923261f92234f75c68641c5974b26a1d74b2b",
     "pdf_pages": 4
   }
 }

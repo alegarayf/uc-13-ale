@@ -415,12 +415,72 @@ def _workforce_notes_from_bma(bma_yaml: dict) -> str | None:
     return " ".join(parts)
 
 
-def _company_framing_from_bma(bma_yaml: dict | None) -> dict[str, Any]:
+# BMA ``key_dependencies[].dependency_type`` values that describe a commercial
+# relationship the investment team would want named (a BlackLine/Workiva-style
+# partnership), as opposed to an internal dependency on a person, a team, a
+# geography or a single customer. The agent's own vocabulary — not a
+# per-company literal, so this generalizes across verticals.
+_PARTNER_DEPENDENCY_TYPES = frozenset({"partner", "platform", "channel", "vendor"})
+_KEY_PARTNER_CAP = 6
+
+
+def _key_partners_from_bma(bma_yaml: dict) -> list[dict[str, str]]:
+    """Named partner/platform/channel relationships already extracted by the
+    Business Model agent. Deduped by name (case-insensitive), capped — never
+    a new extraction, just a field the bundle was dropping on the floor."""
+    partners: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for dependency in bma_yaml.get("key_dependencies") or []:
+        if not isinstance(dependency, dict):
+            continue
+        if str(dependency.get("dependency_type") or "").strip().lower() not in _PARTNER_DEPENDENCY_TYPES:
+            continue
+        name = str(dependency.get("name") or "").strip()
+        if not name or name.lower() in seen:
+            continue
+        seen.add(name.lower())
+        partner = {
+            "name": name,
+            "relationship_type": str(dependency.get("dependency_type") or "").strip(),
+        }
+        description = str(dependency.get("description") or "").strip()
+        if description:
+            partner["description"] = description
+        partners.append(partner)
+        if len(partners) >= _KEY_PARTNER_CAP:
+            break
+    return partners
+
+
+def _sale_process_from_profile(profile: dict[str, Any]) -> str | None:
+    """How the company reached the market. Prefers the profiler's own
+    ``sale_process`` (which names the sell-side advisor when the CIM does);
+    falls back to its banked flag, which at least says whether this is a
+    banker-run process at all."""
+    stated = str(profile.get("sale_process") or "").strip()
+    if stated and stated.lower() not in ("null", "none", "unknown"):
+        return stated
+    if profile.get("banked") is True:
+        note = str(profile.get("banked_note") or "").strip()
+        return f"Banker-run process; advisor not named in the data room. {note}".strip()
+    return None
+
+
+def _company_framing_from_bma(
+    bma_yaml: dict | None, profile: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    profile = profile or {}
+    business_description = str(profile.get("business_description") or "").strip() or None
+    sale_process = _sale_process_from_profile(profile)
+
     empty_framing: dict[str, Any] = {
         "overview_bullets": [],
         "revenue_model": {"tag": "", "quality_flag": "", "note": ""},
         "recent_changes": [],
         "thesis": {"bullets": [], "value_creation_levers": []},
+        "business_description": business_description,
+        "sale_process": sale_process,
+        "key_partners": [],
     }
     if not bma_yaml:
         return empty_framing
@@ -441,6 +501,9 @@ def _company_framing_from_bma(bma_yaml: dict | None) -> dict[str, Any]:
         },
         "recent_changes": bma_yaml.get("recent_model_changes") or [],
         "thesis": {"bullets": [], "value_creation_levers": []},
+        "business_description": business_description,
+        "sale_process": sale_process,
+        "key_partners": _key_partners_from_bma(bma_yaml),
     }
     workforce_notes = _workforce_notes_from_bma(bma_yaml)
     if workforce_notes:
@@ -688,7 +751,7 @@ def apply_field_mappings(
                 ),
             },
         },
-        "company_framing": _company_framing_from_bma(bma_yaml),
+        "company_framing": _company_framing_from_bma(bma_yaml, profile),
         "financials": {
             "table_rows": _fta_table_rows(fta_yaml),
             "observations": [],

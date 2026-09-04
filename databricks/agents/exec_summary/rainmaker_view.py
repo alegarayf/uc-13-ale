@@ -18,7 +18,9 @@ where a field named in A.3 does not actually exist in
 
 from __future__ import annotations
 
+import math
 import re
+import statistics
 from typing import Any
 
 from agents.exec_summary.formatters import format_kpi_value, is_operator_gap
@@ -198,24 +200,51 @@ def _tiles_from_kpi_dashboard(bundle: dict[str, Any]) -> list[dict[str, str]]:
     return tiles
 
 
-def _generic_fallback_tiles(bundle: dict[str, Any]) -> list[dict[str, str]]:
+def _revenue_growth_tile(
+    bundle: dict[str, Any], financial_table: dict[str, Any] | None
+) -> tuple[str, str] | None:
+    """``(value, label)`` for the revenue-growth tile.
+
+    Prefers the CAGR the financial table already computed and displays in its
+    own growth column, so the tile and the table can never disagree — they
+    used to, because ``headline_metrics.revenue_cagr`` is the FTA's *latest
+    YoY growth* (``field_mapping._headline_from_fta``), not a CAGR at all.
+    When there is no table CAGR the headline is still shown, but under the
+    label that figure actually earns.
+    """
+    for row in (financial_table or {}).get("rows") or []:
+        if row.get("metric_name") == "Total Revenue" and row.get("growth"):
+            return str(row["growth"]), "Revenue CAGR"
+    headline = _headline(bundle, "revenue_cagr")
+    return (headline, "Revenue Growth (YoY)") if headline else None
+
+
+def _generic_fallback_tiles(
+    bundle: dict[str, Any], financial_table: dict[str, Any] | None = None
+) -> list[dict[str, str]]:
     """Company-agnostic tiles built only from fields every bundle has, used
     to top up when ``kpi_dashboard`` has too few numeric-looking rows (e.g.
     non-healthcare overlays whose KPI rows are narrative or boolean)."""
-    candidates = [
+    candidates: list[tuple[str, str] | None] = [
         (_headline(bundle, "ltm_ebitda_margin_pct"), "LTM EBITDA Margin"),
-        (_headline(bundle, "revenue_cagr"), "Revenue CAGR"),
+        _revenue_growth_tile(bundle, financial_table),
         (str(len(bundle.get("risks") or [])), "Flagged Risks"),
         (str(len(bundle.get("data_room_gaps") or [])), "Data Room Gaps"),
         (str((bundle.get("meta") or {}).get("overall_confidence") or "").upper(), "Overall Confidence"),
     ]
-    return [{"value": v, "label": lbl} for v, lbl in candidates if v]
+    return [
+        {"value": candidate[0], "label": candidate[1]}
+        for candidate in candidates
+        if candidate and candidate[0]
+    ]
 
 
-def _stat_tiles(bundle: dict[str, Any]) -> list[dict[str, str]]:
+def _stat_tiles(
+    bundle: dict[str, Any], financial_table: dict[str, Any] | None = None
+) -> list[dict[str, str]]:
     tiles = _tiles_from_kpi_dashboard(bundle)
     if len(tiles) < _STAT_TILE_MIN:
-        for tile in _generic_fallback_tiles(bundle):
+        for tile in _generic_fallback_tiles(bundle, financial_table):
             if len(tiles) >= _STAT_TILE_CAP:
                 break
             if tile not in tiles:
@@ -408,10 +437,34 @@ def _clean_cell(value: Any) -> str | None:
     return None if _is_blank(value) else str(value).strip()
 
 
+# Period labels the agents produce are free-form ("2024A", "2025B", "LTM MAY
+# 2025", "FY23"), and ``financials.table_rows`` arrives in whatever order the
+# extraction happened to emit — observed on a real render: 2023A, 2024A, LTM
+# MAY 2025, 2022, which makes every growth/CAGR figure computed left-to-right
+# meaningless. Sorting by the year the label names is company-agnostic: it
+# reads the agent's own label and never renames or drops a period.
+_PERIOD_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
+_PERIOD_SHORT_YEAR_RE = re.compile(r"(?:^|[^0-9A-Za-z])(?:FY|CY)\s*'?(\d{2})(?![0-9])", re.IGNORECASE)
+
+
+def _period_sort_year(label: str) -> int | None:
+    """Calendar year named by a period label, or ``None`` when it names none.
+    ``"LTM MAY 2025"`` → 2025; ``"FY23"`` → 2023; ``"Budget"`` → ``None``."""
+    match = _PERIOD_YEAR_RE.search(label)
+    if match:
+        return int(match.group(0))
+    short = _PERIOD_SHORT_YEAR_RE.search(label)
+    if short:
+        return 2000 + int(short.group(1))
+    return None
+
+
 def _financial_periods(bundle: dict[str, Any]) -> list[dict[str, Any]]:
     """``financials.table_rows`` deduped by ``year`` (defensive — protects
-    against bundles persisted before the field_mapping dedup fix), preserving
-    original order."""
+    against bundles persisted before the field_mapping dedup fix) and sorted
+    chronologically. Periods whose label names no year keep their original
+    relative order and go last, so an unparseable label is never reordered on
+    a guess."""
     raw_rows = (bundle.get("financials") or {}).get("table_rows") or []
     periods: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -423,7 +476,151 @@ def _financial_periods(bundle: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         seen.add(year)
         periods.append(row)
-    return periods
+
+    labels = [str(r.get("year") or "").strip() for r in periods]
+    years = [_period_sort_year(label) for label in labels]
+    if not any(year is not None for year in years):
+        return periods
+
+    order = sorted(
+        range(len(periods)),
+        key=lambda i: (years[i] is None, years[i] if years[i] is not None else 0, i),
+    )
+    if order != list(range(len(periods))):
+        print(
+            "[rainmaker_view] financial periods were not in chronological order — "
+            f"reordered {labels} → {[labels[i] for i in order]}"
+        )
+    return [periods[i] for i in order]
+
+
+# A single period extracted in a different unit than its neighbours (e.g. one
+# column in raw dollars while the rest of the table is in thousands) makes the
+# growth and CAGR columns nonsense — confirmed on a real render, where a
+# $40,251,450 period sitting next to $58,082 produced "64572.4% growth". The
+# ratio between two adjacent periods of the same P&L is never this large, so a
+# gap of ≥500× against the table's own median is a unit mismatch, not a real
+# move. Only exact powers of 1000 are ever applied, and only to the $ cells of
+# the offending period — this rescales the unit the agent read, it does not
+# invent or adjust a figure.
+_UNIT_OUTLIER_FACTOR = 500.0
+_MONEY_FIELDS = ("revenue", "gross_profit", "ebitda")
+
+
+def _nearest_power_of_1000(ratio: float) -> float:
+    return 1000.0 ** round(math.log(ratio, 1000))
+
+
+def _format_money(value: float, original: Any) -> str:
+    """Re-render a rescaled figure in the same style the agent used (currency
+    symbol, parenthesised negatives) so the table stays visually uniform."""
+    text = str(original).strip()
+    prefix = "$" if text.startswith("$") or text.startswith("($") else ""
+    magnitude = abs(value)
+    body = f"{magnitude:,.0f}" if magnitude >= 100 else f"{magnitude:,.1f}"
+    if value < 0:
+        return f"({prefix}{body})" if text.startswith("(") else f"-{prefix}{body}"
+    return f"{prefix}{body}"
+
+
+def _normalize_period_units(period_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Copy of ``period_rows`` with any period whose figures were extracted in
+    a different unit rescaled onto the table's dominant unit. Never mutates
+    its input (the rows belong to the caller's bundle)."""
+    revenues = [_parse_money(row.get("revenue")) for row in period_rows]
+    known = [abs(v) for v in revenues if v not in (None, 0)]
+    if len(known) < 3:
+        # With two periods there is no majority to call the third an outlier —
+        # leave both exactly as extracted rather than guess which one is wrong.
+        return period_rows
+
+    median = statistics.median(known)
+    if median <= 0:
+        return period_rows
+
+    normalized: list[dict[str, Any]] = []
+    for row, revenue in zip(period_rows, revenues):
+        ratio = abs(revenue) / median if revenue not in (None, 0) else 1.0
+        if _UNIT_OUTLIER_FACTOR > ratio > 1 / _UNIT_OUTLIER_FACTOR:
+            normalized.append(row)
+            continue
+        scale = _nearest_power_of_1000(ratio)
+        if scale == 1.0:
+            normalized.append(row)
+            continue
+        rescaled = dict(row)
+        for field in _MONEY_FIELDS:
+            value = _parse_money(row.get(field))
+            if value is not None:
+                rescaled[field] = _format_money(value / scale, row.get(field))
+        print(
+            f"[rainmaker_view] period {row.get('year')!r} was extracted {scale:,.0f}× the "
+            f"table's other periods (revenue {row.get('revenue')!r} vs median {median:,.0f}) — "
+            "rescaled onto the table's unit so growth and CAGR stay meaningful."
+        )
+        normalized.append(rescaled)
+    return normalized
+
+
+# Display unit for the table header. Hardcoding "in millions" (what the
+# template used to do) mislabels every table the agents extract in thousands,
+# which is most of them.
+_UNIT_LABELS: tuple[tuple[float, str], ...] = (
+    (1_000_000.0, "in millions"),
+    (1_000.0, "in thousands"),
+    (1.0, "in dollars"),
+)
+_HEADLINE_MONEY_RE = re.compile(
+    r"^\s*[\$€]?\s*(-?[\d,]+(?:\.\d+)?)\s*(bn|bb|mm|b|m|k)\b", re.IGNORECASE
+)
+_HEADLINE_SUFFIX_MULTIPLIERS: dict[str, float] = {
+    "bn": 1e9, "bb": 1e9, "b": 1e9, "mm": 1e6, "m": 1e6, "k": 1e3,
+}
+
+
+def _headline_absolute_dollars(text: str) -> float | None:
+    """``"$23.0mm"`` → ``23_000_000``. Returns ``None`` unless the headline
+    carries an explicit magnitude suffix — a bare ``"$23,022"`` says nothing
+    about the unit the table is in, which is the whole question here."""
+    match = _HEADLINE_MONEY_RE.match(text or "")
+    if not match:
+        return None
+    try:
+        value = float(match.group(1).replace(",", ""))
+    except ValueError:
+        return None
+    return value * _HEADLINE_SUFFIX_MULTIPLIERS[match.group(2).lower()]
+
+
+def _unit_label(bundle: dict[str, Any], revenue_values: list[float | None]) -> str:
+    """Unit the table's figures are stated in, derived from the data itself.
+
+    Preferred signal: ``headline_metrics.ltm_revenue``, which the agents state
+    with an explicit suffix ("$23.0mm") — its ratio to the same figure in the
+    table gives the unit directly. Falls back to the magnitude of the figures
+    themselves, which separates the three units a P&L is realistically stated
+    in. Never invents a unit: a table with no $ figures returns ``""`` and the
+    header simply states no unit, instead of the hardcoded "in millions" that
+    mislabelled every table extracted in thousands.
+    """
+    populated = [v for v in revenue_values if v not in (None, 0)]
+    if not populated:
+        return ""  # no $ figures to characterise — the header states no unit at all
+
+    anchor = abs(populated[-1])
+    absolute = _headline_absolute_dollars(_headline(bundle, "ltm_revenue"))
+    if absolute:
+        scale = _nearest_power_of_1000(absolute / anchor)
+        for multiplier, label in _UNIT_LABELS:
+            if scale >= multiplier:
+                return label
+
+    median = statistics.median(abs(v) for v in populated)
+    if median >= 1_000_000:
+        return "in dollars"
+    if median >= 1_000:
+        return "in thousands"
+    return "in millions"
 
 
 def _financial_table(bundle: dict[str, Any]) -> dict[str, Any]:
@@ -432,7 +629,7 @@ def _financial_table(bundle: dict[str, Any]) -> dict[str, Any]:
     ``None`` (renders as "-"); ``% Growth`` is the only computed row (pure
     arithmetic between two already-extracted revenue figures, never a
     fabricated input)."""
-    period_rows = _financial_periods(bundle)
+    period_rows = _normalize_period_units(_financial_periods(bundle))
     periods = [str(r.get("year") or "") for r in period_rows]
     revenue_values = [_parse_money(r.get("revenue")) for r in period_rows]
 
@@ -464,6 +661,7 @@ def _financial_table(bundle: dict[str, Any]) -> dict[str, Any]:
         "rows": rows,
         "currency": "$",
         "unit": "",
+        "unit_label": _unit_label(bundle, revenue_values),
         "growth_col_label": growth_col_label,
     }
 
@@ -855,7 +1053,7 @@ def rainmaker_view(
     skeleton (7 rows, no scores) rather than omitting it.
     """
     financial_table = _financial_table(bundle)
-    stat_tiles = _stat_tiles(bundle)
+    stat_tiles = _stat_tiles(bundle, financial_table)
     return {
         "financial_availability": _financial_availability(bundle),
         "stat_tiles": stat_tiles,
