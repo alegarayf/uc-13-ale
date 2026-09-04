@@ -10,10 +10,12 @@
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     color: #1A1A1A;
     font-size: 8.5pt;
-    line-height: 1.2;
+    line-height: 1.15;
     margin: 0;
   }
   .page { page-break-after: always; padding-bottom: 6mm; }
+  /* The framing page is the tightest of the three; it needs no trailing pad. */
+  .page.framing { padding-bottom: 0; }
   .page:last-child { page-break-after: auto; }
   h1 { color: #1F3864; font-size: 18pt; margin: 0 0 1mm 0; text-transform: uppercase; }
   .eyebrow { color: #C2600D; font-weight: bold; font-size: 8.5pt; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -22,14 +24,14 @@
   }
   h3.block-header {
     color: #FFFFFF; font-size: 8pt; letter-spacing: 0.03em;
-    text-transform: uppercase; padding: 1mm 2.5mm; margin: 0 0 1.5mm 0;
+    text-transform: uppercase; padding: 0.8mm 2.5mm; margin: 0 0 1mm 0;
     background: #1F3864;
   }
   h3.block-header.watchouts { background: #C2600D; }
-  .subtitle { color: #595959; font-size: 9pt; margin-bottom: 2mm; }
+  .subtitle { color: #595959; font-size: 9pt; margin-bottom: 1mm; }
   .logo-row { display: flex; justify-content: space-between; align-items: flex-start; }
   .logo-row img { max-height: 9mm; }
-  .divider { border-top: 2pt solid #1F3864; border-bottom: 0; margin: 2mm 0 3mm 0; }
+  .divider { border-top: 2pt solid #1F3864; border-bottom: 0; margin: 1.5mm 0 2mm 0; }
   .doc-header h1 { margin: 0 0 0.5mm 0; }
   .doc-header .subtitle { margin-bottom: 1.5mm; }
   .running-header {
@@ -45,22 +47,22 @@
   .footer .disclosure { display: block; margin-top: 1mm; }
   .one-liner {
     background: #F2F4F7; border-left: 3pt solid #1F3864;
-    padding: 2mm 3.5mm; font-style: italic; margin: 2mm 0 3mm 0;
+    padding: 1.5mm 3.5mm; font-style: italic; margin: 1.5mm 0 2mm 0;
   }
   .one-liner .core-line { margin-bottom: 0.8mm; }
   .one-liner .core-line:last-child { margin-bottom: 0; }
   .recommendation {
     background: #FCEEE0; border-left: 3pt solid #C2600D;
-    padding: 2mm 3.5mm; margin: 3mm 0; font-weight: bold;
+    padding: 2mm 3.5mm; margin: 2mm 0; font-weight: bold;
   }
   ul.bullets { margin: 0 0 2mm 0; padding-left: 4mm; }
-  ul.bullets li { margin-bottom: 0.6mm; }
-  .grid-2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-bottom: 2.5mm; }
+  ul.bullets li { margin-bottom: 0.3mm; }
+  .grid-2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-bottom: 1.5mm; }
   .card {
     background: #fff; border: 0.5pt solid #BFD0E8;
     border-radius: 1.5mm; overflow: hidden;
   }
-  .card-body { padding: 0 2.5mm 2.5mm 2.5mm; }
+  .card-body { padding: 0 2.5mm 1.5mm 2.5mm; }
   table.data-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 2mm 0 4mm 0; }
   table.data-table th, table.data-table td {
     border-bottom: 0.5pt solid #BFD0E8; padding: 1.3mm 2mm; text-align: right; vertical-align: top;

@@ -254,7 +254,9 @@ here is not optional):
   (3) ONE high-impact KPI from the input, stated with its figure and what it measures — pick the single \
   number that best conveys scale or performance, not a repeat of a figure used in line 1 or 2. Ground lines \
   1-2 in the input's "business_description" when it is present. This is the reader's first paragraph: it must \
-  read as three plain statements of fact, never as a pitch, a caveat or a restatement of the recommendation.
+  read as three plain statements of fact, never as a pitch, a caveat or a restatement of the recommendation. \
+  Each of the three lines is typeset as ONE printed line: the 140-character limit below is a hard cap here, \
+  not a target — count the characters and cut detail until the line is under it.
 - "company_overview": EXACTLY 4 bullets, HIGH-LEVEL only — what the company does, its market/footprint, its \
   scale and growth in aggregate terms. Do NOT include granular operational detail such as specific hourly \
   rates, per-location billed hours/week, individual location-by-location pricing, or other line-item \
