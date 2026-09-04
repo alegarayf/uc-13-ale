@@ -118,7 +118,8 @@ run_vdr_rainmaker(table_name, record_id, special_folder, no_cim_mode)
 ├─ stage2 = _run_final_report_stage(
 │       spark, table_name, record_id, company_name, output_dir, progress,
 │       run_mode="full_vdr_after_cim", run_ingest=True, run_agents=True,
-│       prior_run_modes=("cim_only",), llm_endpoint=…, vision_endpoint=…)
+│       prior_run_modes=("cim_only",), rescore_mps=True,   # new evidence → new score
+│       llm_endpoint=…, vision_endpoint=…)
 │   ├─ progress.start("vdr_ingestion")
 │   ├─ run_ingestion_pipeline(company_name, catalog=VDR_CATALOG,
 │   │                         vision_endpoint=…, parse_priority_tiers="1,2")
@@ -160,7 +161,10 @@ run_vdr_rainmaker(...) → _run_full_room_flow(...)
 ├─ _update_vdr_record(results_location=output_dir + "/")           # NEW: published EARLY
 ├─ stage2 = _run_final_report_stage(..., run_mode="full_vdr_no_cim",
 │                                   run_ingest=False, run_agents=False,
-│                                   prior_run_modes=())             # the room is already ingested & scored
+│                                   prior_run_modes=(), rescore_mps=False)
+│   │  # the room is already ingested, the agents have already run, and the ER's
+│   │  # MPS already scored THIS bundle → reuse that run rather than re-scoring
+│   │  # the same data (decision D-02, §3)
 │   └─ stages: final_report → final_report_ready
 └─ _update_vdr_record(done, success|partial, …)
 ```
@@ -177,14 +181,48 @@ work (`run_ingest` / `run_agents`), and whether a prior MPS run exists
 | | Branch A | Branch B |
 |---|---|---|
 | CIM run — written | `build_rainmaker_summary(run_mode="cim_only")` → `MPSAgent().score` → append row to `uc13_preview.analysis.mps_score` | n/a |
-| Final run — written | `build_final_report(run_mode="full_vdr_after_cim")` → a **new** `MPSAgent().score` call over the complete bundle → its own appended row | same, `run_mode="full_vdr_no_cim"` |
-| Read for the page | `_load_prior_mps_runs()` reads back the newest `run_mode="cim_only"` row for the company from `mps_score`; passed as `prior_mps_runs` | `prior_mps_runs=None` |
-| Passed to the view | `_mps_table(mps_runs=[cim_run, full_run])` → 2 columns, 2 totals | `[full_run]` → 1 column |
+| ER run — written | (that same CIM run) | `build_rainmaker_summary(run_mode="full_vdr_no_cim")` → `MPSAgent().score` → append row |
+| Final run | a **new** `MPSAgent().score` call over the complete bundle, `run_mode="full_vdr_after_cim"`, its own appended row | **no new call** — the ER's run is read back and reused (D-02 below) |
+| Read for the page | `_load_prior_mps_runs()` reads back the newest `run_mode="cim_only"` row; passed as `prior_mps_runs` | `_load_prior_mps_runs()` reads back the newest `run_mode="full_vdr_no_cim"` row; passed as `reuse_mps_run` |
+| Passed to the view | `_mps_table(mps_runs=[cim_run, full_run])` → 2 columns, 2 totals | `_mps_table(mps_runs=[er_run])` → 1 column |
 
-Both runs go through `MPSAgent().score(...)`, which never raises: a failure
-degrades to `mps_status="degraded"` and the page still renders its seven-row
-skeleton. Nothing about the MPS page is redesigned, re-laid-out or re-summarised —
-it is `rainmaker_view._mps_table` rendered into the same markup (§5).
+Every scoring call goes through `MPSAgent().score(...)`, which never raises: a
+failure degrades to `mps_status="degraded"` and the page still renders its
+seven-row skeleton. Nothing about the MPS page is redesigned, re-laid-out or
+re-summarised — it is `rainmaker_view._mps_table` rendered into the same markup
+(§5).
+
+### D-02 — Branch B reuses the ER's MPS run instead of re-scoring
+
+**Decided by Hector, 2026-09-03. This is a deliberate deviation from §2.3 of the
+task prompt**, which says the final report's MPS is *always* a new
+`MPSAgent().score(...)` call and that Branch B simply keeps
+`run_mode="full_vdr_no_cim"`.
+
+The reason for the deviation: on Branch B there is **no new evidence between the
+two documents**. The ER and the final report are built from the same bundle, over
+the same catalog, with no ingestion and no agent run in between — `run_ingest` and
+`run_agents` are both `False`. A second scoring call would therefore be an extra
+LLM call over identical data, producing a second `full_vdr_no_cim` row per run and
+a score that can differ from the one the deal team already downloaded, with
+nothing on the page to explain why. Re-scoring is what makes Branch A's second
+column meaningful; on Branch B it manufactures a discrepancy instead of measuring
+one.
+
+So on Branch B the final report's MPS page is, by construction, **the same page
+with the same number as the executive review's** — which is also what the reader
+expects when nothing new was read.
+
+Mechanics: `build_final_report` gains `reuse_mps_run: dict | None = None`. When
+supplied, it skips `MPSAgent().score` entirely and passes that run straight
+through as the current run. `_load_prior_mps_runs` already does the read-back and
+is reused unchanged.
+
+**Failure path.** If the read-back returns nothing or a malformed row (a missing
+table, an ER whose MPS itself failed to persist), `build_final_report` falls back
+to a fresh `MPSAgent().score` call and prints why. An MPS page with a number is
+worth more than an empty one; the fallback is a degraded path, not the norm, and
+it is visible in stdout.
 
 **The one edit permitted in `rainmaker_view.py`** is the additive dictionary entry:
 
@@ -394,7 +432,7 @@ line. T08 is independent of T01-T07 and can run at any point.
 | [T02](tasks/T02_bundle_field_audit.md) | Audit the 8 bundle fields; wire renames, record the genuinely-absent ones | no invented fields |
 | [T03](tasks/T03_view_numeric_tests.md) | `test_final_report_view.py` — the numeric contract | green |
 | [T04](tasks/T04_render_final_report.md) | `render_final_report()` + `report=` kwarg + A4 portrait fallback | green |
-| [T05](tasks/T05_final_report_entry.md) | `build_final_report()` + MPS read-back + the run-mode label | green |
+| [T05](tasks/T05_final_report_entry.md) | `build_final_report()` + MPS read-back/reuse (D-02) + the run-mode label | green |
 | [T06](tasks/T06_mps_parity.md) | D-01 evidence, the include swap or the replica, and the parity test | **needs D-01 answer** |
 | [T07](tasks/T07_render_tests.md) | `test_final_report_render.py` — four scenarios | green |
 | [T08](tasks/T08_vdr_progress.md) | `vdr_progress.py` + the ALTER + `test_vdr_progress.py` | green |
@@ -484,3 +522,8 @@ named next to it.
       §4/§6 of this plan record the actual answers. *(T08, T09)*
 - [ ] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
       into §9. *(T02)*
+- [ ] **DoD-12** — On Branch B, the final report's MPS page carries the *same*
+      run as the executive review's — one column, same total, same verdict — with
+      no second `MPSAgent().score` call (D-02, §3). *(T05 + T09; evidence: a test
+      asserting `MPSAgent.score` is not called when `reuse_mps_run` is supplied,
+      and a runner test asserting Branch B passes the read-back run)*

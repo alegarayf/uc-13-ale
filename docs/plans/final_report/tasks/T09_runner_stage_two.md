@@ -49,6 +49,7 @@ def _run_final_report_stage(
     run_ingest: bool,
     run_agents: bool,
     prior_run_modes: tuple[str, ...],
+    rescore_mps: bool,
     llm_endpoint: str,
     vision_endpoint: str,
 ) -> dict:
@@ -83,10 +84,29 @@ Body:
 3. `progress.start("final_report")`, then
    ```python
    prior = _load_prior_mps_runs(spark, VDR_CATALOG, company_name, prior_run_modes) if prior_run_modes else []
+
+   # D-02 (plan §3): when stage 2 read no new evidence — Branch B, where the ER
+   # already scored THIS bundle — reuse the ER's run instead of paying for a
+   # second score over identical data.
+   reuse = None
+   if not rescore_mps:
+       existing = _load_prior_mps_runs(spark, VDR_CATALOG, company_name, (run_mode,))
+       reuse = existing[-1] if existing else None
+
    built = build_final_report(company_name, VDR_CATALOG, spark, llm_endpoint,
-                              run_mode=run_mode, prior_mps_runs=prior or None)
+                              run_mode=run_mode, prior_mps_runs=prior or None,
+                              reuse_mps_run=reuse)
    ```
-   `build_final_report` never raises; inspect `built["status"]`.
+   `build_final_report` never raises; inspect `built["status"]`. Print
+   `built["mps_source"]` — a reused run and a scored one must be distinguishable
+   in the job log.
+
+   **`rescore_mps` and `run_ingest`/`run_agents` are not independent.** Re-scoring
+   is only meaningful when stage 2 actually read something new. Assert that
+   coupling at the top of the function (`if rescore_mps and not (run_ingest or
+   run_agents): raise ValueError(...)` — a programming error in the caller, not a
+   runtime condition, so this one *may* raise; it is caught by the function's own
+   outer `try` anyway).
 4. Copy `built["pdf"]` → `{output_dir}/final_report.pdf` and `built["html"]` →
    `{output_dir}/final_report.html`, each only if the source exists. Follow the
    existing `shutil.copy2` pattern.
@@ -109,7 +129,9 @@ In `run_vdr_rainmaker()`, after the ER files are copied:
   while stage 2 is still running. This is a new write; the terminal write at the
   end still sets it too, harmlessly.
 - Call `_run_final_report_stage(..., run_mode="full_vdr_after_cim",
-  run_ingest=True, run_agents=True, prior_run_modes=("cim_only",))`.
+  run_ingest=True, run_agents=True, prior_run_modes=("cim_only",),
+  rescore_mps=True)` — stage 2 read the rest of the data room, so the score is
+  genuinely over new evidence and the page gets a second column.
 - Then the terminal `_update_vdr_record` (§ Step 4).
 
 ## Step 3 — Branch B
@@ -118,8 +140,11 @@ In `_run_full_room_flow()`, after the three ER files are copied:
 
 - same early `results_location` publish + `progress.complete("executive_review_ready")`;
 - `_run_final_report_stage(..., run_mode="full_vdr_no_cim", run_ingest=False,
-  run_agents=False, prior_run_modes=())` — the room is already ingested and the
-  agents have already run inside `run_full_pipeline()`;
+  run_agents=False, prior_run_modes=(), rescore_mps=False)` — the room is already
+  ingested, the agents have already run inside `run_full_pipeline()`, and the ER
+  already scored this exact bundle, so the MPS run is **reused, not re-scored**
+  (D-02, plan §3). The final report's MPS page is therefore identical to the
+  executive review's: one column, same total, same verdict;
 - then the terminal update.
 
 Branch B's earlier stages: `progress.start/complete("vdr_scan")` around the
@@ -168,8 +193,15 @@ the DAG, the full pipeline, BundleBuilder and the renderers are all mocked):
   **This is the DoD-5 test.**
 - **Branch A, `build_final_report` returns `status="failed"`:** same expectations.
 - **Branch B:** stage 2 runs with `run_ingest=False`, `run_agents=False`,
-  `run_mode="full_vdr_no_cim"`, `prior_run_modes=()`; `run_ingestion_pipeline` and
-  `run_pipeline` are **not** called a second time.
+  `run_mode="full_vdr_no_cim"`, `prior_run_modes=()`, `rescore_mps=False`;
+  `run_ingestion_pipeline` and `run_pipeline` are **not** called a second time.
+- **Branch B, D-02:** `build_final_report` receives the ER's run as
+  `reuse_mps_run`, `MPSAgent.score` is **not** called a second time, and the run
+  that reaches the render is the same dict the read-back returned.
+  **This is the DoD-12 test.**
+- **Branch B, read-back empty:** `reuse_mps_run=None` reaches
+  `build_final_report`, which falls back to scoring; the run still completes
+  `done`/`success`.
 - **Branch B `no_cim_mode="noop"`:** unchanged — no stage 2, no progress stages
   beyond the scan.
 - **Stage 1 failure:** unchanged — still raises, still flips the record to
@@ -193,8 +225,8 @@ the DAG, the full pipeline, BundleBuilder and the renderers are all mocked):
 
 In [`../final_report_plan.md`](../final_report_plan.md) §10:
 
-- Tick **DoD-2**, **DoD-5**, **DoD-6**, and the A-1 half of **DoD-10**, each with
-  the name of the test that proves it.
+- Tick **DoD-2**, **DoD-5**, **DoD-6**, **DoD-12**, and the A-1 half of
+  **DoD-10**, each with the name of the test that proves it.
 - Record the A-1 answer in §6.
 
 Commit:
