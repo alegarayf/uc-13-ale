@@ -170,7 +170,7 @@ Read the newest row for the company. The columns are JSON strings
 |---|---|
 | `forecast_rows[].year` | `revenue_build_comparison[].period` |
 | `forecast_rows[].revenue` | `revenue_build_comparison[].forecast_revenue` |
-| `forecast_rows[].ebitda_margin_pct` | **nothing — leave absent.** The agent does not project margin. Do not substitute the historical margin; the chart simply draws no margin line for plan periods |
+| `forecast_rows[].ebitda_margin_pct` | **nothing — leave absent.** Nothing in the pipeline projects margin (plan §1.7). **Never substitute the historical margin** — extending that line across the plan periods invents a management commitment that was never made |
 | `forecast_assumptions[].assumption` | `.description`, falling back to `.stated_value` |
 | `forecast_assumptions[].support` | `.credibility_rating` (`Supported`/`Plausible`/`Stretch`) |
 | `forecast_assumptions[].test` | the matching `management_validation_items` entry, else absent |
@@ -182,6 +182,16 @@ without mutating the object `BundleBuilder` returned — copy the sub-dict.
 Never raises: a missing table, an empty result, malformed JSON → return `{}`,
 print why, and page 8 renders its "not extracted" state. That is the honest
 degradation, and it is what the D-03 fallback looks like in practice.
+
+**Say the absence out loud (plan §1.7).** When the plan rows carry no
+`ebitda_margin_pct`, the forecast chart's existing `footnote` must gain a clause
+stating that the plan declares no projected EBITDA margin. That edit is in
+`final_report_view._forecast`, in the footnote string it already builds — not in
+the template, which does no arithmetic and no conditional prose of its own. Word
+it as a fact about the plan ("the plan does not state a projected EBITDA margin"),
+not about the pipeline ("margin not extracted"): the reader is being told
+something about the deal, not about our tooling. Add a test: plan rows without
+margin produce the clause; plan rows with margin do not.
 
 **The severity translation is not this module's job.** `Supported/Plausible/
 Stretch` reaches the view as-is; `final_report_view.py` maps it to the template's

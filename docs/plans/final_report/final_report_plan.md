@@ -168,7 +168,7 @@ renames:
 | The view wants | `analysis.forecast` already has |
 |---|---|
 | `forecast_rows[].year` / `.revenue` | `revenue_build_comparison[].period` / `.forecast_revenue` |
-| `forecast_rows[].ebitda_margin_pct` | — the agent does not project margin → stays `None`, the margin line is simply not drawn |
+| `forecast_rows[].ebitda_margin_pct` | — nothing projects margin anywhere in the pipeline (verified: `forecast_agent` only touches EBITDA in downside sensitivities, and `OpexSubAgent` *queries* for projected P&L pages but its extraction schema keeps only opex/cost-structure fields). Stays `None`; see §1.7 |
 | `forecast_assumptions[].assumption` | `forecast_assumptions[].description` (fall back to `.stated_value`) |
 | `forecast_assumptions[].support` | `.credibility_rating` — **Supported / Plausible / Stretch** |
 | `forecast_assumptions[].test` | `management_validation_items_json` |
@@ -204,6 +204,33 @@ the `parse_money`/`parse_percent` de-duplication it already carries.
 
 Note the direction of reuse: `rainmaker_view.py` stays read-only. The final
 report's view **imports** its helpers; nothing moves the other way.
+
+### 1.7 Projected EBITDA margin does not exist — say so, don't infer it *(decided 2026-09-07)*
+
+`_forecast` builds its chart series over `hist + plan` rows, so the margin line
+**renders across the historical periods and stops where the plan begins**. That is
+not a hole; it is a correct edge. Nothing in the pipeline projects margin:
+`forecast_agent` mentions EBITDA only in downside sensitivities
+(`approx_ebitda_impact_dollars`, a one-off on customer loss), and `OpexSubAgent`
+*retrieves* the plan's P&L pages — its query literally asks for *"projected EBITDA
+summary P&L income statement forward projections"*
+(`opex_sub_agent.py:174-177`) — but its extraction schema keeps only
+`opex_breakdown`, `cost_structure`, `executive_summary`, `extraction_notes`. The
+projected P&L is read and discarded.
+
+**Decision (Hector, 2026-09-07): make the absence explicit, do not infer the
+value.** When the plan periods carry no margin, the forecast chart's `footnote`
+gains a clause saying the plan does not state a projected EBITDA margin. One line
+in `final_report_view.py`, inside the footnote that chart already has. **T05**
+owns it, alongside the D-03 injection.
+
+Why it matters more than it looks: a line that simply stops reads as *"a figure is
+missing"*. A footnote turns it into *"the plan does not commit to a margin"* —
+which is a finding about the plan, and one a deal team should notice. Extending
+the historical margin across the plan periods to draw a continuous line would be
+the opposite: inventing a management commitment that was never made.
+
+Follow-up **F-7** covers extracting the real figure.
 
 ---
 
@@ -686,6 +713,14 @@ line. T08 is independent of T01-T07 and can run at any point.
 - **F-2.** The bundle fields T02 confirms genuinely absent — each needs an agent
   change to populate, and each corresponding report section renders "not
   extracted" until then. T02 writes the final list into this section.
+- **F-7. Extract projected EBITDA / margin per period.** The figures are in the
+  documents and the pipeline already retrieves the pages that hold them
+  (`OpexSubAgent`'s third query), but no extraction schema keeps them — see §1.7.
+  Closing this means extending `forecast_agent`'s schema and `_EXPECTED_COLS`, and
+  **re-running the agents** for companies already processed. That is its own cycle
+  with its own validation, not an appendix to this plan. Until then the forecast
+  chart states the absence rather than inferring the value.
+
 - **F-6 — DECIDED (Hector, 2026-09-07): wire all of it.** Owned by
   [T11](tasks/T11_final_report_narrative.md). Moved out of the follow-up list; it
   is scope now.
@@ -803,7 +838,10 @@ named next to it.
       class of addition overflowed a page. *(T11 + T07)*
 - [ ] **DoD-15** — Page 8 renders the plan-vs-history chart and the assumptions
       table from `{catalog}.analysis.forecast` (D-03), and degrades to "not
-      extracted" when that table is absent or empty. *(T05 + T07)*
+      extracted" when that table is absent or empty. The chart's footnote states
+      that the plan declares no projected EBITDA margin when the plan rows carry
+      none (§1.7), and the historical margin is **never** extended across plan
+      periods. *(T05 + T07)*
 - [ ] **DoD-14** — The final report and the executive review, built from the same
       bundle, agree on the P&L column order and on the stated unit (§1.6). *(T02;
       evidence: a test that renders both and asserts both are identical)*
