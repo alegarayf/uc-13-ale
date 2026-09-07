@@ -70,13 +70,18 @@ class JudgeHarnessResult:
 
 
 def _rationale_from_output(output: dict[str, Any]) -> str:
-    """Derive a non-null S2 rationale from the judge's raw response.
+    """Derive a non-null S2 rationale from the judge's structured output.
 
-    ``calibration.py``'s verdict prompts (reused verbatim, not modified here) ask
-    for verdict JSON only — no rationale field. The raw model response text is the
-    only signal available without changing that prompt contract, so it doubles as
-    this row's rationale.
+    ``calibration.py``'s verdict prompts now request a structured ``"rationale"``
+    field on the verdict JSON itself, so this prefers that field. Falls back to
+    the raw response text (pre-schema-fix behavior) for defense-in-depth against
+    a parse that recovers a verdict but not a rationale, then to a synthesized
+    placeholder so the S2Writer's ``rationale_required`` guard never blocks a
+    valid verdict on this specific field alone.
     """
+    rationale = output.get("rationale")
+    if isinstance(rationale, str) and rationale.strip():
+        return rationale.strip()
     raw = str(output.get("raw_response") or "").strip()
     if raw:
         return raw

@@ -100,6 +100,7 @@ Use this index when triaging failures, writing improvements, or explaining resul
 | **Frozen source index** | [`program/source_manifest.yaml`](program/source_manifest.yaml) | Registry absorbs a new external source |
 | **Open eval debt** | [`program/eval_debt/eval_debt.yaml`](program/eval_debt/eval_debt.yaml) | Known gap with explicit `closes_when` |
 | **Product-signal backlog** | [`program/product_backlog.yaml`](program/product_backlog.yaml) | S2/eval measurement caveat or product defect surfaced, or closed with `closed_at` + `closed_evidence_refs` |
+| **Parking lot (confirm/reject)** | [`program/parking_lot.yaml`](program/parking_lot.yaml) | Team or stakeholder call parked; flip to `accepted` / `rejected` with `rationale` + `decided_at` |
 | **Corpus exemptions** | [`program/eval_exemptions.yaml`](program/eval_exemptions.yaml) | Intent/surface cannot be honestly measured |
 | **Trust rollup** | [`program/trust_statement.md`](program/trust_statement.md) | After any layer changes — `trust_statement generate` |
 | **Cross-milestone open items** | [`.dev/pending/eval-consolidation-open-items.md`](../.dev/pending/eval-consolidation-open-items.md) | Auditor handoffs; priority queue §Cross-milestone |
@@ -258,7 +259,7 @@ When corpus or registry changed but agent output unchanged:
 | Deterministic legal S2 | [`content/legal_register_verifier.py`](content/legal_register_verifier.py) | Register-row verification |
 | Production judge harness | **Not built** (registry CHK-27 descoped) | Would write `writer=judge_harness` to `s2_scores` |
 
-Registry rung assignments (CHK-26a): `exec_summary: human`, `fta_numeric: human`, `legal_register: deterministic`.
+Registry rung assignments (CHK-26a): `exec_summary: judge`, `fta_numeric: human`, `legal_register: deterministic`.
 
 ### 6.2 Path to judge rung (conditional)
 

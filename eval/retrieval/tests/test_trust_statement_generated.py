@@ -8,7 +8,7 @@ import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _GENERATED = _REPO_ROOT / "eval" / "program" / "trust_statement.md"
-_T3_SPG_RUN = "20260826T171712Z-3975"
+_LATEST_SPG_RUN = "20260902T011952Z-0852"
 
 
 def _generated_text() -> str:
@@ -52,9 +52,9 @@ def test_generated_trust_statement_has_no_title_case_gkf_spg() -> None:
     assert "Spg" not in text
 
 
-def test_spg_legal_register_cites_t3_verifier_run() -> None:
-    """Whole-catalog regen must surface T3's first SPG legal_register S2 evidence."""
+def test_spg_legal_register_cites_latest_s2_run() -> None:
+    """Whole-catalog regen must surface the latest SPG legal_register S2 evidence."""
     row = _legal_register_row("spg")
     assert row["attestation"] == "partial"
     refs = row.get("evidence_refs") or []
-    assert f"s2_scores:{_T3_SPG_RUN}" in refs
+    assert f"s2_scores:{_LATEST_SPG_RUN}" in refs

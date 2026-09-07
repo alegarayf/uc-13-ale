@@ -1,6 +1,6 @@
 # Trust statement (generated — do not edit)
 
-Generated: 2026-08-26T18:00:25.654827+00:00
+Generated: 2026-09-02T11:54:19.348275+00:00
 Generator: v1
 Catalog: uc13_ale
 Companies: clearsulting, elder_care, gkf, spg
@@ -189,9 +189,9 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
   method: null
   rung: deterministic
   evidence_refs:
-  - s2_scores:20260824T133731Z-t16
+  - s2_scores:20260902T011639Z-d7db
   known_gaps:
-  - 26/28 claims failed on legal_register
+  - 25/37 claims failed on legal_register
   manual_check: null
 - company: elder_care
   layer: content_correctness
@@ -199,11 +199,11 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
   attestation: partial
   reason: claim_failures
   method: null
-  rung: human
+  rung: judge
   evidence_refs:
-  - s2_scores:20260813T185002Z-5a1b
+  - s2_scores:20260901T134541Z-7610
   known_gaps:
-  - 3/53 claims failed on exec_summary
+  - 24/53 claims failed on exec_summary
   manual_check: null
 - company: gkf
   layer: ingest_completeness
@@ -376,9 +376,9 @@ Gold ready summary: 52 ready/partial + 5 annotated exclusions (no_citation_sourc
   method: null
   rung: deterministic
   evidence_refs:
-  - s2_scores:20260826T171712Z-3975
+  - s2_scores:20260902T011952Z-0852
   known_gaps:
-  - 4/5 claims failed on legal_register
+  - 8/16 claims failed on legal_register
   manual_check: null
 - company: spg
   layer: content_correctness

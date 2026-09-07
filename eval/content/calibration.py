@@ -33,16 +33,26 @@ NON_NUMERIC_SURFACES = frozenset({"exec_summary", "legal_register"})
 CLAIM_VERDICTS = frozenset({"supported", "contradicted", "unsupported"})
 
 VERDICT_SYSTEM_PROMPT = """You are a diligence evidence judge. Given a claim and retrieved evidence chunks,
-return ONLY valid JSON with one key:
+return ONLY valid JSON with two keys:
+  "rationale": a 1-3 sentence explanation citing which evidence supports or contradicts the claim
   "verdict": one of "supported", "contradicted", "unsupported"
-Use the §16 vocabulary exactly. Base your verdict only on the supplied evidence."""
+Use the §16 vocabulary exactly. Base your verdict only on the supplied evidence.
+A claim naming several distinct facts is "supported" if the evidence confirms every fact that
+is material to the claim's substance; do not downgrade to "unsupported" over a peripheral or
+imprecise descriptive label (e.g. a regional nickname) when the underlying facts it summarizes
+are themselves confirmed by the evidence."""
 
 EXEC_VERDICT_SYSTEM_PROMPT = """You are a diligence evidence judge. Given a claim and retrieved evidence records,
-return ONLY valid JSON with one key:
+return ONLY valid JSON with two keys:
+  "rationale": a 1-3 sentence explanation citing which evidence supports or contradicts the claim
   "verdict": one of "supported", "contradicted", "unsupported"
 Use the §16 vocabulary exactly. Base your verdict only on the supplied evidence.
 When evidence includes source_type "analysis_table", prefer that structured analysis-table
-record over vector-retrieved VDR chunks when adjudicating."""
+record over vector-retrieved VDR chunks when adjudicating.
+A claim naming several distinct facts is "supported" if the evidence confirms every fact that
+is material to the claim's substance; do not downgrade to "unsupported" over a peripheral or
+imprecise descriptive label (e.g. a regional nickname) when the underlying facts it summarizes
+are themselves confirmed by the evidence."""
 
 VERDICT_USER_TEMPLATE = """Claim (verbatim):
 {claim_text}
@@ -50,7 +60,7 @@ VERDICT_USER_TEMPLATE = """Claim (verbatim):
 Retrieved evidence chunks (JSON array):
 {evidence_json}
 
-Return JSON: {{"verdict": "<supported|contradicted|unsupported>"}}"""
+Return JSON: {{"rationale": "<1-3 sentence explanation>", "verdict": "<supported|contradicted|unsupported>"}}"""
 
 NUMERIC_SYSTEM_PROMPT = """You are a diligence numeric transcription judge. Given a claim and evidence chunks,
 locate the cited evidence and transcribe the numeric value. Return ONLY valid JSON with:
@@ -478,15 +488,23 @@ def _extracted_value_parseable(value: Any) -> bool:
 
 
 def parse_verdict_response(raw: str) -> dict[str, Any]:
-    """Parse non-numeric judge JSON; fail-closed per A-EE."""
+    """Parse non-numeric judge JSON; fail-closed per A-EE.
+
+    ``rationale`` is a structured field on the verdict schema (not merely the
+    surrounding raw response text) so callers get a real explanation even when
+    the model complies literally with the "return ONLY valid JSON" instruction
+    and emits no free-text preamble.
+    """
     try:
         parsed = _parse_json_response(raw)
     except json.JSONDecodeError:
-        return {"verdict": None, "parse_failure": True}
+        return {"verdict": None, "rationale": None, "parse_failure": True}
     verdict = parsed.get("verdict")
+    rationale = parsed.get("rationale")
+    rationale = rationale.strip() if isinstance(rationale, str) and rationale.strip() else None
     if verdict not in CLAIM_VERDICTS:
-        return {"verdict": None, "parse_failure": True}
-    return {"verdict": verdict, "parse_failure": False}
+        return {"verdict": None, "rationale": rationale, "parse_failure": True}
+    return {"verdict": verdict, "rationale": rationale, "parse_failure": False}
 
 
 def parse_numeric_judge_response(raw: str) -> dict[str, Any]:

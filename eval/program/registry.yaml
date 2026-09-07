@@ -1567,6 +1567,21 @@ items:
     Dual-source re-run 2026-08-19 (analysis.* + chunk RAG in eval/content/calibration.py): exec_summary
     verdict_agreement 0.857 ≥ 0.80 on N=28 (24/28 agree; disagreements: 001, 011, 019, 026). Rung
     remains human pending operator authorization per playbook §6.2 steps 4–5 and ESC-T12-1 gate review.
+
+    Production-scale check 2026-09-02 (post-T6 harness run, full 53-claim exec_summary manifest,
+    judge run_id 20260901T134541Z-7610 vs prior human run_id 20260813T185002Z-5a1b): verdict_agreement
+    0.6038 (32/53) — below the 0.80 threshold the N=28 sample cleared. All 21 disagreements are
+    one-directional (human=supported, judge=not_supported); root cause sampled on claim exec.claim.001
+    is over-literal rejection of compound/bundled claims over a peripheral descriptive detail (e.g.
+    "Tri-State region" naming 4 states) rather than a genuine evidence contradiction — a rubric/prompt
+    strictness gap, not a retrieval or rationale-field gap. Same-day fix: EXEC_VERDICT_SYSTEM_PROMPT /
+    VERDICT_SYSTEM_PROMPT now require a structured "rationale" key (previously relied on the model
+    incidentally emitting free text before its JSON despite the "ONLY valid JSON" instruction) and an
+    explicit instruction not to downgrade a claim over a peripheral label when its material facts are
+    confirmed. Fix is unverified at production scale — no fresh calibration run has been taken against
+    the new prompt. Until re-verified, do not cite the 0.857 N=28 figure as current production evidence
+    for the judge rung; the 0.6038 figure above is the latest live measurement. See
+    PB-exec_summary-chk27-judge-production-accuracy-gap in product_backlog.yaml.
     F-6 provenance caveat (audit rev 1): span_agreement: 0.0 and locator_labelled_fraction: 1.0 were
     recorded as judge-capability figures, but the BGE vector-retrieval leg (databricks-bge-large-en,
     uc13_ale.ingestion.embeddings_index, top_k=5) was undeclared at measurement time and supplied the
@@ -1596,6 +1611,7 @@ items:
     exec_summary:
       verdict_agreement: 0.39285714285714285
       verdict_agreement_dual_source_2026_08_19: 0.8571428571428571
+      verdict_agreement_production_scale_2026_09_02: 0.6037735849056604
     fta_numeric:
       resolved_value_fraction: 1.0
       resolved_span_fraction: 1.0
@@ -1999,13 +2015,22 @@ items:
   source_id: OI-eval-harness-post-m4-retrieval-baseline-refresh
   disposition: staged
   stage: S1
-  status: pending
+  status: closed
   trigger: null
   rationale: 'P0 after Aug 2026 parser rollout: pre/post MRR and recall@10 are not apples-to-apples
     (Elder mean MRR 0.665→0.222 on expanded corpus; SPG chunk count −38%). Re-run harness baselines
     on post-refactor uc13_ale corpus for Clearsulting, Elder Care, GKF, SPG; refresh ops latest-baseline
     pins and trust_statement retrieval rows. Gold snapshots partially current (Elder 55812:2026-08-11;
-    SPG 43602:2026-08-19 vs live 44038) — reconcile snapshot ids before gating.'
+    SPG 43602:2026-08-19 vs live 44038) — reconcile snapshot ids before gating.
+
+    Closed 2026-09-02: `ops.retrieval_harness_latest_baseline` already carries a promoted baseline
+    for all four companies, all pinned 2026-08-19 under one registry_hash
+    (baseline_2fa3a9056bd0 Elder Care, baseline_488f70f13570 Clearsulting, baseline_7510d1d14449 GKF,
+    baseline_3992534e412f SPG). SPG''s pinned ingestion snapshot is already 44038:2026-08-19 — the
+    exact reconciliation this row asked for. Live `ingestion.chunks` counts checked against these
+    pins show zero drift for Clearsulting/GKF/SPG and +7 chunks (0.01%) for Elder Care — below any
+    epoch-invalidating threshold. All three product_backlog rows that cited this OI row as blocking
+    are closed. See .dev/audits/2026-09-02-retrieval-baseline-refresh-verification.md.'
   tshirt: l
   evidence_refs:
   - .dev/company-analysis-diff-pre-vs-post-refactor.md
@@ -2014,6 +2039,7 @@ items:
   - eval/retrieval/gold_labels/spg.yaml
   - eval/retrieval/gold_labels/gkf.yaml
   - eval/retrieval/gold_labels/clearsulting.yaml
+  - .dev/audits/2026-09-02-retrieval-baseline-refresh-verification.md
   rung_assignments: {}
   assessment_metrics: {}
 - id: OI-data-ingest-quality-uc13-ale-vs-index-missing
