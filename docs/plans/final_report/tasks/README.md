@@ -83,6 +83,14 @@ Consequences worth knowing:
     constant under test. When in doubt, apply the defect on purpose, confirm the
     test fails, and restore. Two of T03's mutants survived exactly this mistake.
 
+    **When you mutate a source file on purpose, run with
+    `PYTHONDONTWRITEBYTECODE=1` and clear `__pycache__` afterwards.** Python
+    invalidates bytecode on the source's mtime *and size*. A mutation that
+    preserves size — `"dir": "min"` → `"dir": "max"` is byte-for-byte the same
+    length — restored by `git checkout` inside the same mtime second leaves a
+    `.pyc` holding the mutated code, and the next session hits a phantom failure
+    in a file it never touched. That happened between the T03b review and T04.
+
 10. **Every task ends by ticking its DoD lines** in `../final_report_plan.md` §10
     and appending a short evidence note. A box without evidence stays unticked.
 11. **One atomic Conventional Commit per task, then push.** Every task ends with
