@@ -284,6 +284,10 @@ docs/*
 docs/plans/*
 !docs/plans/final_report/
 !docs/plans/final_report/**
+# The negation above re-includes EVERYTHING under that tree, so the global
+# __pycache__/ and .DS_Store rules stop applying there. Re-exclude them.
+docs/plans/final_report/**/__pycache__/
+docs/plans/final_report/**/.DS_Store
 
 # Root-level eval harness exports and ablation snapshots
 /ablation_*.csv
