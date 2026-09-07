@@ -690,6 +690,23 @@ here.
 | `databricks/CLAUDE.md` | Required: the two-stage flow, the new deliverables, the progress columns, the stage vocabulary. |
 | `.gitignore` | One negation so `docs/plans/final_report/**` is tracked — `docs/*` is ignored, and this plan is a DoD artifact. |
 
+**T04 close-out (2026-09-07).** `ReportRenderer.render()` gained the additive
+`report: dict[str, Any] | None = None` kwarg, injected into the context exactly
+like `tldr`/`rainmaker`/`narrative`/`mps`. `_html_to_pdf` gained an optional
+`page_rect_spec: str = "a4-l"` parameter (default unchanged, so
+`render_rainmaker` is untouched); `render_final_report` passes `"a4"` — the
+final report template is portrait (`final_report.html.j2:46`). `render_final_report()`
+landed mirroring `render_rainmaker`: builds `final_report_view(...)` for the
+`report=` context key, builds the MPS projection via the same
+`rainmaker_view(bundle, mps_runs=[*(prior_mps or []), mps] if mps else
+(prior_mps or None))["mps"]` (prior runs first, current run last — the
+function never builds its own MPS projection), writes `final_report.html` /
+`final_report.pdf`, and returns `pdf_degraded: True` when the PyMuPDF fallback
+engine was used. Evidence: `pytest tests/test_rainmaker_render.py
+tests/test_rainmaker_golden_render.py -q` — 72 passed / 20 skipped, unchanged;
+`pytest tests/ -q` — 1311 passed / 38 skipped (up from 1241/38 — T03b's mutant
+tests plus this task's suite runs added no new failures, no regressions).
+
 ### Read-only — must show zero diff at the end (`git diff --stat`)
 
 `rainmaker_view.py`\* · `rainmaker_narrative.py` · `mps_agent.py` · `mps_rubric.py` ·
