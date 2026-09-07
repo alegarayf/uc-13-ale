@@ -747,6 +747,7 @@ line. T08 is independent of T01-T07 and can run at any point.
 | [T01](tasks/T01_land_inputs.md) | Land the template, the view module and the fixture in their final locations | imports clean |
 | [T02](tasks/T02_bundle_field_audit.md) | Audit the 8 bundle fields; wire renames, record the genuinely-absent ones | no invented fields |
 | [T03](tasks/T03_view_numeric_tests.md) | `test_final_report_view.py` — the numeric contract | green |
+| [T03b](tasks/T03b_pin_format_policy.md) | Pin the caps and screens as policy — closes two surviving mutants | mutants fail |
 | [T04](tasks/T04_render_final_report.md) | `render_final_report()` + `report=` kwarg + A4 portrait fallback | green |
 | [T05](tasks/T05_final_report_entry.md) | `build_final_report()` + MPS read-back/reuse (D-02) + the run-mode label | green |
 | [T06](tasks/T06_mps_parity.md) | D-01 evidence, the include swap or the replica, and the parity test | **needs D-01 answer** |
@@ -998,6 +999,10 @@ named next to it.
       `pytest tests/ -q`: 1241 passed / 38 skipped (was 1205/38 — no
       regressions, no skip count change); `git diff --stat` against every
       §7 read-only file is empty; only `final_report_view.py` was modified.
+- [ ] **DoD-17** — The format caps and the screening thresholds are pinned as
+      literal policy, and both mutants that survived T03 (raising a cap, flipping
+      a screen's direction) now fail a test. *(T03b; evidence: the two mutant
+      failure summaries)*
 - [ ] **DoD-16** — The final report's business page carries the Sep 4 content
       (F-6): `core_business` renders, and the prose reflects `sale_process` /
       `key_partners` when those fields are non-empty. The document is still

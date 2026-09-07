@@ -8,6 +8,7 @@ point. **T06 is unblocked** — D-01 was approved on 2026-09-07 (Path A, the sha
 | T01 | [T01_land_inputs.md](T01_land_inputs.md) | — | DoD-8 |
 | T02 | [T02_bundle_field_audit.md](T02_bundle_field_audit.md) | T01 | DoD-11 |
 | T03 | [T03_view_numeric_tests.md](T03_view_numeric_tests.md) | T02 | — |
+| T03b | [T03b_pin_format_policy.md](T03b_pin_format_policy.md) | T03 | DoD-17 |
 | T04 | [T04_render_final_report.md](T04_render_final_report.md) | T01 | — |
 | T05 | [T05_final_report_entry.md](T05_final_report_entry.md) | T04 | DoD-2 / DoD-12 (part) |
 | T06 | [T06_mps_parity.md](T06_mps_parity.md) | T04 | DoD-9 |
@@ -76,6 +77,12 @@ Consequences worth knowing:
 9. **Tests:** pytest, in `tests/`, following the conventions already in
    `tests/test_rainmaker_render.py` and `tests/test_run_vdr_rainmaker.py` (heavy
    dependencies mocked, no cluster needed). Do not introduce a new framework.
+9b. **A test that cannot fail is worse than no test.** It reads as coverage and
+    is not. When a task's tests exist to protect a *policy* value — a cap, a
+    threshold, a screening direction — pin the literal, do not derive it from the
+    constant under test. When in doubt, apply the defect on purpose, confirm the
+    test fails, and restore. Two of T03's mutants survived exactly this mistake.
+
 10. **Every task ends by ticking its DoD lines** in `../final_report_plan.md` §10
     and appending a short evidence note. A box without evidence stays unticked.
 11. **One atomic Conventional Commit per task, then push.** Every task ends with

@@ -52,6 +52,13 @@ level of mocking (this module is pure; it needs none).
 - A `max`-direction screen flags on the opposite side.
 - Both behaviours hold for **both** sectors present in `_SCREENS` — parametrize
   over the sectors actually defined in the module rather than hardcoding names.
+
+  Same caveat as the caps above: parametrising over `_SCREENS` tests that the
+  *mechanism* honours whatever `dir` each entry declares, but it cannot detect a
+  wrong `dir`. Flipping `nrr_pct` from `min` to `max` flips the code and the
+  expectation together, and that mutant survived the T03 review. The screen
+  definitions themselves are Rallyday's screening policy and need literal pinning
+  — T03b adds it.
 - A metric with no screen for the active sector is not flagged and does not raise.
 - A value exactly equal to the threshold: assert whichever side the implementation
   takes, and add a one-line comment saying the boundary is pinned deliberately.
@@ -61,8 +68,17 @@ level of mocking (this module is pure; it needs none).
 - For each of `CAP_TILES`, `CAP_THESIS`, `CAP_WATCHOUTS`, `CAP_BULLETS`,
   `CAP_SEGMENTS`, `CAP_TOP_CUSTOMERS`, `CAP_KPIS`, `CAP_RISKS`, `CAP_QUESTIONS`,
   `CAP_GAPS`: feed the agent output `cap + 3` items and assert exactly `cap` come
-  out. Read the constants from the module — never hardcode the numbers, so raising
-  a cap breaks the intent, not the test.
+  out. Read the constants from the module for *this* assertion — it tests
+  **enforcement** (does the code respect its own cap), and reading the constant is
+  right for that.
+
+  **This is not sufficient on its own, and the original wording of this task was
+  wrong to imply it was.** A test that derives its expectation from the same
+  constant it is testing cannot detect a change to that constant: raise
+  `CAP_QUESTIONS` to 12 and both the code and the test move together. Verified by
+  mutation during the T03 review — that mutant survived. The **values** also need
+  pinning, because the plan treats them as format policy ("caps are part of the
+  format; do not raise them to fit more content in"). T03b adds that.
 
 ### 6. P&L rows
 
