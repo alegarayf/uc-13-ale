@@ -751,6 +751,14 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
     revs = [parse_money(r.get("revenue")) for r in rows]
     margins = [parse_percent(r.get("ebitda_margin_pct")) for r in rows]
     rev_pct = scale(revs)
+    footnote = "Plan periods marked P. Same axis as the historical chart on the financial performance page."
+    plan_margins = margins[len(hist):]
+    if plan and all(m is None for m in plan_margins):
+        # Decision, plan §1.7: nothing in the pipeline projects a plan-period
+        # EBITDA margin. Say so as a fact about the plan, not about our
+        # tooling — extending the historical margin across the plan periods
+        # would invent a management commitment that was never made.
+        footnote += " The plan does not state a projected EBITDA margin."
     return {
         "chart": {
             "series": [
@@ -765,7 +773,7 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
             ],
             "bar1_name": "Revenue (P = plan)", "bar2_name": None, "line_name": "EBITDA margin %",
             "axis_max_label": _short(max([v for v in revs if v is not None] or [0])),
-            "footnote": "Plan periods marked P. Same axis as the historical chart on the financial performance page.",
+            "footnote": footnote,
         },
         "assumptions": [
             {"assumption": str(a.get("assumption") or ""), "support_label": assumption_support_label(a.get("support")),

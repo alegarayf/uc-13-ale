@@ -995,6 +995,48 @@ named next to it.
       55 passed. `pytest tests/ -q`: 1297 passed / 38 skipped (1241 passed
       baseline + 55 new view tests + 1 new parity test, no regressions, no
       skips added or removed).
+      **T05 evidence (entry point exists, threads `run_mode`, orders the MPS
+      runs `[cim, full]` — not the box-closing evidence, T09 closes this box).**
+      `databricks/agents/exec_summary/final_report_entry.py` added:
+      `build_final_report()` (never raises — wrapped end-to-end in
+      `try/except Exception`, `KeyboardInterrupt`/`SystemExit` excluded),
+      `_load_prior_mps_runs()` (Delta read-back of
+      `{catalog}.analysis.mps_score`, one row per requested `run_mode`,
+      newest first then re-sorted oldest-first, `generated_at` converted to
+      `str(...)` explicitly for `_mps_column_header`'s `[:10]` slice, never
+      raises — a missing table/empty result/malformed `categories_json` all
+      collapse to `[]`), and `_load_forecast()` (D-03: reads
+      `{catalog}.analysis.forecast`, maps `revenue_build_comparison` →
+      `forecast_rows`, `forecast_assumptions`/`management_validation_items`
+      → `forecast_assumptions` with `.test` joined on `assumption_type`,
+      `ebitda_margin_pct` never populated — see DoD-15/§1.7 — never raises,
+      merged into a **copy** of `checked["financials"]` after
+      `verify_bundle_claims` and before narrative/render). `run_mode` reaches
+      both `MPSAgent().score(...)` and `render_final_report(...)` unchanged
+      from the caller's argument (never re-derived from `bundle.meta`, A-3).
+      `render_final_report` receives `mps=` (current run) and
+      `prior_mps=prior_mps_runs` (caller-supplied, oldest-first) —
+      `renderers.render_final_report` already builds
+      `[*(prior_mps or []), mps]`, i.e. **`[cim, full]`**, current run last
+      (T04). Evidence: `tests/test_final_report_entry.py` (30 tests) —
+      happy-path call order (`validate → verify → narrative → mps → render`)
+      and `run_mode` threading, three failure-path tests (raising
+      `BundleBuilder`/narrative/renderer each produce `status="failed"` with
+      no exception escaping — see DoD-12 note for the reuse-specific
+      assertions), `_load_prior_mps_runs` degradation (raising spark, empty
+      result, malformed JSON → `[]`) and oldest-first ordering, `_load_forecast`
+      mapping + degradation (raising spark, empty table, malformed JSON →
+      `{}`) + the merged-bundle-reaches-narrative-and-render assertion (and
+      that `BundleBuilder`'s original bundle is left unmutated). The one
+      permitted `rainmaker_view.py` edit (`"full_vdr_after_cim": "Full data
+      room"`) is the entire diff — confirmed via `git diff
+      databricks/agents/exec_summary/rainmaker_view.py`. `pytest tests/ -q`:
+      1329 passed / 38 skipped (1311 passed baseline + 15 new
+      `test_final_report_view.py` footnote tests (§1.7/DoD-15) + a new
+      30-test `test_final_report_entry.py`, no regressions, no skips added or
+      removed). `git diff --stat` against every other §7 read-only file
+      (`rainmaker_entry.py`, `mps_agent.py`, `bundle_builder.py`,
+      `validate.py`, `absence_check.py`, `rainmaker_narrative.py`) is empty.
 - [ ] **DoD-3** — Branch B produces the existing ER + MPS, then the final report
       with a one-column MPS. In both branches the MPS appears exactly once, on its
       own page. *(T07 + T09; evidence: the render test asserts a single
@@ -1105,3 +1147,25 @@ named next to it.
       no second `MPSAgent().score` call (D-02, §3). *(T05 + T09; evidence: a test
       asserting `MPSAgent.score` is not called when `reuse_mps_run` is supplied,
       and a runner test asserting Branch B passes the read-back run)*
+      **T05 evidence (the `reuse_mps_run` path never calls `MPSAgent.score` —
+      not the box-closing evidence, T09 closes this box).**
+      `build_final_report()` checks `reuse_mps_run is not None and
+      reuse_mps_run` (not `reuse_mps_run or score(...)`, so a falsy-but-valid
+      degraded run dict — which is truthy in practice — is never swallowed):
+      when true, the supplied run is used as-is (`mps_source="reused"`) and
+      `MPSAgent().score` is never invoked. When `reuse_mps_run` is supplied
+      but empty/malformed (the read-back found nothing), `build_final_report`
+      falls back to a fresh `MPSAgent().score` call and reports
+      `mps_source="scored_fallback"` — an MPS page with a number beats an
+      empty one, and the fallback is visible in stdout
+      (`[final_report] reuse_mps_run was requested but the read-back was
+      empty/malformed; falling back to a fresh MPSAgent().score call`).
+      Evidence:
+      `tests/test_final_report_entry.py::test_reuse_mps_run_skips_scoring_and_reaches_render_as_mps`
+      uses a mock that raises `AssertionError` if `MPSAgent.score` is called
+      at all (not just an inspection of the code) and asserts the supplied
+      run reaches `render_final_report` as `mps` with `mps_source="reused"`;
+      `test_reuse_mps_run_fallback_scores_when_readback_was_empty` passes
+      `reuse_mps_run={}` and asserts `MPSAgent.score` **is** called once with
+      `mps_source="scored_fallback"`. `pytest tests/ -q`: 1329 passed / 38
+      skipped — see the DoD-2 T05 note for the full run.

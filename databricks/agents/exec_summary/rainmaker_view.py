@@ -850,6 +850,7 @@ def _rule_of_x(table: dict[str, Any]) -> list[dict[str, str]]:
 _MPS_RUN_MODE_LABELS: dict[str, str] = {
     "cim_only": "CIM-only preview",
     "full_vdr_no_cim": "Full data room",
+    "full_vdr_after_cim": "Full data room",
 }
 _MPS_EVIDENCE_MARKERS: dict[str, str] = {
     "contact_dependent": "◇",

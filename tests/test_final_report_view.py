@@ -463,3 +463,38 @@ def test_screen_top1_pct_max_direction_hardcoded_threshold():
     bundle_not_flagged = {"kpi_dashboard": [{"metric_id": "top1_pct", "display_name": "Top1", "stated_value": "20%"}]}
     view = frv._kpi_scorecard(bundle_not_flagged, "tech_services")
     assert _kpi_row(view, "Top1")["flag"] is False
+
+
+# =========================================================================
+# _forecast — plan §1.7: say the absent projected EBITDA margin out loud
+# =========================================================================
+
+_NO_MARGIN_CLAUSE = "The plan does not state a projected EBITDA margin."
+
+
+def test_forecast_footnote_gains_clause_when_plan_rows_carry_no_margin():
+    bundle = {
+        "financials": {
+            "table_rows": [{"year": "2023A", "revenue": "10"}],
+            "forecast_rows": [{"year": "2024P", "revenue": "12"}],  # no ebitda_margin_pct
+        }
+    }
+    forecast = frv._forecast(bundle, {})
+    assert _NO_MARGIN_CLAUSE in forecast["chart"]["footnote"]
+
+
+def test_forecast_footnote_omits_clause_when_plan_rows_state_a_margin():
+    bundle = {
+        "financials": {
+            "table_rows": [{"year": "2023A", "revenue": "10"}],
+            "forecast_rows": [{"year": "2024P", "revenue": "12", "ebitda_margin_pct": "15%"}],
+        }
+    }
+    forecast = frv._forecast(bundle, {})
+    assert _NO_MARGIN_CLAUSE not in forecast["chart"]["footnote"]
+
+
+def test_forecast_footnote_omits_clause_when_there_are_no_plan_rows():
+    bundle = {"financials": {"table_rows": [{"year": "2023A", "revenue": "10"}]}}
+    forecast = frv._forecast(bundle, {})
+    assert _NO_MARGIN_CLAUSE not in forecast["chart"]["footnote"]
