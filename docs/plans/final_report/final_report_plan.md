@@ -7,6 +7,14 @@
 > **Status: awaiting review.** No production code has been written yet. The
 > executable task files live in [`tasks/`](tasks/) and are meant to be run in
 > order; each one closes its own line in §10 (Definition of Done).
+>
+> **Merged with `feature/anthropic-sdk-migration` on 2026-09-07.** This branch was
+> cut from `31878cc` (Sep 3), one day before the 2026-09-04 executive-review format
+> work landed (`b0998c9` sale process / key partners / core business / numeric
+> fixes, `ad6d009` page-1 pagination). Those two commits are now merged in, and the
+> findings below were **re-verified against the merged tree** — suite green,
+> 1205 passed / 38 skipped. Three findings changed; they are marked
+> *(re-verified 2026-09-07)*.
 
 ---
 
@@ -101,10 +109,30 @@ allowed to touch those reads.** Nothing is invented in the view layer.
 **The gap is wider than the eight fields the prompt named.** A spot-check of other
 fields the view reads found more with no producer anywhere in the bundle layer —
 `revenue_quality.top_customers` (the top-customer table on p.5),
-`revenue_quality.client_count` and `customer_tenure` (two of the five customer
-tiles), `legal.coc_consent_count` (a legal tile). So T02's audit is scoped to
-**every** bundle path `final_report_view.py` reads, not just the eight; the eight
-are a starting list, not the boundary.
+`revenue_quality.client_count` (a customer tile), `legal.coc_consent_count` (a
+legal tile). So T02's audit is scoped to **every** bundle path
+`final_report_view.py` reads, not just the eight; the eight are a starting list,
+not the boundary.
+
+*(Re-verified 2026-09-07, post-merge: the eight are still all absent under those
+names.)*
+
+**`customer_tenure` is a shape problem, not an absence** *(re-verified
+2026-09-07)*. The CQA agent does emit `customer_tenure.average_tenure_years` and
+`tenure_distribution_note`, but `field_mapping._retention_note_from_cqa`
+(`field_mapping.py:532-554`) folds them into a single flattened **note string**
+rather than carrying the dict onto the bundle. `final_report_view` reads
+`(rq.get("customer_tenure") or {}).get("average_tenure_years")` — a dict. So the
+figure exists one layer below and never arrives in a usable form. Same class of
+problem as D-03: not a rename T02 can fix inside the view.
+
+**Opportunity the 2026-09-04 work opened.** That commit added
+`company_framing.business_description`, `sale_process`, `key_partners` and
+`key_dependencies` to the bundle (`field_mapping.py`, +67 lines), and the
+executive review now names the sale process and the partners on its cover. **The
+final report template reads none of them.** Naming how the business is being sold,
+and who it depends on, belongs on the final report's business page at least as much
+as on the ER's cover. Not in scope for the tasks as written — recorded as F-6.
 
 ### 1.5 The forecast page has no data path at all — bigger than a rename
 
@@ -311,9 +339,11 @@ cover recommendation block, thesis bullets, watchouts, business-model bullets, a
 788`). The takes are the analyst's voice on each topic — what the number the
 reader just saw actually means.
 
-`rainmaker_narrative.py` produces eight keys
-(`rainmaker_narrative.py:300-308`) and only two of them are what those slots
-need:
+`rainmaker_narrative.py` produces nine keys — `_FRAMING_RESULT_KEYS` +
+`_REVQUAL_RESULT_KEYS`, `rainmaker_narrative.py:368-377` *(re-verified
+2026-09-07: `core_business` was added by the Sep 4 work, so it is nine, not the
+eight this section originally said, and the line reference has been corrected)* —
+and only two of them are what those slots need:
 
 | Slot | Fed today? |
 |---|---|
@@ -325,6 +355,12 @@ need:
 Left alone, the final report would ship six empty take boxes and read **thinner in
 prose than the executive review** — the opposite of its purpose.
 `rainmaker_narrative.py` is read-only, so the fix cannot live there.
+
+One more key now exists and is unused: **`core_business`**, added Sep 4 — exactly
+three lines (what the business does, how it operates, one high-impact KPI with its
+figure). The ER template renders it; the final report template does not read it.
+T11 should consider wiring it into the business page rather than asking a second
+model call to re-say it. Folded into F-6.
 
 **Decision (Hector, 2026-09-03):** build a new, additive
 `final_report_narrative.py` — one bounded LLM call through the gateway producing
@@ -594,6 +630,13 @@ line. T08 is independent of T01-T07 and can run at any point.
 - **F-2.** The bundle fields T02 confirms genuinely absent — each needs an agent
   change to populate, and each corresponding report section renders "not
   extracted" until then. T02 writes the final list into this section.
+- **F-6. The final report ignores bundle content the Sep 4 work added.**
+  `company_framing.business_description`, `sale_process`, `key_partners`,
+  `key_dependencies` and the narrative's `core_business` are all populated now and
+  rendered on the executive review; the final report template reads none of them.
+  Wiring them into the business page is cheap (the view is ours) and would remove
+  work from T11's prompt rather than add it. Decide alongside D-03.
+
 - **F-5. The report's screening thresholds are Python constants, not config.**
   `_SCREENS` in `final_report_view.py` is, in substance, a first-pass screening
   rubric — 14 entries of `(metric, threshold, direction, sector)` covering

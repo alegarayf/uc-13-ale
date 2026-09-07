@@ -691,7 +691,7 @@
 </svg>
     </div>
     <div>
-      <h4 class="mini">Retention and tenure<span class="ng-badge ng-partial">Partial</span><span class="ng-note">revenue_quality.retention / customer_tenure — NRR/GRR/churn are populated; average tenure has no producer.</span></h4>
+      <h4 class="mini">Retention and tenure<span class="ng-badge ng-partial">Partial</span><span class="ng-note">revenue_quality.retention / customer_tenure — NRR/GRR/churn are populated. Average tenure exists at the CQA agent but field_mapping.py:532-554 flattens it into a note string instead of carrying the dict — a shape problem, not an absence.</span></h4>
       <table class="dt">
         <tr><th>Metric</th><th>Value</th><th>Screen</th></tr>
         <tr><td>Net revenue retention</td><td>94%</td><td><span class="chip neutral">No screen</span></td></tr>

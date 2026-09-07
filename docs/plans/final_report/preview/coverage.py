@@ -68,7 +68,7 @@ PANELS: tuple[tuple[str, str, str, str, str], ...] = (
     ("5 · Customers", "Concentration — share of revenue", "pending",
      "revenue_quality.top_customers", "The chart is built from the top-customer list (final_report_view.py:322); the Top 1 / Top 5 tiles come from concentration_summary and do render."),
     ("5 · Customers", "Retention and tenure", "partial",
-     "revenue_quality.retention / customer_tenure", "NRR/GRR/churn are populated; average tenure has no producer."),
+     "revenue_quality.retention / customer_tenure", "NRR/GRR/churn are populated. Average tenure exists at the CQA agent but field_mapping.py:532-554 flattens it into a note string instead of carrying the dict — a shape problem, not an absence."),
     ("5 · Customers", "Top Accounts", "pending",
      "revenue_quality.top_customers", "No producer found in the bundle layer."),
 
