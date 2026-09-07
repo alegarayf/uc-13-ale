@@ -630,7 +630,21 @@ here.
 `rainmaker_opportunity_summary.html.j2`\*\*
 
 \* except the one additive `_MPS_RUN_MODE_LABELS` entry (§3).
-\*\* except the D-01 mechanical include swap, if approved (§5).
+\*\* except the D-01 mechanical include swap (approved — §5).
+
+**Use `git merge-base`, never the branch point, as the baseline.** The branch was
+cut at `31878cc` and *later* merged `anthropic-sdk-migration` up to `ad6d009`
+(§Status). Diffing from `31878cc` therefore attributes the whole 2026-09-04
+executive-review commit to this branch, and `rainmaker_view.py` appears to have
+gained 220 lines it did not. That misread happened once during the T01 review.
+The correct, self-maintaining form is what T10 already uses:
+
+```bash
+git diff --stat $(git merge-base HEAD feature/anthropic-sdk-migration)..HEAD -- <files>
+```
+
+It resolves to `ad6d009` today and stays correct if that branch advances or is
+merged again.
 
 ---
 
