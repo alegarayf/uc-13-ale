@@ -376,3 +376,90 @@ def test_questions_why_is_none_when_absent():
     bundle = {"diligence_questions": [{"category": "General", "question": "What drives churn?"}]}
     out = frv._questions(bundle)
     assert out[0]["why"] is None
+
+
+# =========================================================================
+# 8. Format policy — caps and screens pinned as literals (T03b)
+#
+# These numbers are FORMAT POLICY (plan §2.2: "caps are part of the format"),
+# and the screens encode Rallyday's sector screening rules. A test that reads
+# its expectation from the constant it is testing moves when that constant
+# moves and cannot catch an accidental edit — that is what let two mutants
+# (CAP_QUESTIONS 8 -> 12, nrr_pct "dir": "min" -> "max") survive T03's suite.
+# This section is meant to fail when a value changes. If a cap or a screen
+# genuinely should move, change it here too, in the same commit, with the
+# reason in the commit message. Do not "fix" this test by reading the
+# constant.
+# =========================================================================
+
+_EXPECTED_CAPS = {
+    "CAP_TILES": 6,
+    "CAP_THESIS": 3,
+    "CAP_WATCHOUTS": 3,
+    "CAP_BULLETS": 4,
+    "CAP_SEGMENTS": 6,
+    "CAP_TOP_CUSTOMERS": 5,
+    "CAP_KPIS": 8,
+    "CAP_RISKS": 8,
+    "CAP_QUESTIONS": 8,
+    "CAP_GAPS": 10,
+}
+
+
+@pytest.mark.parametrize("name, expected", sorted(_EXPECTED_CAPS.items()))
+def test_cap_constant_pinned_literally(name, expected):
+    assert getattr(frv, name) == expected
+
+
+def test_expected_caps_covers_every_cap_constant_in_the_module():
+    # A new CAP_* constant must land in _EXPECTED_CAPS in the same commit
+    # that adds it, or this test fails.
+    module_caps = {name for name in vars(frv) if name.startswith("CAP_")}
+    assert module_caps == set(_EXPECTED_CAPS)
+
+
+# (sector, key, threshold, dir) — the whole `_SCREENS` table, pinned.
+_EXPECTED_SCREENS = {
+    ("tech_services", "nrr_pct", 90, "min"),
+    ("tech_services", "grr_pct", 85, "min"),
+    ("tech_services", "gross_margin_pct", 40, "min"),
+    ("tech_services", "top1_pct", 25, "max"),
+    ("tech_services", "organic_growth_pct", 10, "min"),
+    ("tech_services", "ebitda_margin_pct", 10, "min"),
+    ("tech_services", "avg_account_size", 100, "min"),
+    ("healthcare_services", "revenue_growth_pct", 5, "min"),
+    ("healthcare_services", "ebitda_margin_pct", 10, "min"),
+    ("healthcare_services", "gross_margin_pct", 30, "min"),
+    ("healthcare_services", "top1_pct", 20, "max"),
+    ("healthcare_services", "government_payor_pct", 50, "max"),
+    ("healthcare_services", "employee_turnover_pct", 30, "max"),
+    ("healthcare_services", "utilization_pct", 70, "min"),
+}
+
+
+def test_screens_table_pinned_literally():
+    actual = {(s["sector"], s["key"], s["threshold"], s["dir"]) for s in frv._SCREENS}
+    assert actual == _EXPECTED_SCREENS
+    assert len(frv._SCREENS) == 14
+
+
+def test_screen_nrr_pct_min_direction_hardcoded_threshold():
+    # _SCREENS says tech_services/nrr_pct is threshold=90, dir="min" — written
+    # here as literals, not read from _SCREENS, so a flipped "dir" or a moved
+    # threshold in the module cannot make this test agree with the bug.
+    below = frv._retention_rows({"revenue_quality": {"retention": {"nrr_pct": "85%"}}}, "tech_services")
+    assert below[0]["read_class"] == "high"
+    above = frv._retention_rows({"revenue_quality": {"retention": {"nrr_pct": "95%"}}}, "tech_services")
+    assert above[0]["read_class"] == "low"
+
+
+def test_screen_top1_pct_max_direction_hardcoded_threshold():
+    # _SCREENS says tech_services/top1_pct is threshold=25, dir="max" —
+    # written here as literals for the same reason as above.
+    bundle_flagged = {"kpi_dashboard": [{"metric_id": "top1_pct", "display_name": "Top1", "stated_value": "30%"}]}
+    view = frv._kpi_scorecard(bundle_flagged, "tech_services")
+    assert _kpi_row(view, "Top1")["flag"] is True
+
+    bundle_not_flagged = {"kpi_dashboard": [{"metric_id": "top1_pct", "display_name": "Top1", "stated_value": "20%"}]}
+    view = frv._kpi_scorecard(bundle_not_flagged, "tech_services")
+    assert _kpi_row(view, "Top1")["flag"] is False

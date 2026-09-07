@@ -999,10 +999,38 @@ named next to it.
       `pytest tests/ -q`: 1241 passed / 38 skipped (was 1205/38 — no
       regressions, no skip count change); `git diff --stat` against every
       §7 read-only file is empty; only `final_report_view.py` was modified.
-- [ ] **DoD-17** — The format caps and the screening thresholds are pinned as
+- [x] **DoD-17** — The format caps and the screening thresholds are pinned as
       literal policy, and both mutants that survived T03 (raising a cap, flipping
       a screen's direction) now fail a test. *(T03b; evidence: the two mutant
-      failure summaries)*
+      failure summaries below)*
+
+      Mutant 1 — `CAP_QUESTIONS = 8` → `12`:
+
+      ```
+      FAILED tests/test_final_report_view.py::test_cap_constant_pinned_literally[CAP_QUESTIONS-8]
+      AssertionError: assert 12 == 8
+       +  where 12 = getattr(frv, 'CAP_QUESTIONS')
+      1 failed, 68 passed in 0.08s
+      ```
+
+      Mutant 2 — `nrr_pct` screen `"dir": "min"` → `"max"`:
+
+      ```
+      FAILED tests/test_final_report_view.py::test_screens_table_pinned_literally
+      AssertionError: assert {('healthcare..., 'max'), ...} == {('healthcare..., 'max'), ...}
+      Extra items in the left set:
+      ('tech_services', 'nrr_pct', 90, 'max')
+      Extra items in the right set:
+      ('tech_services', 'nrr_pct', 90, 'min')
+      1 failed, 68 passed in 0.08s
+      ```
+
+      Both files restored via `git checkout --` after each mutant;
+      `git status --porcelain` clean before commit. `pytest tests/ -q`:
+      1311 passed / 38 skipped (14 new tests over the 1297 baseline — 10
+      literal cap pins, 1 cap-coverage check, 1 screens-table pin, 2
+      hardcoded-threshold behavioural tests), no regressions. `git diff
+      --stat` under `databricks/` is empty — no production code changed.
 - [ ] **DoD-16** — The final report's business page carries the Sep 4 content
       (F-6): `core_business` renders, and the prose reflects `sale_process` /
       `key_partners` when those fields are non-empty. The document is still
