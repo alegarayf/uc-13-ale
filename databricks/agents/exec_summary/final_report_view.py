@@ -25,6 +25,13 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from agents.exec_summary.rainmaker_view import (
+    _financial_periods,
+    _normalize_period_units,
+    _parse_percent as _rainmaker_parse_percent,
+    _unit_label as _rainmaker_unit_label,
+)
+
 # --- Caps: the length budget of the report -------------------------------
 CAP_TILES = 6
 CAP_THESIS = 3
@@ -62,15 +69,25 @@ _SCREENS: tuple[dict[str, Any], ...] = (
 _SEVERITY_CLASS = {"high": "high", "red": "high", "medium": "medium", "yellow": "medium", "low": "low", "green": "low"}
 _SEVERITY_LABEL = {"high": "High", "red": "High", "medium": "Medium", "yellow": "Medium", "low": "Low", "green": "Low"}
 
+# forecast_agent applies its credibility rubric deterministically as
+# Supported/Plausible/Stretch (forecast_agent.py:632-707); the template's
+# severity classes speak high/medium/low. An unrecognised rating degrades to
+# "neutral", never "high" — an unrecognised rating is not evidence of risk.
+_ASSUMPTION_SUPPORT_CLASS = {"supported": "low", "plausible": "medium", "stretch": "high"}
+_ASSUMPTION_SUPPORT_LABEL = {"supported": "Supported", "plausible": "Plausible", "stretch": "Stretch"}
+
 _MONEY_STRIP = re.compile(r"[^0-9.\-]")
-_NUM_LEADING = re.compile(r"-?\d+(\.\d+)?")
 
 
 # =========================================================================
-# Numeric helpers. In-repo these should import from
-# ``agents.exec_summary.rainmaker_view`` (``_parse_money`` / ``_parse_percent``)
-# rather than being duplicated — they are inlined here only so this module
-# runs standalone for the stakeholder preview.
+# Numeric helpers. ``parse_percent`` delegates to
+# ``agents.exec_summary.rainmaker_view._parse_percent`` — proven equivalent
+# (tests/test_final_report_numeric_parity.py). ``parse_money`` stays inline:
+# it disagrees with ``rainmaker_view._parse_money`` on magnitude suffixes
+# (``"2k"``, ``"1.5bn"``, ``"1.5b"`` — this module's version applies the
+# suffix multiplier, rainmaker_view's does not), so delegating would move
+# every suffixed figure on the page. Divergence recorded in
+# ../../../docs/plans/final_report/final_report_plan.md §9.
 # =========================================================================
 
 def parse_money(value: Any) -> float | None:
@@ -102,16 +119,12 @@ def parse_money(value: Any) -> float | None:
 def parse_percent(value: Any) -> float | None:
     """Leading numeric fragment of a percent string. Tolerates the narrative
     padding agents sometimes emit, e.g. ``"42.3% (Historical) / 44.3% (Pro
-    Forma — DISCREPANCY)"`` -> ``42.3``."""
-    if value is None:
-        return None
-    match = _NUM_LEADING.search(str(value))
-    if not match:
-        return None
-    try:
-        return float(match.group())
-    except ValueError:
-        return None
+    Forma — DISCREPANCY)"`` -> ``42.3``.
+
+    Delegates to ``rainmaker_view._parse_percent`` — proven behaviourally
+    equivalent on a comparison sweep (tests/test_final_report_numeric_parity.py).
+    Kept as a public name here because the template and the tests use it."""
+    return _rainmaker_parse_percent(value)
 
 
 def scale(values: list[float | None], max_value: float | None = None) -> list[float | None]:
@@ -135,6 +148,14 @@ def severity_label(value: Any) -> str:
     return _SEVERITY_LABEL.get(str(value or "").lower(), str(value or "—").title())
 
 
+def assumption_support_class(value: Any) -> str:
+    return _ASSUMPTION_SUPPORT_CLASS.get(str(value or "").lower(), "neutral")
+
+
+def assumption_support_label(value: Any) -> str:
+    return _ASSUMPTION_SUPPORT_LABEL.get(str(value or "").lower(), str(value or "—").title())
+
+
 # Confidence runs the opposite way to severity: HIGH confidence is reassuring,
 # LOW confidence is the warning. Same chip vocabulary, inverted mapping — a
 # green "High" and a red "Low", never the reverse.
@@ -156,17 +177,17 @@ def _pnl_table(bundle: dict[str, Any]) -> dict[str, Any]:
     absent is dropped, so a services business, a SaaS business and an
     industrial business all render cleanly from one row set. The ``calc``
     column is CAGR where three or more periods exist, otherwise last-period
-    YoY — pure arithmetic on figures the agents already extracted."""
-    rows_in = [r for r in ((bundle.get("financials") or {}).get("table_rows") or []) if isinstance(r, dict)]
-    periods, seen = [], set()
-    ordered: list[dict[str, Any]] = []
-    for r in rows_in:
-        year = str(r.get("year") or "").strip()
-        if not year or year in seen:
-            continue
-        seen.add(year)
-        periods.append(year)
-        ordered.append(r)
+    YoY — pure arithmetic on figures the agents already extracted.
+
+    Period order and unit handling are adopted from ``rainmaker_view`` so this
+    document and the executive review, built from the same bundle, never
+    disagree on either: ``_financial_periods`` dedupes by year and sorts
+    chronologically by the year each label names (an unparseable label keeps
+    its relative position, placed after the parseable ones — never dropped,
+    never guessed at); ``_normalize_period_units`` rescales a period whose
+    figures were extracted in a different unit than its neighbours."""
+    ordered = _normalize_period_units(_financial_periods(bundle))
+    periods = [str(r.get("year") or "").strip() for r in ordered]
 
     specs = (
         ("Revenue", "revenue", "total", "money"),
@@ -196,12 +217,18 @@ def _pnl_table(bundle: dict[str, Any]) -> dict[str, Any]:
             "cite": None,
         })
 
+    # No producer populates ``financials.unit_label`` today (A-3 territory),
+    # so the bundle read is a future-proofing first choice: if a producer
+    # ever writes it, that value wins over the computed one. Until then this
+    # always falls through to the same computation the executive review uses.
+    revenue_values = [parse_money(r.get("revenue")) for r in ordered]
+    computed_unit_label = _rainmaker_unit_label(bundle, revenue_values)
     return {
         "periods": periods,
         "rows": rows,
         "currency": (bundle.get("financials") or {}).get("currency") or "$",
         "unit": (bundle.get("financials") or {}).get("unit") or "",
-        "unit_label": (bundle.get("financials") or {}).get("unit_label") or "as reported",
+        "unit_label": (bundle.get("financials") or {}).get("unit_label") or computed_unit_label or "as reported",
         "calc_col_label": "CAGR" if len(periods) >= 3 else "YoY",
     }
 
@@ -460,11 +487,20 @@ _CONTENTS = (
 def final_report_view(
     bundle: dict[str, Any],
     narrative: dict[str, Any] | None = None,
+    run_mode: str | None = None,
 ) -> dict[str, Any]:
     """Build the ``report`` context for ``final_report.html.j2``.
 
     ``narrative`` is the existing Capa B synthesis output (prose bullets,
     thesis, watchouts, analyst takes, recommendation).
+
+    ``run_mode`` is a fact about which branch the caller took (``"cim_only"``
+    or the full-data-room branch) and is never re-derived from
+    ``bundle.meta`` — ``bundle["meta"]`` carries no ``run_mode`` key today
+    (nothing in ``bundle_builder.py`` or ``field_mapping.py`` writes one), so
+    without this parameter every report would read "Full data room", CIM-first
+    ones included. Falls back to ``meta.get("run_mode")`` when omitted, so the
+    function stays usable standalone (e.g. the stakeholder preview).
 
     This function deliberately knows NOTHING about the MPS. The MPS page
     renders from ``rainmaker_view._mps_table`` — the same projection the
@@ -475,6 +511,7 @@ def final_report_view(
     """
     narrative = narrative or {}
     meta = bundle.get("meta") or {}
+    effective_run_mode = run_mode if run_mode is not None else meta.get("run_mode")
     sector = str(meta.get("vertical_overlay") or "tech_services")
     headline = bundle.get("headline_metrics") or {}
     framing = bundle.get("company_framing") or {}
@@ -485,7 +522,7 @@ def final_report_view(
             "sector_label": sector.replace("_", " ").title(),
             "prepared_for": "Rallyday Partners",
             "date": str(meta.get("generated_at") or "")[:10],
-            "mode_label": "CIM-first" if meta.get("run_mode") == "cim_only" else "Full data room",
+            "mode_label": "CIM-first" if effective_run_mode == "cim_only" else "Full data room",
             "doc_count": meta.get("doc_count"),
             "overall_confidence": severity_label(meta.get("overall_confidence")),
             "status": str(meta.get("disclaimer_text") or "").strip()
@@ -731,8 +768,8 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
             "footnote": "Plan periods marked P. Same axis as the historical chart on the financial performance page.",
         },
         "assumptions": [
-            {"assumption": str(a.get("assumption") or ""), "support_label": severity_label(a.get("support")),
-             "support_class": severity_class(a.get("support")), "test": str(a.get("test") or "—")}
+            {"assumption": str(a.get("assumption") or ""), "support_label": assumption_support_label(a.get("support")),
+             "support_class": assumption_support_class(a.get("support")), "test": str(a.get("test") or "—")}
             for a in (fin.get("forecast_assumptions") or [])[:5] if isinstance(a, dict)
         ],
         "levers": [

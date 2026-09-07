@@ -134,6 +134,73 @@ final report template reads none of them.** Naming how the business is being sol
 and who it depends on, belongs on the final report's business page at least as much
 as on the ER's cover. Not in scope for the tasks as written — recorded as F-6.
 
+**T02 close-out (2026-09-07) — full audit, RENAME/RESHAPE/ABSENT.** Every
+`bundle.get(...)` path `final_report_view.py` reads was traced through
+`field_mapping.py`, `populate.py` and `bundle_builder.py` back to the
+workstream agent that would produce it. Result: **zero RENAME, zero RESHAPE —
+every field is ABSENT.** The "candidate existing names" T02's task file
+suggested as leads (`revenue_by_segment` at a stated `field_mapping.py:223`,
+`clients` at a stated `field_mapping.py:523`) do not exist in the current
+tree under those names or at those lines — verified by direct grep, not
+assumed from the task file's leads.
+
+| # | View reads | Producer traced to | Verdict | Justifying line |
+|---|---|---|---|---|
+| 1 | `financials.segment_performance` / `segment_dimension` | `RevenueSubAgent` → `revenue_by_segment` (`revenue_sub_agent.py:71-79`) lands as `bundle.financials.geographic_mix` (`field_mapping.py:758`), a **different key**, with keys `segment/revenue_pct/revenue_dollars` — no `gross_margin_pct`, `growth_pct`, `read_label`, or `read` (severity) exist anywhere in the pipeline | ABSENT | `field_mapping.py:758`; zero hits for `segment_performance`/`segment_dimension` as a writer |
+| 2 | `financials.forecast_rows` | `forecast_agent.py` writes `revenue_build_comparison` to `{catalog}.analysis.forecast`; `BundleBuilder` never reads that table (`constants.py:4-11` omits `forecast`) | ABSENT — **SUPPLIED-BY-T05** (D-03, §1.5) | zero hits in `field_mapping.py`/`bundle_builder.py`/`populate.py` |
+| 3 | `financials.forecast_assumptions` | same as #2 | ABSENT — **SUPPLIED-BY-T05** | zero hits, same files |
+| 4 | `financials.growth_bridge` | No producer anywhere names or shapes a revenue/EBITDA bridge for the bundle. (`quality_of_earnings_agent.py`'s `_tool_retrieve_ebitda_bridge` is a retrieval query, not an extraction field.) | ABSENT | zero hits outside the reader at `final_report_view.py` |
+| 5 | `revenue_quality.revenue_type_mix` | `customer_quality_agent.py:211-213,295-300` extracts a **dict** (`recurring_pct`/`project_onetime_pct`/`retainer_pct`), not a list of mix segments; never copied into the bundle by `_revenue_quality_from_agents` (`field_mapping.py:617-640`) | ABSENT (would additionally need a RESHAPE — dict → list — if wired) | `field_mapping.py:617-640` |
+| 6 | `revenue_quality.client_distribution` | No producer; `_revenue_quality_from_agents` returns only `scale_narrative`/`concentration`/`end_market_mix`/`retention_notes` | ABSENT | `field_mapping.py:617-642` |
+| 7 | `qoe.addbacks` | `EbitdaSubAgent` → `addback_schedule.items` (`ebitda_sub_agent.py:56-65`, wrapped `financial_trends_agent.py:1651-1654`); `_qoe_from_snapshots` (`field_mapping.py:645-657`) copies only `addback_pct_of_ebitda`, never `items`. Even if wired: items carry `description`/`amount_stated`, not `label`/`amount`, and **no `tier` field exists anywhere in the schema** | ABSENT | `field_mapping.py:645-657` |
+| 8 | `diligence_questions[].why_it_matters` | `GapAggregator.build_diligence_questions()` (`bundle_builder.py:553-588`) emits exactly `category`/`question`/`priority`/`source_agent`/`fill_state` — no rationale string exists upstream (legal's `recommended_diligence` carries only `doc_type`/`priority`/`item_id`) to even rename | ABSENT | `bundle_builder.py:553-588` |
+| — | `revenue_quality.top_customers` | CQA extracts `top_customers` (`customer_quality_agent.py:228`) but `_revenue_quality_from_agents` never copies it into the bundle | ABSENT | `field_mapping.py:617-640` |
+| — | `revenue_quality.client_count` | No producer anywhere | ABSENT | grep, zero writer hits |
+| — | `revenue_quality.customer_tenure` | Shape problem, not absence — see above. CQA's `average_tenure_years`/`tenure_distribution_note` are flattened into the string `retention_notes` by `_retention_note_from_cqa` (`field_mapping.py:532-554`); the dict shape the view reads never reaches the bundle | ABSENT under this key | `field_mapping.py:532-554` |
+| — | `legal.coc_consent_count` | Computed as a local variable inside `legal_contracts_agent.py` (~:1707-1922) for a narrative sentence only; never persisted to Delta or copied by `_build_legal_block` (`field_mapping.py:697-718`) | ABSENT | `field_mapping.py:697-718` |
+
+Since every field is ABSENT, **no read in `final_report_view.py` changed** —
+each section keeps rendering its "not extracted" state exactly as before (T02
+step 4). What did change, all inside `final_report_view.py` only:
+
+- Adopted `rainmaker_view._financial_periods` (chronological sort by
+  `_period_sort_year`, unparseable labels kept in relative order after the
+  parseable ones — never dropped, never guessed at) and
+  `rainmaker_view._normalize_period_units` (rescales a period extracted in a
+  different unit than its neighbours) inside `_pnl_table`, so the P&L
+  column order and figures agree with the executive review's table built
+  from the same bundle (§1.6, DoD-14).
+- Adopted `rainmaker_view._unit_label` as the computed fallback behind the
+  (currently never-populated) `bundle.financials.unit_label` read (A-3-style
+  future-proofing — a future producer wins over the computed value).
+- `parse_percent` now delegates to `rainmaker_view._parse_percent` — proven
+  behaviourally equivalent on a 16-input comparison sweep
+  (`tests/test_final_report_numeric_parity.py`). `parse_money` stays
+  **inline**: it disagrees with `rainmaker_view._parse_money` on magnitude
+  suffixes (`"2k"` → `0.002` here vs `2.0` there; `"1.5bn"`/`"1.5b"` →
+  `1500.0` here vs `1.5` there — this module applies the suffix multiplier,
+  `rainmaker_view`'s does not). Per the task's rule, a disagreement means
+  keep the inline copy and record the divergence here rather than silently
+  changing behaviour; the divergence is pinned as a test, not just asserted
+  in prose.
+- Added `_ASSUMPTION_SUPPORT_CLASS`/`_ASSUMPTION_SUPPORT_LABEL` (module
+  constants next to `_SEVERITY_CLASS`) translating the forecast agent's
+  `Supported`/`Plausible`/`Stretch` rubric onto the template's
+  `high`/`medium`/`low` severity classes, for when T05's injected
+  `forecast_assumptions` start arriving. An unrecognised value degrades to
+  `neutral`, never `high`.
+- `final_report_view()` gained the additive `run_mode: str | None = None`
+  parameter (A-3): the cover's `mode_label` now reads the caller-supplied
+  branch fact first, falling back to `meta.get("run_mode")` (which
+  `bundle_builder.py` never populates) only when the parameter is omitted —
+  so the function stays usable standalone.
+
+**Evidence:** `git diff --stat` shows only `final_report_view.py` modified
+(plus the new `tests/test_final_report_numeric_parity.py`); every read-only
+file in §7 shows zero diff; `pytest tests/ -q`: 1241 passed / 38 skipped
+(1205 passed baseline + 36 new parametrized parity tests, no regressions, no
+skips added or removed).
+
 ### 1.5 The forecast page has no data path at all — bigger than a rename
 
 `forecast_agent.py` genuinely extracts what page 8 wants: `forecast_assumptions`,
@@ -724,9 +791,24 @@ line. T08 is independent of T01-T07 and can run at any point.
 
 - **F-1.** Score-movement explanation between the two MPS columns (FEAT-04). No
   agent produces it; see §3.
-- **F-2.** The bundle fields T02 confirms genuinely absent — each needs an agent
-  change to populate, and each corresponding report section renders "not
-  extracted" until then. T02 writes the final list into this section.
+- **F-2 — CLOSED 2026-09-07 (T02).** Every field the final report reads that has
+  no producer today, the section it degrades, and the agent that would have to
+  change to populate it. Full trace and RENAME/RESHAPE/ABSENT classification
+  is in §1.4's T02 close-out table; this is the flat follow-up list.
+
+  | Field | Section renders "not extracted" | Agent that would need to change |
+  |---|---|---|
+  | `financials.segment_performance` / `segment_dimension` | Page 3 performance-by-segment table + chart | `RevenueSubAgent` (`revenue_sub_agent.py`) would need to extract gross margin and growth per segment, not just revenue |
+  | `financials.forecast_rows` / `forecast_assumptions` | Page 8 plan-vs-history chart + assumptions table | **Not a gap** — SUPPLIED-BY-T05 (D-03); `forecast_agent.py` already extracts these, `build_final_report` reads them from Delta directly |
+  | `financials.growth_bridge` | Page 4 growth bridge | No agent computes a revenue/EBITDA bridge today; would need a new extraction (or a deterministic build off `table_rows` + `addback_schedule`) |
+  | `revenue_quality.revenue_type_mix` | Page 3 recurring-vs-project mix bar | `customer_quality_agent.py` extracts this as a dict already (`recurring_pct`/`project_onetime_pct`/`retainer_pct`) — needs `_revenue_quality_from_agents` (`field_mapping.py`) to copy it, reshaped into a list of `{label, pct}` |
+  | `revenue_quality.client_distribution` | Page 3 clients-by-segment mix bar | No agent extracts a client-by-segment breakdown today |
+  | `qoe.addbacks` | Page 7 addback stack | `EbitdaSubAgent` already extracts `addback_schedule.items` — needs `_qoe_from_snapshots` (`field_mapping.py`) to copy the list (renamed `description`→`label`, `amount_stated`→`amount`), and the schema would need a `tier` field, which does not exist anywhere today |
+  | `diligence_questions[].why_it_matters` | Page 9 "why it matters" column | `GapAggregator.build_diligence_questions()` (`bundle_builder.py`) would need a rationale string; none of its upstream sources (legal's `recommended_diligence`, KPI's `missing_kpis`) carry one today |
+  | `revenue_quality.top_customers` | Page 5 top-customer table | CQA already extracts `top_customers` — needs `_revenue_quality_from_agents` to copy it into the bundle |
+  | `revenue_quality.client_count` | Customer tile | No agent computes a client count today |
+  | `revenue_quality.customer_tenure` (structured) | Customer tile (avg tenure) | Data exists one layer down (`cqa_yaml.customer_tenure.average_tenure_years`) but `_retention_note_from_cqa` flattens it into a string; needs a second, structured path alongside the note |
+  | `legal.coc_consent_count` | Legal tile | `legal_contracts_agent.py` already computes this as a local variable for a narrative sentence — needs a Delta column and `_build_legal_block` (`field_mapping.py`) to copy it |
 - **F-7. Extract projected EBITDA / margin per period.** The figures are in the
   documents and the pipeline already retrieves the pages that hold them
   (`OpexSubAgent`'s third query), but no extraction schema keeps them — see §1.7.
@@ -854,8 +936,25 @@ named next to it.
       matches it. *(T06)*
 - [ ] **DoD-10** — A-1 and A-2 (§9) are resolved against the live warehouse, and
       §4/§6 of this plan record the actual answers. *(T08, T09)*
-- [ ] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
+- [x] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
       into §9. *(T02)*
+      **Closed 2026-09-07.** Every `bundle.get(...)` path `final_report_view.py`
+      reads was traced (§1.4 T02 close-out table): 0 RENAME, 0 RESHAPE, all 12
+      fields ABSENT (the original 8 plus 4 the spot-check found). F-2 in §9
+      replaced with the flat follow-up list (field → degraded section → agent
+      that would need to change). No read in `final_report_view.py` changed.
+      Also landed in the same commit: `_pnl_table` adopts
+      `rainmaker_view._financial_periods` (chronological sort) and
+      `_normalize_period_units` (unit-outlier correction); `parse_percent`
+      delegates to `rainmaker_view._parse_percent` (proven equivalent);
+      `parse_money` stays inline (proven divergent on magnitude suffixes,
+      pinned as a test); `_ASSUMPTION_SUPPORT_CLASS`/`_LABEL` added for the
+      Supported/Plausible/Stretch → high/medium/low translation; `run_mode`
+      param added to `final_report_view()` (A-3). Evidence:
+      `tests/test_final_report_numeric_parity.py` (36 new tests, all green);
+      `pytest tests/ -q`: 1241 passed / 38 skipped (was 1205/38 — no
+      regressions, no skip count change); `git diff --stat` against every
+      §7 read-only file is empty; only `final_report_view.py` was modified.
 - [ ] **DoD-16** — The final report's business page carries the Sep 4 content
       (F-6): `core_business` renders, and the prose reflects `sale_process` /
       `key_partners` when those fields are non-empty. The document is still
