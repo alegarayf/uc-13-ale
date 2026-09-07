@@ -77,6 +77,34 @@ level of mocking (this module is pure; it needs none).
 - A question with no `why_it_matters` yields `why=None` (T02 may have confirmed
   this field is absent — the test pins the honest behaviour either way).
 
+## 8. The figures themselves must match the executive review
+
+T02 landed `tests/test_final_report_numeric_parity.py`, which asserts the two
+documents agree on the P&L **column order** and the **stated unit**. It does not
+assert the **cell values** — and that is what DoD-14 actually cares about. The
+values do match today (verified by hand during the T02 review), so this is pinning
+existing behaviour, not fixing a defect.
+
+Add to that existing file, not a new one:
+
+- Build one bundle whose `financials.table_rows` are out of chronological order
+  **and** contain one period extracted in a different unit than its neighbours
+  (reuse the shape already in `test_pnl_period_order_and_unit_label_match_executive_review`).
+- Render it through **both** `rainmaker_view._financial_table` and
+  `final_report_view._pnl_table`.
+- Assert the money rows' `cells` lists are **equal**. Note the two row shapes
+  differ — the ER uses `metric_name`, the final report uses `label` — so match the
+  rows by position or by a small name map, and assert on `cells`.
+- Cover at least Revenue and EBITDA, so a divergence in one row cannot hide behind
+  the other.
+- **Do not** assert on the growth/CAGR column: the ER formats to whole percent
+  (`"8%"`), the final report to one decimal (`"8.2%"`). Same underlying value,
+  different presentation, deliberately. Put that in a comment so the next reader
+  does not "fix" it.
+
+If the values ever stop matching, this test is what says so — and per F-8 the
+likely cause is a magnitude suffix reaching a table cell.
+
 ## Fixtures
 
 Use `tests/fixtures/final_report_sample_bundle.py` for the "populated" case, and
@@ -86,6 +114,7 @@ files. Do not import anything from `docs/`.
 ## Acceptance criteria
 
 - [ ] `pytest tests/test_final_report_view.py -q` passes.
+- [ ] The cell-value parity assertion is in `tests/test_final_report_numeric_parity.py` and covers Revenue and EBITDA (§8 above).
 - [ ] `pytest tests/ -q` passes with no new failures.
 - [ ] Every cap assertion reads its constant from the module.
 - [ ] Every "is not zero" assertion uses `is None`, not truthiness.

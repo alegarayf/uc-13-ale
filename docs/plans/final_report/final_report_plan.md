@@ -809,6 +809,36 @@ line. T08 is independent of T01-T07 and can run at any point.
   | `revenue_quality.client_count` | Customer tile | No agent computes a client count today |
   | `revenue_quality.customer_tenure` (structured) | Customer tile (avg tenure) | Data exists one layer down (`cqa_yaml.customer_tenure.average_tenure_years`) but `_retention_note_from_cqa` flattens it into a string; needs a second, structured path alongside the note |
   | `legal.coc_consent_count` | Legal tile | `legal_contracts_agent.py` already computes this as a local variable for a narrative sentence — needs a Delta column and `_build_legal_block` (`field_mapping.py`) to copy it |
+- **F-8. Money suffixes inside P&L cells are parsed differently by the two
+  documents, and neither parser is right.** T02 proved the divergence and pinned
+  it as a test (`tests/test_final_report_numeric_parity.py`) rather than picking a
+  winner, which was the correct call — because there isn't one:
+
+  - `final_report_view.parse_money` applies magnitude multipliers on an implicit
+    **millions** base (`k → 0.001`, `bn/b → 1000`, no `m` branch).
+    `rainmaker_view._parse_money` applies none — by design: it parses table cells,
+    which the ER treats as bare numbers in a unit stated separately by
+    `_unit_label`.
+  - A cell `"1.5bn"` in a millions-based table: the final report reads `1500.0`
+    (right); the ER reads `1.5`, and `_normalize_period_units` does **not** rescue
+    it — the ratio to the median is ~30×, under `_UNIT_OUTLIER_FACTOR = 500` — so
+    the ER **under-reports by 1000×**.
+  - A cell `"2k"` in a thousands-based table: the ER reads `2.0`, which the
+    normaliser rescales correctly; the final report reads `0.002` and needs a much
+    larger correction to get back.
+
+  Each is better in one scenario and worse in the other, so hardening either
+  parser just moves the defect. **The real fix is upstream: a magnitude suffix
+  should never reach a P&L table cell** — the extraction layer should normalise
+  the table onto one unit and state it, which is what `_unit_label` already
+  assumes happened. Until then the divergence is documented and tested, and it is
+  only reachable when an agent emits a suffix inside `financials.table_rows`.
+
+  Note that `parse_money`'s docstring claims to honour `m` suffixes; there is no
+  such branch. Harmless while millions is the implicit base, but the docstring
+  overstates what the code does — worth correcting next time someone is in that
+  file.
+
 - **F-7. Extract projected EBITDA / margin per period.** The figures are in the
   documents and the pipeline already retrieves the pages that hold them
   (`OpexSubAgent`'s third query), but no extraction schema keeps them — see §1.7.
