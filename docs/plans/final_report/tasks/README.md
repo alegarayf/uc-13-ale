@@ -17,6 +17,39 @@ point. **T06 is blocked** until decision D-01 (plan §5) has an explicit answer.
 | T11 | [T11_final_report_narrative.md](T11_final_report_narrative.md) | T02, T05 | DoD-13 |
 | T10 | [T10_docs_and_closeout.md](T10_docs_and_closeout.md) | all | DoD-1, DoD-4, DoD-7 |
 
+## Where to work
+
+**This plan is executed in a dedicated git worktree**, not in the main checkout:
+
+| Path | Branch | Purpose |
+|---|---|---|
+| `/Users/nimblegravity/NimblePyects/Rallyday-uc13-final-report` | `feature/uc13-final-report-and-progress` | **this work** |
+| `/Users/nimblegravity/NimblePyects/Rallyday` | `feature/anthropic-sdk-migration` | everything else |
+
+Both share one `.git`, so commits, branches and remotes are the same repository —
+there is only ever one history. The split exists because a branch can be checked
+out in **one** worktree at a time, which is exactly the guarantee we want: nothing
+in the other checkout can switch this branch out from under a running task. (It
+happened twice while the plan was being written, and it silently corrupted a
+`git rev-list` measurement before anyone noticed.)
+
+Consequences worth knowing:
+
+- **Never `git checkout` another branch here.** If you need to look at
+  `anthropic-sdk-migration`, read it through git (`git show <ref>:<path>`) instead
+  of switching. Switching would take `docs/plans/final_report/**` out of the
+  working tree — it is only un-ignored on this branch — and the plan would appear
+  to vanish.
+- `databricks/.venv` here is a **symlink** to the main checkout's venv, so the two
+  share one interpreter and one set of installed packages. Run tests as
+  `databricks/.venv/bin/python -m pytest tests/ -q`. If a task needs a new
+  dependency, remember `databricks/CLAUDE.md`'s AD-003: it must be declared in
+  three places, not two.
+- Gitignored local files (`.env`, `.claude/`, `.dev/`) do **not** exist here. The
+  suite does not need them; if something does, copy it rather than moving it.
+- To remove the worktree when the plan is done:
+  `git worktree remove ../Rallyday-uc13-final-report` from the main checkout.
+
 ## Rules that apply to every task
 
 1. **Read [`../final_report_plan.md`](../final_report_plan.md) first.** It is the
