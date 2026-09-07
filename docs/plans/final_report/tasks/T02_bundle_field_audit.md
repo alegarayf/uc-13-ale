@@ -91,7 +91,36 @@ These are **leads, not answers** — verify the shape of each before using it.
 
 4. For every ABSENT field, change nothing in the code.
 
-5. **De-duplicate the numeric helpers.** The module says so itself, in the comment
+5. **Adopt the Sep 4 numeric fixes** (plan §1.6). `b0998c9` hardened
+   `rainmaker_view.py` with period ordering and unit normalisation that
+   `final_report_view.py` does not have — and both render the same bundle, so
+   without this the two documents disagree on column order and on what unit the
+   figures are stated in. **This is correctness, not polish.** Adopt, in the final
+   report's view only:
+
+   - **`_period_sort_year`** — `_pnl_table` (`final_report_view.py:160-168`)
+     currently takes periods in emission order. Sort them the way the ER does.
+     Anything the sorter cannot parse must keep its relative position rather than
+     being dropped or pushed to one end.
+   - **`_normalize_period_units`** (with `_nearest_power_of_1000`,
+     `_UNIT_OUTLIER_FACTOR = 500.0`) — apply before the table and the charts are
+     built, so a period emitted in units among thousands is corrected once and
+     every downstream figure sees the corrected value.
+   - **`_unit_label`** — the view currently reads `bundle.financials.unit_label`,
+     which **no producer populates** (0 hits in `field_mapping.py`,
+     `bundle_builder.py`, `populate.py`), so the P&L header always degrades to
+     `"as reported"`. Compute it the way the ER does instead. Keep the bundle read
+     as the first choice and the computed value as the fallback, so a future
+     producer wins.
+   - **`_format_money`** — reconcile with the view's own `_short()`. If they
+     disagree on any input, prefer the ER's and say so in your close-out; two
+     money formatters over one bundle is the same drift risk as two parsers.
+
+   `rainmaker_view.py` is **read-only** — import its helpers, do not move or
+   rename them, and do not add a public alias there. The direction of reuse is
+   one-way: the final report's view imports from the ER's, never the reverse.
+
+6. **De-duplicate the numeric helpers.** The module says so itself, in the comment
    above them: `parse_money` / `parse_percent` are "inlined here only so this
    module runs standalone for the stakeholder preview" and in-repo should import
    from `agents.exec_summary.rainmaker_view` (`_parse_money` / `_parse_percent`).
@@ -117,7 +146,7 @@ These are **leads, not answers** — verify the shape of each before using it.
    - Keep the resulting comparison as a real test if it found nothing — it is
      cheap and it pins the equivalence.
 
-6. **Implement A-3 from the plan while you are in this file.** Add an additive
+7. **Implement A-3 from the plan while you are in this file.** Add an additive
    parameter to the public entry point:
 
    ```python
@@ -137,7 +166,7 @@ These are **leads, not answers** — verify the shape of each before using it.
    `run_mode` is a fact about which branch the caller took and is never re-derived
    from `bundle.meta`.
 
-7. Run the existing suite. Nothing should change: `pytest tests/ -q`.
+8. Run the existing suite. Nothing should change: `pytest tests/ -q`.
 
 ## Acceptance criteria
 
@@ -150,6 +179,11 @@ These are **leads, not answers** — verify the shape of each before using it.
 - [ ] `parse_money` / `parse_percent` delegate to `rainmaker_view`'s helpers, with
       the equivalence evidence — or the inline copies survive with the divergence
       written into plan §9. `rainmaker_view.py` itself has zero diff either way.
+- [ ] Period ordering, unit normalisation and the unit label are adopted (§1.6).
+      Evidence: render the same bundle into both documents and assert the P&L
+      column order and the stated unit are **identical**. That assertion belongs in
+      the test suite, not just in your close-out — it is what keeps the two
+      documents from drifting apart on numbers.
 - [ ] `final_report_view()` accepts `run_mode` and still works when it is omitted.
 - [ ] `pytest tests/ -q` unchanged.
 

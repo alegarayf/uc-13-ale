@@ -163,6 +163,33 @@ Three ways out, in increasing order of blast radius:
 page 8 carrying the plan-vs-history chart and page 8 saying the chart could not be
 built.
 
+### 1.6 The Sep 4 numeric fixes are in the ER's view and **not** in the final report's *(added 2026-09-07)*
+
+`b0998c9` did not only add prose fields. It put ~220 lines of numeric hardening
+into `rainmaker_view.py` that `final_report_view.py` does not have, and the two
+modules render **the same bundle**. Verified function by function:
+
+| Fix, in `rainmaker_view.py` | In `final_report_view.py`? | Consequence for the final report |
+|---|---|---|
+| `_period_sort_year` (FY/CY/'23 parsing) | ✗ | `_pnl_table` takes periods in **emission order** (`final_report_view.py:160-168`) — the P&L columns can be ordered differently than the ER's, from the same rows |
+| `_normalize_period_units` + `_nearest_power_of_1000` (`_UNIT_OUTLIER_FACTOR = 500.0`) | ✗ | A period an agent emitted in units while its siblings are in thousands stays an outlier — the exact defect Sep 4 fixed for the ER |
+| `_unit_label` | ✗ (reads `bundle.financials.unit_label`, which **no producer populates** — 0 hits in `field_mapping`/`bundle_builder`/`populate`) | The P&L header always falls back to `"as reported"` while the ER states the real unit |
+| `_headline_absolute_dollars` (parses `"$23.0mm"`) | ✗ | Headline tiles are not cross-checked against the table |
+| `_format_money` | ✗ (has its own `_short()`) | Money can format differently in the two documents |
+
+`rainmaker_view._unit_label`'s own docstring names the bug it closed: *"the
+hardcoded 'in millions' that mislabelled every table extracted in thousands"*.
+Shipping the final report without these reintroduces it in a second document.
+
+**This is a correctness requirement, not an enhancement.** Two documents built
+from one bundle, disagreeing on column order and on what unit the figures are
+stated in, is worse than either document alone — the reader has no way to know
+which is right. **T02 owns it**, under the same equivalence-proof discipline as
+the `parse_money`/`parse_percent` de-duplication it already carries.
+
+Note the direction of reuse: `rainmaker_view.py` stays read-only. The final
+report's view **imports** its helpers; nothing moves the other way.
+
 ---
 
 ## 2. Exact call sequence after the change
@@ -630,12 +657,16 @@ line. T08 is independent of T01-T07 and can run at any point.
 - **F-2.** The bundle fields T02 confirms genuinely absent — each needs an agent
   change to populate, and each corresponding report section renders "not
   extracted" until then. T02 writes the final list into this section.
-- **F-6. The final report ignores bundle content the Sep 4 work added.**
+- **F-6. The final report ignores *content* the Sep 4 work added.**
   `company_framing.business_description`, `sale_process`, `key_partners`,
   `key_dependencies` and the narrative's `core_business` are all populated now and
   rendered on the executive review; the final report template reads none of them.
   Wiring them into the business page is cheap (the view is ours) and would remove
   work from T11's prompt rather than add it. Decide alongside D-03.
+
+  **The *numeric* half of that commit is not a follow-up** — see §1.6. Period
+  ordering and unit normalisation are a correctness requirement and are now part
+  of T02.
 
 - **F-5. The report's screening thresholds are Python constants, not config.**
   `_SCREENS` in `final_report_view.py` is, in substance, a first-pass screening
@@ -722,6 +753,9 @@ named next to it.
       §4/§6 of this plan record the actual answers. *(T08, T09)*
 - [ ] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
       into §9. *(T02)*
+- [ ] **DoD-14** — The final report and the executive review, built from the same
+      bundle, agree on the P&L column order and on the stated unit (§1.6). *(T02;
+      evidence: a test that renders both and asserts both are identical)*
 - [ ] **DoD-13** — The final report's six analyst takes and its cover
       recommendation render from `final_report_narrative`, and a degraded
       narrative renders zero take boxes with no page missing (§3.5). *(T11;
