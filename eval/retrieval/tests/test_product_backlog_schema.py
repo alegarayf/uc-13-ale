@@ -247,7 +247,13 @@ def test_product_backlog_rejects_invalid_severity() -> None:
 def test_product_backlog_closed_row_set() -> None:
     backlog = _load_backlog()
     items = backlog["items"]
-    assert len(items) == 27
+    # 27 -> 29: two new open rows added post-ledger-close-now-slice closeout —
+    # PB-exec_summary-chk27-judge-production-accuracy-gap (production-scale judge
+    # vs human agreement 0.6038 < 0.80 threshold, found while updating CHK-26a's
+    # conf score) and PB-legal_register-elder-care-contract-register-regressions
+    # (3 claim_ids regressed in the same T11/T12 re-verification that improved the
+    # overall fraction). Neither is in CLOSED_TARGET_IDS.
+    assert len(items) == 29
     closed_ids = {item["id"] for item in items if item.get("closed_at") is not None}
     assert closed_ids == CLOSED_TARGET_IDS
     # OPEN_HANDOFF_ID (PB-exec_summary-008-locator-mismatch) was retired into

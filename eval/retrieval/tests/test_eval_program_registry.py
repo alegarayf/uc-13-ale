@@ -40,7 +40,11 @@ ACTIONABLE_STATUSES = frozenset({"pending", "in_progress"})
 # judge; see .dev/plans/ledger-close-now-slice/decision-logs/T5.md.
 # 52 -> 51: ledger-close-now-slice/T8 closed OI-agent-quality-post-m4-agent-rerun-three-companies
 # (status: pending -> closed) after the three-company run_diligence_pipeline.py rerun.
-FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 51
+# 51 -> 50: closed OI-eval-harness-post-m4-retrieval-baseline-refresh (status: pending -> closed)
+# after verifying the already-promoted 2026-08-19 four-company baselines match live ingestion
+# chunk counts within noise (0% drift on Clearsulting/GKF/SPG, +0.01% Elder Care); see
+# .dev/audits/2026-09-02-retrieval-baseline-refresh-verification.md.
+FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT = 50
 GAP_109_ID = "GAP-109-cross-company-legal-kpi-g1-weakness"
 GAP_103_R3_ID = "GAP-103-legal-score-variance-r-3"
 GAP_109_INVESTIGATION_MARKER = "M8-INVESTIGATION-COMPLETE"

@@ -632,3 +632,57 @@ items:
     closed_at: '2026-08-28'
     closed_evidence_refs:
       - .dev/plans/iterate-pack-now-slice/artifacts/T9-rescore-evidence.md#4-spg-kpi-empty-fields-investigation-item-4
+
+  - id: PB-exec_summary-chk27-judge-production-accuracy-gap
+    company: elder_care
+    surface: exec_summary
+    kind: measurement_caveat
+    severity: high
+    summary: >-
+      CHK-27 judge harness at-scale run (run_id 20260901T134541Z-7610, 53 claims) agrees with
+      the prior human-rung run (20260813T185002Z-5a1b) on only 32/53 claims (0.6038) — well
+      below the 0.80 threshold the N=28 calibration sample cleared before authorizing the build.
+      All 21 disagreements are one-directional: human=supported, judge=not_supported. Root
+      cause sampled on exec.claim.001: the judge rejects a compound claim wholesale over a
+      peripheral descriptive detail (evidence confirms every material fact, but "Tri-State
+      region" nominally names 4 states) rather than a genuine evidentiary contradiction — a
+      rubric/decomposition gap, not a retrieval or evidence-scope gap. Same-day companion fix
+      (calibration.py VERDICT_SYSTEM_PROMPT / EXEC_VERDICT_SYSTEM_PROMPT) added a structured
+      "rationale" field (previously an accidental byproduct of the model ignoring "ONLY valid
+      JSON") and an explicit instruction against downgrading claims over peripheral labels —
+      unverified at production scale, no fresh calibration taken against the new prompt.
+    evidence_refs:
+      - eval/program/registry.yaml
+      - eval/content/calibration.py
+      - eval/content/judge_harness.py
+      - s2_scores:20260901T134541Z-7610
+      - s2_scores:20260813T185002Z-5a1b
+    fix_lane: eval
+    closes_when: >-
+      A fresh production-scale exec_summary judge run (post-prompt-fix) shows verdict_agreement
+      vs the human-rung baseline at or above 0.80 on a representative claim sample, or an
+      explicit operator decision to accept a lower bar / demote the rung back to human pending
+      a decomposition-based rubric rework.
+    registry_ref: CHK-26a
+
+  - id: PB-legal_register-elder-care-contract-register-regressions
+    company: elder_care
+    surface: legal_register
+    kind: claim_failure
+    severity: low
+    summary: >-
+      Today's legal_register S2 re-run (run_id 20260902T011639Z-d7db, post-T11 extraction-depth
+      fix) improved supported fraction 2/28 (7.1%) to 12/37 (32.4%) overall, but 3 of 13
+      overlapping-claim verdict changes moved away from supported: contract_register.0010
+      (unsupported -> contradicted), insurance_register.0002 (supported -> unsupported),
+      platform_dependency_register.0000 (unsupported -> contradicted). Net direction is
+      positive (10 improved vs 3 regressed on overlapping claims, plus 10 newly-scored claims),
+      but the 3 regressions were not individually triaged before this row was opened.
+    evidence_refs:
+      - s2_scores:20260824T133731Z-t16
+      - s2_scores:20260902T011639Z-d7db
+    fix_lane: eval
+    closes_when: >-
+      Each of the 3 named claim_ids is checked against the live source corpus (same method
+      as T3's GKF/SPG elision checks) and either resolves (verifier/extraction fix) or is
+      confirmed a genuine content elision/extraction miss and closed as accepted-known-gap.

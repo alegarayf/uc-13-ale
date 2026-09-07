@@ -1,5 +1,13 @@
 # Changelog
 
+## ledger-honesty-pass — 2026-09-02
+
+- Judge prompt honesty fix: `EXEC_VERDICT_SYSTEM_PROMPT` / `VERDICT_SYSTEM_PROMPT` in `eval/content/calibration.py` now require a structured `rationale` field and instruct the judge not to downgrade a compound/bundled claim to `not_supported` over a peripheral descriptive detail; `eval/content/judge_harness.py` prefers the structured `rationale`, falling back to raw text. Unverified at production scale — the 2026-09-01 at-scale run (`run_id=20260901T134541Z-7610`) still measured verdict_agreement 32/53 = 0.6038 vs the human reconciliation, below the 0.80 (N=28) calibration bar; filed `PB-exec_summary-chk27-judge-production-accuracy-gap` rather than closing on the N=28 result alone.
+- Closed `OI-eval-harness-post-m4-retrieval-baseline-refresh` after verifying the 2026-08-19 four-company baselines still match live chunk counts (0% drift for Clearsulting/GKF/SPG, +0.01% Elder Care). `FROZEN_ACTIONABLE_TSHIRT_ROW_COUNT` ratchet moved 51→50 in `eval/retrieval/tests/test_eval_program_registry.py`.
+- Regenerated `eval/program/trust_statement.md` (2026-09-02, latest S2 runs): Elder Care legal_register 12/37, exec_summary judge run 24/53 claims failed, SPG legal_register 8/16. Filed `PB-legal_register-elder-care-contract-register-regressions` for the 3 overlap regressions surfaced by the regen.
+- Added a parking-lot index row to `eval/eval_program_playbook.md`; `eval/program/product_backlog.yaml` item count moved 27→29 (`eval/retrieval/tests/test_product_backlog_schema.py`).
+- Updated `eval/retrieval/tests/test_trust_statement_generated.py`'s SPG `legal_register` evidence pin from the stale `20260826T171712Z-3975` run to the current generated `20260902T011952Z-0852` run, and renamed the test to reflect that it pins latest regen evidence rather than a specific historical run.
+
 ## ledger-close-now-audit-remediation — 2026-09-01
 
 - T1 (audit remediation — waiver, parking-lot test, F3 narrative sync): Added tracked `eval/program/suite_gate_waivers.md` waiving six pre-existing pytest nodeids from audit `2026-09-01-ledger-close-now-slice`; committed `eval/retrieval/tests/test_parking_lot_schema.py` unchanged; appended dated F3 correction notes to `OI-eval-content-exec-summary-judge-rung-build` rationale and `PL-chk27-judge-harness` current_state. Rationale: discharge audit findings F0/F1/F1b/F3 without re-opening closed ledger rows or patching waived test causes. Adversarial gap deferred: no hermetic pytest that the waiver file remains tracked — named landing gate is T3 kill criterion 2 (`git ls-files`).
