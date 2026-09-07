@@ -20,6 +20,7 @@ call time.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from agents.exec_summary.rainmaker_view import _financial_table
@@ -98,6 +99,46 @@ def _gap_summaries(bundle: dict[str, Any]) -> list[str]:
     return out
 
 
+_KEY_PARTNER_CAP = 6
+
+# Partner/platform relationships are a thesis input for a services, software or
+# channel-driven business; for a provider of care they are not the story, and
+# naming a "vendor partner" alongside a hospital or caregiver business reads as
+# noise. Gate on the overlay the profiler already assigned rather than on
+# anything company-specific — a new healthcare-adjacent overlay name is covered
+# without a code change.
+_HEALTHCARE_OVERLAY_RE = re.compile(r"health|care|hospital|medical|clinic|patient", re.IGNORECASE)
+
+
+def _is_healthcare_overlay(bundle: dict[str, Any]) -> bool:
+    return bool(_HEALTHCARE_OVERLAY_RE.search(str((bundle.get("meta") or {}).get("vertical_overlay") or "")))
+
+
+def _key_partners(bundle: dict[str, Any]) -> list[dict[str, str]]:
+    """``company_framing.key_partners``, empty for healthcare-overlay
+    companies (see :data:`_HEALTHCARE_OVERLAY_RE`). Withholding the field is
+    what keeps the prompt rule simple: "name them if you were given any"."""
+    if _is_healthcare_overlay(bundle):
+        return []
+    partners: list[dict[str, str]] = []
+    for row in (bundle.get("company_framing") or {}).get("key_partners") or []:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("name") or "").strip()
+        if not name:
+            continue
+        partners.append(
+            {
+                "name": name,
+                "relationship_type": str(row.get("relationship_type") or "").strip(),
+                "description": str(row.get("description") or "").strip(),
+            }
+        )
+        if len(partners) >= _KEY_PARTNER_CAP:
+            break
+    return partners
+
+
 def _financials_summary(financial_table: dict[str, Any] | None) -> dict[str, Any]:
     """Compact numeric summary derived from Capa A's already-deterministic
     table — never the raw ``table_rows`` list — so the narrative prompt can
@@ -141,6 +182,9 @@ def _base_digest(
     return {
         "vertical_overlay": str(meta.get("vertical_overlay") or ""),
         "in_one_line": str(executive.get("in_one_line") or ""),
+        "business_description": str(company_framing.get("business_description") or ""),
+        "sale_process": str(company_framing.get("sale_process") or ""),
+        "key_partners": _key_partners(bundle),
         "thesis_bullets": _string_list(executive.get("thesis_bullets")),
         "overview_bullets": _string_list(company_framing.get("overview_bullets")),
         "key_watchouts": _string_list(executive.get("key_watchouts")),
@@ -204,6 +248,15 @@ belongs in the underlying workstream reports, not here.
 
 LENGTH DISCIPLINE (strict, do not exceed — every section on this page must fit on ONE physical page, so brevity \
 here is not optional):
+- "core_business": EXACTLY 3 lines, in this order and no other — (1) WHAT the business does: the product or \
+  service it sells and who buys it; (2) HOW it does it: the delivery or operating mechanism it runs on \
+  (locations, platform, workforce, channel, partner network — whichever is this business's own mechanism); \
+  (3) ONE high-impact KPI from the input, stated with its figure and what it measures — pick the single \
+  number that best conveys scale or performance, not a repeat of a figure used in line 1 or 2. Ground lines \
+  1-2 in the input's "business_description" when it is present. This is the reader's first paragraph: it must \
+  read as three plain statements of fact, never as a pitch, a caveat or a restatement of the recommendation. \
+  Each of the three lines is typeset as ONE printed line: the 140-character limit below is a hard cap here, \
+  not a target — count the characters and cut detail until the line is under it.
 - "company_overview": EXACTLY 4 bullets, HIGH-LEVEL only — what the company does, its market/footprint, its \
   scale and growth in aggregate terms. Do NOT include granular operational detail such as specific hourly \
   rates, per-location billed hours/week, individual location-by-location pricing, or other line-item \
@@ -225,11 +278,25 @@ here is not optional):
   risk that isn't already in the input, and do not drop the concrete figure to save space — cut connective \
   narration instead (e.g. "X is elevated at Y%, driven by Z" → "X is elevated at Y% in Z"). If the input has \
   fewer than 3 watchouts, return that many — never pad with a generic or duplicate point.
-- Every bullet in "company_overview", "business_model", "investment_thesis.value_drivers", \
-  "investment_thesis.why_special", and "key_watchouts" must be ONE short sentence, maximum 140 characters — \
+- Every line in "core_business" and every bullet in "company_overview", "business_model", \
+  "investment_thesis.value_drivers", "investment_thesis.why_special", and "key_watchouts" must be ONE short \
+  sentence, maximum 140 characters — \
   as terse as the "business_model" bullets above. Lead with the specific figure or fact; drop qualifying \
   clauses, hedges, and restatements. If you cannot fit the point in 140 characters, cut detail rather than \
   run past the limit.
+
+TWO CONDITIONAL FACTS the investment team always asks about. Each belongs INSIDE the 4 "company_overview" \
+bullets — never as a fifth bullet, and never anywhere else on the page:
+- "sale_process": when this field is non-empty, ONE "company_overview" bullet must state how the business is \
+  being brought to market and by whom, naming the bank, advisor or broker exactly as the field names it. Never \
+  infer, complete or correct a firm name that is not in the field. When the field is empty, say nothing about \
+  the process at all — an unbanked deal is not a fact you may assert from silence.
+- "key_partners": when this list is non-empty, ONE "company_overview" bullet must name the most important of \
+  these partner, platform or channel relationships (2-3 names, the ones the input describes as most central). \
+  Never invent a partner, and never name one that is not in the list. When the list is empty or absent, omit \
+  the topic entirely.
+When both fields are populated, they take two of the four bullets: drop the two least decision-relevant of the \
+bullets you would otherwise have written. "company_overview" is EXACTLY 4 bullets either way.
 
 Write a BALANCED AND AFFIRMATIVE investment thesis: connect the attractive elements present in the input \
 (e.g. growth, margins, recurring-revenue signals, operational strengths) into ONE coherent reason the business \
@@ -243,6 +310,7 @@ recommendation to a single financial metric — ground it in the thesis as a who
 Respond with ONLY a JSON object, no markdown fences, with these exact keys:
 {{
   "one_liner": "<1 sentence — what the business is and why it could be interesting>",
+  "core_business": ["<what the business does and for whom>", "<how it delivers/operates>", "<one high-impact KPI with its figure>"],
   "company_overview": ["<bullet>", "<bullet>", "<bullet>", "<bullet>"],
   "business_model": ["<revenue source bullet>", "<gross margin/KPI signal bullet>", "<reported EBITDA status bullet>", "<additional customer/growth signal bullet>"],
   "investment_thesis": {{"value_drivers": ["<bullet>", "<bullet>", "<bullet>"], "why_special": "<1 sentence connecting the drivers>"}},
@@ -299,6 +367,7 @@ Respond with ONLY a JSON object, no markdown fences, with these exact keys:
 
 _FRAMING_RESULT_KEYS = (
     "one_liner",
+    "core_business",
     "company_overview",
     "business_model",
     "investment_thesis",
@@ -315,6 +384,9 @@ def _framing_user_payload(digest: dict[str, Any]) -> dict[str, Any]:
     return {
         "vertical_overlay": digest["vertical_overlay"],
         "in_one_line": digest["in_one_line"],
+        "business_description": digest["business_description"],
+        "sale_process": digest["sale_process"],
+        "key_partners": digest["key_partners"],
         "thesis_bullets": digest["thesis_bullets"],
         "overview_bullets": digest["overview_bullets"],
         "revenue_model": digest["revenue_model"],

@@ -618,3 +618,125 @@ def test_render_rainmaker_mps_section_never_embeds_bracketed_source_citations(mo
     result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], mps=mps)
     html = Path(result["html"]).read_text(encoding="utf-8")
     assert ".pdf" not in html
+
+
+# ---------------------------------------------------------------------------
+# The opening box now carries three core-business lines instead of a single
+# hook sentence, and the financial table's unit header is derived from the
+# figures rather than hardcoded to "in millions".
+# ---------------------------------------------------------------------------
+
+
+def _render_html(monkeypatch, tmp_path, bundle, **kwargs) -> str:
+    _patch_volume(monkeypatch, tmp_path)
+    result = render_rainmaker(bundle, "uc13_preview", bundle["meta"]["company_name"], **kwargs)
+    return Path(result["html"]).read_text(encoding="utf-8")
+
+
+def test_core_business_lines_replace_the_single_hook_sentence(monkeypatch, tmp_path):
+    narrative = {
+        "one_liner": "The old single-sentence hook.",
+        "core_business": ["What it does.", "How it does it.", "KPI: 42 units."],
+    }
+    html = _render_html(monkeypatch, tmp_path, _load("gkf"), narrative=narrative)
+    assert html.count('class="core-line"') == 3
+    for line in narrative["core_business"]:
+        assert line in html
+    assert "The old single-sentence hook." not in html
+
+
+def test_one_liner_still_renders_when_the_narrative_has_no_core_business(monkeypatch, tmp_path):
+    html = _render_html(
+        monkeypatch, tmp_path, _load("gkf"), narrative={"one_liner": "The hook sentence."}
+    )
+    assert "The hook sentence." in html
+    assert 'class="core-line"' not in html
+
+
+def test_core_business_lines_are_capped_at_three(monkeypatch, tmp_path):
+    narrative = {"core_business": [f"Line {i}." for i in range(6)]}
+    html = _render_html(monkeypatch, tmp_path, _load("gkf"), narrative=narrative)
+    assert html.count('class="core-line"') == 3
+    assert "Line 3." not in html
+
+
+def test_financial_table_unit_header_is_derived_not_hardcoded(monkeypatch, tmp_path):
+    bundle = copy.deepcopy(_load("gkf"))
+    bundle["headline_metrics"]["ltm_revenue"] = "$23.0mm"
+    bundle["financials"]["table_rows"] = [
+        {"year": "2023A", "revenue": "$21,403", "gross_profit": None,
+         "gross_margin_pct": None, "ebitda": None, "ebitda_margin_pct": None},
+        {"year": "2024A", "revenue": "$22,266", "gross_profit": None,
+         "gross_margin_pct": None, "ebitda": None, "ebitda_margin_pct": None},
+        {"year": "2025B", "revenue": "$23,022", "gross_profit": None,
+         "gross_margin_pct": None, "ebitda": None, "ebitda_margin_pct": None},
+    ]
+    html = _render_html(monkeypatch, tmp_path, bundle)
+    assert "($ in thousands)" in html
+    assert "in millions" not in html
+
+
+def test_financial_table_header_states_no_unit_when_there_are_no_figures(monkeypatch, tmp_path):
+    html = _render_html(monkeypatch, tmp_path, _load("gkf"))
+    assert "($)" in html
+    assert "in millions" not in html
+
+
+# ---------------------------------------------------------------------------
+# Page-1 fit. The framing page carries the most variable content on the sheet
+# (three core-business lines, four cards, the recommendation band), and it
+# overflowed onto a near-empty fifth page on the 2026-09-04 GKF and
+# Clearsulting runs. It fitted on the authoring machine and split in the job
+# because the Databricks serverless container has none of the template's
+# fonts and WeasyPrint falls through to DejaVu Sans, which is wider than
+# Helvetica — so a page that merely *fits* locally is not evidence of a fit in
+# production. This exercises the worst case the prompt permits (every line at
+# its 140-character cap) to keep real slack in the design.
+# ---------------------------------------------------------------------------
+
+_MAX_LINE = "W" * 5 + (" Wm" * 44)  # 137 chars of unusually wide glyphs
+
+
+def _worst_case_narrative() -> dict:
+    return {
+        "core_business": [_MAX_LINE] * 3,
+        "company_overview": [_MAX_LINE] * 4,
+        "business_model": [_MAX_LINE] * 4,
+        "investment_thesis": {"why_special": _MAX_LINE, "value_drivers": [_MAX_LINE] * 3},
+        "key_watchouts": [_MAX_LINE] * 3,
+        "recommendation": _MAX_LINE * 2,
+        "commercial_revenue_quality": [{"topic": "Topic", "detail": _MAX_LINE}] * 5,
+        "diligence_priorities": [_MAX_LINE] * 6,
+    }
+
+
+@pytest.mark.parametrize("company", ["elder_care", "clearsulting", "gkf", "b2b_saas"])
+def test_framing_page_does_not_spill_with_a_max_length_narrative(monkeypatch, tmp_path, company):
+    pytest.importorskip("fitz", reason="PyMuPDF not available in this env")
+    _require_production_pdf_engine()
+    _patch_volume(monkeypatch, tmp_path)
+    bundle = _load(company)
+    result = render_rainmaker(
+        bundle,
+        "uc13_preview",
+        bundle["meta"]["company_name"],
+        narrative=_worst_case_narrative(),
+        mps=_load_mps_fixture(),
+    )
+    if "pdf" not in result:
+        pytest.skip("no PDF engine available in this env")
+
+    import fitz
+
+    doc = fitz.open(result["pdf"])
+    assert doc.page_count <= _PAGE_COUNT_CEILING, (
+        f"{company}: {doc.page_count} pages with a max-length narrative, expected "
+        f"<= {_PAGE_COUNT_CEILING} — the framing page has run out of vertical slack."
+    )
+    # A spill shows up as a page whose only content is the framing footer.
+    for index, page in enumerate(doc):
+        text = " ".join(page.get_text().split())
+        assert text.strip() != "Proprietary & Confidential — Not for distribution", (
+            f"{company}: page {index + 1} contains nothing but the framing footer — "
+            "the framing page overflowed."
+        )
