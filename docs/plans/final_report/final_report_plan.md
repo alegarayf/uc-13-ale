@@ -810,6 +810,40 @@ line. T08 is independent of T01-T07 and can run at any point.
   | `revenue_quality.client_count` | Customer tile | No agent computes a client count today |
   | `revenue_quality.customer_tenure` (structured) | Customer tile (avg tenure) | Data exists one layer down (`cqa_yaml.customer_tenure.average_tenure_years`) but `_retention_note_from_cqa` flattens it into a string; needs a second, structured path alongside the note |
   | `legal.coc_consent_count` | Legal tile | `legal_contracts_agent.py` already computes this as a local variable for a narrative sentence — needs a Delta column and `_build_legal_block` (`field_mapping.py`) to copy it |
+- **F-9. `_retention_rows` ignores a screen's declared direction; `_kpi_scorecard`
+  honours it.** Two functions in `final_report_view.py` read the same `_SCREENS`
+  table and disagree about what it means:
+
+  ```python
+  # :671  _retention_rows — always "below the threshold"
+  flag = bool(screen and num is not None and num < screen["threshold"])
+
+  # :402  _kpi_scorecard — honours the declared direction
+  and ((screen["dir"] == "min" and value_num < threshold)
+       or (screen["dir"] == "max" and value_num > threshold))
+  ```
+
+  **Harmless today, and specifically primed to break.** The two retention metrics
+  that have screens (`nrr_pct`, `grr_pct`) are both `min`, so `<` is the right
+  comparison for them. But `_retention_rows` already reads
+  `logo_churn_rate_annual_pct` (`:665`) and that metric has **no `_SCREENS`
+  entry**, so it renders "No screen" — and churn is the archetypal
+  `max`-direction metric. The moment a churn screen is added, this function will
+  flag *low* churn as a problem and *high* churn as healthy, exactly inverted, in
+  the one place a reader would never think to double-check.
+
+  Found while reviewing T03b: the `dir`-flip mutant produced one failure instead
+  of the expected two, because the behavioural test on `nrr_pct` correctly still
+  passed — the code genuinely never consults `dir` there.
+
+  **Fix:** make `_retention_rows` use the same direction-aware condition as
+  `_kpi_scorecard`, ideally by extracting that condition into one small helper
+  both call, so a third reader of `_SCREENS` cannot invent a fourth
+  interpretation. Not done here: it is production behaviour, no task in flight
+  owns that function, and the change wants its own test (a `max`-direction
+  retention screen flagging the correct side). Worth doing before a churn screen
+  is ever added, not after.
+
 - **F-8. Money suffixes inside P&L cells are parsed differently by the two
   documents, and neither parser is right.** T02 proved the divergence and pinned
   it as a test (`tests/test_final_report_numeric_parity.py`) rather than picking a
