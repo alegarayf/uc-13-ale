@@ -159,9 +159,24 @@ Three ways out, in increasing order of blast radius:
    read-only and `validate_bundle` runs over the result, so this needs care.
 3. Leave page 8 rendering "not extracted" and list it as follow-up.
 
-**Open decision D-03.** Not resolved in this plan; it is the difference between
-page 8 carrying the plan-vs-history chart and page 8 saying the chart could not be
-built.
+**DECIDED (Hector, 2026-09-07): option 1 — read it in `build_final_report`.**
+Owned by [T05](tasks/T05_final_report_entry.md).
+
+The mapping was verified against the agent before deciding, and it is mostly
+renames:
+
+| The view wants | `analysis.forecast` already has |
+|---|---|
+| `forecast_rows[].year` / `.revenue` | `revenue_build_comparison[].period` / `.forecast_revenue` |
+| `forecast_rows[].ebitda_margin_pct` | — the agent does not project margin → stays `None`, the margin line is simply not drawn |
+| `forecast_assumptions[].assumption` | `forecast_assumptions[].description` (fall back to `.stated_value`) |
+| `forecast_assumptions[].support` | `.credibility_rating` — **Supported / Plausible / Stretch** |
+| `forecast_assumptions[].test` | `management_validation_items_json` |
+
+The only thing to build is the translation from `Supported/Plausible/Stretch` to
+the template's severity classes, which speak `high/medium/low`. That mapping lives
+in `final_report_view.py` (ours), stated once, as a module constant — not inline
+at a call site.
 
 ### 1.6 The Sep 4 numeric fixes are in the ER's view and **not** in the final report's *(added 2026-09-07)*
 
@@ -671,16 +686,30 @@ line. T08 is independent of T01-T07 and can run at any point.
 - **F-2.** The bundle fields T02 confirms genuinely absent — each needs an agent
   change to populate, and each corresponding report section renders "not
   extracted" until then. T02 writes the final list into this section.
-- **F-6. The final report ignores *content* the Sep 4 work added.**
-  `company_framing.business_description`, `sale_process`, `key_partners`,
-  `key_dependencies` and the narrative's `core_business` are all populated now and
-  rendered on the executive review; the final report template reads none of them.
-  Wiring them into the business page is cheap (the view is ours) and would remove
-  work from T11's prompt rather than add it. Decide alongside D-03.
+- **F-6 — DECIDED (Hector, 2026-09-07): wire all of it.** Owned by
+  [T11](tasks/T11_final_report_narrative.md). Moved out of the follow-up list; it
+  is scope now.
 
-  **The *numeric* half of that commit is not a follow-up** — see §1.6. Period
-  ordering and unit normalisation are a correctness requirement and are now part
-  of T02.
+  **How the executive review actually uses these fields — checked, because it
+  changes the work.** The ER does *not* render `sale_process`, `key_partners`,
+  `key_dependencies` or `business_description` as blocks of their own. They go
+  into the narrative **digest**, as input to the LLM, and the prompt requires the
+  prose to use them (`rainmaker_narrative.py:186-187, :290` — *"when this field is
+  non-empty, ONE company_overview bullet must state how the business is being
+  sold"*). Only `core_business` is rendered directly, on the ER cover
+  (`rainmaker_opportunity_summary.html.j2:139-141`).
+
+  So F-6 is mostly **not** a template change:
+
+  - `sale_process`, `key_partners`, `key_dependencies`, `business_description` →
+    into T11's digest, with prompt instructions mirroring the ER's. No new markup,
+    no pagination risk, and the prose is better grounded rather than longer.
+  - `core_business` → three lines the model already produced. Render them on the
+    business page instead of asking a second model call to re-say them.
+
+  **The *numeric* half of that commit was never a follow-up** — see §1.6. Period
+  ordering and unit normalisation are a correctness requirement and are part of
+  T02.
 
 - **F-5. The report's screening thresholds are Python constants, not config.**
   `_SCREENS` in `final_report_view.py` is, in substance, a first-pass screening
@@ -767,6 +796,14 @@ named next to it.
       §4/§6 of this plan record the actual answers. *(T08, T09)*
 - [ ] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
       into §9. *(T02)*
+- [ ] **DoD-16** — The final report's business page carries the Sep 4 content
+      (F-6): `core_business` renders, and the prose reflects `sale_process` /
+      `key_partners` when those fields are non-empty. The document is still
+      **eleven pages** — the ER's Sep 4 pagination fix exists because this exact
+      class of addition overflowed a page. *(T11 + T07)*
+- [ ] **DoD-15** — Page 8 renders the plan-vs-history chart and the assumptions
+      table from `{catalog}.analysis.forecast` (D-03), and degrades to "not
+      extracted" when that table is absent or empty. *(T05 + T07)*
 - [ ] **DoD-14** — The final report and the executive review, built from the same
       bundle, agree on the P&L column order and on the stated unit (§1.6). *(T02;
       evidence: a test that renders both and asserts both are identical)*

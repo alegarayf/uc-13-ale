@@ -146,6 +146,47 @@ Note in the docstring that `degraded_reason` is not a persisted column, so a
 rehydrated run carries `None` for it — harmless, because `_mps_table` reads that
 field only from `mps_runs[-1]` and a prior run is never last.
 
+### 2b. `_load_forecast()` — decision D-03
+
+`forecast_agent` writes everything page 8 needs to `{catalog}.analysis.forecast`,
+but `BundleBuilder` reads six agent tables and forecast is not one of them
+(`constants.py:4-11`), so it never reaches the bundle. D-03 (approved
+2026-09-07) resolves this **here**, not in the shared bundle layer: this function
+holds `spark` and its own bundle dict, so it can add the fields to *its own copy*
+before rendering. `bundle_builder.py` stays untouched and the executive review's
+bundle is unchanged.
+
+```python
+def _load_forecast(spark, catalog: str, company_name: str) -> dict[str, Any]:
+    """{"forecast_rows": [...], "forecast_assumptions": [...]} from
+    {catalog}.analysis.forecast. Never raises: returns {} on any failure."""
+```
+
+Read the newest row for the company. The columns are JSON strings
+(`forecast_assumptions_json`, `revenue_build_comparison_json`,
+`management_validation_items_json` — `forecast_agent.py:1180-1194`). Map:
+
+| Produce | From |
+|---|---|
+| `forecast_rows[].year` | `revenue_build_comparison[].period` |
+| `forecast_rows[].revenue` | `revenue_build_comparison[].forecast_revenue` |
+| `forecast_rows[].ebitda_margin_pct` | **nothing — leave absent.** The agent does not project margin. Do not substitute the historical margin; the chart simply draws no margin line for plan periods |
+| `forecast_assumptions[].assumption` | `.description`, falling back to `.stated_value` |
+| `forecast_assumptions[].support` | `.credibility_rating` (`Supported`/`Plausible`/`Stretch`) |
+| `forecast_assumptions[].test` | the matching `management_validation_items` entry, else absent |
+
+Merge into the bundle **after** `verify_bundle_claims` and **before** the
+narrative and the render, so both see it. Merge into `checked["financials"]`
+without mutating the object `BundleBuilder` returned — copy the sub-dict.
+
+Never raises: a missing table, an empty result, malformed JSON → return `{}`,
+print why, and page 8 renders its "not extracted" state. That is the honest
+degradation, and it is what the D-03 fallback looks like in practice.
+
+**The severity translation is not this module's job.** `Supported/Plausible/
+Stretch` reaches the view as-is; `final_report_view.py` maps it to the template's
+`high/medium/low` classes via a module-level constant (T02 owns that).
+
 ### 3. The run-mode label — the one permitted edit to `rainmaker_view.py`
 
 Add exactly one entry to `_MPS_RUN_MODE_LABELS` (`rainmaker_view.py:652-655`):
@@ -180,6 +221,10 @@ Add `tests/test_final_report_entry.py`, modelled on
 - `_load_prior_mps_runs` returns `[]` on a raising spark, on an empty result, and
   on malformed `categories_json`;
 - `_load_prior_mps_runs` returns runs oldest-first;
+- **D-03:** `_load_forecast` maps the agent's columns onto `forecast_rows` /
+  `forecast_assumptions`; `ebitda_margin_pct` is **absent**, never substituted;
+  a raising spark, an empty table and malformed JSON each return `{}` without
+  raising; the merged bundle reaches both the narrative and the render;
 - **D-02:** when `reuse_mps_run` is supplied, `MPSAgent.score` is **never called**,
   and the supplied run is what reaches `render_final_report` as `mps`;
   `mps_source == "reused"`;

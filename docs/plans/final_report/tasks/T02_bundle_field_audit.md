@@ -29,11 +29,18 @@ each section builder's reads), classify all of them, and report the full list.
 A stakeholder preview is being built on this audit's answer, so an incomplete list
 is worse than a slow one.
 
-The forecast page is a special case — see plan §1.5, decision **D-03**. Its data
-exists in `{catalog}.analysis.forecast` but `BundleBuilder` never reads that
-table, so it is not a rename you can resolve here. Classify
-`financials.forecast_rows` / `forecast_assumptions` as ABSENT-pending-D-03 and
-move on; do not try to wire the forecast agent from this task.
+The forecast page is a special case — see plan §1.5. **D-03 was approved on
+2026-09-07:** `build_final_report` reads `{catalog}.analysis.forecast` and injects
+`forecast_rows` / `forecast_assumptions` into its own bundle copy (T05 owns that).
+So classify both as **SUPPLIED-BY-T05** — leave the view's reads exactly as they
+are, and do not try to wire the forecast agent from this task.
+
+One thing here **is** yours: the agent states assumption support as
+`Supported` / `Plausible` / `Stretch`, and the template's severity classes speak
+`high` / `medium` / `low`. Add that translation to `final_report_view.py` as a
+module-level constant next to `_SEVERITY_CLASS`, stated once. An unknown value
+must degrade to the neutral class, never to `high` — an unrecognised rating is not
+evidence of risk.
 
 ## The eight fields, and where the view reads them
 

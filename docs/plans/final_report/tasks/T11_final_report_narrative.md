@@ -146,6 +146,45 @@ Forbid, explicitly, in the prompt:
 - mentioning the MPS, a score, or a threshold verdict. The MPS appears once, on
   its own page, and is not previewed or restated anywhere (task prompt §2.3).
 
+### 4b. F-6 — use the prose the pipeline already produces
+
+**Decided by Hector, 2026-09-07: wire all of it.** The 2026-09-04 work added
+`company_framing.business_description`, `sale_process`, `key_partners` and
+`key_dependencies` to the bundle, and the narrative gained `core_business`. The
+final report reads none of them.
+
+Check how the executive review uses them before writing anything — it is not what
+it looks like:
+
+- `sale_process`, `key_partners`, `key_dependencies`, `business_description` are
+  **not rendered as blocks**. They enter the ER's narrative *digest* as LLM input
+  (`rainmaker_narrative.py:186-187`), and the prompt requires the prose to use
+  them: *"when this field is non-empty, ONE company_overview bullet must state how
+  the business is being sold"* (`:290`). Do the same here — put them in this
+  module's digest and instruct the prompt. **No new markup, and therefore no
+  pagination risk.**
+- `core_business` **is** rendered directly, three lines on the ER cover
+  (`rainmaker_opportunity_summary.html.j2:139-141`). Render it on the final
+  report's business page rather than asking this model call to re-say it. Thread
+  it through as an existing value; do not add it to this module's output schema.
+
+Prompt instructions to add, mirroring the ER's discipline rather than inventing
+new phrasing:
+
+- when `sale_process` is non-empty, one bullet or one clause must state how the
+  business is being sold;
+- when `key_partners` is non-empty, the prose must name the most important of
+  them;
+- neither may be invented when the field is empty — no "no sale process
+  disclosed" filler. An empty field produces silence, not a sentence about the
+  absence.
+
+**Pagination gate.** The ER needed `ad6d009` — *"keep the framing page from
+spilling onto a fifth sheet"* — because exactly this class of addition overflowed
+a page. After wiring `core_business`, render the full document and confirm it is
+still **eleven** pages. If it is not, shorten what you added; do not raise a cap
+and do not shrink a font.
+
 ### 5. Never raises
 
 Same shape as `rainmaker_narrative:378`: on any failure — the call, the JSON
@@ -217,7 +256,9 @@ Model on `tests/test_rainmaker_narrative.py` (mock the gateway; no network).
 
 In `tests/test_final_report_render.py` (T07), add: with a full final narrative,
 **six** `class="take"` boxes render; with a degraded one, **zero** render and no
-page is missing.
+page is missing. Plus, for F-6: `core_business` renders on the business page when
+present and is absent when not, and the document is **eleven pages** in both
+cases.
 
 ## Acceptance criteria
 
