@@ -819,9 +819,20 @@ named next to it.
       `test_vdr_progress.py` + a runner test asserting `processing_status` never
       leaves its three legal values)*
 - [ ] **DoD-7** — `databricks/CLAUDE.md` describes the new flow accurately. *(T10)*
-- [ ] **DoD-8** — The illustrative `sample_bundle.py` is not in the shipped
+- [x] **DoD-8** — The illustrative `sample_bundle.py` is not in the shipped
       package — test fixtures only. *(T01; evidence: it lives under
       `tests/fixtures/` and nothing under `databricks/` imports it)*
+      **Closed 2026-09-07.** Evidence: fixture landed at
+      `tests/fixtures/final_report_sample_bundle.py`; `grep -rn "sample_bundle"
+      databricks/` returns nothing (exit 1). Template and view module copied
+      byte-identical (`diff` empty both ways); no `tests/fixtures/__init__.py`
+      created (the directory is not a package — no existing `__init__.py`
+      there). `.gitignore` negation was already in place;
+      `git check-ignore docs/plans/final_report/final_report_plan.md` exits 1
+      (not ignored). Smoke-check printed `ok`. `renderers._autoescape_html_templates`
+      confirmed unchanged — it matches on `*.html.j2` suffix, which
+      `final_report.html.j2` satisfies. `pytest tests/ -q`: 1205 passed / 38
+      skipped before and after — no worse.
 
 ### Extra gates this plan adds
 
