@@ -499,7 +499,21 @@ same bundle + MPS run and asserts the extracted MPS section markup is identical.
 Either way the parity test ships — it is what stops the replica from drifting, and
 it guards the include if the swap lands.
 
-D-01 is the only decision in this plan that needs an answer before its task runs.
+**DECIDED (Hector, 2026-09-07): approved — Path A, the shared partial.**
+
+Recorded reasoning, including the part that argues *against* the urgency: the MPS
+block has **not** been edited since it was created on 2026-08-25 (`374737f`), and
+the 2026-09-04 work changed 30 other lines of that template without touching it.
+So this is not a fire. It is the moment the second copy comes into existence —
+`diff` over the two blocks today returns **35 identical lines each, zero
+differences** — and the choice is whether the repo carries one copy or two from
+here on. One.
+
+T06's gate still stands and is not a formality: the three before/after render
+diffs (normal run, degraded, two-column) must all be **empty**, and
+`test_rainmaker_golden_render.py` must pass with no golden file regenerated. If
+any diff is non-empty, abort the swap and fall back to Path B; do not "fix" the
+template to make the diff empty.
 
 ---
 

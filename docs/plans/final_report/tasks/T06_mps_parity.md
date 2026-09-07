@@ -1,15 +1,15 @@
 # T06 — MPS markup: one copy, and the test that keeps it one
 
-**Depends on:** T04, and an explicit answer to **D-01** · **Closes:** DoD-9 · **Est. size:** medium
+**Depends on:** T04 (**D-01 approved 2026-09-07 — Path A**) · **Closes:** DoD-9 · **Est. size:** medium
 
 Read [`../final_report_plan.md`](../final_report_plan.md) §5 and
 [`tasks/README.md`](README.md) before starting.
 
-> **This task is blocked until D-01 has an answer.** D-01 is the proposal to
-> extract the MPS block into a shared partial, which requires a mechanical edit to
-> the otherwise read-only `rainmaker_opportunity_summary.html.j2`. Do not start
-> Path A without that answer. **You may run Step 1 (the evidence) regardless** —
-> it changes no shipped file and is what D-01 needs in order to be answered.
+> **D-01 is APPROVED (Hector, 2026-09-07): take Path A, the shared partial.**
+> Path B below is now the **fallback**, used only if Step 1's evidence fails —
+> i.e. if any of the three before/after render diffs comes back non-empty. In that
+> case, stop, keep the replica, ship the parity test, and record why in plan §5.
+> Do not edit the template to force a clean diff.
 
 ## The problem
 

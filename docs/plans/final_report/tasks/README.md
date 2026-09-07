@@ -1,7 +1,7 @@
 # Tasks — UC13 Final Report + progress signal
 
 Execute in numeric order. **T08 is independent** of T01-T07 and may be done at any
-point. **T06 is blocked** until decision D-01 (plan §5) has an explicit answer.
+point. **T06 is unblocked** — D-01 was approved on 2026-09-07 (Path A, the shared partial).
 
 | # | File | Depends on | Closes |
 |---|---|---|---|
@@ -10,7 +10,7 @@ point. **T06 is blocked** until decision D-01 (plan §5) has an explicit answer.
 | T03 | [T03_view_numeric_tests.md](T03_view_numeric_tests.md) | T02 | — |
 | T04 | [T04_render_final_report.md](T04_render_final_report.md) | T01 | — |
 | T05 | [T05_final_report_entry.md](T05_final_report_entry.md) | T04 | DoD-2 / DoD-12 (part) |
-| T06 | [T06_mps_parity.md](T06_mps_parity.md) | T04, **D-01** | DoD-9 |
+| T06 | [T06_mps_parity.md](T06_mps_parity.md) | T04 | DoD-9 |
 | T07 | [T07_render_tests.md](T07_render_tests.md) | T05, T06, T11 | DoD-2, DoD-3 |
 | T08 | [T08_vdr_progress.md](T08_vdr_progress.md) | — | DoD-6 (part), DoD-10 (part) |
 | T09 | [T09_runner_stage_two.md](T09_runner_stage_two.md) | T05, T08 | DoD-2, DoD-5, DoD-6, DoD-10, DoD-12 |
