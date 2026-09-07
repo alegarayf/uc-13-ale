@@ -930,6 +930,19 @@ named next to it.
       page with a second score column for the full-data-room run.
       *(T05 + T09; evidence: `test_final_report_render.py` two-column case +
       `test_run_vdr_rainmaker.py` branch-A stage-2 case)*
+      **T03 evidence (view-layer numeric contract, not the box-closing evidence —
+      T07/T09 close this box).** `tests/test_final_report_view.py`: 55 tests
+      covering `None`-never-`0` at every layer, `scale()`, `_calc_column()`,
+      both `_SCREENS` sectors' min/max threshold direction and boundary, every
+      cap constant (`CAP_TILES` … `CAP_GAPS`, each read from the module, not
+      hardcoded), P&L row drop/keep semantics, and question dedup +
+      `why_it_matters`. `tests/test_final_report_numeric_parity.py` gained the
+      cell-value parity assertion for Revenue and EBITDA (§8 of T03), leaving
+      the growth/CAGR column deliberately unchecked (documented presentation
+      difference, not a defect). `pytest tests/test_final_report_view.py -q`:
+      55 passed. `pytest tests/ -q`: 1297 passed / 38 skipped (1241 passed
+      baseline + 55 new view tests + 1 new parity test, no regressions, no
+      skips added or removed).
 - [ ] **DoD-3** — Branch B produces the existing ER + MPS, then the final report
       with a one-column MPS. In both branches the MPS appears exactly once, on its
       own page. *(T07 + T09; evidence: the render test asserts a single

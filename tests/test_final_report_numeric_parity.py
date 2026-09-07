@@ -81,3 +81,45 @@ def test_pnl_period_order_and_unit_label_match_executive_review():
     assert fr["periods"] == expected_periods
     assert er["periods"] == expected_periods
     assert fr["unit_label"] == er["unit_label"] == "in millions"
+
+
+# --- P&L cell values: the two documents must agree, not just on order/unit --
+# DoE-14 cares about the cell values themselves, which the test above does not
+# assert. Same period-order-and-unit-outlier shape as above so the reordering
+# and rescaling machinery is exercised, not just a trivially-ordered bundle.
+# Row-name map because the two documents label rows differently (ER:
+# "Total Revenue"/"EBITDA", final report: "Revenue"/"EBITDA") even though
+# both read the same ``revenue``/``ebitda`` bundle fields through the same
+# ``_normalize_period_units(_financial_periods(bundle))`` pipeline.
+_ROW_NAME_MAP = {"Revenue": "Total Revenue", "EBITDA": "EBITDA"}
+
+
+def test_pnl_cell_values_match_executive_review_for_revenue_and_ebitda():
+    bundle = {
+        "meta": {"company_name": "Test Co", "vertical_overlay": "tech_services"},
+        "headline_metrics": {"ltm_revenue": "$48.2M"},
+        "financials": {
+            "currency": "$",
+            "table_rows": [
+                {"year": "2022A", "revenue": "44.2", "ebitda": "4.4", "ebitda_margin_pct": "10%"},
+                # extracted in raw dollars while its neighbours are in millions
+                {"year": "2021A", "revenue": "38000", "ebitda": "3420", "ebitda_margin_pct": "9%"},
+                {"year": "LTM MAY 2025", "revenue": "48.2", "ebitda": "5.3", "ebitda_margin_pct": "11%"},
+                {"year": "2023A", "revenue": "40.1", "ebitda": "3.8", "ebitda_margin_pct": "9.5%"},
+            ],
+        },
+    }
+
+    er = rv._financial_table(bundle)
+    fr = frv._pnl_table(bundle)
+
+    er_rows_by_name = {row["metric_name"]: row for row in er["rows"]}
+    fr_rows_by_name = {row["label"]: row for row in fr["rows"]}
+
+    for fr_name, er_name in _ROW_NAME_MAP.items():
+        # Not asserted here: the growth/CAGR column. The ER formats to whole
+        # percent ("8%"), the final report to one decimal ("8.2%") — same
+        # underlying value, different presentation, deliberately (see
+        # docs/plans/final_report/final_report_plan.md §9). Only "cells" is
+        # compared.
+        assert fr_rows_by_name[fr_name]["cells"] == er_rows_by_name[er_name]["cells"]
