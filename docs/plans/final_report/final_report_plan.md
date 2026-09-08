@@ -1152,8 +1152,20 @@ line. T08 is independent of T01-T07 and can run at any point.
 Closed by the task that owns each line. Do not tick a box without the evidence
 named next to it.
 
-- [ ] **DoD-1** — `docs/plans/final_report/final_report_plan.md` exists, is
+- [x] **DoD-1** — `docs/plans/final_report/final_report_plan.md` exists, is
       reviewed, and matches what was built. *(closed by T10, after every other box)*
+      **Closed 2026-09-08 (T10).** Re-read §1-§9 against the shipped code
+      (`run_vdr_rainmaker.py`, `vdr_progress.py`, `final_report_entry.py`,
+      `final_report_view.py`, `final_report_narrative.py`, `renderers.py`,
+      the templates) and found no discrepancy needing correction — every
+      stage key, the `_run_final_report_stage()` argument set, D-01/D-02's
+      mechanics, and A-1/A-2's resolutions in §4/§9 match the code as it
+      stands today. Two boxes were found ticked-in-substance but left
+      unticked and are closed below as part of this pass: **DoD-14**
+      (`test_final_report_numeric_parity.py`'s P&L order/unit/cell-value
+      tests already existed from T02) and **DoD-15** (the forecast
+      chart/assumptions/footnote degrade tests already existed from T05).
+      Nothing else in §10 was silently open.
 - [x] **DoD-2** — Branch A produces, in one run: the existing ER PDF/HTML with its
       CIM-only MPS, **then** the final report PDF/HTML whose MPS page is the same
       page with a second score column for the full-data-room run.
@@ -1281,9 +1293,34 @@ named next to it.
       `pytest tests/test_final_report_render.py tests/test_final_report_pagination.py -q`:
       8 passed. `pytest tests/ -q`: 1369 passed / 38 skipped (1361 passed
       baseline + 8 new tests, no regressions, no skip count change).
-- [ ] **DoD-4** — No file listed read-only in §7 has changed, beyond the two
+- [x] **DoD-4** — No file listed read-only in §7 has changed, beyond the two
       documented exceptions. *(T10; evidence: `git diff --stat` against the branch
       point, pasted into T10's report)*
+      **Closed 2026-09-08 (T10).** Baseline is
+      `$(git merge-base HEAD feature/anthropic-sdk-migration)` = `ad6d009`, per
+      §7's warning against using the branch-point SHA (`31878cc`, which would
+      wrongly attribute the 2026-09-04 executive-review merge to this branch).
+      ```
+      $ git diff --stat $(git merge-base HEAD feature/anthropic-sdk-migration)..HEAD -- \
+          databricks/agents/exec_summary/rainmaker_view.py \
+          databricks/agents/exec_summary/rainmaker_narrative.py \
+          databricks/agents/workstreams/mps_agent.py \
+          databricks/agents/exec_summary/mps_rubric.py \
+          databricks/agents/exec_summary/bundle_builder.py \
+          databricks/agents/exec_summary/validate.py \
+          databricks/agents/exec_summary/absence_check.py \
+          databricks/agents/exec_summary/templates/rainmaker_opportunity_summary.html.j2
+
+       databricks/agents/exec_summary/rainmaker_view.py           | 1 +
+       .../templates/rainmaker_opportunity_summary.html.j2        | 49 +---------------------
+       2 files changed, 2 insertions(+), 48 deletions(-)
+      ```
+      Exactly the two documented exceptions: `rainmaker_view.py`'s single
+      `_MPS_RUN_MODE_LABELS` entry, and the D-01 block→include swap on the
+      template (1 insertion, 48 deletions — the extracted markup moved into
+      `_mps_page.html.j2`). `rainmaker_narrative.py`, `mps_agent.py`,
+      `mps_rubric.py`, `bundle_builder.py`, `validate.py`, `absence_check.py`
+      show zero diff.
 - [x] **DoD-5** — A stage-2 failure leaves the ER downloadable and the record
       honest about what failed. *(T09; evidence: a test that fails stage-2
       ingestion and asserts `results_location` still points at the ER dir)*
@@ -1364,7 +1401,24 @@ named next to it.
       raising-Progress case. `pytest tests/test_run_vdr_rainmaker.py -q`: 20
       passed. `pytest tests/ -q`: 1388 passed / 38 skipped (1379 baseline + 9
       new tests, no regressions, no skip count change).
-- [ ] **DoD-7** — `databricks/CLAUDE.md` describes the new flow accurately. *(T10)*
+- [x] **DoD-7** — `databricks/CLAUDE.md` describes the new flow accurately. *(T10)*
+      **Closed 2026-09-08 (T10).** Added/updated sections: the repo-layout
+      block (new entries for `vdr_progress.py`, `final_report_view.py`,
+      `final_report_narrative.py`, `final_report_entry.py`,
+      `templates/final_report.html.j2`, `templates/_mps_page.html.j2`, and
+      `renderers.py`'s description widened to both render functions); "VDR
+      pipeline (UI-triggered)" gained "The run is now two stages" (stage
+      1/stage 2 split, early `results_location` publish, the shared
+      `_run_final_report_stage()` never-raises contract, the new
+      `final_report.pdf`/`.html` deliverables), "Progress signal — four
+      additive columns, `processing_status` unchanged" (the four columns,
+      `ensure_progress_columns`'s bare-`ADD COLUMNS` mechanics, the
+      three-value `processing_status` vocabulary staying exactly as-is, both
+      branches' stage-key tables, and why Branch B collapses two stages into
+      `vdr_pipeline`), and "MPS on the final report" (the fresh-score-vs-
+      reused-run split by branch, D-02). Re-stated the two standing warnings
+      (no job/task parameters; one Git folder feeds both VDR jobs) inline in
+      the VDR pipeline section, since stage 2 makes both more load-bearing.
 - [x] **DoD-8** — The illustrative `sample_bundle.py` is not in the shipped
       package — test fixtures only. *(T01; evidence: it lives under
       `tests/fixtures/` and nothing under `databricks/` imports it)*
@@ -1488,15 +1542,58 @@ named next to it.
       (`test_business_page_core_business_does_not_spill_an_orphan_sheet`),
       skippable only where headless Chrome is genuinely absent (not the case
       on this machine — the test ran for real, not skipped).
-- [ ] **DoD-15** — Page 8 renders the plan-vs-history chart and the assumptions
+- [x] **DoD-15** — Page 8 renders the plan-vs-history chart and the assumptions
       table from `{catalog}.analysis.forecast` (D-03), and degrades to "not
       extracted" when that table is absent or empty. The chart's footnote states
       that the plan declares no projected EBITDA margin when the plan rows carry
       none (§1.7), and the historical margin is **never** extended across plan
       periods. *(T05 + T07)*
-- [ ] **DoD-14** — The final report and the executive review, built from the same
+      **Closed 2026-09-08 (T10, marking T05's already-landed evidence).**
+      `final_report_entry._load_forecast()` reads back
+      `{catalog}.analysis.forecast`, maps `revenue_build_comparison` →
+      `forecast_rows` and the assumption columns → `forecast_assumptions`,
+      and never raises — a missing table, an empty result, or malformed JSON
+      all collapse to `{}` (`tests/test_final_report_entry.py::
+      test_load_forecast_returns_empty_dict_on_raising_spark` /
+      `_on_empty_table` / `_on_malformed_json`), which
+      `final_report_view._forecast()` then renders through the same "not
+      extracted" fallback as every other absent section
+      (`tests/test_final_report_render.py`'s near-empty-bundle scenario
+      asserts the literal string "Forecast assumptions — not extracted from
+      the data room."). `test_forecast_reaches_narrative_and_render` confirms
+      a present forecast reaches both the narrative digest and the render
+      bundle unmodified, and that the raw bundle `BundleBuilder` returned is
+      left unmutated. The footnote clause is pinned by three tests in
+      `tests/test_final_report_view.py`
+      (`test_forecast_footnote_gains_clause_when_plan_rows_carry_no_margin`,
+      `..._omits_clause_when_plan_rows_state_a_margin`,
+      `..._omits_clause_when_there_are_no_plan_rows`) — `_forecast()` only
+      ever reads `margins[len(hist):]` (the plan-period slice) for the
+      clause decision and never substitutes the historical margin into a
+      plan-period `line_pct`/`line_value`, so a plan with no stated margin
+      renders `None` all the way to the chart rather than an inferred value.
+      `pytest tests/test_final_report_view.py -k forecast -q`: 3 passed.
+      `pytest tests/test_final_report_entry.py -k forecast -q`: 5 passed.
+      `pytest tests/test_final_report_render.py -q`: 7 passed (pagination
+      re-confirmed separately under DoD-16 — this box is about content and
+      degrade, not page count).
+- [x] **DoD-14** — The final report and the executive review, built from the same
       bundle, agree on the P&L column order and on the stated unit (§1.6). *(T02;
       evidence: a test that renders both and asserts both are identical)*
+      **Closed 2026-09-08 (T10, marking T02's already-landed evidence).**
+      `tests/test_final_report_numeric_parity.py::test_pnl_period_order_and_unit_label_match_executive_review`
+      builds a bundle with periods out of emission order and one period
+      extracted in a different unit than its neighbours, renders both
+      `rainmaker_view._financial_table` and `final_report_view._pnl_table`,
+      and asserts identical `periods` ordering and identical `unit_label`
+      (`"in millions"`) on both.
+      `test_pnl_cell_values_match_executive_review_for_revenue_and_ebitda`
+      extends this to the cell values themselves (Revenue, EBITDA), through
+      the same `_normalize_period_units(_financial_periods(bundle))`
+      pipeline both documents share — the growth/CAGR column is deliberately
+      excluded (documented presentation difference, not a defect; see the
+      DoD-2 T03 evidence note). `pytest
+      tests/test_final_report_numeric_parity.py -q`: 37 passed.
 - [x] **DoD-13** — The final report's six analyst takes and its cover
       recommendation render from `final_report_narrative`, and a degraded
       narrative renders zero take boxes with no page missing (§3.5). *(T11)*
@@ -1669,3 +1766,117 @@ named next to it.
       `pytest --collect-only -q`: 2134 tests collected. `pytest tests/ -q`:
       1390 passed / 38 skipped (1388 baseline + 2 new tests, no regressions,
       no skip count change).
+
+---
+
+## 11. What shipped (T10 close-out, 2026-09-08)
+
+**Two deliverables per run, in one `results_location`.** Both branches now
+produce, in `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`:
+the existing executive review (`executive_summary.pdf` +
+`rainmaker_opportunity_summary.html`, plus `full_report.docx` on the no-CIM
+branch — all unchanged filenames), published to the record as soon as stage 1
+finishes, and `final_report.pdf` + `final_report.html` from stage 2. Stage 2
+cannot fail the run: any failure (ingestion, agents, or
+`build_final_report` itself) leaves the ER intact, `results_location`
+already pointing at it, and the failure recorded in `error_message` and
+`progress_json`.
+
+**Stage vocabulary actually implemented** — Branch A (CIM): `cim_detection` →
+`cim_ingestion` → `cim_agents` → `executive_review_ready` → `vdr_ingestion` →
+`vdr_agents` → `final_report` → `final_report_ready`. Branch B (no CIM):
+`vdr_scan` → `vdr_pipeline` (the collapsed ingestion+agents stage, §4) →
+`executive_review_ready` → `final_report` → `final_report_ready`.
+`processing_status` never left `{processing, done, error}` in any test that
+checked every intermediate write, not just the terminal one.
+
+**A-1 (§9) — answer: `completion_status` stays binary.** No `CHECK`
+constraint exists on the live column, but its DDL comment and every row ever
+written say `success | failure`, and the UI's own source could not be
+inspected. The runner writes `completion_status="success"` even on a
+stage-2 failure, with the failure visible in `error_message` and
+`progress_json` instead of a third status value.
+
+**A-2 (§9) — answer: the four columns, not the fallback table.** Live
+`ALTER TABLE … ADD COLUMNS (progress_stage STRING, progress_pct INT,
+progress_json STRING, stage_updated_at STRING)` succeeded on
+`companies_vdr_history` (profile `rallyday`, warehouse `f8e7a8ed6dea21fd`).
+`ensure_progress_columns()` issues the bare form (no `IF NOT EXISTS` — that
+syntax does not parse on this engine) and swallows `FIELD_ALREADY_EXISTS` for
+idempotency. `uc13_preview.analysis.vdr_progress` was never needed.
+
+**D-01 (§5) — answer: one shared partial, Path A.** The MPS markup lives in
+`templates/_mps_page.html.j2`, `{% include %}`d from both templates.
+`rainmaker_opportunity_summary.html.j2`'s only diff against
+`feature/anthropic-sdk-migration`'s merge base is that block→include swap
+(1 insertion, 48 deletions); a golden-render test and a new markup-parity
+test (`tests/test_mps_parity.py`) both guard it.
+
+**Follow-up list, as it finally stands (§9):**
+
+- **F-1.** Score-movement explanation between the two MPS columns — no agent
+  produces it; still a gap, not built.
+- **F-2 — CLOSED (T02).** Every bundle field the final report reads with no
+  producer today is traced to its degrading section and the agent that would
+  need to change; see §9's flat list.
+- **F-3.** `docs/*` is gitignored repo-wide; this plan is tracked only via the
+  `.gitignore` negation in §7. Still true — nothing in T10 changed that.
+- **F-4 — F-9** are unchanged from §9 above (UI-side visibility for the early
+  ER, the `_SCREENS`/`_CONTENTS`/caps-as-code tradeoff, the P&L
+  magnitude-suffix parser divergence, F-6's resolution (wired, owned by
+  T11), and `_retention_rows`'s direction bug) — none of them were in scope
+  for T10 and none were touched by it.
+
+**What T10 itself found and closed, beyond its own three boxes.** DoD-14 and
+DoD-15 had their evidence already landed (T02 and T05 respectively) but were
+never ticked; both are closed above with that evidence, so §10 now has no
+silently-open box.
+
+---
+
+## 12. End-to-end verification is an operator step, not a test
+
+**Nothing in this plan's test suite proves the two-stage flow works on a real
+data room.** Every DoD box above closes on `pytest`, which runs against a
+stubbed Spark session, mocked agents, and mocked renderers — no real
+ingestion, no real LLM call, no real WeasyPrint/PyMuPDF render, and no real
+`ALTER TABLE` beyond the one live check T08 already ran. A green suite here
+means the *code paths* behave as designed under the inputs the tests
+construct; it says nothing about a live CIM-bearing or CIM-less data room,
+live Databricks serving latency, or the live `companies_vdr_history` record
+shape.
+
+**Operator checklist for the first real run (Hector):**
+
+- [ ] Trigger the VDR job (`617196299594076`) for a CIM-bearing company and
+      confirm both `final_report.{pdf,html}` land in the timestamped volume
+      dir alongside the ER files.
+- [ ] Confirm `results_location` is populated **before** the run finishes
+      (i.e. while stage 2 is still running, not just at the terminal
+      update), then check what the Project Lighthouse UI actually does with
+      it at that moment. Per §9 F-4: if the UI only reveals the download once
+      `processing_status == "done"`, the early ER is invisible and the
+      two-stage split's time saving is lost in the presentation layer.
+      Report that finding to whoever owns that UI — **do not** work around
+      it by flipping `processing_status` to `done` after stage 1; that is
+      forbidden (README rule 5 / §9 F-4) and untrue (the run has not
+      finished).
+- [ ] Confirm the final report's MPS page shows **two** score columns on
+      this run (CIM-stage + full-room).
+- [ ] **Confirm the CIM is still in scope for stage 2** (§1.3): after the
+      run, check that `classification.doc_relevance` holds the CIM with
+      `should_parse=true` and a tier inside the agents' `tier_filter`, and
+      that `ingestion.chunks` still holds its stage-1 chunks. A CIM
+      misclassified by the stage-2 classifier would quietly drop out of the
+      final report's evidence.
+- [ ] Trigger a no-CIM company and confirm **one** score column on the final
+      report and **five** progress stages (`vdr_scan`, `vdr_pipeline`,
+      `executive_review_ready`, `final_report`, `final_report_ready`).
+- [ ] Check `progress_json` renders a sensible, monotonically-advancing stage
+      list at a few points mid-run, on both a CIM and a no-CIM run.
+
+**Do not tick any DoD box on the strength of a run that was not actually
+observed.** None of the boxes in §10 are closed on the strength of this
+checklist — they are closed on the mocked-suite evidence named next to each,
+which is a different and narrower claim than "this works on a live data
+room."

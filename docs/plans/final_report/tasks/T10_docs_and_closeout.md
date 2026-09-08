@@ -134,12 +134,12 @@ Do not tick any DoD box on the strength of a run you did not observe.
 
 ## Acceptance criteria
 
-- [ ] `databricks/CLAUDE.md` describes the two-stage flow, the deliverables, the
+- [x] `databricks/CLAUDE.md` describes the two-stage flow, the deliverables, the
       progress columns and the stage vocabulary accurately.
-- [ ] The YAML description matches what runs; no parameters added.
-- [ ] Step 3's diff is empty except for the two documented exceptions.
-- [ ] `pytest tests/ -q` passes.
-- [ ] Plan §10 has no silently-unticked box.
+- [x] The YAML description matches what runs; no parameters added.
+- [x] Step 3's diff is empty except for the two documented exceptions.
+- [x] `pytest tests/ -q` passes.
+- [x] Plan §10 has no silently-unticked box.
 
 Commit:
 

@@ -39,7 +39,8 @@ databricks/
       run_vdr_pipeline.py         # VDR wrapper: reads companies_vdr_history row → run_full_pipeline() → copies docx to VDR volume → updates record
       # --- Unified VDR flow: CIM-scoped preview OR full-room, uc13_preview ---
       cim_detection.py            # detect_cim(): name/path match + Teaser/IOI/NDA exclusion on the FILE's own name
-      run_vdr_rainmaker.py        # Unified runner: CIM found → scoped ingestion → 8 agents (7 Phase 3 + cross_analysis; orchestrator skipped) → Rainmaker ER; no CIM → full Phase 1-5 → same Rainmaker ER + full_report.docx
+      run_vdr_rainmaker.py        # Unified runner: CIM found → scoped ingestion → 8 agents (7 Phase 3 + cross_analysis; orchestrator skipped) → Rainmaker ER; no CIM → full Phase 1-5 → same Rainmaker ER + full_report.docx. Both branches now continue into a second stage — see "VDR pipeline (UI-triggered)" below.
+      vdr_progress.py             # Thin progress emitter the runner calls between stages — see "Progress signal" below
     notebooks/
       test_pipeline.ipynb           # End-to-end test notebook — adapt when scripts change
       run_vdr_job.py                # notebook_task entry for the full VDR pipeline → run_vdr_pipeline() — NOT wired to the live job (see below)
@@ -79,8 +80,13 @@ databricks/
       rainmaker_view.py             # Pure/deterministic bundle→template projection (financials, stat tiles, severity). No LLM.
       rainmaker_narrative.py        # LLM narrative layer for the Rainmaker one-pager
       rainmaker_entry.py            # build_rainmaker_summary(): bundle → narrative → render, shared by BOTH the CIM and full-room VDR branches
-      renderers.py                  # render_rainmaker(): HTML→PDF (WeasyPrint primary, PyMuPDF Story fallback)
+      final_report_view.py          # Pure/deterministic bundle→template projection for the final diligence report (stage 2). No LLM.
+      final_report_narrative.py     # LLM narrative layer for the final report's six analyst takes + cover recommendation — additive, does not touch rainmaker_narrative.py
+      final_report_entry.py         # build_final_report(): bundle → validate → verify → narrative → MPS → render, sibling of rainmaker_entry.py
+      renderers.py                  # render_rainmaker() and render_final_report(): HTML→PDF (WeasyPrint primary, PyMuPDF Story fallback)
       templates/rainmaker_opportunity_summary.html.j2   # The Rainmaker visual one-pager template
+      templates/final_report.html.j2                    # The final diligence report template (11 pages, portrait)
+      templates/_mps_page.html.j2                        # Shared MPS-page partial, {% include %}d from both templates (D-01) — one copy of the markup, not two
     subagents/
       workstream/
         financial/        # Parallel sub-agents for FinancialTrendsAgent (see section below)
@@ -223,7 +229,132 @@ The **VDR Diligence Pipeline** job (`617196299594076` in the Rallyday workspace)
 
 > **As of the unified-flow work** (`docs/plans/connect-all-vdr-er.md` — note `docs/*` is gitignored, so this file exists only on machines that authored it, not in a fresh clone)**: the job's task points at `jobs/notebooks/run_vdr_rainmaker_job`, which now genuinely covers both cases.** Triggering it produces, for a CIM-bearing data room, a CIM-scoped Rainmaker executive review in `uc13_preview`; for a data room with no CIM, the full Phase 1-5 pipeline over `uc13_preview` plus the same Rainmaker executive review and `full_report.docx`. Neither branch writes to `uc13` — that catalog stays frozen until a deliberate promotion step. `run_vdr_job` (→ `run_vdr_pipeline.py`, hardcoded to `uc13`) still exists in the folder but nothing is wired to it. The job name ("VDR Diligence Pipeline") no longer describes a mismatch, but it also doesn't name the Rainmaker format — **always check a job's notebook path before assuming what it runs, rather than trusting the name.**
 >
-> ⚠️ **One Git folder feeds both VDR jobs.** `databricks repos update <id> --branch <b>` changes the code *both* jobs run on their next trigger, and it can swap code mid-run (serverless notebook tasks resolve workspace files as cells execute). Branch `prod-known-good-fc47a29` is pinned at the last commit before the M0–M4 merge if a rollback is needed.
+> ⚠️ **One Git folder feeds both VDR jobs.** `databricks repos update <id> --branch <b>` changes the code *both* jobs run on their next trigger, and it can swap code mid-run (serverless notebook tasks resolve workspace files as cells execute). Branch `prod-known-good-fc47a29` is pinned at the last commit before the M0–M4 merge if a rollback is needed. **Do not run `databricks repos update` casually** — it is the only way code reaches either job, and it can swap out a running job's code mid-execution.
+>
+> ⚠️ **No job/task parameters on the VDR job YAML.** The UI triggers `run-now` passing only notebook widgets (`table_name`, `record_id`); declaring fixed task parameters blocks that trigger. This applies to both stages below — do not add a parameter to expose stage 2 knobs.
+
+### The run is now two stages (`docs/plans/final_report/final_report_plan.md`)
+
+`run_vdr_rainmaker()` no longer stops once the executive review (ER) is built. On
+**both** branches it continues into a second stage that produces a final
+diligence report over the whole data room. Stage 2 is additive: it cannot cause
+the run to fail, and a stage-2 failure leaves the ER intact and downloadable —
+the record still ends `processing_status="done"`, `completion_status="success"`,
+with the stage-2 error recorded in `error_message` and in `progress_json`
+(A-1: this repo does not have precedent or a UI contract for a `"partial"`
+value, so the vocabulary below stays binary; see "Progress signal").
+
+- **Stage 1 — the executive review.** Byte-for-byte the flow that shipped
+  before this change: CIM-scoped ingestion + agents (Branch A) or the full
+  Phase 1-5 pipeline (Branch B), then `build_rainmaker_summary()`. As soon as
+  the ER's `executive_summary.pdf` / `rainmaker_opportunity_summary.html` are
+  copied to the timestamped VDR volume dir, the runner writes
+  `results_location` onto the record — **before stage 2 starts.** The ER's
+  filenames are unchanged and the UI still resolves them by name, so an
+  unmodified UI can download the ER the moment it exists, without waiting for
+  stage 2.
+- **Stage 2 — the final report.** Re-ingests (Branch A only — Branch B's room
+  is already fully ingested) and re-runs the agents (Branch A only), then calls
+  `final_report_entry.build_final_report()`, which never raises, and copies
+  `final_report.pdf` / `final_report.html` alongside the ER's files in the same
+  `results_location` directory. Both branches share one helper,
+  `_run_final_report_stage()`, differing only in `run_mode`, whether ingestion/
+  agents still have work to do, and whether a prior MPS run should be read back
+  (see the MPS note below). The helper's body is wrapped end-to-end in a bare
+  `try/except Exception` that never re-raises — an ingestion failure, an agent
+  failure, or a `build_final_report` failure (which itself never raises; it
+  returns `status="failed"`) all degrade the same way: the ER stays on disk,
+  `results_location` still points at it, and only `final_report.*` is missing.
+
+**New deliverables.** `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`
+now holds, alongside the unchanged ER files, `final_report.pdf` and
+`final_report.html` — present only if stage 2 succeeded.
+
+### Progress signal — four additive columns, `processing_status` unchanged
+
+Progress lives in four **additive, nullable** columns on
+`rallyday_partners_llc.default.companies_vdr_history`:
+`progress_stage`, `progress_pct`, `progress_json`, `stage_updated_at`.
+`ensure_progress_columns()` (`vdr_progress.py`) adds them with a bare
+`ADD COLUMNS (...)` — **not** `IF NOT EXISTS`, which does not parse on this SQL
+engine — wrapped in a blanket `try/except` that swallows `FIELD_ALREADY_EXISTS`
+(and anything else) to stay idempotent without that clause. Confirmed live
+against the warehouse: the columns exist on `companies_vdr_history` today; the
+`uc13_preview.analysis.vdr_progress` fallback table this plan anticipated was
+not needed.
+
+**`processing_status` keeps its exact existing three-value vocabulary**
+(`processing` / `done` / `error`) and stays `processing` until the *whole* run
+— both stages — ends. It is never set to a fourth value for a partial stage-2
+failure; see A-1 above. A UI that only reads `processing_status` is completely
+unaffected by any of this.
+
+`Progress` (`vdr_progress.py`) writes `progress_stage` (the current stage key),
+`progress_pct` (`round(100 * terminal_stages / total_stages)`, clamped to its
+own previous value so it is monotonic, and only forced to `100` at the run's
+terminal update), `progress_json` (the whole ordered stage list on every write
+— `key`, `label`, `status` of `pending`/`processing`/`done`/`failed`/`skipped`,
+`started_at`, `finished_at`, `artifacts` — so the UI never needs to know which
+branch produced it) and `stage_updated_at`. The runner wraps its `Progress`
+instance in a small `_SafeProgress` proxy that also catches and prints on every
+call, belt-and-suspenders on top of `Progress`'s own exception-swallowing: a
+completely broken progress emitter cannot change the run's outcome.
+
+**Stage vocabulary — the two branches diverge by one stage, on purpose.**
+
+Branch A (CIM found):
+
+| key | label |
+|---|---|
+| `cim_detection` | Scanning the data room for a CIM |
+| `cim_ingestion` | Ingesting the CIM |
+| `cim_agents` | Running the diligence agents on the CIM |
+| `executive_review_ready` | Executive review ready |
+| `vdr_ingestion` | Ingesting the full data room |
+| `vdr_agents` | Running the diligence agents on the full data room |
+| `final_report` | Building the final diligence report |
+| `final_report_ready` | Final report ready |
+
+Branch B (no CIM) — `vdr_ingestion` + `vdr_agents` collapse into one
+`vdr_pipeline` stage:
+
+| key | label |
+|---|---|
+| `vdr_scan` | Scanning the data room |
+| `vdr_pipeline` | Ingesting the data room and running the diligence agents |
+| `executive_review_ready` | Executive review ready |
+| `final_report` | Building the final diligence report |
+| `final_report_ready` | Final report ready |
+
+The collapse is deliberate, not a shortcut: Branch B's `run_full_pipeline()` is
+one call that does Phase 1-2 *and* Phase 3-5 internally and only returns when
+both finish, so the runner genuinely cannot observe an ingestion→agents
+boundary from outside it. Emitting two stages here would mean fabricating a
+`finished_at` timestamp on a record the deal team reads. One honest stage beats
+two invented ones.
+
+### MPS on the final report — a fresh score on Branch A, a reused one on Branch B
+
+The final report's MPS page is `rainmaker_view._mps_table` rendered through the
+shared `_mps_page.html.j2` partial (D-01) — not a redesign, not a second
+implementation. What differs by branch is *which run(s)* feed it:
+
+- **Branch A** — stage 2 has new evidence (the rest of the data room was just
+  ingested and re-agented), so it makes a **fresh** `MPSAgent().score(...)`
+  call over the complete bundle, `run_mode="full_vdr_after_cim"`, and reads
+  back the CIM-stage run (`run_mode="cim_only"`) to show alongside it. The page
+  carries **two** score columns: the CIM-only preview score and the full-room
+  score, so the reader sees the score move as more evidence arrived.
+- **Branch B** — there is no new evidence between the ER and the final report:
+  no re-ingestion, no re-agent run, same bundle. A second `MPSAgent().score`
+  call here would just re-score identical data and could produce a different
+  number with nothing on the page to explain the discrepancy (decision D-02).
+  So Branch B's final report **reuses** the ER's own MPS run
+  (`run_mode="full_vdr_no_cim"`, read back and passed through unchanged) — one
+  score column, the same number the deal team already downloaded on the ER.
+  If that read-back comes back empty or malformed, `build_final_report` falls
+  back to a fresh scoring call rather than shipping a blank MPS page, and says
+  so on stdout.
 
 - **Task = `notebook_task`** pointing at a notebook entry with **NO job/task parameters**. The UI triggers `run-now` passing **notebook params `table_name` + `record_id`** (note: `record_id`, not `id`), which arrive as widgets. Declaring fixed task parameters blocks the UI trigger — do not add them.
 - The notebook (`run_vdr_rainmaker_job`) reads the widgets and calls `run_vdr_rainmaker(table_name, record_id, special_folder, no_cim_mode)`, which reads a `rallyday_partners_llc.default.companies_vdr_history` row, detects a CIM, and either (a) runs the CIM-scoped Ruta 2 flow, or (b) runs `run_full_pipeline()` (Phase 1-5, catalog **`uc13_preview`**, not `uc13`) followed by the same Rainmaker render. Copies `executive_summary.pdf` + `rainmaker_opportunity_summary.html` (both branches) and `full_report.docx` (full-room branch only) to `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`, and flips the record `processing → done`/`error`. `run_vdr_pipeline.py` (catalog hardcoded `uc13`, copies `full_report.docx` + `executive_summary.docx`) is the legacy standalone entry this job does **not** call — see `run_vdr_job` above.

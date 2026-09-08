@@ -1,13 +1,17 @@
 # VDR Rainmaker — Databricks Asset Bundle workflow.
 #
-# Unified VDR flow (docs/plans/connect-all-vdr-er.md). Reads a
+# Unified VDR flow (docs/plans/connect-all-vdr-er.md), now two stages
+# (docs/plans/final_report/final_report_plan.md). Reads a
 # companies_vdr_history record by id; if a CIM is found in the data room,
 # runs a CIM-scoped diligence pass (Ruta 2: 7 workstream agents on the
 # uc13_preview catalog) and renders the Rainmaker "Opportunity Summary" PDF;
 # if no CIM is found, runs the full Phase 1-5 pipeline over the whole data
 # room (same uc13_preview catalog) and renders the SAME Rainmaker-format
-# executive review, plus the full diligence memo. Does not touch, call, or
-# depend on run_vdr_pipeline.py or run_full_pipeline.py's own VDR wrapper.
+# executive review, plus the full diligence memo. Either way, the run then
+# continues into a second stage that builds a final diligence report over
+# the whole data room and cannot fail the run — a stage-2 failure leaves the
+# executive review intact and downloadable. Does not touch, call, or depend
+# on run_vdr_pipeline.py or run_full_pipeline.py's own VDR wrapper.
 #
 # NOTE: the live UI-triggered job ("VDR Diligence Pipeline", 617196299594076)
 # already runs this notebook (jobs/notebooks/run_vdr_rainmaker_job) with its
@@ -17,9 +21,11 @@
 #
 # Output files are written to:
 #   /Volumes/rallyday_partners_llc/default/vdr/{company_snake}/{ISO_timestamp}/
-#       executive_summary.pdf                     (Rainmaker executive review, both modes)
+#       executive_summary.pdf                     (Rainmaker executive review, both modes — published as soon as stage 1 finishes)
 #       rainmaker_opportunity_summary.html
 #       full_report.docx                          (full-room mode only — orchestrator memo)
+#       final_report.pdf                          (final diligence report, both modes — stage 2, may be absent if stage 2 failed)
+#       final_report.html
 #
 # Trigger (manual):
 #   databricks jobs run-now <job_id> \
@@ -30,12 +36,20 @@ resources:
     vdr_rainmaker_poc:
       name: "VDR Rainmaker POC"
       description: >
-        Unified VDR flow. Reads a companies_vdr_history record by id; if a
-        CIM is found, runs a CIM-scoped diligence pass (7 workstream agents,
-        uc13_preview catalog) and renders the Rainmaker "Opportunity
+        Unified VDR flow, two stages. Reads a companies_vdr_history record by
+        id; if a CIM is found, runs a CIM-scoped diligence pass (7 workstream
+        agents, uc13_preview catalog) and renders the Rainmaker "Opportunity
         Summary" PDF; otherwise runs the full Phase 1-5 pipeline over the
         whole data room (same catalog) and renders the same Rainmaker
         executive review, plus the full diligence memo (full_report.docx).
+        The executive review is published to the record as soon as it
+        exists. The run then continues into a second stage that builds a
+        final diligence report (final_report.pdf/html) over the whole data
+        room; a stage-2 failure never fails the run — the executive review
+        stays downloadable. Progress is exposed via four additive columns on
+        the record (progress_stage, progress_pct, progress_json,
+        stage_updated_at); processing_status keeps its existing vocabulary
+        and stays "processing" until both stages finish.
         Pass the no_cim_mode="noop" widget to restore the old message-only
         no-CIM behavior instead.
 
@@ -54,7 +68,9 @@ resources:
             a CIM → if found, runs the CIM-scoped Ruta 2 diligence pass and
             renders the Rainmaker PDF; if not (and no_cim_mode="full", the
             default), runs the full Phase 1-5 pipeline and renders the same
-            Rainmaker PDF plus the full diligence memo.
+            Rainmaker PDF plus the full diligence memo. Either way, continues
+            into stage 2 (final diligence report over the whole data room);
+            a stage-2 failure is recorded but never fails this task.
           notebook_task:
             notebook_path: "/Workspace/Users/hector.corro@nimblegravity.com/Rallyday/databricks/jobs/notebooks/run_vdr_rainmaker_job"
             source: WORKSPACE
