@@ -75,6 +75,43 @@ Add to scenario (a) and (b):
   still renders — then note in a comment that suppressing that case is T11's
   prompt-side responsibility, not the template's.
 
+## Pagination — inherited from T11, and the criterion has changed
+
+T11 wired `core_business` onto the business page and could not verify the effect:
+WeasyPrint cannot render here and PyMuPDF's count is meaningless (plan §1.8).
+Measured during the T11 review with headless Chrome: **11 pages without
+`core_business`, 12 with it**, and page 4 of the twelve carries only the business
+section's footer — 204 characters against 1,935 on page 3.
+
+**Hector's decision (2026-09-08): the page count is not the criterion; the format
+is.** Twelve pages is acceptable. A sheet carrying only a running header and a
+footer, with no content, is not — that is a spill, and it is what the ER's
+`ad6d009` fixed for the executive review.
+
+So T07 owns:
+
+1. **Measure it, with the method in plan §1.8** — headless Chrome, backgrounded
+   and polled, then `fitz` for the count. Do **not** substitute WeasyPrint or the
+   PyMuPDF fallback; both have been ruled out with evidence.
+2. **Assert no orphan sheet.** For each page in the produced PDF, extract the text
+   and flag any page whose content is only chrome. A practical threshold: a page
+   whose extracted text is under ~250 characters *and* consists only of the footer
+   disclaimer and/or the running header. Report the per-page character counts so
+   the judgement is visible rather than hidden in a boolean.
+3. **Fix the spill by shortening, not by loosening.** The task-set rule stands: do
+   not raise a cap, do not shrink a font, do not delete `core_business` — Hector
+   asked explicitly that the narrative content and its guidelines be preserved.
+   The likely fix is folding `core_business` into the existing "What The Business
+   Does" block on that page rather than adding a block above it, so the three
+   lines cost less vertical space than a new bordered container.
+4. **Keep `core_business` rendering.** After the fix, the three lines must still be
+   in the HTML. A pagination fix that drops the content fails DoD-16.
+
+This is a real render check against a real engine, not a unit test — put it in its
+own test module or mark it so it can be skipped where Chrome is absent, following
+whatever convention the repo already uses for the 38 environment-dependent skips.
+Do not let it become a silent skip on this machine, where Chrome *is* present.
+
 ## The MPS appears exactly once
 
 In every scenario, assert the rendered final report contains exactly **one**
@@ -87,6 +124,8 @@ regress by "helpfully" adding a summary tile.
 - [ ] All four scenarios pass.
 - [ ] The one-MPS-section assertion runs in all four.
 - [ ] `pytest tests/ -q` passes.
+- [ ] The pagination measurement ran against headless Chrome, the per-page character counts are in the close-out, and no sheet carries only chrome.
+- [ ] `core_business` still renders after the pagination fix.
 - [ ] No test writes into a Volume path; render to a tmp dir
       (`tmp_path` / monkeypatched `reports_volume_dir`), following whatever
       `tests/test_rainmaker_render.py` already does.

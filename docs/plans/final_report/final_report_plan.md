@@ -299,6 +299,50 @@ the opposite: inventing a management commitment that was never made.
 
 Follow-up **F-7** covers extracting the real figure.
 
+### 1.8 How to measure pagination — neither obvious method works *(added 2026-09-08)*
+
+The eleven-page figure is a property of the HTML under a layout engine that
+honours the template's `@page { size: A4 portrait }`. Two engines are in play and
+**neither can be used for this**:
+
+- **WeasyPrint** honours `@page`, but it is not usable here: it imports and then
+  dies on `write_pdf` with `OSError: cannot load library 'libgobject-2.0-0'`.
+  This is the same missing system library behind the repo's 38 pre-existing skips.
+  Deferring the check to "a session where WeasyPrint works" does not help — every
+  session runs on this machine.
+- **PyMuPDF Story**, the production fallback, honours neither `@page` nor flex, so
+  its page count is unrelated to the document's. It reported **16 pages** for a
+  document that is really 12. A before/after comparison through PyMuPDF is not
+  evidence of anything.
+
+And note the consequence for production: `renderers.py:133` records that Databricks
+Serverless cannot install cairo/pango either, so **the shipped PDF comes from
+PyMuPDF as well**. The eleven-page layout is real in a browser and never realised
+in the PDF artifact. That is precisely what T04's `pdf_degraded` flag exists to
+say, and it is why the HTML is the faithful deliverable.
+
+**Use headless Chrome**, which honours `@page` and is installed on this machine:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+  --disable-gpu --user-data-dir=<scratch>/prof --no-pdf-header-footer \
+  --print-to-pdf=<out>.pdf "file://<rendered>.html"
+```
+
+Chrome writes the PDF and then does not exit — background it, poll for a non-empty
+file, then kill it. Count and inspect with PyMuPDF (`fitz`), which is already a
+dependency:
+
+```python
+d = fitz.open(out); d.page_count, [round(v) for v in (d[0].rect.width, d[0].rect.height)]
+# A4 portrait == 595 x 842
+```
+
+Measured this way on the illustrative bundle (2026-09-08): **11 pages without
+`core_business`, 12 with it**, and page 4 of the twelve carries 204 characters —
+the business section's footer alone, against 1,935 on page 3. That orphan sheet,
+not the count, is the defect DoD-16 now names.
+
 ---
 
 ## 2. Exact call sequence after the change
@@ -1213,9 +1257,12 @@ named next to it.
       --stat` under `databricks/` is empty — no production code changed.
 - [ ] **DoD-16** — The final report's business page carries the Sep 4 content
       (F-6): `core_business` renders, and the prose reflects `sale_process` /
-      `key_partners` when those fields are non-empty. The document is still
-      **eleven pages** — the ER's Sep 4 pagination fix exists because this exact
-      class of addition overflowed a page. *(T11 + T07)*
+      `key_partners` when those fields are non-empty.
+      **Amended 2026-09-08 (Hector): the page *count* is not the criterion — the
+      *format* is.** The report may run to twelve pages. What it may not do is
+      spill a section so that a sheet carries only chrome — a running header and a
+      footer with no content. Measured with the method in §1.8. *(T11 content
+      ✓ landed; pagination verification deferred to T07)*
 - [ ] **DoD-15** — Page 8 renders the plan-vs-history chart and the assumptions
       table from `{catalog}.analysis.forecast` (D-03), and degrades to "not
       extracted" when that table is absent or empty. The chart's footnote states
