@@ -2,6 +2,8 @@
 
 **Depends on:** every other task · **Closes:** DoD-1, DoD-4, DoD-7 · **Est. size:** medium
 
+> **Read the plan selectively.** It is ~1,500 lines and only **§7** (files created/modified and the read-only diff baseline), **§9** (assumptions and follow-ups) and **§10** (the DoD) apply here. Locate them with `grep -n "^## " ../final_report_plan.md` and read those ranges — do not read the file whole. See "Read only the plan sections your task needs" in [`README.md`](README.md).
+
 Read [`../final_report_plan.md`](../final_report_plan.md) and
 [`tasks/README.md`](README.md) before starting.
 

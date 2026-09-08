@@ -51,6 +51,31 @@ Consequences worth knowing:
 - To remove the worktree when the plan is done:
   `git worktree remove ../Rallyday-uc13-final-report` from the main checkout.
 
+## Read only the plan sections your task needs
+
+`../final_report_plan.md` is **~1,500 lines** and grew by 90% over the course of
+the work — every finding from every review was appended to it. Reading it whole
+before each task is waste: most of it documents decisions that are already made
+and defects that are already fixed. Use `grep -n "^## "` to locate a section and
+read that range.
+
+| Task | Sections it actually needs |
+|---|---|
+| T01 | §7 (files), §10 (DoD-8) |
+| T02 | §1.4, §1.5, §1.6, §9 (A-3, F-2) |
+| T03 / T03b | §1.6, §10 |
+| T04 | §7 |
+| T05 | §1.2, §1.5, §1.7, §3 (incl. D-02) |
+| T06 | §5 (D-01) |
+| T07 | §1.8, §10 (DoD-3, DoD-16) |
+| T08 | §4 |
+| **T09** | **§2 (call sequence), §4 (progress), §6 (degradation)** |
+| **T10** | **§7 (files + the read-only baseline), §9 (assumptions/follow-ups), §10 (DoD)** |
+| T11 | §3.5, §9 (F-6) |
+
+The task file itself is self-contained and quotes what it depends on, so this is
+safe. If a task file references a section not listed here, read that one too.
+
 ## Rules that apply to every task
 
 1. **Read [`../final_report_plan.md`](../final_report_plan.md) first.** It is the

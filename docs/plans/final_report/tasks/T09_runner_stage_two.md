@@ -2,6 +2,8 @@
 
 **Depends on:** T05, T08 · **Closes:** DoD-2, DoD-5, DoD-6, part of DoD-10 · **Est. size:** large
 
+> **Read the plan selectively.** It is ~1,500 lines and only **§2** (the call sequence for both branches), **§4** (the progress design) and **§6** (how a stage-2 failure degrades) apply here. Locate them with `grep -n "^## " ../final_report_plan.md` and read those ranges — do not read the file whole. See "Read only the plan sections your task needs" in [`README.md`](README.md).
+
 Read [`../final_report_plan.md`](../final_report_plan.md) §2, §4, §6 and
 [`tasks/README.md`](README.md) before starting. Read `databricks/CLAUDE.md`'s "VDR
 pipeline (UI-triggered)" section — several of its warnings were earned from real
