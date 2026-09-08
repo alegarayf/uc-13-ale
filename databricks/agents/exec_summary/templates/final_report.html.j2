@@ -81,7 +81,7 @@
   h3.block {
     color: #FFF; background: #1F3864; font-size: 7.5pt; font-weight: bold;
     letter-spacing: 0.05em; text-transform: uppercase;
-    padding: 1.2mm 2.5mm; margin: 0 0 2mm 0;
+    padding: 1mm 2.5mm; margin: 0 0 1.5mm 0;
   }
   h3.block.warn { background: #C2600D; }
   h3.block.plain { background: #F2F4F7; color: #1F3864; }
@@ -106,6 +106,12 @@
   .verdict.pass { border-left-color: #C2600D; background: #FCEEE0; }
   .verdict.pass .call, .verdict.pass .label { color: #C2600D; }
   .one-liner { font-style: italic; background: #F2F4F7; border-left: 3pt solid #BFD0E8; padding: 2mm 3.5mm; margin: 0 0 4mm 0; }
+  /* core_business rides inside the "What The Business Does" card instead of
+     its own bordered .one-liner block (plan §1.8) — a second boxed container
+     on this page was the difference between fitting on page 3 and spilling a
+     near-blank page 4 (12 pages total; the twelfth carried only the footer). */
+  p.core-line { font-style: italic; margin: 0 0 1mm 0; }
+  p.core-line:last-child { margin-bottom: 1.5mm; }
   .take { background: #F2F4F7; padding: 2mm 3mm; margin: 2mm 0 0 0; font-size: 8.5pt; }
   .take strong { color: #1F3864; }
   .nodata { color: #595959; font-style: italic; font-size: 8.5pt; }
@@ -137,14 +143,14 @@
   sup.cite { color: #4A72B8; font-size: 6pt; }
 
   /* --- Layout helpers ------------------------------------------------- */
-  .cols-2 { display: flex; gap: 5mm; margin-bottom: 4mm; }
+  .cols-2 { display: flex; gap: 5mm; margin-bottom: 3mm; }
   .cols-2 > * { flex: 1; min-width: 0; }
   .cols-3 { display: flex; gap: 4mm; margin-bottom: 4mm; }
   .cols-3 > * { flex: 1; min-width: 0; }
   .card { border: 0.5pt solid #BFD0E8; border-radius: 1.5mm; overflow: hidden; }
-  .card .body { padding: 0 2.5mm 2mm 2.5mm; }
-  ul.b { margin: 0 0 2mm 0; padding-left: 3.5mm; }
-  ul.b li { margin-bottom: 0.8mm; }
+  .card .body { padding: 0 2.5mm 1.5mm 2.5mm; }
+  ul.b { margin: 0 0 1.5mm 0; padding-left: 3.5mm; }
+  ul.b li { margin-bottom: 0.5mm; }
   ol.q { margin: 0; padding-left: 5mm; }
   ol.q li { margin-bottom: 1.5mm; }
   ol.q .cat { color: #C2600D; font-size: 6.8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -467,16 +473,12 @@
   {{ running_header(report, 'Business & Revenue Model', 3) }}
   <h2 class="section">1 · Business and revenue model</h2>
 
-  {%- if report.business.core_business %}
-  <div class="one-liner">
-    {%- for line in report.business.core_business %}<div>{{ line }}</div>{% endfor %}
-  </div>
-  {%- endif %}
-
   <div class="cols-2">
     <div class="card">
       <h3 class="block">What The Business Does</h3>
-      <div class="body"><ul class="b">
+      <div class="body">
+        {%- for line in report.business.core_business %}<p class="core-line">{{ line }}</p>{% endfor %}
+        <ul class="b">
         {%- for b in report.business.what_it_does[:4] %}<li>{{ b }}</li>
         {%- else %}<li class="nodata">Business overview not extracted.</li>{% endfor %}
       </ul></div>

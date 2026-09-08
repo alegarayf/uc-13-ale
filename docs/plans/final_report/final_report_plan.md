@@ -1160,10 +1160,49 @@ named next to it.
       removed). `git diff --stat` against every other §7 read-only file
       (`rainmaker_entry.py`, `mps_agent.py`, `bundle_builder.py`,
       `validate.py`, `absence_check.py`, `rainmaker_narrative.py`) is empty.
-- [ ] **DoD-3** — Branch B produces the existing ER + MPS, then the final report
+      **T07 evidence (the two-column render case — T09 ticks this box).**
+      `tests/test_final_report_render.py::test_final_report_render_two_mps_runs_orders_cim_first_full_room_last`
+      builds a CIM-stage run (scores all 2, threshold 10, total 0.128) and a
+      full-room run (the existing `mps_run_verbose.yaml` fixture — scores
+      `[4,5,5,4,5,3,4]`, threshold 15, total 24.0), renders through
+      `rainmaker_view._mps_table` with `mps_runs=[cim, full]`, and asserts:
+      exactly two `<th class="mps-score-col">` headers, every one of the
+      seven rubric `<tr>` carries exactly two `<td class="mps-score-col">`,
+      the total row carries exactly two total cells (`"0.1"` and `"24.0"`,
+      both present so the two runs are distinguishable), and the footer note
+      reads `Threshold 15 · above threshold` (the full-room run's own
+      threshold/verdict) with `Threshold 10` (the CIM run's) absent anywhere
+      in the document — confirming `_mps_table` reads verdict/threshold from
+      `mps_runs[-1]`, not `[0]`. Verified adversarially: swapping `[-1]` for
+      `[0]` in `rainmaker_view._mps_table` (under `PYTHONDONTWRITEBYTECODE=1`,
+      `__pycache__` cleared before and after) made this test fail on the
+      `Threshold 15 · above threshold` assertion; reverted via `git checkout --`.
+- [x] **DoD-3** — Branch B produces the existing ER + MPS, then the final report
       with a one-column MPS. In both branches the MPS appears exactly once, on its
       own page. *(T07 + T09; evidence: the render test asserts a single
       `class="page mps"` section)*
+      **Closed 2026-09-08.** `tests/test_final_report_render.py` covers all
+      four render scenarios (illustrative bundle + full MPS run; a nearly
+      empty bundle; no MPS run at all; two MPS runs) plus the T11 prose-layer
+      additions (six take boxes / zero take boxes / a stray take for an
+      empty section). Scenario (c) — `mps=None, prior_mps=None` — asserts
+      the MPS page still renders (`class="page mps-page"` present), the
+      seven-row unscored skeleton (`tbody.count("<tr>") == 7`, distinct from
+      the total row's `<tr class="mps-total-row">`), the degraded footer
+      note, and no score column header. Scenario (d) is the two-run case
+      cited under DoD-2 above. Every one of the four scenarios (plus the
+      T11 additions) calls a shared `_assert_single_mps_section()` helper
+      that asserts exactly one `<table class="mps-table">` in the whole
+      document and that no other top-level page div contains any MPS
+      markup (`mps-table`/`mps-score-col`/`mps-total-row`) — checked
+      structurally, not by searching for the phrase "Minimum Pursuit Score"
+      (which legitimately also appears in the table-of-contents row naming
+      the section). Verified adversarially: injecting a second
+      `<table class="mps-table">` onto the cover page made all four core
+      scenario tests fail on this helper; reverted via `git checkout --`.
+      `pytest tests/test_final_report_render.py tests/test_final_report_pagination.py -q`:
+      8 passed. `pytest tests/ -q`: 1369 passed / 38 skipped (1361 passed
+      baseline + 8 new tests, no regressions, no skip count change).
 - [ ] **DoD-4** — No file listed read-only in §7 has changed, beyond the two
       documented exceptions. *(T10; evidence: `git diff --stat` against the branch
       point, pasted into T10's report)*
@@ -1255,7 +1294,7 @@ named next to it.
       literal cap pins, 1 cap-coverage check, 1 screens-table pin, 2
       hardcoded-threshold behavioural tests), no regressions. `git diff
       --stat` under `databricks/` is empty — no production code changed.
-- [ ] **DoD-16** — The final report's business page carries the Sep 4 content
+- [x] **DoD-16** — The final report's business page carries the Sep 4 content
       (F-6): `core_business` renders, and the prose reflects `sale_process` /
       `key_partners` when those fields are non-empty.
       **Amended 2026-09-08 (Hector): the page *count* is not the criterion — the
@@ -1263,6 +1302,24 @@ named next to it.
       spill a section so that a sheet carries only chrome — a running header and a
       footer with no content. Measured with the method in §1.8. *(T11 content
       ✓ landed; pagination verification deferred to T07)*
+      **Pagination closed 2026-09-08 (T07).** Measured with headless Chrome
+      per §1.8 (WeasyPrint dies on `libgobject` here; PyMuPDF Story ignores
+      `@page` and is not evidence — both ruled out): the illustrative bundle
+      renders 11 pages without `core_business` and 11 pages **with** it after
+      the fix below (previously 12, with a page carrying only 199-204
+      characters of running-footer chrome and nothing else). Fix: folded the
+      three `core_business` lines into the existing "What The Business Does"
+      card (`<p class="core-line">`) instead of a second bordered
+      `.one-liner` box above it, plus a small amount of CSS tightening on the
+      same page (`h3.block`, `.cols-2`, `.card .body`, `ul.b` margins/padding)
+      — no cap raised, no font shrunk, `core_business` still renders after
+      the fix (confirmed in the HTML). Per-page character counts (with
+      `core_business`, 11 pages): `[2076, 1170, 2263, 1917, 1393, 1267, 1711,
+      1607, 3773, 3006, 1765]` — no page under 250 characters, so no orphan
+      sheet. Evidence: `tests/test_final_report_pagination.py`
+      (`test_business_page_core_business_does_not_spill_an_orphan_sheet`),
+      skippable only where headless Chrome is genuinely absent (not the case
+      on this machine — the test ran for real, not skipped).
 - [ ] **DoD-15** — Page 8 renders the plan-vs-history chart and the assumptions
       table from `{catalog}.analysis.forecast` (D-03), and degrades to "not
       extracted" when that table is absent or empty. The chart's footnote states
