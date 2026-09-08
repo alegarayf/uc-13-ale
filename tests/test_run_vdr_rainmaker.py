@@ -12,6 +12,8 @@ pipeline and render the SAME Rainmaker PDF plus the full report, or
 
 from __future__ import annotations
 
+import json
+import shutil
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -661,6 +663,88 @@ def test_branch_a_stage2_build_final_report_failed_status(monkeypatch, _common_p
     assert updates[-1]["processing_status"] == "done"
     assert updates[-1]["completion_status"] == "success"
     assert updates[-1]["error_message"]
+    _assert_processing_status_always_legal(updates)
+
+
+def test_branch_a_stage2_unanticipated_exception_keeps_er_intact(monkeypatch, _common_patches):
+    """DoD-18: an exception nobody wrote a branch for — here, the stage-2
+    agent DAG call itself raising — must be swallowed by
+    `_run_final_report_stage`'s own `try/except`, not by an explicit
+    early-return path. The ER must survive exactly like the handled T09
+    failures do."""
+    tmp_path = _common_patches["tmp_path"]
+    _cim_branch_common_mocks(monkeypatch)
+    _stub_rainmaker_summary(monkeypatch, tmp_path)
+    _stub_token_counters(monkeypatch)
+    _stub_prior_mps_runs(monkeypatch)
+    final_report_mock = MagicMock(side_effect=RuntimeError("must not build the final report"))
+    monkeypatch.setattr("agents.exec_summary.final_report_entry.build_final_report", final_report_mock)
+
+    # Stage 1's own agent call (run_orchestrator=False) must succeed as
+    # normal; only stage 2's call (the second one) raises unexpectedly.
+    pipeline_mock = MagicMock(
+        side_effect=[{"summary": {"SUCCESS": 7}}, RuntimeError("agent DAG boom")]
+    )
+    monkeypatch.setattr("agents.orchestration.pipeline.run_pipeline", pipeline_mock)
+
+    result = rvr.run_vdr_rainmaker("some.table", 1)
+
+    assert pipeline_mock.call_count == 2
+    final_report_mock.assert_not_called()
+    assert result["status"] == "success"
+    names = {Path(p).name for p in result["files"]}
+    assert names == {"executive_summary.pdf", "rainmaker_opportunity_summary.html"}
+
+    updates = _common_patches["updates"]
+    assert updates[-1]["processing_status"] == "done"
+    assert updates[-1]["completion_status"] == "success"
+    assert updates[-1]["results_location"].endswith("/")
+    assert "agent DAG boom" in updates[-1]["error_message"]
+    progress_update = next(u for u in reversed(updates) if "progress_json" in u)
+    progress_stages = {
+        s["key"]: s["status"] for s in json.loads(progress_update["progress_json"])
+    }
+    assert progress_stages["vdr_agents"] == "failed"
+    _assert_processing_status_always_legal(updates)
+
+
+def test_branch_a_stage2_copy_final_report_raises_keeps_er_intact(monkeypatch, _common_patches):
+    """DoD-18: a realistic unhandled raise from a stage-2 collaborator that
+    is not `run_ingestion_pipeline`/`build_final_report` — here,
+    `shutil.copy2` failing while delivering `final_report.pdf` (permission
+    or quota error) — must degrade the same way."""
+    tmp_path = _common_patches["tmp_path"]
+    _cim_branch_common_mocks(monkeypatch)
+    _stub_rainmaker_summary(monkeypatch, tmp_path)
+    _stub_token_counters(monkeypatch)
+    _stub_prior_mps_runs(monkeypatch)
+    _stub_final_report(monkeypatch, tmp_path)
+
+    real_copy2 = shutil.copy2
+
+    def _copy2_router(src, dst, *args, **kwargs):
+        if Path(dst).name == "final_report.pdf":
+            raise RuntimeError("disk quota exceeded")
+        return real_copy2(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(rvr.shutil, "copy2", _copy2_router)
+
+    result = rvr.run_vdr_rainmaker("some.table", 1)
+
+    assert result["status"] == "success"
+    names = {Path(p).name for p in result["files"]}
+    assert names == {"executive_summary.pdf", "rainmaker_opportunity_summary.html"}
+
+    updates = _common_patches["updates"]
+    assert updates[-1]["processing_status"] == "done"
+    assert updates[-1]["completion_status"] == "success"
+    assert updates[-1]["results_location"].endswith("/")
+    assert "disk quota exceeded" in updates[-1]["error_message"]
+    progress_update = next(u for u in reversed(updates) if "progress_json" in u)
+    progress_stages = {
+        s["key"]: s["status"] for s in json.loads(progress_update["progress_json"])
+    }
+    assert progress_stages["final_report"] == "failed"
     _assert_processing_status_always_legal(updates)
 
 

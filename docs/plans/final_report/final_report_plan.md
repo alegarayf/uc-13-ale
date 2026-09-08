@@ -1617,3 +1617,55 @@ named next to it.
       `run_ingestion_pipeline`/`run_pipeline` are not called a second time on
       Branch B (they'd raise `AssertionError` if they were). `pytest
       tests/test_run_vdr_rainmaker.py -q`: 20 passed.
+- [x] **DoD-18** — `_run_final_report_stage`'s generic `try/except` — the net
+      for a stage-2 failure nobody wrote a specific branch for — is proven to
+      actually catch, not just present. *(T09b; evidence: two new tests, each
+      with a different stage-2 collaborator raising a plain `RuntimeError`,
+      plus an adversarial mutation of the `except` block that fails without
+      them)*
+      **Closed 2026-09-08.** T09's stage-2 failure tests (DoD-2/DoD-5) only
+      exercised **handled** paths — an early `return` on a non-`SUCCESS`
+      parse phase, or on `build_final_report` reporting `status="failed"`.
+      Neither ever reached the helper's own `except Exception`. Added to
+      `tests/test_run_vdr_rainmaker.py`:
+      `test_branch_a_stage2_unanticipated_exception_keeps_er_intact` (the
+      stage-2 `run_pipeline` call itself raises `RuntimeError("agent DAG
+      boom")`, via a `side_effect` list so stage 1's own agent call still
+      succeeds) and
+      `test_branch_a_stage2_copy_final_report_raises_keeps_er_intact`
+      (`shutil.copy2` raises `RuntimeError("disk quota exceeded")` only when
+      copying `final_report.pdf`, real `copy2` otherwise — modeling a
+      permission/quota error). Both assert: `run_vdr_rainmaker()` returns
+      normally (`status="success"`, no exception escapes); `results_location`
+      and the two ER files (`executive_summary.pdf`,
+      `rainmaker_opportunity_summary.html`) are untouched;
+      `processing_status == "done"` and `completion_status == "success"`;
+      `error_message` contains the failure text; and the last
+      `progress_json` write (found by scanning `updates` in reverse for the
+      entry that carries that key, since the terminal record update is a
+      separate, later write without it) marks the failing stage — `vdr_agents`
+      / `final_report` respectively — as `"failed"`. Both raise a plain
+      `RuntimeError`, not `AssertionError` (that class means "this path must
+      not run" everywhere else in this file, and would have confused which
+      contract each test proves).
+
+      Adversarial verification (the acceptance evidence): inserted a bare
+      `raise` as the first statement of `_run_final_report_stage`'s
+      `except Exception as exc:` block (`databricks/jobs/scripts/run_vdr_rainmaker.py`),
+      ran under `PYTHONDONTWRITEBYTECODE=1`:
+
+      ```
+      FAILED tests/test_run_vdr_rainmaker.py::test_branch_a_stage2_unanticipated_exception_keeps_er_intact
+      FAILED tests/test_run_vdr_rainmaker.py::test_branch_a_stage2_copy_final_report_raises_keeps_er_intact
+      2 failed, 20 passed, 1 warning in 3.97s
+      ```
+
+      Both new tests failed on the mutation (the other 20, including all of
+      T09's handled-path tests, stayed green — confirming they don't already
+      cover this). Restored the file from a pre-mutation copy, cleared every
+      `__pycache__` under `databricks/`, and confirmed `git status --porcelain`
+      was clean before starting and after restoring.
+      `git diff --stat -- databricks/`: empty — this task is tests-only.
+      `pytest --collect-only -q`: 2134 tests collected. `pytest tests/ -q`:
+      1390 passed / 38 skipped (1388 baseline + 2 new tests, no regressions,
+      no skip count change).
