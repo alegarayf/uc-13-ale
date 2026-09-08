@@ -16,6 +16,7 @@ point. **T06 is unblocked** — D-01 was approved on 2026-09-07 (Path A, the sha
 | T08 | [T08_vdr_progress.md](T08_vdr_progress.md) | — | DoD-6 (part), DoD-10 (part) |
 | T09 | [T09_runner_stage_two.md](T09_runner_stage_two.md) | T05, T08 | DoD-2, DoD-5, DoD-6, DoD-10, DoD-12 |
 | T11 | [T11_final_report_narrative.md](T11_final_report_narrative.md) | T02, T05 | DoD-13 |
+| T09b | [T09b_unanticipated_stage2_failure.md](T09b_unanticipated_stage2_failure.md) | T09 | DoD-18 |
 | T10 | [T10_docs_and_closeout.md](T10_docs_and_closeout.md) | all | DoD-1, DoD-4, DoD-7 |
 
 ## Where to work
@@ -70,6 +71,7 @@ read that range.
 | T07 | §1.8, §10 (DoD-3, DoD-16) |
 | T08 | §4 |
 | **T09** | **§2 (call sequence), §4 (progress), §6 (degradation)** |
+| T09b | §6 (degradation) |
 | **T10** | **§7 (files + the read-only baseline), §9 (assumptions/follow-ups), §10 (DoD)** |
 | T11 | §3.5, §9 (F-6) |
 
