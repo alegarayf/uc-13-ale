@@ -657,6 +657,33 @@ against the warehouse before writing the emitter), fall back to
 record the refusal here. The columns are preferred because they keep the UI to one
 query.
 
+**A-2 resolved (T08, 2026-09-08) — the columns path, not the fallback.**
+Checked live against the warehouse (profile `rallyday`, `f8e7a8ed6dea21fd`) via
+`databricks api post /api/2.0/sql/statements`:
+
+- `ALTER TABLE rallyday_partners_llc.default.companies_vdr_history ADD COLUMNS
+  (progress_stage STRING, progress_pct INT, progress_json STRING,
+  stage_updated_at STRING)` **succeeded** — permission is granted on this
+  UI-owned table. `DESCRIBE TABLE` before/after confirms the table went from
+  15 columns to 19, all four new ones nullable, no existing column touched.
+- The literal SQL the plan and T08 assumed — `ADD COLUMNS IF NOT EXISTS (...)`
+  and the singular `ADD COLUMN IF NOT EXISTS col type` — both fail with
+  `[PARSE_SYNTAX_ERROR] ... at or near 'EXISTS'` on this SQL engine,
+  **unconditionally**, independent of whether the columns already exist. This
+  is a syntax gap on this platform, not a permission refusal.
+- Re-running the bare `ADD COLUMNS (progress_stage STRING)` a second time
+  (columns already present) fails with `[FIELD_ALREADY_EXISTS]` /
+  `SQLSTATE 42710` — the specific, catchable error `ensure_progress_columns`
+  swallows to get idempotency without `IF NOT EXISTS` in the SQL text.
+
+**Consequence for the emitter:** `ensure_progress_columns` issues the bare
+`ADD COLUMNS (...)` (no `IF NOT EXISTS`) and wraps it in a blanket
+`try/except`, same as any other refusal it must tolerate. The
+`uc13_preview.analysis.vdr_progress` fallback table was **not needed** — the
+columns already exist on the live table as of this check. No drop-and-recreate
+was used anywhere near `companies_vdr_history`; this was four additive `ADD
+COLUMNS` calls plus reads, nothing destructive.
+
 ---
 
 ## 5. MPS markup: one copy, not two — open decision D-01
@@ -905,9 +932,11 @@ line. T08 is independent of T01-T07 and can run at any point.
 
 - **A-1.** `completion_status="partial"` is accepted by the UI. Unverified — see §6;
   T09 checks and substitutes if not.
-- **A-2.** `ALTER TABLE … ADD COLUMNS IF NOT EXISTS` is permitted on
-  `rallyday_partners_llc.default.companies_vdr_history`. Unverified — see §4;
-  T08 checks and falls back to a separate Delta table if not.
+- **A-2 — RESOLVED 2026-09-08 (T08).** `ALTER TABLE … ADD COLUMNS` (bare, not
+  `IF NOT EXISTS` — that clause doesn't parse on this engine) is permitted on
+  `rallyday_partners_llc.default.companies_vdr_history`; the four columns are
+  live on the table. See §4 for the full evidence. The
+  `uc13_preview.analysis.vdr_progress` fallback was not needed.
 - **A-3.** `bundle["meta"]` carries no `run_mode` key (`bundle_builder.py:652-668`
   confirms it does not), yet `final_report_view` derives its cover `mode_label`
   from `meta.get("run_mode")` — so today every report would read "Full data room",
@@ -1213,6 +1242,37 @@ named next to it.
       ignore and an updated UI can render. *(T08 + T09; evidence:
       `test_vdr_progress.py` + a runner test asserting `processing_status` never
       leaves its three legal values)*
+      **T08 evidence (the emitter itself — T09 ticks this box once the
+      runner is wired to it).** `databricks/jobs/scripts/vdr_progress.py`
+      added: `ensure_progress_columns(spark, table_name)` (bare `ADD COLUMNS`,
+      swallows `FIELD_ALREADY_EXISTS` and any other failure — see A-2 in §4),
+      `STAGES_CIM`/`STAGES_FULL` module constants matching this section's
+      tables exactly, and `class Progress` with `start`/`complete`/`fail`/
+      `skip`/`publish`, each writing all four columns (`progress_stage`,
+      `progress_pct`, `progress_json`, `stage_updated_at`) through one
+      injectable `updater` call (defaults to
+      `run_vdr_pipeline._update_vdr_record`). `progress_pct =
+      round(100 * terminal_stages / total_stages)`, clamped to its own
+      previous value, reaches exactly 100 when every stage is terminal.
+      `publish(columns)` merges extra columns into the same single UPDATE
+      call as the current progress write (asserted directly on the mock's
+      call payload). An unknown stage key prints a warning and no-ops rather
+      than raising. Nothing under `databricks/agents/` imports this module
+      (`grep -rn vdr_progress databricks/agents/` returns nothing; also
+      pinned as `test_nothing_under_agents_imports_vdr_progress`).
+      Exception-proofness proved, not just asserted: `tests/test_vdr_progress.py`
+      exercises every public method (`start`/`complete`/`fail`/`skip`/
+      `publish`) plus `ensure_progress_columns` against an updater/spark that
+      raises on every call, and confirms nothing propagates, alongside a
+      normal sequence on a *different* instance completing to `progress_pct
+      == 100` in the same test. Verified adversarially per rule 9b: mutated
+      `_pct()`'s denominator (`total` → `total + 1`) under
+      `PYTHONDONTWRITEBYTECODE=1`, confirmed 3 tests fail (`83 == 100`
+      assertion, not a crash), then restored the file byte-for-byte (`diff`
+      empty) and cleared `__pycache__`. `pytest tests/test_vdr_progress.py -q`:
+      10 passed. `pytest tests/ -q`: 1379 passed / 38 skipped, no regressions,
+      no skip count change. `pytest tests/ --collect-only -q`: 1414 tests
+      collected.
 - [ ] **DoD-7** — `databricks/CLAUDE.md` describes the new flow accurately. *(T10)*
 - [x] **DoD-8** — The illustrative `sample_bundle.py` is not in the shipped
       package — test fixtures only. *(T01; evidence: it lives under
@@ -1243,6 +1303,9 @@ named next to it.
       mutation, then restored. Full evidence in §5.
 - [ ] **DoD-10** — A-1 and A-2 (§9) are resolved against the live warehouse, and
       §4/§6 of this plan record the actual answers. *(T08, T09)*
+      **A-2 half closed 2026-09-08 (T08).** Resolved against the live
+      warehouse — see §4 and §9. A-1 (`completion_status="partial"`) is still
+      open; T09 resolves it and ticks this box.
 - [x] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
       into §9. *(T02)*
       **Closed 2026-09-07.** Every `bundle.get(...)` path `final_report_view.py`
