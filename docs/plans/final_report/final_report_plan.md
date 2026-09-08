@@ -796,17 +796,42 @@ By the time stage 2 starts, the ER is on disk, copied to the VDR volume, and
 | Outcome | `processing_status` | `completion_status` | `results_location` | `progress_json` |
 |---|---|---|---|---|
 | Everything succeeded | `done` | `success` | ER + final report dir | all stages `done`, `progress_pct=100` |
-| ER ok, stage 2 failed | `done` | `partial` | still the ER dir | ER stages `done`, failing stage `failed`, later stages `pending`, `error_message` set |
+| ER ok, stage 2 failed | `done` | `success` (see A-1) | still the ER dir | ER stages `done`, failing stage `failed`, later stages `pending`, `error_message` set |
 | Stage 1 failed | `error` | `failure` | unset | stage that failed marked `failed` |
 
-**`completion_status="partial"` is an assumption that T09 must verify first.** The
-only values this repo writes today are `success` and `failure`
-(`run_vdr_rainmaker.py:222/419/449`, `run_vdr_pipeline.py`); the column's DDL and
-any UI-side vocabulary are owned outside this repo. T09 checks the live table for a
-CHECK constraint and asks whether the UI switches on the value. If `partial` is not
-acceptable, the fallback is `completion_status="success"` with `error_message` set
-and `progress_json` carrying the failed stage — and that substitution gets recorded
-here.
+**A-1 resolved (T09, 2026-09-08) — `completion_status="success"` with
+`error_message` set, not `"partial"`.** Checked live against the warehouse
+(profile `rallyday`, `f8e7a8ed6dea21fd`):
+
+- `SHOW CREATE TABLE rallyday_partners_llc.default.companies_vdr_history` has
+  **no `CHECK` constraint clause** on `completion_status` (or anywhere else) —
+  a write of `"partial"` would not be rejected at the database level.
+- `rallyday_partners_llc.information_schema.table_constraints` returns zero
+  rows for this table — confirms no constraint exists via a second, more
+  direct check.
+- The column's own DDL comment reads `'Values: success | failure'` — the
+  vocabulary is explicitly documented as binary, independent of any
+  constraint enforcing it.
+- Live data: `SELECT completion_status, count(*) ... GROUP BY
+  completion_status` returns exactly three groups — `success` (50),
+  `failure` (5), `NULL` (10, pre-dating this column being populated on every
+  path). No row has ever held any third value.
+- The UI's own source is outside this repo, so its switch behavior on
+  `completion_status` cannot be inspected directly. Given the column comment
+  and a 100% historical success/failure split, introducing a third value the
+  UI has never seen is a real regression risk for no proven benefit — the
+  plan's own fallback (§9) already anticipated exactly this outcome.
+
+**Consequence for the runner:** on a stage-2 failure, both branches write
+`completion_status="success"` (not `"partial"`), `results_location` still
+pointing at the ER directory, `error_message` set to the stage-2 failure
+(truncated to `[:4000]` like the existing failure path), and `progress_json`
+showing the failed stage as `"failed"` with later stages left `"pending"`.
+An operator or an updated UI reading `progress_stage`/`progress_json`
+gets the honest picture; an unmodified UI sees a normal `success` row with a
+downloadable executive review, which is still true. See
+`tests/test_run_vdr_rainmaker.py::test_branch_a_stage2_ingestion_failure_keeps_er_intact`
+and `test_branch_a_stage2_build_final_report_failed_status`.
 
 ---
 
@@ -1129,7 +1154,7 @@ named next to it.
 
 - [ ] **DoD-1** — `docs/plans/final_report/final_report_plan.md` exists, is
       reviewed, and matches what was built. *(closed by T10, after every other box)*
-- [ ] **DoD-2** — Branch A produces, in one run: the existing ER PDF/HTML with its
+- [x] **DoD-2** — Branch A produces, in one run: the existing ER PDF/HTML with its
       CIM-only MPS, **then** the final report PDF/HTML whose MPS page is the same
       page with a second score column for the full-data-room run.
       *(T05 + T09; evidence: `test_final_report_render.py` two-column case +
@@ -1206,6 +1231,30 @@ named next to it.
       `[0]` in `rainmaker_view._mps_table` (under `PYTHONDONTWRITEBYTECODE=1`,
       `__pycache__` cleared before and after) made this test fail on the
       `Threshold 15 · above threshold` assertion; reverted via `git checkout --`.
+      **T09 evidence (closes this box) — the runner call sequence itself.**
+      `run_vdr_rainmaker()` (Branch A) now continues past the ER into
+      `_run_final_report_stage(run_mode="full_vdr_after_cim", run_ingest=True,
+      run_agents=True, prior_run_modes=("cim_only",), rescore_mps=True)` —
+      stage 2 re-ingests the rest of the room (`catalog=uc13_preview`, no
+      `file_whitelist`, no `force`, `parse_priority_tiers="1,2"`), re-runs the
+      agents, then calls `build_final_report(run_mode="full_vdr_after_cim",
+      prior_mps_runs=[the cim_only run])`. Stage 1's own calls are
+      byte-identical to before this task — the diff on those lines is
+      progress-call insertions only (verified by reading the diff, not
+      assumed). Evidence:
+      `tests/test_run_vdr_rainmaker.py::test_branch_a_stage1_untouched_and_stage2_success`
+      asserts `run_ingestion_pipeline` is called exactly twice (stage 1 with
+      `file_whitelist`+`force="company"`, stage 2 without either), `run_pipeline`
+      exactly twice, `build_final_report` once with `run_mode="full_vdr_after_cim"`
+      and `prior_mps_runs=[{"run_mode": "cim_only"}]`, and both
+      `final_report.{pdf,html}` land alongside the existing ER files in
+      `results_location`. `pytest tests/test_run_vdr_rainmaker.py -q`: 20
+      passed (11 baseline + 9 new). `pytest tests/ -q`: 1388 passed / 38
+      skipped (1379 baseline + 9 new tests, no regressions, no skip count
+      change — baseline and delta measured by temporarily restoring the
+      pre-T09 versions of both changed files via `git show HEAD:...` and
+      diffing `pytest --collect-only -q` / `pytest -q` counts, then restoring
+      the T09 versions and confirming byte-identical restoration with `diff`).
 - [x] **DoD-3** — Branch B produces the existing ER + MPS, then the final report
       with a one-column MPS. In both branches the MPS appears exactly once, on its
       own page. *(T07 + T09; evidence: the render test asserts a single
@@ -1235,10 +1284,29 @@ named next to it.
 - [ ] **DoD-4** — No file listed read-only in §7 has changed, beyond the two
       documented exceptions. *(T10; evidence: `git diff --stat` against the branch
       point, pasted into T10's report)*
-- [ ] **DoD-5** — A stage-2 failure leaves the ER downloadable and the record
+- [x] **DoD-5** — A stage-2 failure leaves the ER downloadable and the record
       honest about what failed. *(T09; evidence: a test that fails stage-2
       ingestion and asserts `results_location` still points at the ER dir)*
-- [ ] **DoD-6** — The record exposes a progress stage list an unmodified UI can
+      **Closed 2026-09-08.** `_run_final_report_stage()` wraps its entire
+      body in `try/except Exception` and never raises; the strict parse
+      guard on stage-2 ingestion calls `progress.fail(...)` and returns
+      `{"status": "failed", ...}` instead of raising. Both branches check
+      `stage2["status"]` and, on anything but `"success"`, still write
+      `results_location` pointing at the (already-copied) ER directory,
+      `processing_status="done"`, `completion_status="success"` (A-1, §6),
+      and `error_message` set to the truncated stage-2 failure. Evidence:
+      `tests/test_run_vdr_rainmaker.py::test_branch_a_stage2_ingestion_failure_keeps_er_intact`
+      fails stage-2 ingestion (`ingestion_parser` status `FAILED`), asserts no
+      exception escapes `run_vdr_rainmaker`, `build_final_report` is never
+      called, `results_location` still ends in `/` and points at the ER-only
+      files (`executive_summary.pdf` + `.html`, no `final_report.*`), and
+      `error_message` names the failure.
+      `test_branch_a_stage2_build_final_report_failed_status` covers the
+      other stage-2 failure mode (`build_final_report` returns
+      `status="failed"` without raising, per `databricks/CLAUDE.md`'s "Phase
+      results are returned, not raised") with the same assertions.
+      `pytest tests/test_run_vdr_rainmaker.py -q`: 20 passed.
+- [x] **DoD-6** — The record exposes a progress stage list an unmodified UI can
       ignore and an updated UI can render. *(T08 + T09; evidence:
       `test_vdr_progress.py` + a runner test asserting `processing_status` never
       leaves its three legal values)*
@@ -1273,6 +1341,29 @@ named next to it.
       10 passed. `pytest tests/ -q`: 1379 passed / 38 skipped, no regressions,
       no skip count change. `pytest tests/ --collect-only -q`: 1414 tests
       collected.
+      **T09 evidence (closes this box) — the runner wired to the emitter,
+      `processing_status` proven never to leave its three legal values.**
+      `run_vdr_rainmaker()` calls `ensure_progress_columns(spark, table_name)`
+      once, right after reading the record and before the first
+      `_update_vdr_record`, then constructs a `Progress(..., STAGES_CIM)` (or,
+      inside `_run_full_room_flow`, a fresh `Progress(..., STAGES_FULL)` —
+      Branch B's collapsed `vdr_pipeline` stage has no key in `STAGES_CIM`).
+      Both are wrapped in a small `_SafeProgress` proxy in the runner itself
+      (catches and prints on every method call) — belt-and-suspenders on top
+      of `Progress`'s own exception-swallowing contract (T08), so a
+      completely broken progress emitter still cannot change any outcome
+      (README rule 7). Evidence:
+      `tests/test_run_vdr_rainmaker.py::test_raising_progress_never_changes_the_outcome`
+      replaces `vdr_progress.Progress` with a class whose every method raises
+      and asserts the run still completes `done`/`success` with all four
+      files copied. `_assert_processing_status_always_legal()` (a shared test
+      helper) is threaded through every T09 test and asserts
+      `processing_status` is one of `{processing, done, error}` on **every**
+      recorded `_update_vdr_record` call, not just the terminal one — covering
+      the CIM branch, the full-room branch, stage-2 failure, and the
+      raising-Progress case. `pytest tests/test_run_vdr_rainmaker.py -q`: 20
+      passed. `pytest tests/ -q`: 1388 passed / 38 skipped (1379 baseline + 9
+      new tests, no regressions, no skip count change).
 - [ ] **DoD-7** — `databricks/CLAUDE.md` describes the new flow accurately. *(T10)*
 - [x] **DoD-8** — The illustrative `sample_bundle.py` is not in the shipped
       package — test fixtures only. *(T01; evidence: it lives under
@@ -1301,11 +1392,25 @@ named next to it.
       unchanged; `tests/test_mps_parity.py` (new) asserts markup identity
       between the two documents and was confirmed to fail on a deliberate
       mutation, then restored. Full evidence in §5.
-- [ ] **DoD-10** — A-1 and A-2 (§9) are resolved against the live warehouse, and
+- [x] **DoD-10** — A-1 and A-2 (§9) are resolved against the live warehouse, and
       §4/§6 of this plan record the actual answers. *(T08, T09)*
       **A-2 half closed 2026-09-08 (T08).** Resolved against the live
-      warehouse — see §4 and §9. A-1 (`completion_status="partial"`) is still
-      open; T09 resolves it and ticks this box.
+      warehouse — see §4 and §9.
+      **A-1 half closed 2026-09-08 (T09).** Checked live against the same
+      warehouse (profile `rallyday`, `f8e7a8ed6dea21fd`):
+      `SHOW CREATE TABLE rallyday_partners_llc.default.companies_vdr_history`
+      has no `CHECK` constraint on `completion_status`, and
+      `information_schema.table_constraints` returns zero rows for the
+      table — so nothing at the database level would reject `"partial"`. But
+      the column's own DDL comment reads `'Values: success | failure'`, and a
+      live `GROUP BY completion_status` shows exactly `success`/`failure`/
+      `NULL` have ever been written (no third value, ever). The UI's own
+      source is outside this repo and could not be inspected directly, so
+      given the documented binary vocabulary and zero historical precedent,
+      the runner does **not** write `"partial"` — it uses
+      `completion_status="success"` with `error_message` set and the failed
+      stage visible in `progress_json`, exactly the fallback the plan
+      anticipated in §9. Recorded in full in §6.
 - [x] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written
       into §9. *(T02)*
       **Closed 2026-09-07.** Every `bundle.get(...)` path `final_report_view.py`
@@ -1463,7 +1568,7 @@ named next to it.
       (`test_rainmaker_render.py`'s own comment), so 16 is not the
       production figure; T07 (which runs where WeasyPrint is available)
       should re-confirm the true count is still eleven.
-- [ ] **DoD-12** — On Branch B, the final report's MPS page carries the *same*
+- [x] **DoD-12** — On Branch B, the final report's MPS page carries the *same*
       run as the executive review's — one column, same total, same verdict — with
       no second `MPSAgent().score` call (D-02, §3). *(T05 + T09; evidence: a test
       asserting `MPSAgent.score` is not called when `reuse_mps_run` is supplied,
@@ -1490,3 +1595,25 @@ named next to it.
       `reuse_mps_run={}` and asserts `MPSAgent.score` **is** called once with
       `mps_source="scored_fallback"`. `pytest tests/ -q`: 1329 passed / 38
       skipped — see the DoD-2 T05 note for the full run.
+      **T09 evidence (closes this box) — the runner passes the ER's own
+      read-back run through, unmodified.** Branch B's
+      `_run_final_report_stage(..., run_mode="full_vdr_no_cim",
+      run_ingest=False, run_agents=False, prior_run_modes=(),
+      rescore_mps=False)` reads back `_load_prior_mps_runs(spark,
+      VDR_CATALOG, company_name, ("full_vdr_no_cim",))` — the ER's own run
+      mode, since the ER already scored this exact bundle (D-02) — and passes
+      `existing[-1]` straight through to `build_final_report(...,
+      reuse_mps_run=reuse)` by object identity, never re-shaping it. Evidence:
+      `tests/test_run_vdr_rainmaker.py::test_branch_b_d02_reuses_the_ers_mps_run_and_never_rescopes`
+      patches `agents.workstreams.mps_agent.MPSAgent.score` with a mock that
+      raises `AssertionError` if called at all, asserts it is never called,
+      and asserts `build_final_report`'s `reuse_mps_run` kwarg `is` (identity,
+      not just equality) the exact dict `_load_prior_mps_runs` returned.
+      `test_branch_b_readback_empty_falls_back_to_scoring` covers the
+      empty-read-back case: `reuse_mps_run=None` reaches `build_final_report`,
+      and the run still completes `done`/`success` (the fallback-to-scoring
+      behavior itself is T05's, already proven in `test_final_report_entry.py`).
+      `test_branch_b_stage2_reuses_ingestion_and_agents_not_rerun` confirms
+      `run_ingestion_pipeline`/`run_pipeline` are not called a second time on
+      Branch B (they'd raise `AssertionError` if they were). `pytest
+      tests/test_run_vdr_rainmaker.py -q`: 20 passed.
