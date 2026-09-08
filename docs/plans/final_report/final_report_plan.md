@@ -624,6 +624,59 @@ diffs (normal run, degraded, two-column) must all be **empty**, and
 any diff is non-empty, abort the swap and fall back to Path B; do not "fix" the
 template to make the diff empty.
 
+**T06 close-out (2026-09-07) — Path A executed, gate passed.**
+
+Step 1's gate (before extracting anything): a throwaway script under the
+session scratchpad rendered `rainmaker_opportunity_summary.html.j2` from
+`tests/fixtures/elder_care_bundle.yaml` + `tests/fixtures/mps_run_verbose.yaml`
+(the seven-rubric-row fixture), once against the unmodified templates dir and
+once against a scratch copy with the block→include extraction applied, for
+three MPS shapes — a single run, `mps_runs=[]` (degraded, 7 unscored rows),
+and two runs (CIM + full). All three `diff before.html after.html` came back
+**empty**. Only then did the real swap land.
+
+Extraction detail: the shared partial (`_mps_page.html.j2`) carries the exact
+byte-identical span both templates already had —
+`rainmaker_opportunity_summary.html.j2:341-388` and
+`final_report.html.j2:869-916` before the swap, confirmed via `diff` to be
+zero lines different — i.e. from `{% set mps_score_col_pct %}` through the
+closing `{% endif %}` of the footer-note block. The surrounding chrome (the
+`<section>`/`<div>` wrapper, running header, eyebrow, `<h2>` — whose class
+differs, `section-header` vs `section` — and footer) stays in each template,
+because that part is *not* identical between the two documents. Only the CSS
+was left duplicated in each template's `<head>` (not moved into the
+partial) — `final_report.html.j2`'s own `.mps-page` selector and margin
+values already differ slightly from the ER's `.page.mps`, so moving the CSS
+was out of scope for a byte-identical-output-only extraction.
+
+Re-run of Step 1's three diffs against the **real, already-swapped**
+templates (before = git `HEAD`'s pre-swap `rainmaker_opportunity_summary.html.j2`
+materialized into a scratch dir alongside the rest of the real templates;
+after = the real templates dir as committed) — all three still **empty**.
+
+`git diff databricks/agents/exec_summary/templates/rainmaker_opportunity_summary.html.j2`
+shows exactly the block→include swap and nothing else (49 lines removed, one
+`{% include %}` line added). `pytest tests/test_rainmaker_render.py
+tests/test_rainmaker_golden_render.py -q` — 72 passed / 20 skipped, unchanged
+from before the swap; `tests/fixtures/rainmaker_golden_render.json` shows zero
+diff (`git status --short` on that path is empty) — no golden file
+regenerated.
+
+The parity test (`tests/test_mps_parity.py`, new) renders both documents from
+the same bundle and the same single MPS run, extracts
+`<table class="mps-table">` through the closing `mps-footer-note` div from
+each, normalises only whitespace runs that sit entirely between tags, and
+asserts the two extracts are identical — plus a second case for the degraded
+(`mps=None`) 7-row unscored skeleton. Confirmed the test can fail: temporarily
+replaced `final_report.html.j2`'s `{% include %}` with an inlined copy of the
+partial with one word changed (`Total` → `TOTAL-MUTATED`), reran
+`pytest tests/test_mps_parity.py -q` → both cases **failed** as expected, then
+restored the file (`git diff` back to the clean swap, verified byte-for-byte
+against the pre-mutation version).
+
+`pytest tests/ -q` — **1331 passed / 38 skipped** (2 new parity tests, no
+regressions); `pytest tests/ --collect-only -q` — **1366 tests collected**.
+
 ---
 
 ## 6. How a stage-2 failure degrades
@@ -1069,8 +1122,16 @@ named next to it.
 
 ### Extra gates this plan adds
 
-- [ ] **DoD-9** — D-01 (§5) has an explicit answer from Hector, and the code
+- [x] **DoD-9** — D-01 (§5) has an explicit answer from Hector, and the code
       matches it. *(T06)*
+      **Closed 2026-09-07.** Path A executed: `_mps_page.html.j2` created,
+      `{% include %}`d from both templates; Step 1's three before/after diffs
+      (normal, degraded, two-run) empty both before and after the real swap;
+      `rainmaker_opportunity_summary.html.j2`'s diff is only the block→include
+      swap; `test_rainmaker_golden_render.py` passes with the golden fixture
+      unchanged; `tests/test_mps_parity.py` (new) asserts markup identity
+      between the two documents and was confirmed to fail on a deliberate
+      mutation, then restored. Full evidence in §5.
 - [ ] **DoD-10** — A-1 and A-2 (§9) are resolved against the live warehouse, and
       §4/§6 of this plan record the actual answers. *(T08, T09)*
 - [x] **DoD-11** — F-2's final list of genuinely-absent bundle fields is written

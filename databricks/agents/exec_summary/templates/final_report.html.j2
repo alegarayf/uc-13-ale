@@ -847,18 +847,12 @@
     the CIM alone; this run scores the CIM plus everything else the agents
     ingested from the data room.
 
-    Because of that, the markup below must be kept byte-faithful to the
-    `mps-table` block in `rainmaker_opportunity_summary.html.j2`. Do not
-    restyle it, do not add score visualisations, do not re-order columns.
-    If the two ever need to diverge, that is a decision to raise, not a
-    change to make here.
-
-    PREFERRED IMPLEMENTATION: extract that block into a shared partial
-    (`_mps_page.html.j2`) and `{% include %}` it from both templates, so
-    there is one copy rather than two that drift. That means a mechanical
-    edit to the executive review template — swapping the block for an
-    include, with no rendered-output change — which is the one exception
-    worth asking about before treating that file as read-only.
+    Because of that, the shared markup lives in one place: `_mps_page.html.j2`,
+    `{% include %}`d from both this template and
+    `rainmaker_opportunity_summary.html.j2` (D-01 Path A, approved
+    2026-09-07 — plan §5, T06). Do not restyle it, do not add score
+    visualisations, do not re-order columns. If the two ever need to
+    diverge, that is a decision to raise, not a change to make here.
     ===================================================================== -#}
 <div class="page mps-page">
   {{ running_header(report, 'Minimum Pursuit Score', 10) }}
@@ -866,54 +860,7 @@
   <h2 class="section">Does this clear Rallyday's bar for further pursuit?</h2>
   <div class="divider"></div>
 
-  {% set mps_score_col_pct = (16 / mps.columns | length) | round(2) if mps.columns else 0 %}
-  <table class="mps-table">
-    <thead>
-      <tr>
-        <th class="mps-category-col" style="width: 15%;"></th>
-        {% for col in mps.columns %}<th class="mps-score-col" style="width: {{ mps_score_col_pct }}%;">{{ col.header }}</th>{% endfor %}
-        <th>Commentary</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in mps.rows %}
-      <tr>
-        <td class="mps-category-col">
-          {{ row.display_name }}{% if row.evidence_marker %}<sup>{{ row.evidence_marker }}</sup>{% endif %}
-        </td>
-        {% for cell in row.score_cells %}<td class="mps-score-col">{{ cell if cell is not none else '—' }}</td>{% endfor %}
-        <td class="mps-commentary-col">
-          {% if row.bullets %}
-          <ul class="bullets">
-            {% for bullet in row.bullets %}
-            <li{% if bullet.kind == 'counter_evidence' %} class="mps-counter-evidence"{% endif %}>{% if bullet.axis %}<strong>{{ bullet.axis }}:</strong> {% endif %}{{ bullet.text }}</li>
-            {% endfor %}
-          </ul>
-          {% else %}
-          <ul class="bullets"><li>Not yet assessed in this preview.</li></ul>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-      <tr class="mps-total-row">
-        <td class="mps-category-col"><strong>Total</strong></td>
-        {% for cell in mps.total_cells %}<td class="mps-score-col">{{ cell if cell is not none else '—' }}</td>{% endfor %}
-        <td class="mps-commentary-col"></td>
-      </tr>
-    </tbody>
-  </table>
-
-  {% if mps.show_legend %}
-  <p class="mps-legend">◇ assessed from proxies and judgment; not directly evidenced in the data room</p>
-  {% endif %}
-
-  {% if mps.mps_status == "degraded" %}
-  <div class="mps-footer-note">Not yet assessed in this preview.</div>
-  {% elif mps.verdict is none %}
-  <div class="mps-footer-note">Total not computable — {{ mps.n_scored }} of 7 categories scored.</div>
-  {% else %}
-  <div class="mps-footer-note">Threshold {{ mps.threshold }} · {{ mps.verdict }}</div>
-  {% endif %}
+  {% include "_mps_page.html.j2" %}
 
   {{ page_footer(report) }}
 </div>
