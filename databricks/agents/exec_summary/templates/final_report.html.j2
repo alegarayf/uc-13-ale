@@ -467,6 +467,12 @@
   {{ running_header(report, 'Business & Revenue Model', 3) }}
   <h2 class="section">1 · Business and revenue model</h2>
 
+  {%- if report.business.core_business %}
+  <div class="one-liner">
+    {%- for line in report.business.core_business %}<div>{{ line }}</div>{% endfor %}
+  </div>
+  {%- endif %}
+
   <div class="cols-2">
     <div class="card">
       <h3 class="block">What The Business Does</h3>

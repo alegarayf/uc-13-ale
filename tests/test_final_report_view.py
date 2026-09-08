@@ -498,3 +498,99 @@ def test_forecast_footnote_omits_clause_when_there_are_no_plan_rows():
     bundle = {"financials": {"table_rows": [{"year": "2023A", "revenue": "10"}]}}
     forecast = frv._forecast(bundle, {})
     assert _NO_MARGIN_CLAUSE not in forecast["chart"]["footnote"]
+
+
+# =========================================================================
+# 8. T11 — kpis.take, the recommendation adapter, core_business threading
+# =========================================================================
+
+
+def test_kpi_scorecard_take_reads_from_narrative():
+    view = frv._kpi_scorecard({}, "tech_services", {"kpi_take": "ARR of $5M against screens."})
+    assert view["take"] == "ARR of $5M against screens."
+
+
+def test_kpi_scorecard_take_is_none_without_narrative():
+    assert frv._kpi_scorecard({}, "tech_services")["take"] is None
+    assert frv._kpi_scorecard({}, "tech_services", {})["take"] is None
+
+
+def test_recommendation_passes_through_a_dict_unchanged():
+    rec = {"verdict": "Proceed", "rationale": "Because.", "conditions": ["A"], "tone": "pass"}
+    assert frv._recommendation({"recommendation": rec}) == rec
+
+
+def test_recommendation_wraps_a_bare_string_as_rationale():
+    """A degraded T11 call plus a successful ER one can leave `recommendation`
+    as a plain sentence. The template reads `rec.verdict`/`rec.rationale`; a
+    bare string must not silently print 'Not yet concluded' over a usable
+    sentence."""
+    wrapped = frv._recommendation({"recommendation": "Worthy of pursuit because of A, B and C."})
+    assert wrapped == {
+        "verdict": None,
+        "rationale": "Worthy of pursuit because of A, B and C.",
+        "conditions": [],
+        "tone": None,
+    }
+
+
+def test_recommendation_defaults_when_absent():
+    assert frv._recommendation({}) == {"verdict": None, "rationale": None, "conditions": []}
+
+
+def test_recommendation_defaults_when_empty_string():
+    assert frv._recommendation({"recommendation": ""}) == {"verdict": None, "rationale": None, "conditions": []}
+
+
+def test_final_report_view_threads_recommendation_dict_into_headline():
+    narrative = {"recommendation": {"verdict": "Proceed", "rationale": "R", "conditions": [], "tone": "pass"}}
+    view = frv.final_report_view({}, narrative)
+    assert view["headline"]["recommendation"]["verdict"] == "Proceed"
+
+
+def test_final_report_view_business_core_business_from_narrative_capped_at_three():
+    narrative = {"core_business": ["line one", "line two", "line three", "line four"]}
+    view = frv.final_report_view({}, narrative)
+    assert view["business"]["core_business"] == ["line one", "line two", "line three"]
+
+
+def test_final_report_view_business_core_business_absent_is_empty_list():
+    view = frv.final_report_view({}, {})
+    assert view["business"]["core_business"] == []
+
+
+# Six take-box sites the template guards with `{%- if report.X.take %}`
+# (final_report.html.j2:521,591,649,696,745,788). A full narrative populates
+# all six; a degraded one (all fields None, per final_report_narrative's
+# contract) must leave every site falsy so the template renders zero boxes
+# and no page goes missing.
+_ALL_SIX_TAKES_NARRATIVE = {
+    "business_take": "b",
+    "financial_take": "f",
+    "customer_take": "c",
+    "kpi_take": "k",
+    "quality_take": "q",
+    "forecast_take": "fc",
+}
+_DEGRADED_NARRATIVE = {key: None for key in _ALL_SIX_TAKES_NARRATIVE}
+
+
+def _take_sites(view: dict) -> list:
+    return [
+        view["business"]["take"],
+        view["financials"]["take"],
+        view["customers"]["take"],
+        view["kpis"]["take"],
+        view["quality"]["take"],
+        view["forecast"]["take"],
+    ]
+
+
+def test_final_report_view_renders_all_six_take_boxes_with_full_narrative():
+    view = frv.final_report_view({}, _ALL_SIX_TAKES_NARRATIVE)
+    assert all(_take_sites(view))
+
+
+def test_final_report_view_renders_zero_take_boxes_with_degraded_narrative():
+    view = frv.final_report_view({}, _DEGRADED_NARRATIVE)
+    assert not any(_take_sites(view))

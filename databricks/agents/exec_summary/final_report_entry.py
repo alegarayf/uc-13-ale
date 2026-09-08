@@ -221,6 +221,7 @@ def build_final_report(
             "pdf": path | None,
             "pdf_degraded": bool,
             "synthesis_status": str | None,
+            "final_narrative_status": str | None,
             "mps_status": str | None,
             "mps_source": "reused" | "scored" | "scored_fallback" | None,
             "error": str | None,
@@ -229,6 +230,7 @@ def build_final_report(
     try:
         from agents.exec_summary.absence_check import verify_bundle_claims
         from agents.exec_summary.bundle_builder import BundleBuilder
+        from agents.exec_summary.final_report_narrative import synthesize_final_report_narrative
         from agents.exec_summary.rainmaker_narrative import synthesize_rainmaker_narrative
         from agents.exec_summary.renderers import render_final_report
         from agents.exec_summary.validate import validate_bundle
@@ -245,12 +247,17 @@ def build_final_report(
             financials.update(forecast)
             checked = {**checked, "financials": financials}
 
-        # T11 adds the section-level layer here; until it lands, the six
-        # analyst-take boxes and the structured cover recommendation render
-        # empty (plan §3.5):
-        #   narrative = {**narrative, **synthesize_final_report_narrative(checked, ...)}
-        narrative = synthesize_rainmaker_narrative(checked, llm_endpoint, spark)
-        print(f"[final_report] narrative synthesis: {narrative.get('synthesis_status')}")
+        er_narrative = synthesize_rainmaker_narrative(checked, llm_endpoint, spark)
+        fr_narrative = synthesize_final_report_narrative(checked, llm_endpoint, spark)
+        # The section layer wins on the single overlapping key
+        # (`recommendation`): the ER returns a sentence, T11's structured
+        # dict is the shape the template reads. Do not "fix" this order —
+        # {**er, **fr} means fr's keys win, which is deliberate.
+        narrative = {**er_narrative, **fr_narrative}
+        print(
+            f"[final_report] narrative synthesis: er={er_narrative.get('synthesis_status')} "
+            f"final={fr_narrative.get('final_narrative_status')}"
+        )
 
         if reuse_mps_run is not None and reuse_mps_run:
             mps = reuse_mps_run
@@ -282,7 +289,11 @@ def build_final_report(
         )
 
         status = "success"
-        if mps.get("mps_status") == "degraded" or narrative.get("synthesis_status") == "degraded":
+        if (
+            mps.get("mps_status") == "degraded"
+            or er_narrative.get("synthesis_status") == "degraded"
+            or fr_narrative.get("final_narrative_status") == "degraded"
+        ):
             status = "degraded"
 
         return {
@@ -290,7 +301,8 @@ def build_final_report(
             "html": rendered.get("html"),
             "pdf": rendered.get("pdf"),
             "pdf_degraded": bool(rendered.get("pdf_degraded", False)),
-            "synthesis_status": narrative.get("synthesis_status"),
+            "synthesis_status": er_narrative.get("synthesis_status"),
+            "final_narrative_status": fr_narrative.get("final_narrative_status"),
             "mps_status": mps.get("mps_status"),
             "mps_source": mps_source,
             "error": None,
@@ -307,6 +319,7 @@ def build_final_report(
             "pdf": None,
             "pdf_degraded": False,
             "synthesis_status": None,
+            "final_narrative_status": None,
             "mps_status": None,
             "mps_source": None,
             "error": error_msg,

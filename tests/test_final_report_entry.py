@@ -49,6 +49,22 @@ def _no_forecast(monkeypatch):
     )
 
 
+def _no_final_narrative(monkeypatch, calls=None):
+    """T11's final_report_narrative call is real code, not a stub — most
+    tests here care about the build->validate->narrative->mps->render chain
+    and would otherwise hit the LLM gateway for real. Patch it to a no-op
+    success so those tests stay hermetic."""
+
+    def _synthesize(bundle, llm_endpoint, spark):
+        if calls is not None:
+            calls.append(("final_narrative", bundle, llm_endpoint, spark))
+        return {"final_narrative_status": "success"}
+
+    monkeypatch.setattr(
+        "agents.exec_summary.final_report_narrative.synthesize_final_report_narrative", _synthesize
+    )
+
+
 # =========================================================================
 # The happy path — call order, run_mode threading, prior_mps_runs ordering
 # =========================================================================
@@ -68,14 +84,22 @@ def test_calls_in_order_and_threads_run_mode_to_mps_and_render(monkeypatch):
 
     monkeypatch.setattr("agents.exec_summary.validate.validate_bundle", _validate)
 
-    fake_narrative = {"synthesis_status": "success"}
+    fake_er_narrative = {"synthesis_status": "success", "business_model": ["b1"]}
+    fake_fr_narrative = {"final_narrative_status": "success", "recommendation": {"verdict": "Proceed"}}
 
-    def _synthesize(bundle, llm_endpoint, spark):
-        calls.append(("narrative", bundle, llm_endpoint, spark))
-        return fake_narrative
+    def _synthesize_er(bundle, llm_endpoint, spark):
+        calls.append(("er_narrative", bundle, llm_endpoint, spark))
+        return fake_er_narrative
+
+    def _synthesize_fr(bundle, llm_endpoint, spark):
+        calls.append(("fr_narrative", bundle, llm_endpoint, spark))
+        return fake_fr_narrative
 
     monkeypatch.setattr(
-        "agents.exec_summary.rainmaker_narrative.synthesize_rainmaker_narrative", _synthesize
+        "agents.exec_summary.rainmaker_narrative.synthesize_rainmaker_narrative", _synthesize_er
+    )
+    monkeypatch.setattr(
+        "agents.exec_summary.final_report_narrative.synthesize_final_report_narrative", _synthesize_fr
     )
 
     fake_mps = {"mps_status": "success", "run_mode": "full_vdr_after_cim"}
@@ -103,10 +127,10 @@ def test_calls_in_order_and_threads_run_mode_to_mps_and_render(monkeypatch):
         prior_mps_runs=prior_runs,
     )
 
-    assert [c[0] for c in calls] == ["validate", "verify", "narrative", "mps", "render"]
+    assert [c[0] for c in calls] == ["validate", "verify", "er_narrative", "fr_narrative", "mps", "render"]
     build_mock.assert_called_once_with("Elder Care", "uc13_preview", spark, "databricks-claude-sonnet-4-6")
 
-    _, mps_bundle, mps_catalog, mps_company, mps_spark, mps_llm_endpoint, mps_run_mode = calls[3]
+    _, mps_bundle, mps_catalog, mps_company, mps_spark, mps_llm_endpoint, mps_run_mode = calls[4]
     assert mps_bundle == fake_bundle
     assert mps_catalog == "uc13_preview"
     assert mps_company == "Elder Care"
@@ -123,11 +147,15 @@ def test_calls_in_order_and_threads_run_mode_to_mps_and_render(monkeypatch):
         render_mps,
         render_prior_mps,
         render_run_mode,
-    ) = calls[4]
+    ) = calls[5]
     assert render_bundle == fake_bundle
     assert render_catalog == "uc13_preview"
     assert render_company == "Elder Care"
-    assert render_narrative == fake_narrative
+    # The merge is {**er, **fr}: fr's key wins on the one overlapping key
+    # (`recommendation`), er's other keys pass through untouched.
+    assert render_narrative == {**fake_er_narrative, **fake_fr_narrative}
+    assert render_narrative["recommendation"] == {"verdict": "Proceed"}
+    assert render_narrative["business_model"] == ["b1"]
     assert render_mps == fake_mps  # the CURRENT run reaches render_final_report as `mps`
     assert render_prior_mps == prior_runs  # prior_mps_runs reaches render_final_report as `prior_mps`
     assert render_run_mode == "full_vdr_after_cim"  # run_mode reached render_final_report too
@@ -136,6 +164,7 @@ def test_calls_in_order_and_threads_run_mode_to_mps_and_render(monkeypatch):
     assert result["html"] == "/tmp/out.html"
     assert result["pdf"] == "/tmp/out.pdf"
     assert result["synthesis_status"] == "success"
+    assert result["final_narrative_status"] == "success"
     assert result["mps_status"] == "success"
     assert result["mps_source"] == "scored"
 
@@ -200,6 +229,7 @@ def test_raising_renderer_produces_failed_status_no_exception_escapes(monkeypatc
         "agents.exec_summary.rainmaker_narrative.synthesize_rainmaker_narrative",
         MagicMock(return_value={"synthesis_status": "success"}),
     )
+    _no_final_narrative(monkeypatch)
     monkeypatch.setattr(
         "agents.workstreams.mps_agent.MPSAgent.score",
         MagicMock(return_value={"mps_status": "success", "run_mode": "cim_only"}),
@@ -371,6 +401,7 @@ def test_forecast_reaches_narrative_and_render(monkeypatch):
     monkeypatch.setattr(
         "agents.exec_summary.rainmaker_narrative.synthesize_rainmaker_narrative", _synthesize
     )
+    _no_final_narrative(monkeypatch)
     monkeypatch.setattr(
         "agents.workstreams.mps_agent.MPSAgent.score",
         MagicMock(return_value={"mps_status": "success", "run_mode": "cim_only"}),
@@ -409,6 +440,7 @@ def test_reuse_mps_run_skips_scoring_and_reaches_render_as_mps(monkeypatch):
         "agents.exec_summary.rainmaker_narrative.synthesize_rainmaker_narrative",
         MagicMock(return_value={"synthesis_status": "success"}),
     )
+    _no_final_narrative(monkeypatch)
 
     score_mock = MagicMock(side_effect=AssertionError("MPSAgent.score must not be called on reuse"))
     monkeypatch.setattr("agents.workstreams.mps_agent.MPSAgent.score", score_mock)
@@ -452,6 +484,7 @@ def test_reuse_mps_run_fallback_scores_when_readback_was_empty(monkeypatch):
         "agents.exec_summary.rainmaker_narrative.synthesize_rainmaker_narrative",
         MagicMock(return_value={"synthesis_status": "success"}),
     )
+    _no_final_narrative(monkeypatch)
 
     fresh_run = {"mps_status": "success", "run_mode": "full_vdr_no_cim"}
     score_mock = MagicMock(return_value=fresh_run)

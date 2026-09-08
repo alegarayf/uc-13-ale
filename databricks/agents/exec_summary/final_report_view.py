@@ -166,6 +166,24 @@ def confidence_class(value: Any) -> str:
     return _CONFIDENCE_CLASS.get(str(value or "").lower(), "neutral")
 
 
+def _recommendation(narrative: dict[str, Any]) -> dict[str, Any]:
+    """Adapter for ``headline.recommendation``, which the template reads as a
+    dict (``rec.verdict``/``rec.rationale``/``rec.conditions``/``rec.tone``).
+
+    Two narrative layers can populate this key: the ER's, which returns a
+    plain sentence, and T11's, which returns the structured dict the template
+    actually wants. A degraded T11 call plus a successful ER one means this
+    key can arrive as a bare string — today that mismatch silently prints
+    "Not yet concluded" over a usable sentence, because a template
+    attribute read on a ``str`` finds nothing. Wrap it instead of losing it."""
+    rec = narrative.get("recommendation")
+    if isinstance(rec, dict):
+        return rec
+    if isinstance(rec, str) and rec.strip():
+        return {"verdict": None, "rationale": rec, "conditions": [], "tone": None}
+    return {"verdict": None, "rationale": None, "conditions": []}
+
+
 # =========================================================================
 # Section builders. Each returns exactly the shape the matching page of
 # final_report.html.j2 consumes. Add a section here and a page there — never
@@ -371,7 +389,7 @@ def _trunc(text: Any, n: int) -> str:
     return value if len(value) <= n else value[: n - 1].rstrip() + "\u2026"
 
 
-def _kpi_scorecard(bundle: dict[str, Any], sector: str) -> dict[str, Any]:
+def _kpi_scorecard(bundle: dict[str, Any], sector: str, narrative: dict[str, Any] | None = None) -> dict[str, Any]:
     """KPI dashboard rows rendered as bullet bars against the applicable
     screens. Rows the agents could not extract are moved to a separate
     ``not_extracted`` list with the stated reason rather than shown as a
@@ -423,7 +441,7 @@ def _kpi_scorecard(bundle: dict[str, Any], sector: str) -> dict[str, Any]:
         "flagged": flagged,
         "other_metrics": others[:5],
         "not_extracted": missing[:5],
-        "take": None,
+        "take": (narrative or {}).get("kpi_take"),
     }
 
 
@@ -531,13 +549,14 @@ def final_report_view(
         },
         "contents": list(_CONTENTS),
         "headline": {
-            "recommendation": narrative.get("recommendation") or {"verdict": None, "rationale": None, "conditions": []},
+            "recommendation": _recommendation(narrative),
             "one_liner": (bundle.get("executive") or {}).get("in_one_line"),
             "tiles": _headline_tiles(headline)[:CAP_TILES],
             "thesis": (narrative.get("thesis_bullets") or (bundle.get("executive") or {}).get("thesis_bullets") or [])[:CAP_THESIS],
             "watchouts": (narrative.get("key_watchouts") or (bundle.get("executive") or {}).get("key_watchouts") or [])[:CAP_WATCHOUTS],
         },
         "business": {
+            "core_business": (narrative.get("core_business") or [])[:3],
             "what_it_does": (framing.get("overview_bullets") or [])[:CAP_BULLETS],
             "how_it_makes_money": (narrative.get("business_model") or [])[:CAP_BULLETS],
             "revenue_mix": _mix(bundle, "revenue_type_mix", "Recurring vs project revenue"),
@@ -560,7 +579,7 @@ def final_report_view(
             "top_customers": _top_customers(bundle),
             "take": narrative.get("customer_take"),
         },
-        "kpis": _kpi_scorecard(bundle, sector),
+        "kpis": _kpi_scorecard(bundle, sector, narrative),
         "quality": _quality(bundle, narrative),
         "legal": _legal(bundle),
         "forecast": _forecast(bundle, narrative),
