@@ -240,9 +240,9 @@ _OVERLAY_TO_KPI_COLUMN: dict[str, str] = {
     "consumer": "consumer_kpis_json",
 }
 
-# Overlay-specific field name per sibling KPI column. Used only to gauge
-# non-empty population depth (5+ populated fields = pass) — the field lists
-# below are a representative subset of each block's schema, not exhaustive.
+# Representative subset keys per overlay block (schema anchor). Depth for
+# overlay_block_fields counts every nonempty sibling key in the live JSON
+# except source_doc — not only these lists.
 _OVERLAY_BLOCK_FIELDS: dict[str, list[str]] = {
     "healthcare_kpis_json": [
         "census_or_patient_panel", "caregiver_headcount", "clinician_headcount",
@@ -283,9 +283,12 @@ def score_kpi(d: dict) -> tuple[int, dict]:
     resolved_col = _OVERLAY_TO_KPI_COLUMN.get(overlay)
     if resolved_col is not None:
         block = jl(d.get(resolved_col))
-        block_fields = _OVERLAY_BLOCK_FIELDS[resolved_col]
         if isinstance(block, dict):
-            pop = sum(1 for f in block_fields if nonempty(block.get(f)))
+            pop = sum(
+                1
+                for k, val in block.items()
+                if k != "source_doc" and nonempty(val)
+            )
             v["overlay_block_fields"] = "pass" if pop >= 5 else "partial"
         else:
             v["overlay_block_fields"] = "partial"
