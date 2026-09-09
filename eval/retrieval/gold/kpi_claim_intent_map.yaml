@@ -2,6 +2,7 @@
 # Raw claim keys from uc13_ale.analysis.kpi Elder Care row (2026-07-28); exact match only.
 # Clearsulting tech-services claims appended (RB-DEFECT-T9-1 / Option A, 2026-08-14).
 # GKF education + SPG healthcare bare-key aliases (T6 retry / RB-DEFECT-T9-1 class, 2026-08-18).
+# Cycle-9 live exact strings (CS parenthetical / GKF+SPG U+2014 / EC bare keys) — exact match only.
 claims:
   healthcare_kpis.caregiver_headcount: kpi.retrieve_healthcare_ops
   healthcare_kpis.census_or_patient_panel: kpi.retrieve_healthcare_ops
@@ -63,6 +64,55 @@ claims:
   healthcare_kpis.source_doc: kpi.retrieve_healthcare_ops
   site_level_visibility_note: kpi.retrieve_healthcare_ops
   utilization_or_productivity_note: kpi.retrieve_healthcare_ops
+  average_bill_rate_dollars: kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role (North America USD): kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role (EMEA GBP): kpi.retrieve_bill_rates_and_margins
+  bill_rates_by_role (EMEA EUR): kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment (recast historical): kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment (Financial Close Practice 2025E): kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment (Treasury Practice 2025E): kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment (Overall 2025E): kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment (subcontracting fees): kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment (Application Managed Services 2025E): kpi.retrieve_bill_rates_and_margins
+  gross_margin_by_segment (note on Other): kpi.retrieve_bill_rates_and_margins
+  delivery_capacity_note (headcount): kpi.retrieve_headcount_attrition
+  delivery_capacity_note (billable hours): kpi.retrieve_headcount_attrition
+  consumer_kpis.channel_mix_note — Summer Camp revenue: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.channel_mix_note — Total Revenue FY23: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.channel_mix_note — Total Revenue FY24: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.channel_mix_note — Total Revenue TTM25: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.channel_mix_note — Tuition fees as % of revenue FY23: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.platform_concentration_note — franchise fees: kpi.retrieve_bill_rates_and_margins
+  consumer_kpis.platform_concentration_note — locations: kpi.retrieve_bench_and_capacity
+  missing_kpis — Rockville single-location revenue detail: kpi.retrieve_bill_rates_and_margins
+  missing_kpis — employee retention footnote: kpi.retrieve_headcount_attrition
+  missing_kpis — employee retention ratio: kpi.retrieve_headcount_attrition
+  missing_kpis — enrollment counts: kpi.retrieve_bench_and_capacity
+  missing_kpis — equity distributions: kpi.retrieve_bill_rates_and_margins
+  missing_kpis — management headcount: kpi.retrieve_headcount_attrition
+  missing_kpis — payroll as % of revenue: kpi.retrieve_bill_rates_and_margins
+  missing_kpis — revenue seasonality: kpi.retrieve_bill_rates_and_margins
+  missing_kpis — teacher/staff headcount by school (Creative Learning): kpi.retrieve_headcount_attrition
+  missing_kpis — terminations headcount: kpi.retrieve_headcount_attrition
+  "census_or_patient_panel — Total # of Starts 2024": kpi.retrieve_healthcare_ops
+  utilization_or_productivity_note — Appointment Completion Rate 2024: kpi.retrieve_healthcare_ops
+  utilization_or_productivity_note — Arch Acceptance Rate 2024: kpi.retrieve_healthcare_ops
+  revenue_per_unit_note — Net Revenue per Start AO4 2024: kpi.retrieve_healthcare_revenue_per_unit
+  collections_note — Arrowhead GN Dental collections adjustment: kpi.retrieve_healthcare_revenue_per_unit
+  collections_note — Valley D-I collections adjustment: kpi.retrieve_healthcare_revenue_per_unit
+  collections_note — Dell Rapids collections adjustment: kpi.retrieve_healthcare_revenue_per_unit
+  collections_note — Sharp Family Dentistry collections adjustment: kpi.retrieve_healthcare_revenue_per_unit
+  credentialing_status_note — terminated providers: kpi.retrieve_healthcare_ops
+  site_level_visibility_note — projection model site tabs: kpi.retrieve_healthcare_ops
+  site_level_visibility_note — consolidated EBITDA: kpi.retrieve_healthcare_ops
+  utilization_or_productivity_note — KPIs tracked per sales playbook: kpi.retrieve_healthcare_ops
+  healthcare_kpis.utilization_or_productivity_note: kpi.retrieve_healthcare_ops
+  healthcare_kpis.compliance_incidents[0]: kpi.retrieve_healthcare_ops
+  healthcare_kpis.compliance_incidents[1]: kpi.retrieve_healthcare_ops
+  healthcare_kpis.credentialing_status_note: kpi.retrieve_healthcare_ops
+  healthcare_kpis.revenue_per_client_dollars: kpi.retrieve_healthcare_revenue_per_unit
+  healthcare_kpis.referral_source_breakdown: kpi.retrieve_healthcare_ops
+  healthcare_kpis.site_level_visibility_note: kpi.retrieve_healthcare_ops
 
 intents:
   kpi.retrieve_bench_and_capacity:

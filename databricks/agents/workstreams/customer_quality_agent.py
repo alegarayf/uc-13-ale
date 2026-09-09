@@ -479,14 +479,14 @@ class CustomerQualityAgent(WorkstreamAgent):
             spark=spark,
             company_name=self._company_name,
             top_k=6,
-            workstream_filter=["CUSTOMER", "KPI_OPS"],
+            workstream_filter=["CUSTOMER", "KPI_OPS", "FINANCIAL", "QUALITY_EARNINGS"],
             min_chunk_length=150,
         ).chunks
         source_docs = list({c.file_name for c in chunks})
         confidence = "high" if chunks else "low"
         return self._tool_call(
             tool_name="retrieve_account_size",
-            input_summary=f"semantic_search: average account size ACV annual contract value (top_k=6, workstream=CUSTOMER,KPI_OPS)",
+            input_summary=f"semantic_search: average account size ACV annual contract value (top_k=6, workstream=CUSTOMER,KPI_OPS,FINANCIAL,QUALITY_EARNINGS)",
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
             confidence=confidence,

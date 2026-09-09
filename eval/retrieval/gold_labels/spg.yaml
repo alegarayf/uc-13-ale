@@ -1,171 +1,72 @@
 - intent_id: bma.detect_cim_presence
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
-  - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
-  - 8e91d281-c783-4894-8c2d-892d5b95db0a
-  - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
-  - e7a84b47-a295-492b-b3ae-df8eb06f5311
-  - 849152b7-444c-48c2-862b-20da080430e1
-  - eeeea6d7-1893-4e0f-86ca-3ebaa5dd7b2e
-  - e01cf2a0-7cd0-4903-96ea-72364e5a0496
-  - c2e14557-d2be-4f21-bd70-4e3d1ee0b72e
-  - 544c8f45-4716-4ce0-9109-ae008d886992
-  - ce76310f-2e6c-4d7f-868b-42e7edea92bf
-  - eaddca50-198b-448d-ab39-f03b62103560
-  - ebac5e3a-356f-4332-8317-d3c66c08631c
-  - 11083909-d201-4381-879e-dc49fed0449b
-  - b80ad2b5-bc8d-4592-b930-c402dbff879e
-  - 88790c3c-601b-4e26-8376-96508f979296
-  - 2fe89c97-30c0-4989-8442-a3a1119abd08
-  - 6b87bdd2-bd1f-4a3e-8516-daf72c2e57df
-  - b04c30a4-9e8b-4961-afab-91b3b33a4908
-  - 3c55bbd0-e1d4-4c6c-a480-7a12369e6189
-  - 51946882-accd-4544-9e18-59c23dedeeb3
-  - 37ce2ac1-5f74-4f8f-ac81-5aefe7446411
-  - cc26bec8-0c06-4bbc-8c7d-2a1789da2427
-  - 24a32480-c547-48c7-9e4e-111615b2166d
-  - 5ce820d7-1b58-4227-bf1e-7bfba9d64471
-  - cfa2482f-8db0-4892-9aa7-7371c54e0b1f
-  - 30f96c79-a799-426d-9486-0e5df321253c
-  - ddc26d71-294e-4112-95b2-c5d5a1578b22
-  - a144835f-5982-4ca2-892f-13a6d575de60
-  - 423ffcd3-505d-4489-a042-6a0e5b3a6a36
-  - bec2dcef-3d9d-40c3-a46f-49cae9aa4cce
-  - 0938df37-1080-4308-a274-28f8c6e019aa
-  - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
-  - 0ce86546-9a45-4473-84a2-5961a6c54db4
-  - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
-  - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
-  - 27f64d31-3d35-408c-99fd-b2db2832b1ca
-  - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_business_overview
   company_name: SPG
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
-  - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
-  - 8e91d281-c783-4894-8c2d-892d5b95db0a
-  - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
-  - e7a84b47-a295-492b-b3ae-df8eb06f5311
-  - 849152b7-444c-48c2-862b-20da080430e1
-  - eeeea6d7-1893-4e0f-86ca-3ebaa5dd7b2e
-  - e01cf2a0-7cd0-4903-96ea-72364e5a0496
-  - c2e14557-d2be-4f21-bd70-4e3d1ee0b72e
-  - 544c8f45-4716-4ce0-9109-ae008d886992
-  - ce76310f-2e6c-4d7f-868b-42e7edea92bf
-  - eaddca50-198b-448d-ab39-f03b62103560
-  - ebac5e3a-356f-4332-8317-d3c66c08631c
-  - 11083909-d201-4381-879e-dc49fed0449b
-  - b80ad2b5-bc8d-4592-b930-c402dbff879e
-  - 88790c3c-601b-4e26-8376-96508f979296
-  - 2fe89c97-30c0-4989-8442-a3a1119abd08
-  - 6b87bdd2-bd1f-4a3e-8516-daf72c2e57df
-  - b04c30a4-9e8b-4961-afab-91b3b33a4908
-  - 3c55bbd0-e1d4-4c6c-a480-7a12369e6189
-  - 51946882-accd-4544-9e18-59c23dedeeb3
-  - 37ce2ac1-5f74-4f8f-ac81-5aefe7446411
-  - cc26bec8-0c06-4bbc-8c7d-2a1789da2427
-  - 24a32480-c547-48c7-9e4e-111615b2166d
-  - 5ce820d7-1b58-4227-bf1e-7bfba9d64471
-  - cfa2482f-8db0-4892-9aa7-7371c54e0b1f
-  - 30f96c79-a799-426d-9486-0e5df321253c
-  - ddc26d71-294e-4112-95b2-c5d5a1578b22
-  - a144835f-5982-4ca2-892f-13a6d575de60
-  - 423ffcd3-505d-4489-a042-6a0e5b3a6a36
-  - bec2dcef-3d9d-40c3-a46f-49cae9aa4cce
-  - 0938df37-1080-4308-a274-28f8c6e019aa
-  - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
-  - 0ce86546-9a45-4473-84a2-5961a6c54db4
-  - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
   - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
   - 27f64d31-3d35-408c-99fd-b2db2832b1ca
   - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  - 95a93178-0bb6-45c3-aa10-7aa1e21956a6
+  - 63ce825e-b674-464d-b482-4242c746f6e3
+  - 522000e3-cb1f-469d-aa4b-beb566d089dc
+  - 0ce42afd-9b9d-46d6-a1e7-422f116522d6
+  - 9e606159-9976-4f60-8983-75e4c591bb2b
+  - b06ef416-b707-4bf4-b361-c0ff35984575
+  - b3fd2904-64e2-42d6-94cb-f85704358cff
+  - bb32dcc2-92a8-43c3-bb0b-c65f7720be8c
+  - 6a7270c8-4f81-4f46-9ec5-cca5200f6254
+  - 0009e0d3-5501-496b-b3fe-c7dc47b342fa
+  - 9ddadd7d-47ea-4bc6-92b2-34dada4b9b9f
+  - 5483e750-652c-4c98-9376-529a89039b12
+  - 4b4c11c4-1216-4c2d-b0a6-ec28d9618e55
+  - 67efff1e-6f42-4a86-86f2-042cbdbe387a
+  - e2b359c2-a74d-414c-bc08-41599c6c3f8a
+  - 3a5e8a5b-348e-4124-a904-e4aab7d71e16
+  - e2e54833-1014-48ae-9958-8bf6c80989bb
+  - e9c675f3-8ca6-4b40-af2f-5ebe7ee0148a
+  - b857f8c5-fa67-4ee2-9814-5629554a5f51
+  - dbda81e9-b47e-4c0d-aaea-2006fa6662d6
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=7 chunks=23'
   aggregate_exclude: false
 - intent_id: bma.retrieve_model_changes_and_dependencies
   company_name: SPG
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
+  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
+  - e8138b80-0af9-4959-b907-9047a8627e68
+  - 5e618547-1944-4a58-8494-4647d5a761c7
+  - df7d95c4-acfe-417f-8b68-15c07e956647
+  - f7284de8-099c-447b-abaf-6e751c041418
+  - 37e7caa5-710c-48d8-bf6f-61b5334ea1c6
+  - 969bf231-8ff7-443c-874d-0ec129ca3aea
+  - 048b0436-3d45-4c16-8d7f-69b0c94dcbcc
+  - fe5b16df-1d65-4f07-a195-7d18da07536a
+  - 9f6dee79-374a-48a8-a37e-86d8a1e765b3
+  - a98f12a4-8479-4483-91e9-26d88b65fdab
+  - 80c5aa72-bd6b-4665-aeb4-2d5cbf155840
+  - d7d388f1-d0ec-4d8e-be95-3940a046a9e3
+  - b0e4e8cb-5ede-402a-91fd-fb9bbb286a46
+  - 2b4b79ea-94d5-44d9-bdd6-b37462b03218
+  - bb2708ac-dd0e-45ef-80cc-abce05035b06
+  - 95bf8789-d179-4edf-80eb-e29481472c5c
+  - 025eb601-898e-49bf-a1d2-074b607c1fe3
+  - fe25bdc5-5d57-411a-8fcd-01d33e117151
+  - 115cbc25-bf2b-4284-b974-43009e093237
   - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
   - 8e91d281-c783-4894-8c2d-892d5b95db0a
   - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
@@ -200,212 +101,46 @@
   - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
   - 0ce86546-9a45-4473-84a2-5961a6c54db4
   - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
-  - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
-  - 27f64d31-3d35-408c-99fd-b2db2832b1ca
-  - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  - 2523bf25-33f9-4c34-8ec5-a7a655e894e3
+  - 365295c4-6569-4cb0-b014-15153205d14f
+  - e8a9de58-a254-45fd-b40f-fb070f7b3fd8
+  - 404575be-e944-4a4f-b343-4218e2cf1162
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=8 chunks=59'
   aggregate_exclude: false
 - intent_id: bma.retrieve_people_and_org
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
-  - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
-  - 8e91d281-c783-4894-8c2d-892d5b95db0a
-  - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
-  - e7a84b47-a295-492b-b3ae-df8eb06f5311
-  - 849152b7-444c-48c2-862b-20da080430e1
-  - eeeea6d7-1893-4e0f-86ca-3ebaa5dd7b2e
-  - e01cf2a0-7cd0-4903-96ea-72364e5a0496
-  - c2e14557-d2be-4f21-bd70-4e3d1ee0b72e
-  - 544c8f45-4716-4ce0-9109-ae008d886992
-  - ce76310f-2e6c-4d7f-868b-42e7edea92bf
-  - eaddca50-198b-448d-ab39-f03b62103560
-  - ebac5e3a-356f-4332-8317-d3c66c08631c
-  - 11083909-d201-4381-879e-dc49fed0449b
-  - b80ad2b5-bc8d-4592-b930-c402dbff879e
-  - 88790c3c-601b-4e26-8376-96508f979296
-  - 2fe89c97-30c0-4989-8442-a3a1119abd08
-  - 6b87bdd2-bd1f-4a3e-8516-daf72c2e57df
-  - b04c30a4-9e8b-4961-afab-91b3b33a4908
-  - 3c55bbd0-e1d4-4c6c-a480-7a12369e6189
-  - 51946882-accd-4544-9e18-59c23dedeeb3
-  - 37ce2ac1-5f74-4f8f-ac81-5aefe7446411
-  - cc26bec8-0c06-4bbc-8c7d-2a1789da2427
-  - 24a32480-c547-48c7-9e4e-111615b2166d
-  - 5ce820d7-1b58-4227-bf1e-7bfba9d64471
-  - cfa2482f-8db0-4892-9aa7-7371c54e0b1f
-  - 30f96c79-a799-426d-9486-0e5df321253c
-  - ddc26d71-294e-4112-95b2-c5d5a1578b22
-  - a144835f-5982-4ca2-892f-13a6d575de60
-  - 423ffcd3-505d-4489-a042-6a0e5b3a6a36
-  - bec2dcef-3d9d-40c3-a46f-49cae9aa4cce
-  - 0938df37-1080-4308-a274-28f8c6e019aa
-  - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
-  - 0ce86546-9a45-4473-84a2-5961a6c54db4
-  - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
-  - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
-  - 27f64d31-3d35-408c-99fd-b2db2832b1ca
-  - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=5)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_pricing_and_margins
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
-  - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
-  - 8e91d281-c783-4894-8c2d-892d5b95db0a
-  - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
-  - e7a84b47-a295-492b-b3ae-df8eb06f5311
-  - 849152b7-444c-48c2-862b-20da080430e1
-  - eeeea6d7-1893-4e0f-86ca-3ebaa5dd7b2e
-  - e01cf2a0-7cd0-4903-96ea-72364e5a0496
-  - c2e14557-d2be-4f21-bd70-4e3d1ee0b72e
-  - 544c8f45-4716-4ce0-9109-ae008d886992
-  - ce76310f-2e6c-4d7f-868b-42e7edea92bf
-  - eaddca50-198b-448d-ab39-f03b62103560
-  - ebac5e3a-356f-4332-8317-d3c66c08631c
-  - 11083909-d201-4381-879e-dc49fed0449b
-  - b80ad2b5-bc8d-4592-b930-c402dbff879e
-  - 88790c3c-601b-4e26-8376-96508f979296
-  - 2fe89c97-30c0-4989-8442-a3a1119abd08
-  - 6b87bdd2-bd1f-4a3e-8516-daf72c2e57df
-  - b04c30a4-9e8b-4961-afab-91b3b33a4908
-  - 3c55bbd0-e1d4-4c6c-a480-7a12369e6189
-  - 51946882-accd-4544-9e18-59c23dedeeb3
-  - 37ce2ac1-5f74-4f8f-ac81-5aefe7446411
-  - cc26bec8-0c06-4bbc-8c7d-2a1789da2427
-  - 24a32480-c547-48c7-9e4e-111615b2166d
-  - 5ce820d7-1b58-4227-bf1e-7bfba9d64471
-  - cfa2482f-8db0-4892-9aa7-7371c54e0b1f
-  - 30f96c79-a799-426d-9486-0e5df321253c
-  - ddc26d71-294e-4112-95b2-c5d5a1578b22
-  - a144835f-5982-4ca2-892f-13a6d575de60
-  - 423ffcd3-505d-4489-a042-6a0e5b3a6a36
-  - bec2dcef-3d9d-40c3-a46f-49cae9aa4cce
-  - 0938df37-1080-4308-a274-28f8c6e019aa
-  - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
-  - 0ce86546-9a45-4473-84a2-5961a6c54db4
-  - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
-  - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
-  - 27f64d31-3d35-408c-99fd-b2db2832b1ca
-  - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_revenue_by_location_and_metrics
   company_name: SPG
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  - b0d69656-21b0-4931-acec-e5b78d20b0da
+  - 1b567d68-c877-4636-8690-6ea70d31b57a
+  - fd119f45-4890-49b9-80b8-f25fa0236ada
+  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
+  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
+  - f22a4781-25ed-4911-8fec-dced8427af85
   - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
   - 8e91d281-c783-4894-8c2d-892d5b95db0a
   - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
@@ -440,382 +175,181 @@
   - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
   - 0ce86546-9a45-4473-84a2-5961a6c54db4
   - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
-  - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
-  - 27f64d31-3d35-408c-99fd-b2db2832b1ca
-  - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  - 1901a373-4ee0-4352-bd95-3314ef56aeae
+  - b2571da6-e8c0-4c1c-bde2-6df32283ef7e
+  - 6237974c-51c0-40b6-a3de-1d57fafc283b
+  - a58ef86c-293e-4d97-8558-e7aada96118a
+  - 6922d2ed-de2f-482e-ac5b-16d965cbac68
+  - f355530f-ff5d-4260-9e97-5e338053284d
+  - b1ee109f-7c1c-4601-9e7b-ec75e1a19354
+  - 16d92cf6-c4fb-4f3a-85ff-2cd761ae7df5
+  - 3a516945-7b30-4b6a-a6fb-3b74367b3478
+  - 9681ddd1-b792-46f0-9150-50cba312b995
+  - f3c11f44-f3b2-4d1a-91eb-6a09fe632a5a
+  - 9b52ce98-786c-445a-8f7b-3f4bcab5536f
+  - 4e5aa6ce-3441-4d72-b0bf-1afa307991ee
+  - f661c35c-15cd-42c9-9a61-4ef3297c0a2e
+  - 273a9bc5-4b6d-4c8f-8230-4d0e72b7ad44
+  - 7382ac60-962b-4a53-80b7-e59941d918e4
+  - e28fd53c-9836-40e3-9201-85a3755781d7
+  - 203a5df1-56a8-41b0-be8d-8e9d437e673a
+  - e2df66b3-bfc6-4c0e-b635-e33daafe207a
+  - adff40b3-eec0-48ba-a37b-0e2adfa5e06e
+  - 690e0401-fdc2-4499-9dfa-923a52475d13
+  - 05860ac1-068d-426e-892e-366619374371
+  - 0801c716-03a6-4809-af7f-b91175ce6012
+  - 9d04f100-55ca-4cb2-94bc-bda16500f682
+  - d76673f7-1ff3-4eea-b8bb-8a51313c1f97
+  - 55b82f44-d1b1-4396-8d99-27d8e4470b81
+  - 148c98f3-f3fb-4d90-9556-766786f8063d
+  - 0c3a463d-2a64-4c76-8726-a9b4f9e7d264
+  - 678bba87-6f12-4ca6-b55a-4719b7afbbf4
+  - 79136643-04a6-4498-8cd0-d483cc2f01c9
+  - aa84994f-d6da-4d1b-b2e5-428e6d2949f6
+  - 36853594-5c7c-4298-870d-1d2a858d9eb2
+  - 5201a68f-042c-4049-b282-6b76cfc9bb3f
+  - eb31969d-f855-43a5-87ef-9e8e17e2cb93
+  - 52c92a84-62cd-4ce5-9505-79850f79b1b6
+  - c48fa097-b3de-4e77-a308-a483fcbcab1d
+  - 60226d3a-bc2f-48c1-a94b-f482eb8f64ef
+  - c03bbeb6-fe3e-4473-b20c-26382ab94a13
+  - d8fdf91e-c3ac-427d-bba7-412e91d3bae8
+  - a47a1a7b-a08c-402d-b0d0-e542eeeb4170
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=43 chunks=80'
   aggregate_exclude: false
 - intent_id: bma.retrieve_revenue_visibility
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
-  - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
-  - 8e91d281-c783-4894-8c2d-892d5b95db0a
-  - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
-  - e7a84b47-a295-492b-b3ae-df8eb06f5311
-  - 849152b7-444c-48c2-862b-20da080430e1
-  - eeeea6d7-1893-4e0f-86ca-3ebaa5dd7b2e
-  - e01cf2a0-7cd0-4903-96ea-72364e5a0496
-  - c2e14557-d2be-4f21-bd70-4e3d1ee0b72e
-  - 544c8f45-4716-4ce0-9109-ae008d886992
-  - ce76310f-2e6c-4d7f-868b-42e7edea92bf
-  - eaddca50-198b-448d-ab39-f03b62103560
-  - ebac5e3a-356f-4332-8317-d3c66c08631c
-  - 11083909-d201-4381-879e-dc49fed0449b
-  - b80ad2b5-bc8d-4592-b930-c402dbff879e
-  - 88790c3c-601b-4e26-8376-96508f979296
-  - 2fe89c97-30c0-4989-8442-a3a1119abd08
-  - 6b87bdd2-bd1f-4a3e-8516-daf72c2e57df
-  - b04c30a4-9e8b-4961-afab-91b3b33a4908
-  - 3c55bbd0-e1d4-4c6c-a480-7a12369e6189
-  - 51946882-accd-4544-9e18-59c23dedeeb3
-  - 37ce2ac1-5f74-4f8f-ac81-5aefe7446411
-  - cc26bec8-0c06-4bbc-8c7d-2a1789da2427
-  - 24a32480-c547-48c7-9e4e-111615b2166d
-  - 5ce820d7-1b58-4227-bf1e-7bfba9d64471
-  - cfa2482f-8db0-4892-9aa7-7371c54e0b1f
-  - 30f96c79-a799-426d-9486-0e5df321253c
-  - ddc26d71-294e-4112-95b2-c5d5a1578b22
-  - a144835f-5982-4ca2-892f-13a6d575de60
-  - 423ffcd3-505d-4489-a042-6a0e5b3a6a36
-  - bec2dcef-3d9d-40c3-a46f-49cae9aa4cce
-  - 0938df37-1080-4308-a274-28f8c6e019aa
-  - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
-  - 0ce86546-9a45-4473-84a2-5961a6c54db4
-  - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
-  - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
-  - 27f64d31-3d35-408c-99fd-b2db2832b1ca
-  - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_sales_and_customers
   company_name: SPG
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
-  - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
-  - 8e91d281-c783-4894-8c2d-892d5b95db0a
-  - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
-  - e7a84b47-a295-492b-b3ae-df8eb06f5311
-  - 849152b7-444c-48c2-862b-20da080430e1
-  - eeeea6d7-1893-4e0f-86ca-3ebaa5dd7b2e
-  - e01cf2a0-7cd0-4903-96ea-72364e5a0496
-  - c2e14557-d2be-4f21-bd70-4e3d1ee0b72e
-  - 544c8f45-4716-4ce0-9109-ae008d886992
-  - ce76310f-2e6c-4d7f-868b-42e7edea92bf
-  - eaddca50-198b-448d-ab39-f03b62103560
-  - ebac5e3a-356f-4332-8317-d3c66c08631c
-  - 11083909-d201-4381-879e-dc49fed0449b
-  - b80ad2b5-bc8d-4592-b930-c402dbff879e
-  - 88790c3c-601b-4e26-8376-96508f979296
-  - 2fe89c97-30c0-4989-8442-a3a1119abd08
-  - 6b87bdd2-bd1f-4a3e-8516-daf72c2e57df
-  - b04c30a4-9e8b-4961-afab-91b3b33a4908
-  - 3c55bbd0-e1d4-4c6c-a480-7a12369e6189
-  - 51946882-accd-4544-9e18-59c23dedeeb3
-  - 37ce2ac1-5f74-4f8f-ac81-5aefe7446411
-  - cc26bec8-0c06-4bbc-8c7d-2a1789da2427
-  - 24a32480-c547-48c7-9e4e-111615b2166d
-  - 5ce820d7-1b58-4227-bf1e-7bfba9d64471
-  - cfa2482f-8db0-4892-9aa7-7371c54e0b1f
-  - 30f96c79-a799-426d-9486-0e5df321253c
-  - ddc26d71-294e-4112-95b2-c5d5a1578b22
-  - a144835f-5982-4ca2-892f-13a6d575de60
-  - 423ffcd3-505d-4489-a042-6a0e5b3a6a36
-  - bec2dcef-3d9d-40c3-a46f-49cae9aa4cce
-  - 0938df37-1080-4308-a274-28f8c6e019aa
-  - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
-  - 0ce86546-9a45-4473-84a2-5961a6c54db4
-  - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
-  - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
-  - 27f64d31-3d35-408c-99fd-b2db2832b1ca
-  - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  - 166b879a-669e-4d28-8a8a-45954ffbdb0e
+  - adff278c-e69f-40dd-b610-80fc793858d1
+  - c12cad72-a21d-4ac3-afa0-94f61112657c
+  - 32f557e8-4164-4864-b092-0b26fbfe160d
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=4 chunks=4'
   aggregate_exclude: false
 - intent_id: bma.retrieve_workforce_and_capacity
   company_name: SPG
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 47564b8d-2a52-4bf1-9aa3-4aa2ecbb0c4c
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
-  - 0aa44a0b-7608-4734-bdbe-853c2e6fe1a2
-  - 8e91d281-c783-4894-8c2d-892d5b95db0a
-  - c9276d4c-bae2-4aa6-a50e-2b5f8f39769d
-  - e7a84b47-a295-492b-b3ae-df8eb06f5311
-  - 849152b7-444c-48c2-862b-20da080430e1
-  - eeeea6d7-1893-4e0f-86ca-3ebaa5dd7b2e
-  - e01cf2a0-7cd0-4903-96ea-72364e5a0496
-  - c2e14557-d2be-4f21-bd70-4e3d1ee0b72e
-  - 544c8f45-4716-4ce0-9109-ae008d886992
-  - ce76310f-2e6c-4d7f-868b-42e7edea92bf
-  - eaddca50-198b-448d-ab39-f03b62103560
-  - ebac5e3a-356f-4332-8317-d3c66c08631c
-  - 11083909-d201-4381-879e-dc49fed0449b
-  - b80ad2b5-bc8d-4592-b930-c402dbff879e
-  - 88790c3c-601b-4e26-8376-96508f979296
-  - 2fe89c97-30c0-4989-8442-a3a1119abd08
-  - 6b87bdd2-bd1f-4a3e-8516-daf72c2e57df
-  - b04c30a4-9e8b-4961-afab-91b3b33a4908
-  - 3c55bbd0-e1d4-4c6c-a480-7a12369e6189
-  - 51946882-accd-4544-9e18-59c23dedeeb3
-  - 37ce2ac1-5f74-4f8f-ac81-5aefe7446411
-  - cc26bec8-0c06-4bbc-8c7d-2a1789da2427
-  - 24a32480-c547-48c7-9e4e-111615b2166d
-  - 5ce820d7-1b58-4227-bf1e-7bfba9d64471
-  - cfa2482f-8db0-4892-9aa7-7371c54e0b1f
-  - 30f96c79-a799-426d-9486-0e5df321253c
-  - ddc26d71-294e-4112-95b2-c5d5a1578b22
-  - a144835f-5982-4ca2-892f-13a6d575de60
-  - 423ffcd3-505d-4489-a042-6a0e5b3a6a36
-  - bec2dcef-3d9d-40c3-a46f-49cae9aa4cce
-  - 0938df37-1080-4308-a274-28f8c6e019aa
-  - f51c2d8e-ad4b-4d86-868c-e6e05297d4f0
-  - 0ce86546-9a45-4473-84a2-5961a6c54db4
-  - 94281c73-5c9b-4167-86f8-ef90967025d8
-  - ab0e04b5-ee67-4d50-92d8-8fb81de0b42e
-  - 84311b20-7eb6-4d0c-92b8-0c05fa16fee1
-  - f22a4781-25ed-4911-8fec-dced8427af85
-  - 8fa85d99-2cb5-4299-b926-1a5d8e6790cd
-  - a894938a-91f4-4a5e-929d-715db40e86f6
-  - eedfb096-cd3f-44a3-bc66-fb80b2ba58a1
-  - 97c11973-5d70-4f7b-81c3-ababcee88ec9
-  - 0695e258-b133-4908-92d2-069a01a0261e
-  - e11fb4b2-d8b7-4b89-9b53-6641e76ee9d1
-  - 22abc0d5-7abd-49f0-b064-aa26eccc57af
-  - dbadbb00-eda5-41c7-a45b-a2a343c85b21
-  - b23a48c5-a79b-4dba-979e-cf3b5682b1b4
-  - 6356f1d0-bd65-4b20-a6fc-bca08a8cf5cf
-  - cb2ce7d4-fa09-46a2-ac89-6b716f3edceb
-  - 8aaa9fab-1e08-4b3f-a52a-3644b755748e
-  - 2169be98-9243-4667-bde6-a55e122ff315
-  - 8b26158b-3d27-4afc-8ffd-277dccb5e661
-  - 482a13ec-b1de-475c-bbdc-e06020de2d45
-  - 2ad445b9-a94e-41ae-b8af-2fb4b19b6180
-  - e27a1de5-1f73-40ea-9d37-4ca9c38bebee
-  - c882dd4a-2bfa-4f48-8124-d8dc3c84046e
-  - da6e203a-3b46-434c-98a4-71a3b989b2ab
-  - 7d0f97eb-c0d1-4180-b803-a4e15d5255d1
-  - bbd38446-6bf6-40ee-8769-211562e75208
-  - bdced663-5be3-476b-af94-8546da16515b
-  - 7b036659-08c1-4d79-ac8c-825d6d27f805
-  - b3495617-2920-46b3-af9e-5fc6ae751454
-  - b1fde01c-9983-4900-a8c7-67f1d8019dcf
-  - 81b71dc5-e0b6-4f0e-93cd-c766478ebe0d
-  - 13be2085-ee2c-4f88-b79b-e45dca45dfd2
-  - 520e85df-b926-4014-b420-3417c19f7f06
-  - e072da8d-2647-4afa-b7a4-9d465cb4c0c7
-  - 27f64d31-3d35-408c-99fd-b2db2832b1ca
-  - 0744164f-dcef-480e-9bd2-537fc3e6a389
+  - 2523bf25-33f9-4c34-8ec5-a7a655e894e3
+  - 365295c4-6569-4cb0-b014-15153205d14f
+  - e8a9de58-a254-45fd-b40f-fb070f7b3fd8
+  - 404575be-e944-4a4f-b343-4218e2cf1162
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=1 chunks=4'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_account_size
   company_name: SPG
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  - 67a2e41d-f534-4afc-a10e-a9d87ee3eebe
+  - f7340977-0269-4e4b-82ec-2e6ef5709269
+  - 068f6933-7751-4efc-bcd1-c30246bccc81
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=1 chunks=3'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_cohort_data
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=3)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_contract_terms
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_customer_concentration
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=6)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_customer_health
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=4)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_customer_tenure
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_payor_mix
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_retention_metrics
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_revenue_type_and_renewals
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - abfa002d-64f3-466c-8f14-1ef26f1e4a8e
-  - 31f3f873-3f97-4050-bfd9-018092fde2ce
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.ebitda.q1_financial_statements
   company_name: SPG
@@ -834,93 +368,45 @@
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  - f2d95c43-896c-4285-9658-708e98c81c13
+  - 0522fe62-d249-4b70-bc12-20af17c23656
+  - fdd85c74-de83-4190-8327-3585164561e2
+  - 69bec3fc-e536-44f7-8373-9519d8413945
+  - e18dd441-59a1-4c69-ae5a-ee45bd1cc045
+  - 88a24e61-a650-4f29-9045-a7532cfe5185
+  - ae9c27c4-9f16-4f6a-9028-cf01b1eafe2c
+  - 8c75f604-9422-4a0b-8b4b-2b487db43ad7
+  - 944a80fe-76c7-4bb5-9ef5-36d2842e2959
+  - a9e8dcc3-d7ea-4c2e-8721-3c34455d8047
+  - 2412d5c8-f840-4cfa-846e-639d5482fb3c
+  - c22e312d-2334-4cf2-8fd5-5d969eaec461
+  - 55c52b87-8604-4d27-8de5-dfbf69495fd9
+  - bb098890-d49d-4d2c-a275-e8fd81739a99
+  - 041bb96e-e148-409d-8d34-7c1542220eb7
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=2 chunks=15'
   aggregate_exclude: false
 - intent_id: fta.ebitda.q3_working_capital
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.ebitda.q4_addback_schedule
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.opex.q1_financial_statements
   company_name: SPG
@@ -937,64 +423,22 @@
 - intent_id: fta.opex.q2_working_capital
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.opex.q3_projected_financials
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.revenue.q1_financial_statements
   company_name: SPG
@@ -1011,157 +455,116 @@
 - intent_id: fta.revenue.q2_revenue_by_segment
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.revenue.q3_revenue_by_geography
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.revenue.q4_customer_concentration
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.revenue.q4_customer_concentration_fallback
   company_name: SPG
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.revenue.q5_quickbooks_pl
   company_name: SPG
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - d5835b62-dc27-4647-9a86-090f736d0585
-  - 5d8e4103-6ffa-403d-9200-7b2ac810fc5f
-  - 76d5c65f-6516-42e7-bf88-d730341a68a9
-  - 7d69154d-fff6-47ad-8163-8c52239331da
-  - 377485e3-d127-4cdb-8f78-2141d30b0c14
-  - b4e12115-e053-411b-a8e1-a6b060d764ec
-  - 27ba28c7-4676-4d39-bec4-820eba400013
-  - e45e0a79-c416-455a-baa5-42618841f720
-  - 00dd1290-139d-47ce-8b0e-0d85a3dc631d
-  - d10478cb-cee0-428d-849e-d797eecec0ae
-  - 67d2d898-708b-4ede-949a-2a8028619871
-  - ece8bfc9-aa5d-43ac-8084-63e1e677c92d
-  - 190307d1-d3d8-4077-bba4-5b2906322565
-  - 8b0326ad-d2d5-480b-a816-a850ec939650
-  - dd72ceb6-b1b7-459e-9e30-52590fbc061b
-  - 1061fc2e-e0fb-4a72-ad71-ccaa90be3b96
-  - 51183c9e-aad0-4297-bfc4-271cf7783aab
-  - 5b8e110a-a09f-477a-9d54-b2cc3f24fb1c
-  - 665dba54-40c6-4334-91f0-867db1318fe6
-  - d8dda907-7f3e-4d2c-9b8c-1352fabb750c
-  - 4eacf27f-c1b4-4c5a-99a1-878f40c81235
-  - c2c8584b-0c2e-426e-9a04-7e5029594bc4
+  - 7473eca7-3dec-4589-ac6e-caa735078292
+  - ca2c4615-798e-4994-8072-c2058e645d9c
+  - b9fd5fe5-1119-40ef-acc7-8d0b0c99dd71
+  - e0774bfe-bbbf-4151-9682-1705292f3780
+  - 78cce20b-0938-44d3-8369-2ffe844429dc
+  - 78108b13-0425-4052-ad00-cf24e4606a1e
+  - 23fbf1db-f7a6-4ae9-a5bc-1d2eccff5440
+  - 1dd7a057-8e51-462b-89ae-b1c9c1b1247b
+  - d087e493-d67a-4569-b70b-eb5c5a1d8e12
+  - 378e8b93-8b2a-47d1-9e61-5a0308355e7f
+  - bf51c460-7429-4383-99a0-6fe6e99c36dd
+  - 1e53c70e-a329-4f66-a9a7-2b59a100bc84
+  - 78c129e0-869e-4191-91d9-922073cfd95a
+  - 12254dd5-51dc-40ea-8984-7071ab3a7813
+  - 4efedd6e-a11c-49d7-988e-77c60f1d825b
+  - 364a8dac-b40b-4e5d-848e-7f8b428f5702
+  - bd4a1ebe-3d3f-43fb-bf30-1d5093f334a7
+  - c73fd45d-7039-441e-b680-5337f166fcd3
+  - 7b46a617-909a-4fa3-8fb7-88f4828a3051
+  - 9482e780-40b8-46cb-8df1-1e1ed5adeee6
+  - 0ce99e5a-58f0-4a71-9f7b-50cad465651f
+  - 52501232-211e-4366-a113-2f53ca3ddcf8
+  - 22d11c76-218d-470c-bd0d-89a9ecc73db8
+  - 80cabf9b-638c-44ae-979c-6027d1a25bee
+  - ea5d6c3d-a23d-444c-9d63-59c8f4a38bfa
+  - 1ee34450-ebe7-41de-a4c2-f299d9eccd51
+  - 175c65cc-ca00-4307-9044-1285be0b8c91
+  - 85c8a32b-35f9-4065-ba7b-e7a6d582517e
+  - 7caea357-9a15-4459-8a6a-f1d82d32b978
+  - 17229337-4f74-437b-a489-f340bfe58a42
+  - 19d09a4f-4dc6-4044-8460-269cd5f6abb4
+  - 119ca32c-e80c-4aa9-97dc-db091bbf0b37
+  - 690ffc40-19bc-4db2-97f0-9f13483131e9
+  - f71bf1aa-cf29-43b7-9143-5df9da82f145
+  - 3ed0c4c8-6ae9-4813-8bf1-6b8dae24507c
+  - f2d95c43-896c-4285-9658-708e98c81c13
+  - 0522fe62-d249-4b70-bc12-20af17c23656
+  - fdd85c74-de83-4190-8327-3585164561e2
+  - 69bec3fc-e536-44f7-8373-9519d8413945
+  - e18dd441-59a1-4c69-ae5a-ee45bd1cc045
+  - 88a24e61-a650-4f29-9045-a7532cfe5185
+  - ae9c27c4-9f16-4f6a-9028-cf01b1eafe2c
+  - 8c75f604-9422-4a0b-8b4b-2b487db43ad7
+  - 944a80fe-76c7-4bb5-9ef5-36d2842e2959
+  - a9e8dcc3-d7ea-4c2e-8721-3c34455d8047
+  - 2412d5c8-f840-4cfa-846e-639d5482fb3c
+  - c22e312d-2334-4cf2-8fd5-5d969eaec461
+  - 55c52b87-8604-4d27-8de5-dfbf69495fd9
+  - bb098890-d49d-4d2c-a275-e8fd81739a99
+  - 041bb96e-e148-409d-8d34-7c1542220eb7
+  - ff909f33-760a-4415-9f93-0b06cb43a0ae
+  - 58f19edf-77cd-42bb-8a78-89f8ea548a86
+  - 16a9605e-154b-4a6c-b52a-1673b06dfa8b
+  - 4ab56894-bdd3-4958-ba0d-f0bdafdf5093
+  - eda21957-eed5-4308-b206-e1c2e8afd3ea
+  - ee7018bb-b765-4ed7-b0f7-943e244b3af9
+  - 4013adfb-62fa-4839-9832-d7c8ed0e8778
+  - 7b042dd3-c855-44f8-9858-44c6e822afb2
+  - 5046a831-d7ba-4ed8-b349-a86f751196df
+  - d905ef79-8cce-43c1-9608-822680066048
+  - 4b57a990-81db-4289-8dbe-a772527d0cac
+  - fc1b941e-3e7e-4e72-9f67-788254be929d
+  - 5e13fa97-ca32-448a-9479-9e740904758d
+  - 1b96e63b-cb86-4e36-ad69-682af0dee707
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=5 chunks=64'
   aggregate_exclude: false
 - intent_id: kpi.retrieve_bench_and_capacity
   company_name: SPG

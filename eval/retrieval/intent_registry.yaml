@@ -261,6 +261,8 @@
   workstream_filter:
   - CUSTOMER
   - KPI_OPS
+  - FINANCIAL
+  - QUALITY_EARNINGS
   top_k: 6
   min_chunk_length: 150
   invocation_path: direct
