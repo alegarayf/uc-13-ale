@@ -1577,6 +1577,10 @@ named next to it.
       `pytest tests/test_final_report_render.py -q`: 7 passed (pagination
       re-confirmed separately under DoD-16 — this box is about content and
       degrade, not page count).
+      **Note (T10b, 2026-09-08):** when this box was first ticked, the
+      evidence above covered the reader (`_load_forecast`) and the §1.7
+      footnote only — nothing asserted the *render* itself. That half is now
+      closed by DoD-19.
 - [x] **DoD-14** — The final report and the executive review, built from the same
       bundle, agree on the P&L column order and on the stated unit (§1.6). *(T02;
       evidence: a test that renders both and asserts both are identical)*
@@ -1714,13 +1718,44 @@ named next to it.
       `run_ingestion_pipeline`/`run_pipeline` are not called a second time on
       Branch B (they'd raise `AssertionError` if they were). `pytest
       tests/test_run_vdr_rainmaker.py -q`: 20 passed.
-- [ ] **DoD-19** — Page 8's *render* is asserted, not just its reader: a bundle
+- [x] **DoD-19** — Page 8's *render* is asserted, not just its reader: a bundle
       carrying `forecast_rows` / `forecast_assumptions` puts the plan periods, the
       assumption text and its **mapped** severity class into the HTML, and a
       bundle without them renders "not extracted" with no fabricated zero.
       *(T10b; evidence: two mutations — dropping the plan rows from `_forecast`,
       and collapsing the Supported/Plausible/Stretch mapping to a constant — each
       must fail a test)*
+      **Closed 2026-09-08.** Added
+      `test_final_report_render_forecast_populated_renders_plan_periods_and_mapped_severity`
+      and
+      `test_final_report_render_forecast_absent_shows_not_extracted_and_fabricates_nothing`
+      to `tests/test_final_report_render.py`. The populated case asserts both
+      plan-period labels (`FY2027P`, `FY2028P`), the assumption text, the test
+      text, the footnote's "does not state a projected EBITDA margin" clause,
+      and — the part that matters — the **mapped** class
+      (`class="chip high">Stretch</span>`), not the bare word "Stretch". The
+      absent case asserts the page still renders (11 `class="page"` divs), both
+      "not extracted" strings appear (`"Revenue (P = plan) — not extracted..."`
+      for the chart, `"Forecast assumptions — not extracted..."` for the
+      table), and no plan-period label or fabricated-zero signature
+      (`<rect ... width="0"`/`height="0"`, bare `$0`, standalone `0%`) appears.
+      Two mutations proved discrimination, each restored via `git checkout --
+      databricks/agents/exec_summary/final_report_view.py` and followed by a
+      `__pycache__` sweep (rule 9b):
+      - **(a) drop plan rows** — `plan = [...]` → `plan = []` in `_forecast()`.
+        `PYTHONDONTWRITEBYTECODE=1 pytest tests/test_final_report_render.py -q
+        -p no:cacheprovider`: **1 failed, 8 passed** —
+        `test_..._populated_renders_plan_periods_and_mapped_severity` failed on
+        `assert "FY2027P" in html`.
+      - **(b) collapse the support mapping** — `assumption_support_class()`
+        body replaced with `return "medium"` unconditionally.
+        `PYTHONDONTWRITEBYTECODE=1 pytest tests/test_final_report_render.py -q
+        -p no:cacheprovider`: **1 failed, 8 passed** — same test failed on
+        `assert 'class="chip high">Stretch</span>' in html`.
+      No defect found in the forecast render path; this task pins working
+      behaviour. `git diff --stat` shows zero changes under `databricks/` at
+      close. `pytest tests/ -q`: 1392 passed, 38 skipped. `pytest
+      --collect-only -q`: 2136 tests collected.
 - [x] **DoD-18** — `_run_final_report_stage`'s generic `try/except` — the net
       for a stage-2 failure nobody wrote a specific branch for — is proven to
       actually catch, not just present. *(T09b; evidence: two new tests, each

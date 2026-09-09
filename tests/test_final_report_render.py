@@ -319,3 +319,78 @@ def test_final_report_render_stray_take_for_an_empty_section_does_not_break_the_
 
     assert "Stray take with no qoe data behind it." in html
     assert html.count('class="page') == 11
+
+
+# =========================================================================
+# T10b — page 8's *render* (plan §1.5 D-03, DoD-19): the forecast populated
+# case puts plan periods / assumption / mapped severity class / footnote
+# into the HTML, and the absent case degrades to "not extracted" with no
+# fabricated zero. T07's tests never exercised report.forecast beyond the
+# nearly-empty bundle's blanket "not extracted" assertions.
+# =========================================================================
+
+_FORECAST_BUNDLE = {
+    "meta": _EMPTY_BUNDLE["meta"],
+    "financials": {
+        "currency": "$",
+        "unit": "millions",
+        "forecast_rows": [
+            {"year": "FY2027", "revenue": "55.4"},
+            {"year": "FY2028", "revenue": "64.1"},
+        ],
+        "forecast_assumptions": [
+            {
+                "assumption": "15% revenue growth, against an 8.4% three-year actual",
+                "support": "Stretch",
+                "test": "Reconcile to branch-level capacity and caregiver hiring plan",
+            },
+        ],
+    },
+}
+
+
+def test_final_report_render_forecast_populated_renders_plan_periods_and_mapped_severity():
+    html = _render(_FORECAST_BUNDLE, narrative=None, mps_runs=None, run_mode="cim_only")
+
+    # Plan periods (both marked "P" since there is no historical table_rows
+    # to distinguish them from) reach the chart.
+    assert "FY2027P" in html
+    assert "FY2028P" in html
+
+    # Assumption text and test text reach the assumptions table.
+    assert "15% revenue growth, against an 8.4% three-year actual" in html
+    assert "Reconcile to branch-level capacity and caregiver hiring plan" in html
+
+    # The MAPPED severity class, not just the word "Stretch" — the mapping
+    # in _ASSUMPTION_SUPPORT_CLASS is the part that can silently break while
+    # the word "Stretch" still renders fine.
+    assert 'class="chip high">Stretch</span>' in html
+
+    # §1.7: no plan period carries a projected EBITDA margin, so the
+    # footnote states that as a fact about the plan.
+    assert "The plan does not state a projected EBITDA margin." in html
+
+
+def test_final_report_render_forecast_absent_shows_not_extracted_and_fabricates_nothing():
+    bundle = copy.deepcopy(_EMPTY_BUNDLE)
+    assert "financials" not in bundle
+
+    html = _render(bundle, narrative=None, mps_runs=None, run_mode="cim_only")
+
+    # The page still renders — it is not missing.
+    assert html.count('class="page') == 11
+
+    # "Not extracted" state, for both the chart and the assumptions table.
+    assert "Revenue (P = plan) — not extracted from the data room." in html
+    assert "Forecast assumptions — not extracted from the data room." in html
+
+    # No plan period label, and no fabricated zero (a None-converted-to-0
+    # bug would produce a bare "$0" or a standalone "0%", or an SVG <rect>
+    # with a real width and a height of exactly "0" — none of which the
+    # chart macro emits when it has no series at all).
+    body = html[html.index("<body>") :]
+    assert "FY20" not in body
+    assert not re.search(r'<rect[^>]*\bwidth="0(?:\.0+)?"', body)
+    assert not re.search(r'<rect[^>]*\bheight="0(?:\.0+)?"', body)
+    assert "$0" not in body
+    assert re.search(r"\b0%", body) is None
