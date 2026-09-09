@@ -534,12 +534,23 @@ def test_recommendation_wraps_a_bare_string_as_rationale():
     }
 
 
+# The template reads rec.tone on every path, so all three branches return the
+# same keys — the shape must not depend on which narrative layer degraded.
+_EMPTY_RECOMMENDATION = {"verdict": None, "rationale": None, "conditions": [], "tone": None}
+
+
 def test_recommendation_defaults_when_absent():
-    assert frv._recommendation({}) == {"verdict": None, "rationale": None, "conditions": []}
+    assert frv._recommendation({}) == _EMPTY_RECOMMENDATION
 
 
 def test_recommendation_defaults_when_empty_string():
-    assert frv._recommendation({"recommendation": ""}) == {"verdict": None, "rationale": None, "conditions": []}
+    assert frv._recommendation({"recommendation": ""}) == _EMPTY_RECOMMENDATION
+
+
+def test_recommendation_shape_is_the_same_on_every_branch():
+    keys = set(_EMPTY_RECOMMENDATION)
+    assert set(frv._recommendation({"recommendation": "a sentence"})) == keys
+    assert set(frv._recommendation({})) == keys
 
 
 def test_final_report_view_threads_recommendation_dict_into_headline():

@@ -187,7 +187,10 @@ def _recommendation(narrative: dict[str, Any]) -> dict[str, Any]:
         return rec
     if isinstance(rec, str) and rec.strip():
         return {"verdict": None, "rationale": rec, "conditions": [], "tone": None}
-    return {"verdict": None, "rationale": None, "conditions": []}
+    # Same keys as the branches above: the template reads rec.tone on every
+    # path, and returning a dict missing it makes the shape depend on which
+    # narrative layer degraded.
+    return {"verdict": None, "rationale": None, "conditions": [], "tone": None}
 
 
 # =========================================================================
@@ -362,12 +365,30 @@ def _ebitda_chart(bundle: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-_UNIT_MULTIPLIER: dict[str, float] = {
-    "in dollars": 1.0,
-    "in thousands": 1_000.0,
-    "in millions": 1_000_000.0,
-    "in billions": 1_000_000_000.0,
-}
+# Ordered longest-keyword-first so "billions" is not matched by "millions".
+_UNIT_KEYWORDS: tuple[tuple[str, float], ...] = (
+    ("billion", 1_000_000_000.0),
+    ("million", 1_000_000.0),
+    ("thousand", 1_000.0),
+    ("dollar", 1.0),
+)
+
+
+def unit_multiplier(unit_label: Any) -> float | None:
+    """Dollars per stated unit, or ``None`` when the label does not name one.
+
+    Matches on the keyword rather than the whole phrase: ``_unit_label``
+    returns "in thousands", but ``financials.unit_label`` is a free-text field
+    a producer may one day fill with something like "$ millions, fiscal
+    years". An exact-phrase lookup would silently miss that and leave part of
+    a series unscaled — which is worse than not scaling at all, because the
+    bars would then be drawn on two different magnitudes at once.
+    """
+    low = str(unit_label or "").lower()
+    for keyword, factor in _UNIT_KEYWORDS:
+        if keyword in low:
+            return factor
+    return None
 
 
 def _short(value: float | None) -> str | None:
@@ -407,7 +428,7 @@ def absolute_revenue(raw: Any, unit_label: str) -> float | None:
     value = parse_money(raw)
     if value is None:
         return None
-    return value * _UNIT_MULTIPLIER.get(str(unit_label or "").strip().lower(), 1.0)
+    return value * (unit_multiplier(unit_label) or 1.0)
 
 
 def money_label(value: float | None, unit_label: str) -> str | None:
@@ -424,7 +445,7 @@ def money_label(value: float | None, unit_label: str) -> str | None:
     """
     if value is None:
         return None
-    multiplier = _UNIT_MULTIPLIER.get(str(unit_label or "").strip().lower())
+    multiplier = unit_multiplier(unit_label)
     if multiplier is None:
         return _short(value)
     return format_dollars(value * multiplier)
@@ -932,6 +953,35 @@ def _legal(bundle: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _one_scale(raws: list[Any], unit_label: str) -> list[float | None]:
+    """A series of money strings resolved onto ONE magnitude.
+
+    ``absolute_revenue`` scales a figure that names its own magnitude and
+    leaves a bare one in the table's unit. That is right per figure, but when
+    the unit cannot be resolved the two halves of a mixed series land on
+    magnitudes 1,000x apart — a bar drawn against an axis it does not share.
+    Seen with a bundle whose free-text ``unit_label`` named no unit: three
+    periods stated "thousand" rendered in millions beside a bare period
+    rendered in thousands, on the same axis.
+
+    With a resolvable unit every figure is comparable. Without one, the bare
+    figures are left exactly as extracted and the labelled ones are brought
+    back onto their scale, so the axis is internally consistent even though
+    its absolute magnitude is unknown.
+    """
+    multiplier = unit_multiplier(unit_label)
+    if multiplier is not None:
+        return [absolute_revenue(raw, unit_label) for raw in raws]
+    out: list[float | None] = []
+    for raw in raws:
+        if has_explicit_magnitude(raw):
+            dollars = money_to_dollars(raw)
+            out.append(None if dollars is None else dollars / 1_000.0)
+        else:
+            out.append(parse_money(raw))
+    return out
+
+
 def _restates_history(plan_row: dict[str, Any], hist_by_year: dict, unit_label: str) -> bool:
     """True when a plan row is the same year AND the same figure as an actual.
 
@@ -976,7 +1026,7 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
         if isinstance(r, dict) and not _restates_history(r, hist_by_year, unit)
     ]
     rows = hist + plan
-    revs = [absolute_revenue(r.get("revenue"), unit) for r in rows]
+    revs = _one_scale([r.get("revenue") for r in rows], unit)
     margins = [parse_percent(r.get("ebitda_margin_pct")) for r in rows]
     rev_pct = scale(revs)
     footnote = "Plan periods marked P. Same axis as the historical chart on the financial performance page."
