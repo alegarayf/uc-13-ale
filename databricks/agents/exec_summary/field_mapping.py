@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -671,6 +672,7 @@ def _revenue_quality_from_agents(
     cqa_yaml: dict | None,
     kpi_yaml: dict | None = None,
     overlay_hint: str = "",
+    fta_yaml: dict | None = None,
 ) -> dict[str, Any]:
     concentration = ""
     retention_notes = ""
@@ -701,8 +703,20 @@ def _revenue_quality_from_agents(
         # this mapper never produced — so every company rendered "not
         # extracted" over a populated CQA row. Field names are CQA's own; the
         # view was already written against them.
-        **_cqa_structured_passthrough(cqa_yaml),
+        **_with_derived_shares(_cqa_structured_passthrough(cqa_yaml), fta_yaml),
     }
+
+
+def _with_derived_shares(passthrough: dict[str, Any], fta_yaml: dict | None) -> dict[str, Any]:
+    """Enrich the passed-through client list with computed shares, if any."""
+    customers = passthrough.get("top_customers")
+    if not customers:
+        return passthrough
+    enriched, note = _derive_customer_shares(customers, fta_yaml)
+    out = {**passthrough, "top_customers": enriched}
+    if note:
+        out["concentration_basis_note"] = note
+    return out
 
 
 _CQA_PASSTHROUGH_KEYS: tuple[tuple[str, str, type], ...] = (
@@ -731,6 +745,246 @@ def _cqa_structured_passthrough(cqa_yaml: dict | None) -> dict[str, Any]:
         if isinstance(value, kind) and value:
             out[dest] = value
     return out
+
+
+_PERIOD_YEAR4_RE = re.compile(r"(?:19|20)\d{2}")
+# Not \b-delimited: "FY23" has no word boundary between "Y" and "2".
+_PERIOD_YEAR2_RE = re.compile(r"(?<!\d)(\d{2})(?!\d)")
+
+
+def period_sort_key(period: Any) -> tuple[int, int]:
+    """Order period labels chronologically across the shapes the agents emit.
+
+    Extraction labels are not uniform — the same run yields "2020A", "FY23",
+    "2025B", "TTM Aug-24", "2027PP". Sorting them as plain strings puts "TTM
+    Aug-24" after "2024A" but before "2020A", which is how a trailing period
+    ended up drawn between historical years. Two-digit years are read as
+    20xx; a label with no year at all sorts last, since in practice that is a
+    projection or a note rather than a dated actual.
+    """
+    text = str(period or "")
+    match = _PERIOD_YEAR4_RE.search(text)
+    if match:
+        return (0, int(match.group(0)))
+    # Two-digit years are everywhere in these labels ("FY23", "TTM Aug-24")
+    # and are the reason a trailing period sorted after every projection.
+    match = _PERIOD_YEAR2_RE.search(text)
+    if match:
+        return (0, 2000 + int(match.group(1)))
+    return (1, 0)
+
+
+def _latest_by_segment(rows: list) -> list[dict]:
+    """Collapse FTA's segment × period records to one row per segment.
+
+    ``revenue_by_segment`` carries a record per segment per period (Elder
+    Care: five locations × five periods). ``_performance_by`` renders one row
+    per segment, so the most recent period is what it should show. Ties and
+    unparseable labels fall back to document order, which is the agents'
+    chronological emission order.
+    """
+    latest: dict[str, tuple[tuple[int, int], int, dict]] = {}
+    for index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("segment") or row.get("name") or "").strip()
+        if not name:
+            continue
+        rank = (period_sort_key(row.get("period")), index)
+        current = latest.get(name)
+        if current is None or rank > (current[0], current[1]):
+            latest[name] = (rank[0], index, row)
+    return [entry[2] for entry in latest.values()]
+
+
+def _segment_performance_from_fta(fta_yaml: dict | None) -> list[dict[str, Any]]:
+    """Map ``revenue_by_segment`` onto the shape ``_performance_by`` reads.
+
+    The final report's segment section reads ``financials.segment_performance``
+    and this mapper only ever wrote ``financials.geographic_mix``, so the
+    section rendered "not extracted" for every company — including Elder Care,
+    whose agent had extracted five locations across five periods with dollar
+    revenue on each. A segment carrying neither a dollar figure nor a share is
+    dropped rather than rendered as a bar of unknown height: GKF's single
+    segment row has both null, and an empty section is the honest output there.
+    """
+    raw = (fta_yaml or {}).get("revenue_by_segment") or []
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for row in _latest_by_segment(raw):
+        revenue = row.get("revenue_dollars")
+        share = row.get("revenue_pct")
+        if revenue in (None, "", "null") and share in (None, "", "null"):
+            continue
+        out.append(
+            {
+                "name": str(row.get("segment") or row.get("name") or ""),
+                "revenue": revenue,
+                "share_pct": share,
+                "gross_margin_pct": row.get("gross_margin_pct"),
+                "growth_pct": row.get("growth_pct"),
+                "period": row.get("period"),
+            }
+        )
+    return out
+
+
+_MAGNITUDE_WORDS: tuple[tuple[str, float], ...] = (
+    ("billion", 1_000_000_000.0),
+    ("bn", 1_000_000_000.0),
+    ("million", 1_000_000.0),
+    ("mm", 1_000_000.0),
+    ("thousand", 1_000.0),
+    ("k", 1_000.0),
+)
+_NUMBER_RE = re.compile(r"-?\d[\d,]*\.?\d*")
+
+
+def money_to_dollars(value: Any) -> float | None:
+    """Absolute dollars from a money string, honouring a SPELLED-OUT magnitude.
+
+    Distinct from ``final_report_view.parse_money``, which returns the figure
+    in whatever unit the chart axis is already working in and only knows the
+    ``k``/``bn`` suffixes. Extraction writes magnitude as a word at least as
+    often — "$59,699 thousand" alongside a per-client "$10,917,799" — and
+    comparing those two as bare numbers is off by 1000x. That is the same
+    class of error as a chart labelling $40,251 thousand as "40251.4bn": a
+    magnitude carried in text and dropped by the parser.
+
+    A bare number is returned at face value; the caller is responsible for
+    deciding whether an unqualified figure is safe to compare.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    match = _NUMBER_RE.search(text)
+    if not match:
+        return None
+    try:
+        number = float(match.group(0).replace(",", ""))
+    except ValueError:
+        return None
+    low = text.lower()
+    for word, factor in _MAGNITUDE_WORDS:
+        if re.search(rf"\d\s*{re.escape(word)}\b", low):
+            return number * factor
+    return number
+
+
+_DOLLAR_FIGURE_RE = re.compile(r"\$\s*(-?\d[\d,]*\.?\d*)")
+
+
+def _first_dollar_figure(value: Any) -> float | None:
+    """First $-prefixed figure in a multi-period client revenue string.
+
+    CQA writes these as "2024: $10,917,799; 2023: $11,589,127" — most recent
+    first, each amount preceded by its period. Taking the leading number
+    outright picks up the YEAR (2024), which then divides into company
+    revenue as a plausible-looking near-zero share. Anchoring on the dollar
+    sign is what distinguishes the amount from the label around it.
+    """
+    if value is None:
+        return None
+    match = _DOLLAR_FIGURE_RE.search(str(value))
+    if not match:
+        return money_to_dollars(value)
+    return money_to_dollars(match.group(0) + _magnitude_tail(str(value), match.end()))
+
+
+def _magnitude_tail(text: str, start: int) -> str:
+    """The magnitude word immediately following a figure, if any, so
+    "$59,699 thousand" keeps its scale when the figure is extracted alone."""
+    tail = text[start : start + 12].lower()
+    for word, _factor in _MAGNITUDE_WORDS:
+        if tail.strip().startswith(word):
+            return " " + word
+    return ""
+
+
+def _derive_customer_shares(
+    top_customers: list, fta_yaml: dict | None,
+) -> tuple[list, str]:
+    """Fill each client's revenue share from dollars when the agent gave none.
+
+    CQA extracts named clients with dollar revenue far more often than it
+    extracts a concentration percentage — Clearsulting's every ``top*_pct``
+    came back null while ten clients carried real dollars. The share is
+    arithmetic the report can do itself, so the concentration chart does not
+    have to render "not extracted" over data that is present.
+
+    Deliberately conservative about units: both sides are resolved to
+    absolute dollars, and a result outside 0-100% is discarded rather than
+    published. An implicit-magnitude mismatch (a company total stated in
+    thousands against per-client raw dollars) shows up exactly there, and a
+    diligence report is the wrong place to publish a confidently wrong 18,288%.
+    """
+    totals, fallback_total = _company_revenue_by_year(fta_yaml)
+    if not (totals or fallback_total) or not isinstance(top_customers, list):
+        return top_customers, ""
+    enriched, derived_any = [], False
+    for customer in top_customers:
+        if not isinstance(customer, dict):
+            continue
+        if customer.get("revenue_pct_yr1") not in (None, "", "null"):
+            enriched.append(customer)
+            continue
+        raw = customer.get("revenue_dollars")
+        amount = _first_dollar_figure(raw)
+        total = _matching_total(totals, fallback_total, raw)
+        if amount is None or not total:
+            enriched.append(customer)
+            continue
+        share = 100.0 * amount / total
+        if not 0.0 < share <= 100.0:
+            enriched.append(customer)
+            continue
+        enriched.append({**customer, "revenue_pct_yr1": f"{share:.1f}%", "share_is_derived": True})
+        derived_any = True
+    note = (
+        "Shares computed from extracted client revenue against company revenue; "
+        "the data room stated no concentration percentages."
+        if derived_any
+        else ""
+    )
+    return enriched, note
+
+
+def _company_revenue_by_year(fta_yaml: dict | None) -> tuple[dict[int, float], float | None]:
+    """Company revenue in absolute dollars, keyed by year, plus an overall
+    fallback for rows whose period could not be read."""
+    by_year: dict[int, float] = {}
+    largest: float | None = None
+    for row in (fta_yaml or {}).get("revenue_trend") or []:
+        if not isinstance(row, dict):
+            continue
+        amount = money_to_dollars(row.get("revenue_stated"))
+        if not amount:
+            continue
+        largest = amount if largest is None else max(largest, amount)
+        kind, year = period_sort_key(row.get("period"))
+        if kind == 0:
+            by_year[year] = max(by_year.get(year, 0.0), amount)
+    return by_year, largest
+
+
+def _matching_total(
+    totals: dict[int, float], fallback: float | None, client_revenue: Any,
+) -> float | None:
+    """Company revenue for the same year as the client figure being divided.
+
+    CQA's per-client string names its period ("2024: $10,917,799"), and the
+    company's own trend carries several. Dividing a 2024 client figure by TTM25
+    company revenue silently understates every share — the numerator and the
+    denominator have to describe the same window. Falls back to the most recent
+    year only when the client figure names no period of its own.
+    """
+    kind, year = period_sort_key(str(client_revenue or ""))
+    if kind == 0 and year in totals:
+        return totals[year]
+    return totals[max(totals)] if totals else fallback
 
 
 def _qoe_from_snapshots(qoe_snap: dict | None, fta_yaml: dict | None) -> dict[str, Any]:
@@ -846,8 +1100,11 @@ def apply_field_mappings(
             "table_rows": _fta_table_rows(fta_yaml),
             "observations": [],
             "geographic_mix": (fta_yaml or {}).get("revenue_by_segment") or [],
+            "segment_performance": _segment_performance_from_fta(fta_yaml),
         },
-        "revenue_quality": _revenue_quality_from_agents(bma_yaml, cqa_yaml, kpi_yaml, overlay_hint),
+        "revenue_quality": _revenue_quality_from_agents(
+            bma_yaml, cqa_yaml, kpi_yaml, overlay_hint, fta_yaml
+        ),
         "kpi_dashboard": _kpi_rows_from_yaml(kpi_yaml, overlay_hint),
         "qoe": _qoe_from_snapshots(snapshots.get("quality_of_earnings"), fta_yaml),
         "legal": _build_legal_block(legal_delta)

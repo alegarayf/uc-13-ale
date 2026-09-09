@@ -16,9 +16,13 @@ from agents.exec_summary.field_mapping import (
     _company_framing_from_bma,
     _fta_table_rows,
     _headline_from_fta,
+    _derive_customer_shares,
     _kpi_overlay_block,
     _kpi_rows_from_yaml,
     _revenue_quality_from_agents,
+    _segment_performance_from_fta,
+    money_to_dollars,
+    period_sort_key,
 )
 
 
@@ -608,3 +612,107 @@ def test_kpi_rows_use_the_confirmed_overlay_not_the_null_stub():
     }
     rows = _kpi_rows_from_yaml(kpi_yaml, "tech_services")
     assert [r["metric_id"] for r in rows] == ["utilization_rate_pct"]
+
+
+# ---------------------------------------------------------------------------
+# Segment performance and derived concentration — the rest of the same sweep.
+# financials.segment_performance was never written (only geographic_mix was),
+# so the segment section rendered "not extracted" even for Elder Care, whose
+# agent had five locations × five periods with dollar revenue on each.
+# ---------------------------------------------------------------------------
+
+
+def test_segment_performance_collapses_periods_to_the_latest_per_segment():
+    fta_yaml = {
+        "revenue_by_segment": [
+            {"segment": "New York", "revenue_dollars": "1,525", "period": "2020A"},
+            {"segment": "New York", "revenue_dollars": "13,588", "period": "TTM Aug-24"},
+            {"segment": "New Jersey", "revenue_dollars": "900", "period": "2020A"},
+        ],
+    }
+    rows = _segment_performance_from_fta(fta_yaml)
+    by_name = {r["name"]: r for r in rows}
+    assert by_name["New York"]["revenue"] == "13,588"
+    assert by_name["New Jersey"]["revenue"] == "900"
+
+
+def test_segment_performance_drops_a_segment_with_no_figure_at_all():
+    """GKF's real shape: a named segment whose revenue_pct and revenue_dollars
+    are both null. A bar of unknown height is worse than an empty section."""
+    rows = _segment_performance_from_fta(
+        {"revenue_by_segment": [{"segment": "Tysons Kids", "revenue_pct": None, "revenue_dollars": None}]}
+    )
+    assert rows == []
+
+
+def test_segment_performance_empty_when_agent_extracted_none():
+    assert _segment_performance_from_fta({"revenue_by_segment": []}) == []
+    assert _segment_performance_from_fta(None) == []
+
+
+def test_period_sort_key_orders_trailing_and_suffixed_labels_chronologically():
+    labels = ["TTM Aug-24", "2020A", "FY23", "2025B", "2022A"]
+    assert sorted(labels, key=period_sort_key) == ["2020A", "2022A", "FY23", "TTM Aug-24", "2025B"]
+
+
+def test_money_to_dollars_honours_a_spelled_out_magnitude():
+    assert money_to_dollars("$59,699 thousand") == 59_699_000.0
+    assert money_to_dollars("$10,917,799") == 10_917_799.0
+    assert money_to_dollars("$1.2 million") == 1_200_000.0
+    assert money_to_dollars(None) is None
+    assert money_to_dollars("not a number") is None
+
+
+def test_derived_share_uses_dollars_when_the_agent_stated_no_percentage():
+    """Clearsulting's real shape: every top*_pct null, clients carrying real
+    dollars, company revenue stated in thousands."""
+    customers = [{"customer_name": "Client 1", "revenue_pct_yr1": None,
+                  "revenue_dollars": "2024: $10,917,799; 2023: $11,589,127"}]
+    fta_yaml = {"revenue_trend": [{"revenue_stated": "$59,699 thousand"}]}
+    enriched, note = _derive_customer_shares(customers, fta_yaml)
+    assert enriched[0]["revenue_pct_yr1"] == "18.3%"
+    assert enriched[0]["share_is_derived"] is True
+    assert "computed" in note
+
+
+def test_derived_share_is_discarded_when_the_magnitudes_disagree():
+    """The guard that matters: company total read as bare thousands against
+    per-client raw dollars yields 18,288%. Publish nothing rather than that."""
+    customers = [{"customer_name": "Client 1", "revenue_pct_yr1": None,
+                  "revenue_dollars": "$10,917,799"}]
+    fta_yaml = {"revenue_trend": [{"revenue_stated": "$59,699"}]}
+    enriched, note = _derive_customer_shares(customers, fta_yaml)
+    assert enriched[0]["revenue_pct_yr1"] is None
+    assert note == ""
+
+
+def test_derived_share_never_overwrites_a_stated_percentage():
+    customers = [{"customer_name": "C", "revenue_pct_yr1": "12%", "revenue_dollars": "$1"}]
+    fta_yaml = {"revenue_trend": [{"revenue_stated": "$100"}]}
+    enriched, _ = _derive_customer_shares(customers, fta_yaml)
+    assert enriched[0]["revenue_pct_yr1"] == "12%"
+    assert "share_is_derived" not in enriched[0]
+
+
+def test_derived_share_divides_by_the_same_year_not_the_largest_period():
+    """Numerator and denominator must describe the same window. The client
+    figure names 2024; dividing it by TTM25 revenue understates every share,
+    quietly and plausibly — the kind of wrong number a reader cannot catch."""
+    customers = [{"customer_name": "C", "revenue_pct_yr1": None,
+                  "revenue_dollars": "2024: $10,000,000"}]
+    fta_yaml = {"revenue_trend": [
+        {"period": "2024", "revenue_stated": "$50,000 thousand"},
+        {"period": "TTM25", "revenue_stated": "$100,000 thousand"},
+    ]}
+    enriched, _ = _derive_customer_shares(customers, fta_yaml)
+    assert enriched[0]["revenue_pct_yr1"] == "20.0%"  # 10M/50M, not 10M/100M
+
+
+def test_derived_share_falls_back_to_latest_when_the_client_names_no_period():
+    customers = [{"customer_name": "C", "revenue_pct_yr1": None, "revenue_dollars": "$10,000,000"}]
+    fta_yaml = {"revenue_trend": [
+        {"period": "2023", "revenue_stated": "$40,000 thousand"},
+        {"period": "2024", "revenue_stated": "$50,000 thousand"},
+    ]}
+    enriched, _ = _derive_customer_shares(customers, fta_yaml)
+    assert enriched[0]["revenue_pct_yr1"] == "20.0%"

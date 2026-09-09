@@ -443,3 +443,32 @@ def test_kpi_missing_dict_diligence_question_readable():
     assert question == kpi_item["management_question"]
     assert "{" not in question
     assert "kpi_name" not in question
+
+
+def test_validate_bundle_accepts_the_structured_customer_and_segment_blocks(
+    elder_care_snapshots: dict,
+):
+    """The schema declares ``additionalProperties: false`` on both
+    ``revenue_quality`` and ``financials``, so carrying the customer_quality
+    passthrough and the collapsed segment rows through the bundle requires
+    declaring them. Without this test the mapper's new keys pass every unit
+    test whose fixture happens not to populate them, and fail at
+    validate_bundle on the first real company that does — before the render,
+    with the stage already committed to producing a report."""
+    bundle = _build_with_snapshots(elder_care_snapshots)
+    bundle["revenue_quality"].update(
+        {
+            "top_customers": [{"customer_name": "Client 1", "revenue_pct_yr1": "18.3%"}],
+            "concentration_summary": {"top1_pct": None},
+            "retention": {"nrr_pct": "73%"},
+            "customer_tenure": {"average_tenure_years": 3},
+            "concentration_basis_note": "Shares computed from extracted client revenue.",
+        }
+    )
+    bundle["financials"].update(
+        {
+            "segment_performance": [{"name": "New York", "revenue": "13,588"}],
+            "segment_dimension": "Location",
+        }
+    )
+    validate_bundle(bundle)  # must not raise

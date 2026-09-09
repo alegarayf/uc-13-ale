@@ -398,6 +398,16 @@ definitions:
         items:
           type: object
           additionalProperties: true
+      # One row per segment, collapsed from FTA's segment x period records.
+      # Optional: a company whose data room states no segment revenue has none,
+      # and the report renders the section empty rather than inventing a split.
+      segment_performance:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      segment_dimension:
+        type: string
 
   revenue_quality:
     type: object
@@ -415,6 +425,29 @@ definitions:
       end_market_mix:
         type: string
       retention_notes:
+        type: string
+      # Structured passthrough of the customer_quality agent's own blocks.
+      # All optional: absent means the agent extracted nothing there, which is
+      # what lets the report distinguish a real gap from a mapping miss. The
+      # four strings above stay required because they are what the one-pager
+      # reads; these are what the final report's charts and tiles read.
+      top_customers:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      concentration_summary:
+        type: object
+        additionalProperties: true
+      retention:
+        type: object
+        additionalProperties: true
+      customer_tenure:
+        type: object
+        additionalProperties: true
+      # Present only when a client share was computed from dollars rather than
+      # stated by the data room, so the page can say so.
+      concentration_basis_note:
         type: string
 
   kpi_dashboard_row:
