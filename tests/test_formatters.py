@@ -74,3 +74,39 @@ def test_kpi_rows_from_yaml_formats_compliance_incidents():
     assert by_metric["caregiver_headcount"] == "73 active caregivers"
     assert "CMS survey cited staffing deficiencies." in by_metric["compliance_incidents"]
     assert "{" not in by_metric["compliance_incidents"]
+
+
+def test_split_gap_rationale_separates_the_reason_the_agent_wrote():
+    from agents.exec_summary.formatters import split_gap_rationale
+
+    item, why = split_gap_rationale(
+        "Top customer revenue % not stated — required for concentration threshold evaluation"
+    )
+    assert item == "Top customer revenue % not stated"
+    assert why == "Required for concentration threshold evaluation"
+
+
+def test_split_gap_rationale_rejects_a_status_code_as_a_reason():
+    """The legal agent ends gaps with "— corpus_absent". It clears any length
+    floor and would print a retrieval code into a column read as analysis."""
+    from agents.exec_summary.formatters import split_gap_rationale
+
+    text = "ip: no IP Assignment / OSS Policy in corpus — corpus_absent"
+    assert split_gap_rationale(text) == (text, None)
+
+
+def test_split_gap_rationale_leaves_a_chain_of_clauses_whole():
+    """Two separators means a trace, not a request-and-reason pair; cutting at
+    the first dash would present an internal pass name as the item."""
+    from agents.exec_summary.formatters import split_gap_rationale
+
+    text = "t4c: no documents retrieved for pass — request Top Customer Contracts — no_chunks_retrieved"
+    assert split_gap_rationale(text) == (text, None)
+
+
+def test_split_gap_rationale_leaves_a_plain_request_alone():
+    from agents.exec_summary.formatters import split_gap_rationale
+
+    assert split_gap_rationale("Top Customer Contracts / MSAs / SOWs") == (
+        "Top Customer Contracts / MSAs / SOWs", None,
+    )

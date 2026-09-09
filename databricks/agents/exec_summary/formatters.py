@@ -268,3 +268,39 @@ def format_dollars(value: float | None) -> str | None:
     if magnitude >= 1_000:
         return f"${value / 1_000:.1f}K"
     return f"${value:.0f}"
+
+
+# Several agents write a gap as one sentence that already contains its own
+# rationale, separated by an em dash: "Top customer revenue % not stated —
+# required for concentration threshold evaluation". The appendix has an
+# "Item requested" column and a "Why it matters" column, and the whole string
+# went into the first one, leaving the second blank on every row of every
+# report — including the rows whose reason the agent had already written.
+_GAP_SEPARATOR = re.compile(r"\s+[—–]\s+")
+_GAP_MIN_ITEM = 8
+_GAP_MIN_WHY = 12
+
+
+def split_gap_rationale(text: str) -> tuple[str, str | None]:
+    """Split a gap sentence into what is requested and why it matters.
+
+    Only splits on a SINGLE separator. Two or more means the sentence is a
+    chain of clauses rather than a request-and-reason pair — the legal agent's
+    "t4c: no documents retrieved … — request Top Customer Contracts — 
+    no_chunks_retrieved" is a trace, not a rationale, and cutting it at the
+    first dash would present an internal pass name as the item and a retrieval
+    code as the reason.
+    """
+    parts = _GAP_SEPARATOR.split(str(text or "").strip())
+    if len(parts) != 2:
+        return str(text or "").strip(), None
+    item, why = parts[0].strip(), parts[1].strip()
+    if len(item) < _GAP_MIN_ITEM or len(why) < _GAP_MIN_WHY:
+        return str(text or "").strip(), None
+    # A single token is a status code, not a reason. The legal agent ends
+    # several gaps with "— corpus_absent" and "— no_chunks_retrieved", which
+    # cleared the length floor and would have printed a retrieval code into a
+    # column a deal team reads as analysis.
+    if " " not in why:
+        return str(text or "").strip(), None
+    return item, why[0].upper() + why[1:]

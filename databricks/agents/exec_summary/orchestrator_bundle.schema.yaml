@@ -606,6 +606,12 @@ definitions:
     properties:
       item:
         type: string
+      # Why the missing item matters. Nullable and not required: several
+      # agents write the reason into the gap sentence itself and it is split
+      # out deterministically, but a gap that carries none has to stay empty
+      # rather than acquire an invented justification.
+      why:
+        type: ["string", "null"]
       priority:
         type: string
       source_agent:

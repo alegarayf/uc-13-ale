@@ -688,15 +688,19 @@ def _risks(bundle: dict[str, Any]) -> dict[str, Any]:
     return {"grid": grid, "counts": counts, "suppressed": max(0, len(raw) - CAP_RISKS)}
 
 
-def _appendix(bundle: dict[str, Any]) -> dict[str, Any]:
+def _appendix(bundle: dict[str, Any], narrative: dict[str, Any] | None = None) -> dict[str, Any]:
+    # A reason the model wrote for a gap that carried none. Keyed by the gap's
+    # index so it can only ever land on the row it was written for; a gap the
+    # model skipped keeps an empty cell rather than borrowing its neighbour's.
+    reasons = (narrative or {}).get("gap_reasons") or {}
     gaps = [
         {
             "item": str(g.get("item") or ""),
-            "why": g.get("why") or g.get("rationale"),
+            "why": g.get("why") or g.get("rationale") or reasons.get(index),
             "priority_label": severity_label(g.get("priority")),
             "priority_class": severity_class(g.get("priority")),
         }
-        for g in (bundle.get("data_room_gaps") or [])[:CAP_GAPS]
+        for index, g in enumerate((bundle.get("data_room_gaps") or [])[:CAP_GAPS])
         if isinstance(g, dict)
     ]
     confidence = [
@@ -803,7 +807,7 @@ def final_report_view(
         "forecast": _forecast(bundle, narrative),
         "risks": _risks(bundle),
         "questions": _questions(bundle),
-        "appendix": _appendix(bundle),
+        "appendix": _appendix(bundle, narrative),
     }
 
 

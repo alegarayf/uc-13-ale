@@ -68,7 +68,20 @@ def _bundle(**overrides) -> dict:
 
 def test_digest_covers_all_six_sections():
     digest = build_final_report_narrative_digest(_bundle())
-    assert set(digest.keys()) == {"business", "financial", "customer", "kpi", "quality", "forecast"}
+    assert {"business", "financial", "customer", "kpi", "quality", "forecast"} <= set(digest.keys())
+
+
+def test_digest_carries_the_gaps_that_need_a_reason():
+    """The appendix's "Why it matters" column was blank on every row of every
+    report. Gaps whose sentence already contains the reason are split out
+    upstream; only the bare ones are sent to the model."""
+    digest = build_final_report_narrative_digest({
+        "data_room_gaps": [
+            {"item": "Top Customer Contracts", "why": None},
+            {"item": "Already explained", "why": "Needed to price churn."},
+        ],
+    })
+    assert digest["gaps_needing_reason"] == [{"i": 0, "item": "Top Customer Contracts"}]
 
 
 def test_digest_business_section_carries_f6_fields():
@@ -260,3 +273,31 @@ def test_prompt_forbids_a_take_over_an_empty_section():
 
 def test_prompt_forbids_mentioning_the_mps():
     assert "Minimum Pursuit Score" in _SYSTEM_PROMPT
+
+
+def test_gap_reasons_are_keyed_by_the_index_the_model_echoes():
+    """Keyed by echoed index, not by position in the reply: a model that
+    drops or reorders an entry must not attach a reason to a gap it was not
+    written for."""
+    from agents.exec_summary.final_report_narrative import _coerce_gap_reasons
+
+    out = _coerce_gap_reasons([{"i": 3, "why": "Needed to confirm the base."},
+                               {"i": 0, "why": "Needed to price churn."}])
+    assert out == {3: "Needed to confirm the base.", 0: "Needed to price churn."}
+
+
+def test_gap_reasons_drop_malformed_entries_rather_than_the_whole_list():
+    from agents.exec_summary.final_report_narrative import _coerce_gap_reasons
+
+    out = _coerce_gap_reasons([
+        {"i": 0, "why": "Good."}, {"i": "one", "why": "Bad index."},
+        {"i": 2, "why": ""}, {"i": True, "why": "Bool is not an index."}, "not a dict",
+    ])
+    assert out == {0: "Good."}
+
+
+def test_gap_reasons_tolerate_a_non_list_reply():
+    from agents.exec_summary.final_report_narrative import _coerce_gap_reasons
+
+    assert _coerce_gap_reasons(None) == {}
+    assert _coerce_gap_reasons("nope") == {}

@@ -836,3 +836,30 @@ def test_humanize_metric_does_not_flatten_an_already_written_sentence():
     assert frv.humanize_metric("Referral relationships are personal, not contractual") == (
         "Referral relationships are personal, not contractual"
     )
+
+
+def test_appendix_gap_reason_lands_on_the_row_it_was_written_for():
+    """The "Why it matters" column was blank on every row. A model-written
+    reason is keyed by the gap's index, so a reply that skips a row leaves
+    that cell empty rather than shifting every reason up by one."""
+    bundle = {"data_room_gaps": [
+        {"item": "Top Customer Contracts"},
+        {"item": "Vendor Contracts"},
+        {"item": "Litigation Summary"},
+    ]}
+    narrative = {"gap_reasons": {0: "Confirms churn exposure.", 2: "Sizes contingent liability."}}
+    gaps = frv._appendix(bundle, narrative)["gaps"]
+    assert gaps[0]["why"] == "Confirms churn exposure."
+    assert gaps[1]["why"] is None
+    assert gaps[2]["why"] == "Sizes contingent liability."
+
+
+def test_appendix_prefers_the_agents_own_rationale_over_a_written_one():
+    bundle = {"data_room_gaps": [{"item": "X", "why": "Stated by the agent."}]}
+    narrative = {"gap_reasons": {0: "Written by the model."}}
+    assert frv._appendix(bundle, narrative)["gaps"][0]["why"] == "Stated by the agent."
+
+
+def test_appendix_without_a_narrative_leaves_the_column_empty():
+    bundle = {"data_room_gaps": [{"item": "X"}]}
+    assert frv._appendix(bundle)["gaps"][0]["why"] is None

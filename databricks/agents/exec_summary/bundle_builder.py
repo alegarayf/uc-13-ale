@@ -18,7 +18,7 @@ from agents.exec_summary.constants import (
     TLDR_REQUIRED_FIELDS,
 )
 from agents.exec_summary.field_mapping import apply_field_mappings
-from agents.exec_summary.formatters import format_diligence_entry, normalize_gap
+from agents.exec_summary.formatters import format_diligence_entry, normalize_gap, split_gap_rationale
 from agents.exec_summary.paths import company_safe, reports_volume_dir
 from agents.exec_summary.validate import BundleValidationError, validate_bundle
 from agents.shared.agent_base import WorkstreamAgent
@@ -513,7 +513,7 @@ def _ingest_snapshots(
 class GapAggregator:
     """§5.6.2 gap merge and diligence question synthesis."""
 
-    def merge_data_room_gaps(self, snapshots: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    def merge_data_room_gaps(self, snapshots: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:  # noqa: D102
         seen: set[tuple[str, str]] = set()
         rows: list[dict[str, Any]] = []
         for agent_key, snap in snapshots.items():
@@ -524,9 +524,11 @@ class GapAggregator:
                 if dedupe_key in seen:
                     continue
                 seen.add(dedupe_key)
+                item, why = split_gap_rationale(str(gap_text))
                 rows.append(
                     {
-                        "item": str(gap_text),
+                        "item": item,
+                        "why": why,
                         "priority": "medium",
                         "source_agent": agent_key,
                         "fill_state": "filled_cited",

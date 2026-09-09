@@ -189,7 +189,32 @@ def build_final_report_narrative_digest(bundle: dict[str, Any]) -> dict[str, Any
         "kpi": _kpi_digest(bundle, sector),
         "quality": _quality_digest(bundle),
         "forecast": _forecast_digest(bundle),
+        "gaps_needing_reason": _gaps_needing_reason(bundle),
     }
+
+
+_CAP_GAP_REASONS = 10
+
+
+def _gaps_needing_reason(bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    """The appendix gaps that carry no rationale of their own.
+
+    Several agents write the reason into the gap sentence and it is split out
+    deterministically upstream; those are skipped here. Only the ones that
+    arrive as a bare request are sent, each with the index it must come back
+    under so a reason can never be attached to a different row than the one
+    it was written for.
+    """
+    out: list[dict[str, Any]] = []
+    for index, gap in enumerate(bundle.get("data_room_gaps") or []):
+        if not isinstance(gap, dict) or gap.get("why"):
+            continue
+        item = str(gap.get("item") or "").strip()
+        if item:
+            out.append({"i": index, "item": _trunc(item, 200)})
+        if len(out) >= _CAP_GAP_REASONS:
+            break
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +271,13 @@ fact you may assert from silence, and an absent partner list is not a fact eithe
 If there is not enough digest across all six sections to support a call, return "recommendation" as \
 null rather than inventing one.
 
+"gap_reasons": one entry for EACH object in the input's "gaps_needing_reason" list, echoing its "i" \
+unchanged and adding "why": ONE sentence, maximum 160 characters, saying why a private-equity buyer \
+needs that missing item — what it would let the team confirm or price. This is diligence reasoning \
+about a document that is ABSENT, so it is the one place you are not restating an extracted figure; \
+it must still never assert anything about THIS company's numbers, since the item was not extracted. \
+Return an empty list when the input list is empty.
+
 Respond with ONLY a JSON object, no markdown fences, with these exact keys:
 {{
   "business_take": "<take or null>",
@@ -254,7 +286,8 @@ Respond with ONLY a JSON object, no markdown fences, with these exact keys:
   "kpi_take": "<take or null>",
   "quality_take": "<take or null>",
   "forecast_take": "<take or null>",
-  "recommendation": {{"verdict": "<or null>", "rationale": "<or null>", "conditions": ["<bullet>", "..."], "tone": "<'pass' or null>"}} or null
+  "recommendation": {{"verdict": "<or null>", "rationale": "<or null>", "conditions": ["<bullet>", "..."], "tone": "<'pass' or null>"}} or null,
+  "gap_reasons": [{{"i": <index from the input>, "why": "<one sentence>"}}, "..."]
 }}"""
 
 _TAKE_KEYS = (
@@ -265,9 +298,11 @@ _TAKE_KEYS = (
     "quality_take",
     "forecast_take",
 )
-_RESULT_KEYS = _TAKE_KEYS + ("recommendation",)
+_RESULT_KEYS = _TAKE_KEYS + ("recommendation", "gap_reasons")
 
 _DEGRADED_FIELDS: dict[str, Any] = {key: None for key in _RESULT_KEYS}
+# A degraded run contributes no reasons rather than a null the view must guard.
+_DEGRADED_FIELDS["gap_reasons"] = {}
 
 _FENCE_RE = re.compile(r"```(?:json)?|```")
 
@@ -297,7 +332,30 @@ def _validate_and_coerce(parsed: dict[str, Any]) -> dict[str, Any]:
         value = parsed.get(key)
         result[key] = value if isinstance(value, str) and value.strip() else None
     result["recommendation"] = _coerce_recommendation(parsed.get("recommendation"))
+    result["gap_reasons"] = _coerce_gap_reasons(parsed.get("gap_reasons"))
     return result
+
+
+def _coerce_gap_reasons(value: Any) -> dict[int, str]:
+    """``{gap index: why}``, keeping only well-formed entries.
+
+    Keyed by the index the model was asked to echo rather than by position in
+    its reply, so a model that drops, reorders or invents an entry cannot
+    attach a reason to a gap it was not written for — it simply contributes
+    nothing for the rows it got wrong.
+    """
+    out: dict[int, str] = {}
+    if not isinstance(value, list):
+        return out
+    for entry in value:
+        if not isinstance(entry, dict):
+            continue
+        index, why = entry.get("i"), entry.get("why")
+        if isinstance(index, bool) or not isinstance(index, int):
+            continue
+        if isinstance(why, str) and why.strip():
+            out[index] = why.strip()
+    return out
 
 
 def synthesize_final_report_narrative(
