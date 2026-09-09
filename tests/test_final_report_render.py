@@ -184,7 +184,7 @@ def test_final_report_render_nearly_empty_bundle_omits_no_page_and_fabricates_no
     # `class="page` (not each section's heading text) because two of the
     # eleven pages (quality of earnings + legal) share one heading-less
     # page div — the div count is the actual page count, headings are not.
-    assert html.count('class="page') == 11
+    assert html.count('<div class="page') == 11
 
     # Every section with no data shows its own "not extracted" state rather
     # than vanishing or rendering blank.
@@ -303,7 +303,7 @@ def test_final_report_render_degraded_narrative_shows_zero_takes_and_no_missing_
 
     assert html.count('class="take"') == 0
     assert "Not yet concluded" in html
-    assert html.count('class="page') == 11  # a quieter report, not a broken one
+    assert html.count('<div class="page') == 11  # a quieter report, not a broken one
 
 
 def test_final_report_render_stray_take_for_an_empty_section_does_not_break_the_render():
@@ -318,7 +318,7 @@ def test_final_report_render_stray_take_for_an_empty_section_does_not_break_the_
     html = _render(bundle, narrative=narrative, mps_runs=None, run_mode="cim_only")
 
     assert "Stray take with no qoe data behind it." in html
-    assert html.count('class="page') == 11
+    assert html.count('<div class="page') == 11
 
 
 # =========================================================================
@@ -378,7 +378,7 @@ def test_final_report_render_forecast_absent_shows_not_extracted_and_fabricates_
     html = _render(bundle, narrative=None, mps_runs=None, run_mode="cim_only")
 
     # The page still renders — it is not missing.
-    assert html.count('class="page') == 11
+    assert html.count('<div class="page') == 11
 
     # "Not extracted" state, for both the chart and the assumptions table.
     assert "Revenue (P = plan) — not extracted from the data room." in html

@@ -562,6 +562,13 @@ def humanize_metric(metric: Any) -> str:
     text = str(metric or "").strip()
     if not text:
         return ""
+    # Already prose: leave it exactly as written. Not all risk rows carry a
+    # snake_case id — some arrive as a sentence, and running one through the
+    # identifier path collapsed it, because splitting on "_" yields a single
+    # word and str.capitalize() lowercases everything after the first letter.
+    # "Addback quality overstates EBITDA" came out "…overstates ebitda".
+    if " " in text:
+        return text
     words = text.replace("-", "_").split("_")
     acronyms = {
         "coc": "CoC", "qofe": "QofE", "qoe": "QoE", "nrr": "NRR", "grr": "GRR",
@@ -700,16 +707,16 @@ def _appendix(bundle: dict[str, Any]) -> dict[str, Any]:
 
 
 _CONTENTS = (
-    {"no": "1", "title": "Business and revenue model", "question": "What is this and how does it make money?", "page": 3},
-    {"no": "2", "title": "Financial performance", "question": "Is the financial story improving, and is it real?", "page": 4},
-    {"no": "3", "title": "Customer quality and concentration", "question": "Is the revenue durable, and who could take it away?", "page": 5},
-    {"no": "4", "title": "Operating KPIs vs our screens", "question": "Where does this sit against how we screen the sector?", "page": 6},
-    {"no": "5", "title": "Quality of earnings", "question": "Is the EBITDA real?", "page": 7},
-    {"no": "6", "title": "Contract and legal risk", "question": "Anything that changes the price or the close?", "page": 7},
-    {"no": "7", "title": "Forecast and value creation", "question": "Is the plan achievable, and what would we do with it?", "page": 8},
-    {"no": "8", "title": "Risks and what to test first", "question": "What breaks the thesis, and what do we ask on Monday?", "page": 9},
-    {"no": "9", "title": "Minimum Pursuit Score", "question": "Does it clear our own screen?", "page": 10},
-    {"no": "—", "title": "Appendix", "question": "Gaps, confidence, sources, run manifest.", "page": 11},
+    {"no": '1', "title": "Business and revenue model", "question": "What is this and how does it make money?", "page": 3, "anchor": 'sec-1'},
+    {"no": '2', "title": "Financial performance", "question": "Is the financial story improving, and is it real?", "page": 4, "anchor": 'sec-2'},
+    {"no": '3', "title": "Customer quality and concentration", "question": "Is the revenue durable, and who could take it away?", "page": 5, "anchor": 'sec-3'},
+    {"no": '4', "title": "Operating KPIs vs our screens", "question": "Where does this sit against how we screen the sector?", "page": 6, "anchor": 'sec-4'},
+    {"no": '5', "title": "Quality of earnings", "question": "Is the EBITDA real?", "page": 7, "anchor": 'sec-5'},
+    {"no": '6', "title": "Contract and legal risk", "question": "Anything that changes the price or the close?", "page": 7, "anchor": 'sec-6'},
+    {"no": '7', "title": "Forecast and value creation", "question": "Is the plan achievable, and what would we do with it?", "page": 8, "anchor": 'sec-7'},
+    {"no": '8', "title": "Risks and what to test first", "question": "What breaks the thesis, and what do we ask on Monday?", "page": 9, "anchor": 'sec-8'},
+    {"no": '9', "title": "Minimum Pursuit Score", "question": "Does it clear our own screen?", "page": 10, "anchor": 'sec-9'},
+    {"no": '—', "title": "Appendix", "question": "Gaps, confidence, sources, run manifest.", "page": 11, "anchor": 'sec-appendix'},
 )
 
 

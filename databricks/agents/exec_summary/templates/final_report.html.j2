@@ -43,14 +43,61 @@
 <style>
   /* --- Page + palette: inherited from rainmaker_opportunity_summary.html.j2
          so the two deliverables look like one family. -------------------- */
-  @page { size: A4 portrait; margin: 14mm 14mm 12mm 14mm; }
+  /* Running header and footer live in @page margin boxes, not inside each
+     section. When every section owned its own printed page they could sit in
+     the flow; now that sections run on so a short one does not leave a third
+     of a page blank, an in-flow header would print in the middle of a page.
+     `string-set` on the section heading makes the top-right label follow
+     whichever section the page is showing, and counter(page) makes the number
+     real rather than one hardcoded per section. */
+  @page {
+    size: A4 portrait;
+    margin: 20mm 14mm 16mm 14mm;
+    @top-left {
+      content: "{{ report.meta.company_name }} · Final Diligence Report";
+      font: bold 6.5pt "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #1F3864; padding-bottom: 1.2mm; vertical-align: bottom;
+    }
+    @top-right {
+      content: string(sectionname) " · " counter(page);
+      font: 6.5pt "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #595959; padding-bottom: 1.2mm; vertical-align: bottom;
+    }
+    @bottom-left {
+      content: "{{ report.meta.status }} · Generated {{ report.meta.date }} · Mode: {{ report.meta.mode_label }} · Overall confidence: {{ report.meta.overall_confidence }}";
+      font: 6.5pt "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #595959; padding-top: 1.2mm; vertical-align: top;
+    }
+  }
+  /* The cover carries its own identity; a running header on it is noise. */
+  @page :first { @top-left { content: ""; } @top-right { content: ""; } }
   * { box-sizing: border-box; }
   body {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     color: #1A1A1A; font-size: 9pt; line-height: 1.35; margin: 0;
   }
-  .page { page-break-after: always; }
+  /* Sections flow. Only the cover and the MPS page are pinned to their own
+     sheet — the MPS because it is read as a single scorecard, the cover
+     because it is one. Page count is not the budget; readability is. */
+  .page { page-break-after: auto; margin-bottom: 7mm; }
+  .page.cover { page-break-after: always; margin-bottom: 0; }
   .page:last-child { page-break-after: auto; }
+
+  /* Keep a figure or a card whole rather than splitting it across a sheet.
+     Deliberately NOT applied to long tables: forcing a tall table onto the
+     next page in one piece recreates exactly the white space this change is
+     removing. Table rows avoid splitting instead. */
+  .chart, .card, .tiles, .verdict { page-break-inside: avoid; }
+  table tr { page-break-inside: avoid; }
+  h2.section, h3.block { page-break-after: avoid; }
+
+  /* Feeds the top-right running header. */
+  h2.section { string-set: sectionname content(); }
+
+  /* The contents page prints the page each section landed on, read back from
+     the layout rather than declared up front. */
+  .toc a.tocref { text-decoration: none; color: inherit; }
+  .toc a.tocref::after { content: target-counter(attr(href), page); }
 
   /* Screen preview only. In print, @page owns the margins and this block does
      not apply. On screen there is no @page, so the body needs its own gutter or
@@ -145,6 +192,13 @@
   /* --- Layout helpers ------------------------------------------------- */
   .cols-2 { display: flex; gap: 5mm; margin-bottom: 3mm; }
   .cols-2 > * { flex: 1; min-width: 0; }
+  /* A pair whose other half has nothing to show stops being a pair. Holding
+     the 50/50 split left the surviving table crammed into half the width
+     with the page's whole right side blank. */
+  .cols-2.stacked { display: block; }
+  .cols-2.stacked > * + * { margin-top: 3mm; }
+
+  .chart-note { color: #595959; font-size: 5.8pt; margin: 0.5mm 0 1mm 8mm; }
   .cols-3 { display: flex; gap: 4mm; margin-bottom: 4mm; }
   .cols-3 > * { flex: 1; min-width: 0; }
   .card { border: 0.5pt solid #BFD0E8; border-radius: 1.5mm; overflow: hidden; }
@@ -195,18 +249,13 @@
     guesses. `None` inputs are drawn as gaps, not as zero.
     ===================================================================== -#}
 
-{%- macro running_header(report, section, page_no) -%}
-<div class="running-header">
-  <span><span class="company">{{ report.meta.company_name }}</span> · Final Diligence Report</span>
-  <span>{{ section }} · {{ page_no }}</span>
-</div>
-{%- endmacro -%}
+{#- The running header and footer are @page margin boxes now. These macros
+    stay as no-ops so every section keeps declaring its own label and page
+    intent at the call site — that is the documentation of where a section
+    belongs — without emitting a second header into the flow. -#}
+{%- macro running_header(report, section, page_no) -%}{%- endmacro -%}
 
-{%- macro page_footer(report) -%}
-<div class="footer">
-  {{ report.meta.status }} · Generated {{ report.meta.date }} · Mode: {{ report.meta.mode_label }} · Overall confidence: {{ report.meta.overall_confidence }}
-</div>
-{%- endmacro -%}
+{%- macro page_footer(report) -%}{%- endmacro -%}
 
 {%- macro nodata(what) -%}
 <p class="nodata">{{ what }} — not extracted from the data room. See the gap list on the appendix page.</p>
@@ -263,8 +312,11 @@
           font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">{{ s.line_value }}</text>
     {%- endif %}
   {%- endfor %}
-  <text x="30" y="128" font-size="5.8" fill="#595959">{{ c.footnote | default('', true) }}</text>
 </svg>
+{#- The footnote is HTML, not SVG text. SVG <text> does not wrap, so a
+    footnote longer than the viewBox simply ran off the right edge — the
+    forecast chart's note was cut mid-word at "The plan does". -#}
+{%- if c.footnote %}<p class="chart-note">{{ c.footnote }}</p>{% endif %}
 <div class="legend">
   <span><span class="k" style="background:#1F3864"></span>{{ c.bar1_name }}</span>
   {%- if c.bar2_name %}<span><span class="k" style="background:#9FB8DC"></span>{{ c.bar2_name }}</span>{% endif %}
@@ -372,7 +424,7 @@
     Question answered: "Do we pursue this, and what is the one-line reason?"
     The recommendation goes first. A VP should not have to read to page 6.
     ===================================================================== -#}
-<div class="page">
+<div class="page cover">
   <div style="display:flex; justify-content:space-between; align-items:flex-start;">
     <div>
       <div class="eyebrow">Final Diligence Report</div>
@@ -456,7 +508,10 @@
     <tr>
       <td class="n">{{ item.no }}</td>
       <td><strong>{{ item.title }}</strong><div class="q">{{ item.question }}</div></td>
-      <td class="p">{{ item.page }}</td>
+      {#- The page number is resolved from where the section actually landed.
+          Sections flow now, so a number fixed in the view would drift the
+          moment a section grows or shrinks by a few lines. -#}
+      <td class="p"><a class="tocref" href="#{{ item.anchor }}"></a></td>
     </tr>
     {%- endfor %}
   </table>
@@ -471,7 +526,7 @@
     ===================================================================== -#}
 <div class="page">
   {{ running_header(report, 'Business & Revenue Model', 3) }}
-  <h2 class="section">1 · Business and revenue model</h2>
+  <h2 id="sec-1" class="section">1 · Business and revenue model</h2>
 
   <div class="cols-2">
     <div class="card">
@@ -540,7 +595,7 @@
     ===================================================================== -#}
 <div class="page">
   {{ running_header(report, 'Financial Performance', 4) }}
-  <h2 class="section">2 · Financial performance</h2>
+  <h2 id="sec-2" class="section">2 · Financial performance</h2>
 
   <h3 class="block">P&amp;L Summary — {{ report.financials.table.unit_label | default('as reported', true) }}</h3>
   {%- if report.financials.table.periods %}
@@ -608,7 +663,7 @@
     ===================================================================== -#}
 <div class="page">
   {{ running_header(report, 'Customer Quality', 5) }}
-  <h2 class="section">3 · Customer quality and concentration</h2>
+  <h2 id="sec-3" class="section">3 · Customer quality and concentration</h2>
 
   <div class="tiles">
     {%- for t in report.customers.tiles[:5] %}
@@ -619,7 +674,8 @@
     {%- endfor %}
   </div>
 
-  <div class="cols-2">
+  {%- set _cq_pair = report.customers.concentration.bars and report.customers.retention_rows %}
+  <div class="cols-2 {{ '' if _cq_pair else 'stacked' }}">
     <div>
       <h4 class="mini">Concentration — share of revenue</h4>
       {{ chart_hbars(report.customers.concentration) }}
@@ -666,7 +722,7 @@
     ===================================================================== -#}
 <div class="page">
   {{ running_header(report, 'KPI Scorecard', 6) }}
-  <h2 class="section">4 · Operating KPIs against our screens</h2>
+  <h2 id="sec-4" class="section">4 · Operating KPIs against our screens</h2>
   <p class="meta" style="margin-bottom:3mm;">
     Sector overlay applied: <strong>{{ report.kpis.overlay_label | default('not determined', true) }}</strong>.
     Thresholds are the directional first-pass screens, not hard rules — materiality is the deal team's call.
@@ -715,7 +771,7 @@
     ===================================================================== -#}
 <div class="page">
   {{ running_header(report, 'Earnings Quality & Legal', 7) }}
-  <h2 class="section">5 · Quality of earnings</h2>
+  <h2 id="sec-5" class="section">5 · Quality of earnings</h2>
 
   <div class="cols-2">
     <div>
@@ -735,7 +791,7 @@
     </div>
   </div>
 
-  <h2 class="section" style="margin-top:2mm;">6 · Contract and legal risk</h2>
+  <h2 id="sec-6" class="section" style="margin-top:2mm;">6 · Contract and legal risk</h2>
   <div class="cols-3">
     {%- for t in report.legal.tiles[:3] %}
     <div class="tile {{ 'flag' if t.flag else '' }}"><span class="value">{{ t.value }}</span><span class="label">{{ t.label }}</span></div>
@@ -763,12 +819,13 @@
     ===================================================================== -#}
 <div class="page">
   {{ running_header(report, 'Forecast & Value Creation', 8) }}
-  <h2 class="section">7 · Forecast credibility and value creation</h2>
+  <h2 id="sec-7" class="section">7 · Forecast credibility and value creation</h2>
 
   <h3 class="block">Plan vs Historical Run-Rate</h3>
   {{ chart_columns(report.forecast.chart) }}
 
-  <div class="cols-2">
+  {%- set _pair_full = report.forecast.assumptions and report.forecast.levers %}
+  <div class="cols-2 {{ '' if _pair_full else 'stacked' }}">
     <div>
       <h4 class="mini">Assumptions that carry the plan</h4>
       {%- if report.forecast.assumptions %}
@@ -804,7 +861,7 @@
     ===================================================================== -#}
 <div class="page">
   {{ running_header(report, 'Risks & Next Tests', 9) }}
-  <h2 class="section">8 · Risks, mitigants and what to test first</h2>
+  <h2 id="sec-8" class="section">8 · Risks, mitigants and what to test first</h2>
 
   <div class="tiles">
     {%- for h in report.risks.counts %}
@@ -865,7 +922,7 @@
 <div class="page mps-page">
   {{ running_header(report, 'Minimum Pursuit Score', 10) }}
   <div class="eyebrow">Minimum Pursuit Score</div>
-  <h2 class="section">Does this clear Rallyday's bar for further pursuit?</h2>
+  <h2 id="sec-9" class="section">Does this clear Rallyday's bar for further pursuit?</h2>
   <div class="divider"></div>
 
   {% include "_mps_page.html.j2" %}
@@ -881,7 +938,7 @@
     ===================================================================== -#}
 <div class="page">
   {{ running_header(report, 'Appendix', 11) }}
-  <h2 class="section">Appendix</h2>
+  <h2 id="sec-appendix" class="section">Appendix</h2>
 
   <h3 class="block">Data Room Gaps — Information Request</h3>
   {%- if report.appendix.gaps %}

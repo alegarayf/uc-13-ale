@@ -823,3 +823,16 @@ def test_risk_counters_count_the_rows_they_sit_above():
     assert counts["High severity"] == 2
     assert counts["Medium"] == 1
     assert counts["Low"] == 0
+
+
+def test_humanize_metric_does_not_flatten_an_already_written_sentence():
+    """Some risk rows carry a sentence, not a snake_case id. Running one
+    through the identifier path collapsed it: split("_") yields a single word
+    and capitalize() lowercases the rest, so "Addback quality overstates
+    EBITDA" rendered "…overstates ebitda"."""
+    assert frv.humanize_metric("Addback quality overstates EBITDA") == (
+        "Addback quality overstates EBITDA"
+    )
+    assert frv.humanize_metric("Referral relationships are personal, not contractual") == (
+        "Referral relationships are personal, not contractual"
+    )
