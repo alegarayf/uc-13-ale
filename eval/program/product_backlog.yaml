@@ -639,22 +639,17 @@ items:
     kind: measurement_caveat
     severity: high
     summary: >-
-      CHK-27 judge harness at-scale run (run_id 20260901T134541Z-7610, 53 claims) agrees with
-      the prior human-rung run (20260813T185002Z-5a1b) on only 32/53 claims (0.6038) — well
-      below the 0.80 threshold the N=28 calibration sample cleared before authorizing the build.
-      All 21 disagreements are one-directional: human=supported, judge=not_supported. Root
-      cause sampled on exec.claim.001: the judge rejects a compound claim wholesale over a
-      peripheral descriptive detail (evidence confirms every material fact, but "Tri-State
-      region" nominally names 4 states) rather than a genuine evidentiary contradiction — a
-      rubric/decomposition gap, not a retrieval or evidence-scope gap. Same-day companion fix
-      (calibration.py VERDICT_SYSTEM_PROMPT / EXEC_VERDICT_SYSTEM_PROMPT) added a structured
-      "rationale" field (previously an accidental byproduct of the model ignoring "ONLY valid
-      JSON") and an explicit instruction against downgrading claims over peripheral labels —
-      unverified at production scale, no fresh calibration taken against the new prompt.
+      Post-prompt-fix production re-run (run_id 20260909T205913Z-0feb, 53 claims) agrees with
+      the human-rung run (20260813T185002Z-5a1b) on 41/53 claims (0.7736) — up from 32/53
+      (0.6038) on 20260901T134541Z-7610, still below the 0.80 bar. Twelve disagreements remain
+      (11 human-supported / judge-not, plus exec.claim.026 human-contradicted / judge-supported).
+      Cycle-1 VERDICT_SYSTEM_PROMPT peripheral-label instruction is now measured at scale and
+      did not clear 0.80. Residual is still a rubric/decomposition gap, not a missing batch.
     evidence_refs:
       - eval/program/registry.yaml
       - eval/content/calibration.py
       - eval/content/judge_harness.py
+      - s2_scores:20260909T205913Z-0feb
       - s2_scores:20260901T134541Z-7610
       - s2_scores:20260813T185002Z-5a1b
     fix_lane: eval

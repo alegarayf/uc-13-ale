@@ -133,10 +133,14 @@ def test_close_records_state_without_deleting_row(tmp_path: Path) -> None:
 def test_committed_ledger_ratchet_passes() -> None:
     payload = yaml.safe_load(_COMMITTED_LEDGER.read_text(encoding="utf-8"))
     assert payload["schema_version"] == 1
-    assert payload["open_debt_high_water_mark"] == 14
+    assert payload["open_debt_high_water_mark"] == 15
     debts = load_debts(_COMMITTED_LEDGER)
-    assert len(debts) == 20
-    assert open_debt_count(debts) == 0
+    assert len(debts) == 21
+    assert open_debt_count(debts) == 1
+    assert any(
+        row.id == "elder_care:global:revenue_model_empty_after_deel_msa" and row.is_open
+        for row in debts
+    )
     assert_ledger_ratchet(
         _COMMITTED_LEDGER,
         repo_root=_REPO_ROOT,
@@ -176,7 +180,8 @@ def test_clearsulting_promotion_inputs_debt_closed_with_d8_fields() -> None:
     assert "eval/PROFILER/golden_checklist_clearsulting.md" in row.closed_evidence_refs
     assert "6e1b4f5d95284b33bbd08942b3595dd6" in row.closed_evidence_refs
     open_ids = {r.id for r in debts if r.is_open}
-    assert open_ids == set()
+    assert "clearsulting:global:promotion_inputs" not in open_ids
+    assert open_ids == {"elder_care:global:revenue_model_empty_after_deel_msa"}
 
 
 _LEGAL_REGRESSION_ID = "elder_care:global:g1_legal_score_regression"

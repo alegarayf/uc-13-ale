@@ -602,22 +602,31 @@ def _walk_json_for_source_refs(
     refs: list[CitationRef],
     *,
     default_claim: str | None = None,
+    skip_claimless: bool = False,
 ) -> None:
     if isinstance(value, dict):
         doc = value.get("source_doc") or value.get("document")
         loc = value.get("source_location") or value.get("location")
         claim_raw = value.get("claim") or value.get("field")
         claim = str(claim_raw) if claim_raw is not None else default_claim
-        if doc:
+        # Overlay provenance often has source_doc without claim/field. KPI
+        # validation fail-closes on claim=None; destack passes default_claim.
+        if doc and not (skip_claimless and claim is None):
             refs.append((str(doc), str(loc) if loc else None, claim))
         for nested in value.values():
             _walk_json_for_source_refs(
-                nested, refs, default_claim=default_claim
+                nested,
+                refs,
+                default_claim=default_claim,
+                skip_claimless=skip_claimless,
             )
     elif isinstance(value, list):
         for item in value:
             _walk_json_for_source_refs(
-                item, refs, default_claim=default_claim
+                item,
+                refs,
+                default_claim=default_claim,
+                skip_claimless=skip_claimless,
             )
 
 
@@ -1255,7 +1264,9 @@ class GoldLabelBootstrap:
             for value in row.values():
                 parsed = _parse_json_field(value)
                 if parsed is not None:
-                    _walk_json_for_source_refs(parsed, refs)
+                    _walk_json_for_source_refs(
+                        parsed, refs, skip_claimless=True
+                    )
             return _dedupe_preserve_order_refs(refs)
         if agent_id in DESTACK_AGENT_IDS:
             for column in DESTACK_JSON_COLUMNS.get(agent_id, ()):

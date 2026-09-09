@@ -1,5 +1,5 @@
 schema_version: 1
-open_debt_high_water_mark: 14
+open_debt_high_water_mark: 15
 debts:
 - id: clearsulting:global:promotion_inputs
   company: clearsulting
@@ -397,3 +397,16 @@ debts:
   closed_evidence_refs:
   - registry:GAP-103-legal-score-variance-r-3
   - .dev/plans/eval-signal-foldback-m8-root-cause/artifacts/g1_score_m8_elder_care.txt
+- id: elder_care:global:revenue_model_empty_after_deel_msa
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: revenue_model_empty_after_deel_msa
+  opened_at: '2026-09-09'
+  evidence_refs:
+  - trust:elder_care:retrieval:null
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-10/patch-p2-ec-empty-queries.md
+  closes_when: >-
+    profiler.revenue_model has result_count > 0 and recall_at_10 > 0 on a complete
+    harness run versus baseline_b57e58145b2d (or its successor pin) after a
+    query, filter, or corpus change other than the cycle-10 Deel/MSA tokens

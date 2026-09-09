@@ -384,7 +384,10 @@ class CustomerQualityAgent(WorkstreamAgent):
 
     def _tool_retrieve_customer_concentration(self, spark):
         from agents.shared.retrieval import semantic_search
-        query = "top customers revenue concentration customer list percentage revenue share"
+        query = (
+            "top customers revenue concentration customer list percentage revenue share "
+            "billing amount summary by client Billing"
+        )
         chunks = semantic_search(
             query=query,
             spark=spark,

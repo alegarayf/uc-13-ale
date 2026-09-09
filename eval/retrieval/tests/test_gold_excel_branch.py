@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from types import SimpleNamespace
 
@@ -16,6 +17,7 @@ from eval.retrieval.gold.bootstrap import (
     _excel_tab_from_data_rows_location,
     _is_excel_shaped_location,
     _tabs_matching_excel_candidate,
+    _walk_json_for_source_refs,
     load_kpi_claim_intent_map,
 )
 from eval.retrieval.models import RetrievalIntent
@@ -35,11 +37,18 @@ class MockSpark:
         return MockDataFrame([])
 
 
+class _SparkRow(SimpleNamespace):
+    """Spark-shaped row so overlay JSON columns survive `_analysis_row_as_dict`."""
+
+    def asDict(self, recursive: bool = False) -> dict:
+        return vars(self).copy()
+
+
 class MockDataFrame:
     def __init__(self, rows: list[dict]) -> None:
-        self._rows = [SimpleNamespace(**row) for row in rows]
+        self._rows = [_SparkRow(**row) for row in rows]
 
-    def collect(self) -> list[SimpleNamespace]:
+    def collect(self) -> list[_SparkRow]:
         return self._rows
 
 
@@ -211,6 +220,58 @@ def test_missing_claim_raises(kpi_spark_handlers):
     intent = _sample_intent("kpi.retrieve_healthcare_ops", agent_id="kpi")
     with pytest.raises(PreconditionError, match="missing claim"):
         bootstrap.bootstrap([intent])
+
+
+_CS_FDR_PDF = (
+    "Project Infinity - Draft Financial Diligence Report - August 29, 2025_redacted.pdf"
+)
+
+
+def _clearsulting_overlay_block() -> dict:
+    """Live CS tech_services shape: provenance source_doc, no claim/field."""
+    return {
+        "source_doc": _CS_FDR_PDF,
+        "bill_rates_by_role": [
+            {"role": "Analyst", "source_doc": _CS_FDR_PDF},
+            {"role": "Manager", "source_doc": _CS_FDR_PDF},
+        ],
+        "gross_margin_by_segment": [
+            {"segment": "NA", "source_doc": _CS_FDR_PDF},
+        ],
+    }
+
+
+def test_walk_skips_claimless_overlay_source_doc():
+    refs: list = []
+    _walk_json_for_source_refs(
+        _clearsulting_overlay_block(), refs, skip_claimless=True
+    )
+    assert refs == []
+    claimed = {
+        "source_doc": _CS_FDR_PDF,
+        "claim": "healthcare_kpis.census_or_patient_panel",
+        "source_location": "p. 12",
+    }
+    kept: list = []
+    _walk_json_for_source_refs(claimed, kept, skip_claimless=True)
+    assert kept == [(_CS_FDR_PDF, "p. 12", "healthcare_kpis.census_or_patient_panel")]
+
+
+def test_claimless_overlay_source_doc_does_not_fail_close(kpi_spark_handlers):
+    """Named regression: CS overlay source_doc claim=None must not enter KPI validate."""
+    handlers = dict(kpi_spark_handlers)
+    row = dict(handlers["analysis.kpi"][0])
+    row["tech_services_kpis_json"] = json.dumps(_clearsulting_overlay_block())
+    handlers["analysis.kpi"] = [row]
+    spark = MockSpark(handlers)
+    bootstrap = GoldLabelBootstrap(spark, ingestion_date=date(2026, 8, 11))
+    refs = bootstrap._citation_refs_for_agent("kpi")
+    assert all(claim is not None for _document, _location, claim in refs)
+    assert not any(document == _CS_FDR_PDF for document, _location, _claim in refs)
+    bootstrap._validate_kpi_citation_refs(refs)
+    intent = _sample_intent("kpi.retrieve_healthcare_ops", agent_id="kpi")
+    label = bootstrap.bootstrap([intent])[0]
+    assert label.positive_chunk_ids == ["ops_chunk_1"]
 
 
 def test_zero_tab_match_raises(kpi_spark_handlers):

@@ -2,6 +2,9 @@
 
 ## eval-loop-experiment-9-9-2026 — 2026-09-09
 
+- patch-cycle-10 (retrieval, Clearsulting): KPI walker skips claim-less overlay `source_doc` (`skip_claimless=True` on the kpi branch only). Bootstrap job `695737618607096` succeeded; new complete harness `baseline_4b2621ee867e`. Healthcare `filename_closure` intents left the gated set (37→30 evaluated). Do not treat 8/30 as beating 22/37.
+- patch-cycle-10 (retrieval, Elder Care): concentration query gained billing-by-client tokens (agent + registry + extractor lockstep). New complete harness `baseline_b57e58145b2d`: `cqa.retrieve_customer_concentration` empty→semantic, r@10 0→1.0. `profiler.revenue_model` still empty after Deel/MSA tokens — opened `elder_care:global:revenue_model_empty_after_deel_msa`.
+- patch-cycle-10 (judge_cal, Elder Care): re-ran existing exec harness. New batch `20260909T205913Z-0feb` agrees with human `20260813T185002Z-5a1b` on 41/53 (0.7736), up from 32/53 (0.6038) on `7610`. Still below 0.80; `PB-exec_summary-chk27-judge-production-accuracy-gap` stays open.
 - patch-cycle-9 (retrieval, Elder Care): `cqa.retrieve_account_size` workstream filter now includes `FINANCIAL` and `QUALITY_EARNINGS` so destacked Projection Model gold can enter the candidate set. New complete harness `baseline_70342489afec`: intent left `empty` (0 hits → 6, r@10 0→0.045).
 - patch-cycle-9 (retrieval, SPG): landed citation destack applied to `gold_labels/spg.yaml` (BMA/CQA/FTA cloned bags). New complete harness `baseline_281a1c5d6c9d`. Gated set shrank 38→18; do not treat 10/18 as beating 32/38.
 - patch-cycle-9 (retrieval, claim-map): `kpi_claim_intent_map.yaml` now includes live CS/GKF/SPG/EC exact claim strings. Clearsulting bootstrap no longer dies on `Unmapped KPI claim`; it then fail-closes on claim-less overlay `source_doc` (different hypothesis). No new CS harness `run_id`.

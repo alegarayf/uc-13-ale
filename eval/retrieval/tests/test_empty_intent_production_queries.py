@@ -40,7 +40,7 @@ CQA_PRODUCTION = {
 }
 
 PROFILER_PRODUCTION_QUERY = (
-    "revenue model contract type recurring revenue subscription retainer"
+    "revenue model contract type recurring revenue subscription retainer Deel MSA"
 )
 
 
