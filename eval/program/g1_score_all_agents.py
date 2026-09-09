@@ -45,6 +45,13 @@ BASELINES: dict[str, dict[str, tuple[int, int, str] | None]] = {
     "clearsulting": dict.fromkeys(_AGENTS),
     "gkf": dict.fromkeys(_AGENTS),
     "spg": dict.fromkeys(_AGENTS),
+    # W3 onboarding — informational G1 only (same as Clearsulting/GKF/SPG).
+    "infinitive": dict.fromkeys(_AGENTS),
+    "integrity_risk": dict.fromkeys(_AGENTS),
+    "northbound": dict.fromkeys(_AGENTS),
+    "project_sherpa": dict.fromkeys(_AGENTS),
+    "solvd": dict.fromkeys(_AGENTS),
+    "stride": dict.fromkeys(_AGENTS),
 }
 
 
