@@ -1714,6 +1714,13 @@ named next to it.
       `run_ingestion_pipeline`/`run_pipeline` are not called a second time on
       Branch B (they'd raise `AssertionError` if they were). `pytest
       tests/test_run_vdr_rainmaker.py -q`: 20 passed.
+- [ ] **DoD-19** — Page 8's *render* is asserted, not just its reader: a bundle
+      carrying `forecast_rows` / `forecast_assumptions` puts the plan periods, the
+      assumption text and its **mapped** severity class into the HTML, and a
+      bundle without them renders "not extracted" with no fabricated zero.
+      *(T10b; evidence: two mutations — dropping the plan rows from `_forecast`,
+      and collapsing the Supported/Plausible/Stretch mapping to a constant — each
+      must fail a test)*
 - [x] **DoD-18** — `_run_final_report_stage`'s generic `try/except` — the net
       for a stage-2 failure nobody wrote a specific branch for — is proven to
       actually catch, not just present. *(T09b; evidence: two new tests, each
