@@ -71,6 +71,15 @@
   }
   /* The cover carries its own identity; a running header on it is noise. */
   @page :first { @top-left { content: ""; } @top-right { content: ""; } }
+
+  /* The MPS scorecard is the one landscape page in a portrait document. Its
+     table is seven categories wide plus a commentary column, and the
+     executive review — which is landscape throughout — has always shown it
+     that way; on a portrait page the same shared markup squeezes the
+     commentary into a column too narrow to read. A named page turns just
+     this sheet, and inherits the margin boxes declared above. */
+  @page mps { size: A4 landscape; }
+  .page.mps-page { page: mps; page-break-before: always; page-break-after: always; }
   * { box-sizing: border-box; }
   body {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -215,7 +224,9 @@
 
   /* --- MPS table: lifted verbatim from rainmaker_opportunity_summary.html.j2.
          Keep in sync with that file, or better, share one partial. ------- */
-  .mps-page { page-break-inside: avoid; }
+  /* No longer forced whole onto one sheet: a long commentary column can now
+     run to a second landscape page rather than being clipped. */
+  .mps-page table.mps-table { page-break-inside: auto; }
   table.mps-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 1.5mm 0; }
   table.mps-table th, table.mps-table td {
     border-bottom: 0.5pt solid #BFD0E8; padding: 0.8mm 2mm; text-align: left; vertical-align: top;

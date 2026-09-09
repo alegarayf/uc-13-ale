@@ -523,6 +523,43 @@ def _format_money(value: float, original: Any) -> str:
     return f"{prefix}{body}"
 
 
+_NUMERIC_RE = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def format_period_money(value: Any) -> str | None:
+    """One money cell, rendered the same way for every period.
+
+    Extraction is not uniform even within a single row: the same company's
+    revenue arrives as "$40,251" for one period and "$57,090 thousand" for
+    the next, which printed side by side as two different-looking quantities
+    and wrapped the longer cell onto a second line. ``_normalize_period_units``
+    has already reconciled them numerically — this makes the column look
+    reconciled too, in the unit the table header states.
+
+    Shared by both deliverables on purpose: the executive review and the final
+    report render the same figures from the same bundle, and a formatter in
+    one of them would be a divergence rather than a fix. Unparseable text is
+    passed through, because an unparseable string is still evidence.
+    """
+    cleaned = _clean_cell(value)
+    if cleaned is None:
+        return None
+    parsed = _parse_money(cleaned)
+    if parsed is None:
+        return cleaned
+    # Keep the precision the source stated. Imposing a fixed rule turns a
+    # stated "40" into "40.0", inventing a significant digit the agent did
+    # not write — the redundant magnitude WORD is the only thing this needs
+    # to remove.
+    digits = _NUMERIC_RE.search(cleaned.replace(",", ""))
+    decimals = len(digits.group(0).split(".")[1]) if digits and "." in digits.group(0) else 0
+    prefix = "$" if cleaned.startswith(("$", "($")) else ""
+    body = f"{abs(parsed):,.{decimals}f}"
+    if parsed < 0 or cleaned.startswith("("):
+        return f"({prefix}{body})"
+    return f"{prefix}{body}"
+
+
 def _normalize_period_units(period_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Copy of ``period_rows`` with any period whose figures were extracted in
     a different unit rescaled onto the table's dominant unit. Never mutates
@@ -642,7 +679,12 @@ def _financial_table(bundle: dict[str, Any]) -> dict[str, Any]:
 
     rows = []
     for label, field, highlighted in _FINANCIAL_TABLE_ROW_SPECS:
-        values = growth_values if field is None else [_clean_cell(r.get(field)) for r in period_rows]
+        if field is None:
+            values = growth_values
+        elif field in _MONEY_FIELDS:
+            values = [format_period_money(r.get(field)) for r in period_rows]
+        else:
+            values = [_clean_cell(r.get(field)) for r in period_rows]
         # NOTE: key is "cells", not "values" — Jinja resolves `row.values` as
         # the dict.values() bound method (attribute lookup wins over item
         # lookup), so a "values" key would silently break `{% for v in

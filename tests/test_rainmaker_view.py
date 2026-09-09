@@ -418,10 +418,14 @@ def test_margin_reconciliation_overrides_a_contradicting_stated_percent():
     }
     view = rainmaker_view(bundle)
     metrics = {r["metric_name"]: r["cells"] for r in view["financials"]["rows"]}
-    assert metrics["Total Revenue"] == ["35136"]
-    assert metrics["Gross Profit"] == ["3208"]  # the $ figure is never touched
+    # Money cells are rendered uniformly across periods (thousands separated,
+    # the source's own precision kept), so a column does not mix "35136" with
+    # "$57,090 thousand". The reconciliation below is about the % rows and is
+    # unaffected by how the $ row is written.
+    assert metrics["Total Revenue"] == ["35,136"]
+    assert metrics["Gross Profit"] == ["3,208"]  # the $ VALUE is never touched, only its formatting
     assert metrics["% Gross Margin"] == ["9.1%"]  # recomputed, not the stated 36.6%
-    assert metrics["EBITDA"] == ["9239"]
+    assert metrics["EBITDA"] == ["9,239"]
     assert metrics["% EBITDA Margin"] == ["26.3%"]  # recomputed, not the stated 19.9%
 
 
@@ -887,3 +891,35 @@ def test_revenue_tile_relabels_the_headline_figure_when_no_cagr_is_computable():
     view = rainmaker_view(bundle)
     assert {"value": "3%", "label": "Revenue Growth (YoY)"} in view["stat_tiles"]
     assert not any(t["label"] == "Revenue CAGR" for t in view["stat_tiles"])
+
+
+def test_format_period_money_removes_a_redundant_magnitude_word():
+    """The same company's revenue arrives as "$40,251" for one period and
+    "$57,090 thousand" for the next; printed side by side they read as two
+    different quantities and the longer cell wrapped onto a second line."""
+    from agents.exec_summary.rainmaker_view import format_period_money
+
+    assert format_period_money("$57,090 thousand") == "$57,090"
+    assert format_period_money("$40,251") == "$40,251"
+
+
+def test_format_period_money_keeps_the_precision_the_source_stated():
+    """Imposing a fixed rule turned a stated "40" into "40.0", inventing a
+    significant digit the agent did not write."""
+    from agents.exec_summary.rainmaker_view import format_period_money
+
+    assert format_period_money("40") == "40"
+    assert format_period_money("48.4") == "48.4"
+
+
+def test_format_period_money_passes_unparseable_text_through():
+    from agents.exec_summary.rainmaker_view import format_period_money
+
+    assert format_period_money("not a number") == "not a number"
+    assert format_period_money(None) is None
+
+
+def test_format_period_money_keeps_a_negative_in_parentheses():
+    from agents.exec_summary.rainmaker_view import format_period_money
+
+    assert format_period_money("($1,200)") == "($1,200)"

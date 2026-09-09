@@ -33,6 +33,7 @@ from agents.exec_summary.formatters import (
 )
 from agents.exec_summary.rainmaker_view import (
     _financial_periods,
+    format_period_money,
     _normalize_period_units,
     _parse_percent as _rainmaker_parse_percent,
     _unit_label as _rainmaker_unit_label,
@@ -258,7 +259,13 @@ def _pnl_table(bundle: dict[str, Any]) -> dict[str, Any]:
 
     rows: list[dict[str, Any]] = []
     for label, field, emphasis, kind in specs:
-        cells = [None if r.get(field) in (None, "") else str(r.get(field)).strip() for r in ordered]
+        if kind == "money":
+            # Same formatter the executive review uses, so the two documents
+            # cannot disagree about how a figure is written — only, legitimately,
+            # about which figures a run extracted.
+            cells = [format_period_money(r.get(field)) for r in ordered]
+        else:
+            cells = [None if r.get(field) in (None, "") else str(r.get(field)).strip() for r in ordered]
         if not any(cells):
             continue  # self-pruning: never show an empty row
         nums = [parse_money(c) if kind == "money" else parse_percent(c) for c in cells]
