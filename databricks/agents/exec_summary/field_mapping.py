@@ -593,18 +593,70 @@ _KPI_CONCENTRATION_FIELD: dict[str, str] = {
 }
 
 
-def _kpi_overlay_block(kpi_yaml: dict) -> tuple[str, dict] | tuple[None, None]:
+# The confirmed-overlay names that reach us (company_profile.industry_overlay,
+# kpi.overlay_confirmed) are not the block names — "healthcare_services" is the
+# block "healthcare_kpis". Mapped explicitly rather than by string surgery so an
+# unrecognised overlay falls through to the content-based pick below instead of
+# silently resolving to a block that does not exist.
+_OVERLAY_TO_KPI_BLOCK: dict[str, str] = {
+    "healthcare": "healthcare_kpis",
+    "healthcare_services": "healthcare_kpis",
+    "tech_services": "tech_services_kpis",
+    "b2b_saas": "saas_kpis",
+    "saas": "saas_kpis",
+    "industrial": "industrial_kpis",
+    "consumer": "consumer_kpis",
+}
+
+
+def _block_content_score(blob: Any) -> int:
+    """How many fields the agent actually filled in this overlay block.
+
+    ``kpi_agent`` writes ALL five overlay blocks on every run and populates
+    only the confirmed one — the other four are full-length records of nulls.
+    A plain truthiness test therefore matches the first block in declaration
+    order rather than the company's real overlay, which is why a tech-services
+    company rendered a 706-character all-null healthcare stub instead of its
+    own 12KB of KPIs. Counting filled fields is what distinguishes them.
+    """
+    if not isinstance(blob, dict):
+        return 0
+    return sum(
+        1
+        for key, value in blob.items()
+        if key != "source_doc" and value not in (None, "", "null", [], {}, "false")
+    )
+
+
+def _kpi_overlay_block(
+    kpi_yaml: dict, overlay_hint: str = "",
+) -> tuple[str, dict] | tuple[None, None]:
+    """Pick the overlay block this company's KPIs actually live in.
+
+    Preference order: the confirmed overlay when we were given one and it
+    carries content, then whichever block has the most filled fields. Falling
+    back on content rather than on declaration order means a company whose
+    profile overlay is missing or unrecognised still gets its own KPIs.
+    """
+    hinted = _OVERLAY_TO_KPI_BLOCK.get(str(overlay_hint or "").strip().lower())
+    if hinted and _block_content_score(kpi_yaml.get(hinted)):
+        return hinted, kpi_yaml.get(hinted) or {}
+    best_key, best_score = None, 0
     for key in _KPI_OVERLAY_BLOCKS:
-        blob = kpi_yaml.get(key)
-        if blob:
-            return key, blob if isinstance(blob, dict) else {}
-    return None, None
+        score = _block_content_score(kpi_yaml.get(key))
+        if score > best_score:
+            best_key, best_score = key, score
+    if best_key is None:
+        return None, None
+    return best_key, kpi_yaml.get(best_key) or {}
 
 
-def _note_from_kpi_field(kpi_yaml: dict | None, field_by_overlay: dict[str, str]) -> str:
+def _note_from_kpi_field(
+    kpi_yaml: dict | None, field_by_overlay: dict[str, str], overlay_hint: str = "",
+) -> str:
     if not kpi_yaml:
         return ""
-    overlay_key, blob = _kpi_overlay_block(kpi_yaml)
+    overlay_key, blob = _kpi_overlay_block(kpi_yaml, overlay_hint)
     if not overlay_key:
         return ""
     field = field_by_overlay.get(overlay_key)
@@ -615,8 +667,11 @@ def _note_from_kpi_field(kpi_yaml: dict | None, field_by_overlay: dict[str, str]
 
 
 def _revenue_quality_from_agents(
-    bma_yaml: dict | None, cqa_yaml: dict | None, kpi_yaml: dict | None = None,
-) -> dict[str, str]:
+    bma_yaml: dict | None,
+    cqa_yaml: dict | None,
+    kpi_yaml: dict | None = None,
+    overlay_hint: str = "",
+) -> dict[str, Any]:
     concentration = ""
     retention_notes = ""
     end_market_mix = ""
@@ -628,9 +683,9 @@ def _revenue_quality_from_agents(
     # company (a real gap or an overlay CQA doesn't cover well), never a
     # second opinion overriding a value CQA already gave.
     if not concentration:
-        concentration = _note_from_kpi_field(kpi_yaml, _KPI_CONCENTRATION_FIELD)
+        concentration = _note_from_kpi_field(kpi_yaml, _KPI_CONCENTRATION_FIELD, overlay_hint)
     if not end_market_mix:
-        end_market_mix = _note_from_kpi_field(kpi_yaml, _KPI_END_MARKET_MIX_FIELD)
+        end_market_mix = _note_from_kpi_field(kpi_yaml, _KPI_END_MARKET_MIX_FIELD, overlay_hint)
     scale = ""
     if bma_yaml and bma_yaml.get("executive_summary"):
         scale = str(bma_yaml["executive_summary"])[:500]
@@ -639,7 +694,43 @@ def _revenue_quality_from_agents(
         "concentration": concentration,
         "end_market_mix": end_market_mix,
         "retention_notes": retention_notes,
+        # Structured passthrough. The prose notes above summarise these for the
+        # one-pager; the final report's charts and tiles read the structured
+        # shapes directly (final_report_view._top_customers / _retention_rows /
+        # _customer_tiles), and until this passthrough existed they read keys
+        # this mapper never produced — so every company rendered "not
+        # extracted" over a populated CQA row. Field names are CQA's own; the
+        # view was already written against them.
+        **_cqa_structured_passthrough(cqa_yaml),
     }
+
+
+_CQA_PASSTHROUGH_KEYS: tuple[tuple[str, str, type], ...] = (
+    ("top_customers", "top_customers", list),
+    ("concentration_summary", "concentration_summary", dict),
+    ("retention", "retention", dict),
+    ("customer_tenure", "customer_tenure", dict),
+)
+
+
+def _cqa_structured_passthrough(cqa_yaml: dict | None) -> dict[str, Any]:
+    """Copy CQA's structured blocks onto ``revenue_quality`` under their own
+    names, keeping only values of the shape the view expects.
+
+    Deliberately a copy, not a transform: every consumer downstream already
+    speaks CQA's field vocabulary, so reshaping here would create a second
+    schema to keep in sync. A block the agent left null stays absent rather
+    than becoming an empty dict, so ``or {}`` guards downstream still read as
+    "the agent found nothing" instead of "the agent returned a blank record".
+    """
+    if not isinstance(cqa_yaml, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for dest, src, kind in _CQA_PASSTHROUGH_KEYS:
+        value = cqa_yaml.get(src)
+        if isinstance(value, kind) and value:
+            out[dest] = value
+    return out
 
 
 def _qoe_from_snapshots(qoe_snap: dict | None, fta_yaml: dict | None) -> dict[str, Any]:
@@ -657,23 +748,15 @@ def _qoe_from_snapshots(qoe_snap: dict | None, fta_yaml: dict | None) -> dict[st
     }
 
 
-def _kpi_rows_from_yaml(kpi_yaml: dict | None) -> list[dict[str, Any]]:
+def _kpi_rows_from_yaml(kpi_yaml: dict | None, overlay_hint: str = "") -> list[dict[str, Any]]:
     if not kpi_yaml:
         return []
-    overlay_key = None
-    for key in (
-        "healthcare_kpis",
-        "tech_services_kpis",
-        "saas_kpis",
-        "industrial_kpis",
-        "consumer_kpis",
-    ):
-        if kpi_yaml.get(key):
-            overlay_key = key
-            break
+    # Same selection as _note_from_kpi_field — one rule, not two. Picking the
+    # first non-empty block here was why every non-healthcare company's KPI
+    # page rendered from an all-null healthcare stub.
+    overlay_key, blob = _kpi_overlay_block(kpi_yaml, overlay_hint)
     if not overlay_key:
         return []
-    blob = kpi_yaml.get(overlay_key) or {}
     if not isinstance(blob, dict):
         return []
     rows: list[dict[str, Any]] = []
@@ -734,6 +817,13 @@ def apply_field_mappings(
 
     company_name = str(meta.get("company_name") or "")
     vertical_overlay = str(profile.get("industry_overlay") or "")
+    # Which overlay's KPI block belongs to this company. The profile is the
+    # primary signal; kpi_agent's own overlay_confirmed is the fallback for a
+    # run whose profile came back without one. Empty is fine — the selection
+    # falls back to whichever block the agent actually filled.
+    overlay_hint = vertical_overlay or str(
+        (snapshots.get("kpi", {}).get("delta_row") or {}).get("overlay_confirmed") or ""
+    )
 
     partial: dict[str, Any] = {
         "meta": {
@@ -757,8 +847,8 @@ def apply_field_mappings(
             "observations": [],
             "geographic_mix": (fta_yaml or {}).get("revenue_by_segment") or [],
         },
-        "revenue_quality": _revenue_quality_from_agents(bma_yaml, cqa_yaml, kpi_yaml),
-        "kpi_dashboard": _kpi_rows_from_yaml(kpi_yaml),
+        "revenue_quality": _revenue_quality_from_agents(bma_yaml, cqa_yaml, kpi_yaml, overlay_hint),
+        "kpi_dashboard": _kpi_rows_from_yaml(kpi_yaml, overlay_hint),
         "qoe": _qoe_from_snapshots(snapshots.get("quality_of_earnings"), fta_yaml),
         "legal": _build_legal_block(legal_delta)
         if legal_delta

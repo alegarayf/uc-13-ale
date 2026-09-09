@@ -16,6 +16,8 @@ from agents.exec_summary.field_mapping import (
     _company_framing_from_bma,
     _fta_table_rows,
     _headline_from_fta,
+    _kpi_overlay_block,
+    _kpi_rows_from_yaml,
     _revenue_quality_from_agents,
 )
 
@@ -505,3 +507,104 @@ def test_company_framing_carries_the_new_fields_even_with_no_bma_output():
     assert framing["business_description"] == "Desc."
     assert framing["sale_process"]
     assert framing["key_partners"] == []
+
+
+# ---------------------------------------------------------------------------
+# The two mapping bugs found by reading the first live final reports off
+# uc13_preview (GKF, Clearsulting, Elder Care, 2026-09-09):
+#
+#   1. revenue_quality carried only prose notes, so the final report's
+#      concentration chart, top-customers table and retention tiles — all of
+#      which read CQA's structured shapes — rendered "not extracted" over a
+#      fully populated CQA row (Clearsulting: 6.4KB of named clients with
+#      revenue, NRR 73%).
+#   2. The overlay block was picked by declaration order, and kpi_agent writes
+#      all five blocks with only the confirmed one filled. Every non-healthcare
+#      company therefore rendered an all-null healthcare stub instead of its
+#      own KPIs (Clearsulting: a 706-char null record chosen over 12KB of
+#      tech-services KPIs).
+#
+# The all-null stub below is the real shape, trimmed: what matters is that it
+# is a full-length record whose values are all null, so plain truthiness
+# cannot tell it apart from a populated one.
+# ---------------------------------------------------------------------------
+
+_NULL_HEALTHCARE_STUB = {
+    "census_or_patient_panel": None,
+    "caregiver_headcount": None,
+    "turnover_rate_pct": None,
+    "referral_source_breakdown": None,
+    "compliance_incidents": [],
+    "site_level_visibility": "false",
+    "source_doc": None,
+}
+
+
+def test_revenue_quality_passes_cqa_structured_blocks_through():
+    cqa_yaml = {
+        "top_customers": [{"customer_name": "Client 1", "revenue_pct_yr1": None}],
+        "retention": {"nrr_pct": "73%", "grr_pct": None},
+        "concentration_summary": {"top1_pct": None, "top5_pct": None},
+        "customer_tenure": {"average_tenure_years": 3},
+    }
+    result = _revenue_quality_from_agents(None, cqa_yaml)
+    assert result["top_customers"] == cqa_yaml["top_customers"]
+    assert result["retention"]["nrr_pct"] == "73%"
+    assert result["concentration_summary"] == cqa_yaml["concentration_summary"]
+    assert result["customer_tenure"]["average_tenure_years"] == 3
+
+
+def test_revenue_quality_omits_blocks_the_agent_left_empty():
+    """An absent block must stay absent, not become an empty dict — downstream
+    ``or {}`` guards read "agent found nothing", and a blank record would make
+    a gap look like an extraction that returned nothing to say."""
+    result = _revenue_quality_from_agents(None, {"top_customers": [], "retention": {}})
+    assert "top_customers" not in result
+    assert "retention" not in result
+
+
+def test_revenue_quality_structured_passthrough_survives_no_cqa():
+    result = _revenue_quality_from_agents(None, None)
+    assert "top_customers" not in result
+    assert result["concentration"] == ""
+
+
+def test_kpi_overlay_block_prefers_the_confirmed_overlay_over_declaration_order():
+    kpi_yaml = {
+        "healthcare_kpis": dict(_NULL_HEALTHCARE_STUB),
+        "tech_services_kpis": {"utilization_rate_pct": "78%", "bill_rate_dollars": "$225"},
+    }
+    key, blob = _kpi_overlay_block(kpi_yaml, "tech_services")
+    assert key == "tech_services_kpis"
+    assert blob["utilization_rate_pct"] == "78%"
+
+
+def test_kpi_overlay_block_falls_back_to_the_richest_block_without_a_hint():
+    """No overlay hint (profile missing it) must not mean the first block wins
+    — the block the agent actually filled does."""
+    kpi_yaml = {
+        "healthcare_kpis": dict(_NULL_HEALTHCARE_STUB),
+        "consumer_kpis": {"channel_mix_note": "Tuition 98.7% of revenue"},
+    }
+    key, _ = _kpi_overlay_block(kpi_yaml, "")
+    assert key == "consumer_kpis"
+
+
+def test_kpi_overlay_block_ignores_an_unrecognised_hint_rather_than_going_blank():
+    kpi_yaml = {"consumer_kpis": {"channel_mix_note": "Tuition 98.7%"}}
+    key, _ = _kpi_overlay_block(kpi_yaml, "something_we_never_heard_of")
+    assert key == "consumer_kpis"
+
+
+def test_kpi_overlay_block_returns_none_when_every_block_is_a_null_stub():
+    key, blob = _kpi_overlay_block({"healthcare_kpis": dict(_NULL_HEALTHCARE_STUB)}, "")
+    assert key is None and blob is None
+
+
+def test_kpi_rows_use_the_confirmed_overlay_not_the_null_stub():
+    kpi_yaml = {
+        "healthcare_kpis": dict(_NULL_HEALTHCARE_STUB),
+        "tech_services_kpis": {"utilization_rate_pct": "78%"},
+    }
+    rows = _kpi_rows_from_yaml(kpi_yaml, "tech_services")
+    assert [r["metric_id"] for r in rows] == ["utilization_rate_pct"]
