@@ -25,6 +25,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from agents.exec_summary.formatters import format_dollars
 from agents.exec_summary.rainmaker_view import (
     _financial_periods,
     _normalize_period_units,
@@ -204,7 +205,7 @@ def _pnl_table(bundle: dict[str, Any]) -> dict[str, Any]:
     its relative position, placed after the parseable ones — never dropped,
     never guessed at); ``_normalize_period_units`` rescales a period whose
     figures were extracted in a different unit than its neighbours."""
-    ordered = _normalize_period_units(_financial_periods(bundle))
+    ordered = ordered_financials(bundle)
     periods = [str(r.get("year") or "").strip() for r in ordered]
 
     specs = (
@@ -251,6 +252,32 @@ def _pnl_table(bundle: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def ordered_financials(bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    """The financial periods every part of this report must agree on.
+
+    ``_pnl_table`` already built its rows this way — deduped, sorted by the
+    year each label names, and with a period extracted in a foreign unit
+    rescaled onto the table's own. The three charts read
+    ``financials.table_rows`` raw instead, and so disagreed with the table
+    printed directly above them: Clearsulting's 2022 revenue arrives as
+    "$40,251,450" beside three periods stated in thousands, which the table
+    reconciled to $40.3M and the chart drew as a bar 707x its neighbours,
+    labelled "40251.4bn", positioned after TTM25 because the agent happened
+    to extract it last.
+
+    One accessor so a fix to ordering or units reaches the whole document.
+    """
+    return _normalize_period_units(_financial_periods(bundle))
+
+
+def financial_unit_label(bundle: dict[str, Any], ordered: list[dict[str, Any]] | None = None) -> str:
+    """The unit every money figure in this report is stated in — one source,
+    so the P&L header, its charts and the forecast chart cannot disagree."""
+    rows = ordered_financials(bundle) if ordered is None else ordered
+    values = [parse_money(r.get("revenue")) for r in rows]
+    return (bundle.get("financials") or {}).get("unit_label") or _rainmaker_unit_label(bundle, values) or ""
+
+
 def _calc_column(nums: list[float | None], kind: str, n_periods: int) -> str | None:
     """CAGR for money rows across 3+ periods; percentage-point delta for
     percent rows; YoY otherwise. Returns ``None`` when the inputs do not
@@ -277,7 +304,8 @@ def _trend_chart(bundle: dict[str, Any], shared_max: float | None = None) -> dic
     which reads as an error rather than as information. Reported vs adjusted
     EBITDA gets its own chart on its own axis instead (``_ebitda_chart``).
     """
-    rows = [r for r in ((bundle.get("financials") or {}).get("table_rows") or []) if isinstance(r, dict)]
+    rows = ordered_financials(bundle)
+    unit = financial_unit_label(bundle, rows)
     labels = [str(r.get("year") or "") for r in rows]
     rev = [parse_money(r.get("revenue")) for r in rows]
     margin = [parse_percent(r.get("ebitda_margin_pct")) for r in rows]
@@ -289,7 +317,7 @@ def _trend_chart(bundle: dict[str, Any], shared_max: float | None = None) -> dic
         "series": [
             {
                 "label": labels[i],
-                "bar1_pct": rev_pct[i], "bar1_value": _short(rev[i]),
+                "bar1_pct": rev_pct[i], "bar1_value": money_label(rev[i], unit),
                 "bar2_pct": None, "bar2_value": None,
                 "line_pct": None if margin[i] is None else max(0.0, min(100.0, margin[i])),
                 "line_value": None if margin[i] is None else f"{margin[i]:.1f}%",
@@ -297,7 +325,7 @@ def _trend_chart(bundle: dict[str, Any], shared_max: float | None = None) -> dic
             for i in range(len(rows))
         ],
         "bar1_name": "Revenue", "bar2_name": None, "line_name": "EBITDA margin %",
-        "axis_max_label": _short(axis_max),
+        "axis_max_label": money_label(axis_max, unit),
         "footnote": "Revenue columns on the left axis; margin line on a 0-100% axis.",
     }
 
@@ -306,7 +334,8 @@ def _ebitda_chart(bundle: dict[str, Any]) -> dict[str, Any]:
     """Reported against adjusted EBITDA, on a shared EBITDA axis. The gap
     between the two columns IS the earnings-quality question, and this is the
     only place in the report where it is visible rather than described."""
-    rows = [r for r in ((bundle.get("financials") or {}).get("table_rows") or []) if isinstance(r, dict)]
+    rows = ordered_financials(bundle)
+    unit = financial_unit_label(bundle, rows)
     reported = [parse_money(r.get("ebitda")) for r in rows]
     adjusted = [parse_money(r.get("adjusted_ebitda")) for r in rows]
     axis_max = max([v for v in (reported + adjusted) if v is not None] or [0])
@@ -316,28 +345,63 @@ def _ebitda_chart(bundle: dict[str, Any]) -> dict[str, Any]:
         "series": [
             {
                 "label": str(rows[i].get("year") or ""),
-                "bar1_pct": rep_pct[i], "bar1_value": _short(reported[i]),
-                "bar2_pct": adj_pct[i], "bar2_value": _short(adjusted[i]),
+                "bar1_pct": rep_pct[i], "bar1_value": money_label(reported[i], unit),
+                "bar2_pct": adj_pct[i], "bar2_value": money_label(adjusted[i], unit),
                 "line_pct": None, "line_value": None,
             }
             for i in range(len(rows))
         ],
         "bar1_name": "Reported EBITDA", "bar2_name": "Adjusted EBITDA", "line_name": None,
-        "axis_max_label": _short(axis_max),
+        "axis_max_label": money_label(axis_max, unit),
         "footnote": "The widening gap between the two columns is the addback question.",
     }
 
 
+_UNIT_MULTIPLIER: dict[str, float] = {
+    "in dollars": 1.0,
+    "in thousands": 1_000.0,
+    "in millions": 1_000_000.0,
+    "in billions": 1_000_000_000.0,
+}
+
+
 def _short(value: float | None) -> str | None:
-    """Compact label for a bar. Never rounds a figure into a different order
-    of magnitude, and returns ``None`` (not "0") for an absent value."""
+    """Compact unitless label for a bar whose unit is unknown.
+
+    Kept for charts that are not denominated in the P&L's unit. Deliberately
+    no longer appends "bn": the figures reaching these charts are stated in
+    whatever unit the table is, so dividing by 1,000 and calling the result
+    billions mislabelled every money chart in the report — a P&L in thousands
+    rendered $57.09M of revenue as "57.1bn". Money charts now go through
+    ``money_label`` instead, which knows the table's unit.
+    """
     if value is None:
         return None
     if abs(value) >= 1_000:
-        return f"{value / 1_000:.1f}bn"
+        return f"{value:,.0f}"
     if abs(value) >= 1:
         return f"{value:.1f}"
     return f"{value:.2f}"
+
+
+def money_label(value: float | None, unit_label: str) -> str | None:
+    """Bar label in absolute money, resolved through the table's stated unit.
+
+    ``_unit_label`` already derives whether a P&L is stated in dollars,
+    thousands or millions, and the table header prints it. The charts ignored
+    it and invented their own magnitude. Reading the same signal means a chart
+    bar and the table cell above it describe the same quantity: 57,090 stated
+    in thousands is "$57.1M" on both.
+
+    An unrecognised or absent unit falls back to the unitless compact form
+    rather than assuming dollars — assuming is how the old label went wrong.
+    """
+    if value is None:
+        return None
+    multiplier = _UNIT_MULTIPLIER.get(str(unit_label or "").strip().lower())
+    if multiplier is None:
+        return _short(value)
+    return format_dollars(value * multiplier)
 
 
 def _axis_bars(items: list[dict[str, Any]], threshold: float | None) -> dict[str, Any]:
@@ -680,6 +744,7 @@ def _performance_by(bundle: dict[str, Any]) -> dict[str, Any]:
     """Revenue and gross margin by segment / service line / location. The
     dimension is whatever the agents actually populated — multi-site
     healthcare gives locations, tech services gives practice areas."""
+    unit = financial_unit_label(bundle)
     raw = (bundle.get("financials") or {}).get("segment_performance") or []
     rows, revs, margins = [], [], []
     for s in raw[:CAP_SEGMENTS]:
@@ -706,7 +771,7 @@ def _performance_by(bundle: dict[str, Any]) -> dict[str, Any]:
             "series": [
                 {
                     "label": rows[i]["name"][:14],
-                    "bar1_pct": rev_pct[i], "bar1_value": _short(revs[i]),
+                    "bar1_pct": rev_pct[i], "bar1_value": money_label(revs[i], unit),
                     "bar2_pct": None, "bar2_value": None,
                     "line_pct": None if margins[i] is None else max(0.0, min(100.0, margins[i])),
                     "line_value": None if margins[i] is None else f"{margins[i]:.0f}%",
@@ -714,7 +779,7 @@ def _performance_by(bundle: dict[str, Any]) -> dict[str, Any]:
                 for i in range(len(rows))
             ],
             "bar1_name": "Revenue", "bar2_name": None, "line_name": "Gross margin %",
-            "axis_max_label": _short(max([v for v in revs if v is not None] or [0])),
+            "axis_max_label": money_label(max([v for v in revs if v is not None] or [0]), unit),
             "footnote": "Segment revenue as extracted; margin line on a 0-100% axis.",
         },
     }
@@ -845,7 +910,8 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
     """Plan against historical run-rate on the SAME axis maximum as page 4, so
     the step-up the plan assumes is visible rather than asserted."""
     fin = bundle.get("financials") or {}
-    hist = [r for r in (fin.get("table_rows") or []) if isinstance(r, dict)]
+    hist = ordered_financials(bundle)
+    unit = financial_unit_label(bundle, hist)
     plan = [r for r in (fin.get("forecast_rows") or []) if isinstance(r, dict)]
     rows = hist + plan
     revs = [parse_money(r.get("revenue")) for r in rows]
@@ -864,7 +930,7 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
             "series": [
                 {
                     "label": f"{rows[i].get('year')}{'P' if i >= len(hist) else ''}",
-                    "bar1_pct": rev_pct[i], "bar1_value": _short(revs[i]),
+                    "bar1_pct": rev_pct[i], "bar1_value": money_label(revs[i], unit),
                     "bar2_pct": None, "bar2_value": None,
                     "line_pct": None if margins[i] is None else max(0.0, min(100.0, margins[i])),
                     "line_value": None if margins[i] is None else f"{margins[i]:.0f}%",
@@ -872,7 +938,7 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
                 for i in range(len(rows))
             ],
             "bar1_name": "Revenue (P = plan)", "bar2_name": None, "line_name": "EBITDA margin %",
-            "axis_max_label": _short(max([v for v in revs if v is not None] or [0])),
+            "axis_max_label": money_label(max([v for v in revs if v is not None] or [0]), unit),
             "footnote": footnote,
         },
         "assumptions": [

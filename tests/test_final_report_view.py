@@ -631,3 +631,62 @@ def test_humanize_metric_reads_as_prose_not_as_an_identifier():
 
 def test_humanize_metric_leaves_an_already_readable_label_alone():
     assert frv.humanize_metric("Unusual indemnity") == "Unusual indemnity"
+
+
+# ---------------------------------------------------------------------------
+# Chart magnitude and period order (point 7 of the 2026-09-09 review).
+# ---------------------------------------------------------------------------
+
+
+def test_money_label_uses_the_tables_own_unit():
+    """A P&L stated in thousands: 57,090 is $57.1M, not "57.1bn"."""
+    assert frv.money_label(57090, "in thousands") == "$57.1M"
+    assert frv.money_label(9027, "in thousands") == "$9.0M"
+    assert frv.money_label(40251, "in thousands") == "$40.3M"
+
+
+def test_money_label_scales_by_each_unit():
+    assert frv.money_label(2_500_000, "in dollars") == "$2.5M"
+    assert frv.money_label(1500, "in millions") == "$1.5B"
+
+
+def test_money_label_falls_back_rather_than_assuming_dollars():
+    """An unknown unit must not be silently treated as one — assuming is how
+    the old label came to call thousands "bn"."""
+    assert frv.money_label(57090, "") == "57,090"
+    assert frv.money_label(57090, "something else") == "57,090"
+    assert frv.money_label(None, "in thousands") is None
+
+
+def test_short_no_longer_invents_a_billions_suffix():
+    assert "bn" not in (frv._short(57090) or "")
+
+
+def test_ordered_financials_sorts_and_rescales_a_foreign_unit_period():
+    """The real Clearsulting shape: a 2022 period extracted in raw dollars,
+    emitted last by the agent, beside three periods stated in thousands. The
+    P&L table already reconciled both; the charts read the raw rows and drew
+    a bar 707x its neighbours, labelled "40251.4bn", after TTM25."""
+    bundle = {"financials": {"table_rows": [
+        {"year": "2023", "revenue": "$57,090 thousand"},
+        {"year": "2024", "revenue": "$59,699 thousand"},
+        {"year": "TTM25", "revenue": "$62,564 thousand"},
+        {"year": "2022", "revenue": "$40,251,450"},
+    ]}}
+    ordered = frv.ordered_financials(bundle)
+    assert [r.get("year") for r in ordered] == ["2022", "2023", "2024", "TTM25"]
+    unit = frv.financial_unit_label(bundle, ordered)
+    labels = [frv.money_label(frv.parse_money(r.get("revenue")), unit) for r in ordered]
+    assert labels == ["$40.3M", "$57.1M", "$59.7M", "$62.6M"]
+
+
+def test_every_money_chart_reads_the_same_ordered_rows():
+    """The three charts and the table must not disagree about which periods
+    exist or what order they are in."""
+    bundle = {"financials": {"table_rows": [
+        {"year": "2024", "revenue": "$200", "ebitda": "$20", "adjusted_ebitda": "$25"},
+        {"year": "2023", "revenue": "$100", "ebitda": "$10", "adjusted_ebitda": "$12"},
+    ]}}
+    expected = [r.get("year") for r in frv.ordered_financials(bundle)]
+    assert [s["label"] for s in frv._trend_chart(bundle)["series"]] == expected
+    assert [s["label"] for s in frv._ebitda_chart(bundle)["series"]] == expected

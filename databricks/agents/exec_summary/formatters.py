@@ -144,3 +144,103 @@ def format_diligence_entry(entry: dict[str, Any] | str) -> str:
         if stripped:
             return stripped
     return ""
+
+
+# ---------------------------------------------------------------------------
+# Period ordering and money magnitude.
+#
+# Both live here because the mapper and the view each need them and neither
+# should import the other. Both exist because extraction does not normalise:
+# the same company's revenue arrives as "$57,090 thousand" for three periods
+# and "$40,251,450" for a fourth, and its period labels as "2023", "TTM25",
+# "FY23" and "2025B" in one series.
+# ---------------------------------------------------------------------------
+
+_PERIOD_YEAR4_RE = re.compile(r"(?:19|20)\d{2}")
+# Not \b-delimited: "FY23" has no word boundary between "Y" and "2".
+_PERIOD_YEAR2_RE = re.compile(r"(?<!\d)(\d{2})(?!\d)")
+
+_MAGNITUDE_WORDS: tuple[tuple[str, float], ...] = (
+    ("billion", 1_000_000_000.0),
+    ("bn", 1_000_000_000.0),
+    ("million", 1_000_000.0),
+    ("mm", 1_000_000.0),
+    ("thousand", 1_000.0),
+    ("k", 1_000.0),
+)
+_NUMBER_RE = re.compile(r"-?\d[\d,]*\.?\d*")
+
+
+def period_sort_key(period: Any) -> tuple[int, int]:
+    """Order period labels chronologically across the shapes agents emit.
+
+    Extraction labels are not uniform — one series carries "2020A", "FY23",
+    "2025B", "TTM Aug-24", "2027PP". Sorted as plain strings, a trailing
+    period lands between historical years, which is how a 2022 bar came to be
+    drawn after TTM25. A label with no year sorts last: in practice that is a
+    note rather than a dated period.
+    """
+    text = str(period or "")
+    match = _PERIOD_YEAR4_RE.search(text)
+    if match:
+        return (0, int(match.group(0)))
+    match = _PERIOD_YEAR2_RE.search(text)
+    if match:
+        return (0, 2000 + int(match.group(1)))
+    return (1, 0)
+
+
+def money_to_dollars(value: Any) -> float | None:
+    """Absolute dollars from a money string, honouring a SPELLED-OUT magnitude.
+
+    ``final_report_view.parse_money`` returns the figure in whatever unit the
+    caller is already working in and knows only the ``k``/``bn`` suffixes.
+    Extraction writes magnitude as a word at least as often, and comparing
+    "$59,699 thousand" with "$10,917,799" as bare numbers is off by 1000x.
+    A bare number is returned at face value; deciding whether an unqualified
+    figure is safe to compare is the caller's job.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    match = _NUMBER_RE.search(text)
+    if not match:
+        return None
+    try:
+        number = float(match.group(0).replace(",", ""))
+    except ValueError:
+        return None
+    low = text.lower()
+    for word, factor in _MAGNITUDE_WORDS:
+        if re.search(rf"\d\s*{re.escape(word)}\b", low):
+            return number * factor
+    return number
+
+
+def has_explicit_magnitude(value: Any) -> bool:
+    """True when the string states its own magnitude in words or a suffix."""
+    if value is None:
+        return False
+    low = str(value).lower()
+    return any(re.search(rf"\d\s*{re.escape(word)}\b", low) for word, _ in _MAGNITUDE_WORDS)
+
+
+def format_dollars(value: float | None) -> str | None:
+    """Compact money label with the magnitude the figure actually has.
+
+    The label this replaces divided by 1,000 and appended "bn" unconditionally,
+    so a P&L stated in thousands rendered $57.09M of revenue as "57.1bn" — the
+    wrong magnitude and the wrong unit name, on every chart of every report.
+    """
+    if value is None:
+        return None
+    magnitude = abs(value)
+    if magnitude >= 1_000_000_000:
+        return f"${value / 1_000_000_000:.1f}B"
+    if magnitude >= 1_000_000:
+        return f"${value / 1_000_000:.1f}M"
+    if magnitude >= 1_000:
+        return f"${value / 1_000:.1f}K"
+    return f"${value:.0f}"
