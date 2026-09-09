@@ -25,7 +25,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from agents.exec_summary.formatters import format_dollars
+from agents.exec_summary.formatters import (
+    format_dollars,
+    has_explicit_magnitude,
+    money_to_dollars,
+    period_sort_key,
+)
 from agents.exec_summary.rainmaker_view import (
     _financial_periods,
     _normalize_period_units,
@@ -382,6 +387,27 @@ def _short(value: float | None) -> str | None:
     if abs(value) >= 1:
         return f"{value:.1f}"
     return f"{value:.2f}"
+
+
+def absolute_revenue(raw: Any, unit_label: str) -> float | None:
+    """A money figure in absolute dollars, whichever way it states its scale.
+
+    Two series meet on the forecast chart and they do not agree on units.
+    History arrives in the P&L's implicit unit ("$21,403", thousands); the
+    forecast agent's revenue build states its own ("$21,403K"). Parsed the
+    same way, the plan came out 1,000x smaller than the identical historical
+    figure, so every plan bar drew at zero height with its label floating
+    above an empty axis.
+
+    A figure that names its own magnitude is trusted; one that does not is
+    read in the table's unit.
+    """
+    if has_explicit_magnitude(raw):
+        return money_to_dollars(raw)
+    value = parse_money(raw)
+    if value is None:
+        return None
+    return value * _UNIT_MULTIPLIER.get(str(unit_label or "").strip().lower(), 1.0)
 
 
 def money_label(value: float | None, unit_label: str) -> str | None:
@@ -906,15 +932,51 @@ def _legal(bundle: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _restates_history(plan_row: dict[str, Any], hist_by_year: dict, unit_label: str) -> bool:
+    """True when a plan row is the same year AND the same figure as an actual.
+
+    The forecast agent's revenue build opens with the periods it is building
+    FROM, so GKF's 2023A/2024A/2025B arrived in both series and were drawn
+    twice, the second time suffixed "P" as though an actual were a projection.
+
+    Matching on the year alone would be too blunt: Clearsulting's plan carries
+    a 2025E full-year estimate ($70.1M) alongside a TTM25 actual ($62.6M) —
+    same year, genuinely different claims, and the reader needs both. Only a
+    row that repeats a figure the history already shows is dropped.
+    """
+    year = period_sort_key(plan_row.get("year"))
+    if year not in hist_by_year:
+        return False
+    actual = hist_by_year[year]
+    planned = absolute_revenue(plan_row.get("revenue"), unit_label)
+    if actual is None or planned is None:
+        return False
+    if actual == 0:
+        return planned == 0
+    return abs(planned - actual) / abs(actual) <= 0.01
+
+
 def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, Any]:
     """Plan against historical run-rate on the SAME axis maximum as page 4, so
     the step-up the plan assumes is visible rather than asserted."""
     fin = bundle.get("financials") or {}
     hist = ordered_financials(bundle)
     unit = financial_unit_label(bundle, hist)
-    plan = [r for r in (fin.get("forecast_rows") or []) if isinstance(r, dict)]
+    # The forecast agent's revenue build opens with the actual periods it is
+    # building from, so a plan row often restates a year the history already
+    # shows — GKF's 2023A/2024A/2025B appeared twice, the second time suffixed
+    # "P" as though the actual were a projection. A restated actual is not a
+    # forecast; the historical series already carries it.
+    hist_by_year = {
+        period_sort_key(r.get("year")): absolute_revenue(r.get("revenue"), unit) for r in hist
+    }
+    plan = [
+        r
+        for r in (fin.get("forecast_rows") or [])
+        if isinstance(r, dict) and not _restates_history(r, hist_by_year, unit)
+    ]
     rows = hist + plan
-    revs = [parse_money(r.get("revenue")) for r in rows]
+    revs = [absolute_revenue(r.get("revenue"), unit) for r in rows]
     margins = [parse_percent(r.get("ebitda_margin_pct")) for r in rows]
     rev_pct = scale(revs)
     footnote = "Plan periods marked P. Same axis as the historical chart on the financial performance page."
@@ -930,7 +992,7 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
             "series": [
                 {
                     "label": f"{rows[i].get('year')}{'P' if i >= len(hist) else ''}",
-                    "bar1_pct": rev_pct[i], "bar1_value": money_label(revs[i], unit),
+                    "bar1_pct": rev_pct[i], "bar1_value": format_dollars(revs[i]),
                     "bar2_pct": None, "bar2_value": None,
                     "line_pct": None if margins[i] is None else max(0.0, min(100.0, margins[i])),
                     "line_value": None if margins[i] is None else f"{margins[i]:.0f}%",
@@ -938,7 +1000,7 @@ def _forecast(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, An
                 for i in range(len(rows))
             ],
             "bar1_name": "Revenue (P = plan)", "bar2_name": None, "line_name": "EBITDA margin %",
-            "axis_max_label": money_label(max([v for v in revs if v is not None] or [0]), unit),
+            "axis_max_label": format_dollars(max([v for v in revs if v is not None] or [0])),
             "footnote": footnote,
         },
         "assumptions": [

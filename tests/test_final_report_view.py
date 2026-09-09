@@ -690,3 +690,50 @@ def test_every_money_chart_reads_the_same_ordered_rows():
     expected = [r.get("year") for r in frv.ordered_financials(bundle)]
     assert [s["label"] for s in frv._trend_chart(bundle)["series"]] == expected
     assert [s["label"] for s in frv._ebitda_chart(bundle)["series"]] == expected
+
+
+def test_forecast_drops_a_plan_row_that_merely_restates_an_actual():
+    """GKF's real shape: the revenue build opens with the actual periods it
+    builds from, so 2023A/2024A/2025B were drawn twice — the second time
+    suffixed "P", as though an actual were a projection."""
+    bundle = {"financials": {
+        "table_rows": [{"year": "2023A", "revenue": "$21,403"}, {"year": "2024A", "revenue": "$22,266"}],
+        "forecast_rows": [
+            {"year": "2023A", "revenue": "$21,403K"},
+            {"year": "2024A", "revenue": "$22,266K"},
+            {"year": "2026P", "revenue": "$24,753K"},
+        ],
+    }}
+    labels = [s["label"] for s in frv._forecast(bundle, {})["chart"]["series"]]
+    assert labels == ["2023A", "2024A", "2026PP"]
+
+
+def test_forecast_keeps_a_plan_row_that_disagrees_with_the_actual():
+    """Clearsulting's real shape: a 2025E full-year estimate ($70.1M) beside a
+    TTM25 actual ($62.6M). Same year, genuinely different claims — matching on
+    the year alone would delete the estimate the reader needs."""
+    bundle = {"financials": {
+        "table_rows": [{"year": "TTM25", "revenue": "$62,564 thousand"}],
+        "forecast_rows": [{"year": "2025E", "revenue": "$70,142K"}],
+    }}
+    labels = [s["label"] for s in frv._forecast(bundle, {})["chart"]["series"]]
+    assert labels == ["TTM25", "2025EP"]
+
+
+def test_forecast_puts_both_series_on_one_scale():
+    """History arrives in the table's implicit unit, the plan states its own.
+    Parsed alike, the plan came out 1,000x smaller and every plan bar drew at
+    zero height with its label floating over an empty axis."""
+    bundle = {"financials": {
+        "table_rows": [{"year": "2024A", "revenue": "$22,266"}],
+        "forecast_rows": [{"year": "2026P", "revenue": "$24,753K"}],
+    }}
+    series = frv._forecast(bundle, {})["chart"]["series"]
+    assert [s["bar1_value"] for s in series] == ["$22.3M", "$24.8M"]
+    assert all(s["bar1_pct"] and s["bar1_pct"] > 50 for s in series)
+
+
+def test_absolute_revenue_trusts_a_figure_that_names_its_own_magnitude():
+    assert frv.absolute_revenue("$21,403K", "in thousands") == 21_403_000
+    assert frv.absolute_revenue("$21,403", "in thousands") == 21_403_000
+    assert frv.absolute_revenue(None, "in thousands") is None
