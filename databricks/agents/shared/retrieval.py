@@ -20,6 +20,11 @@ from agents.shared._types import RouteResult
 # B-W4: merge-rank tier weights (documented in .dev/decision-logs/T4-retrieval-enhancements.md)
 _TIER_WEIGHT = {1: 1.0, 2: 0.7, 3: 0.4}
 _DEFAULT_TIER_WEIGHT = 0.3
+# Additive tier term. Multiplicative sim×tier buried best-sim citation gold
+# (tier-2 CIM vision, sim≈0.69) under slightly-weaker tier-1 spreadsheet
+# neighbors (sim≈0.66 → merge 0.66 vs 0.48). Cap the bonus so a ~0.03 sim
+# lead cannot be inverted by a one-step tier gap (bonus * 0.3 < 0.03).
+_TIER_BONUS = 0.05
 
 # R-09: canonical source-type sort order (shared with context_utils.py)
 _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
@@ -63,11 +68,18 @@ def _tier_weight(priority_tier: int | None) -> float:
 
 
 def _merge_score(chunk, score_map: dict[str, float]) -> float:
-    return score_map.get(chunk.chunk_id, 0.0) * _tier_weight(chunk.priority_tier)
+    """Similarity-primary merge rank with a small additive tier bonus.
+
+    Tier remains a tie-break (B-W4) but cannot invert a ≥0.03 similarity gap,
+    which is what zeroed Elder Care citation_backfill recall_at_10 on
+    ``fta.opex.q3_projected_financials`` (F1).
+    """
+    sim = score_map.get(chunk.chunk_id, 0.0)
+    return sim + _TIER_BONUS * _tier_weight(chunk.priority_tier)
 
 
 def _sort_by_merge_rank(chunks: list, score_map: dict[str, float]) -> list:
-    """B-W3/B-W4: rank by sim_score × tier_weight; tier-only fallback when no scores."""
+    """B-W3/B-W4: rank by sim + small tier bonus; tier-only fallback when no scores."""
     if not score_map:
         return _sort_by_tier_only(chunks)
     return sorted(chunks, key=lambda c: -_merge_score(c, score_map))
@@ -296,9 +308,10 @@ def semantic_search(
             cluster probe). Default ``False`` — production behavior unchanged.
             Post-retrieval filters still apply regardless.
         merge_rank_mode: Post-hydration chunk ordering. ``None`` and
-            ``"sim_tier"`` apply sim×tier merge rank (default). ``"sim_only"``
-            sorts by raw VS similarity; ``"tier_only"`` by ``priority_tier``
-            ascending; ``"off"`` preserves hydrate-SQL order (no merge rank or
+            ``"sim_tier"`` apply similarity-primary merge rank with a small
+            additive tier bonus (default). ``"sim_only"`` sorts by raw VS
+            similarity; ``"tier_only"`` by ``priority_tier`` ascending;
+            ``"off"`` preserves hydrate-SQL order (no merge rank or
             ``source_type_priority`` reorder).
 
     Returns:

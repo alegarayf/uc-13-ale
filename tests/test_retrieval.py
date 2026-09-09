@@ -40,6 +40,7 @@ if "mlflow" not in sys.modules:
     sys.modules["mlflow.deployments"] = deployments_mod
 
 from agents.shared.retrieval import (  # noqa: E402
+    _TIER_BONUS,
     _build_vs_filters_dict,
     _default_catalog,
     _escape_sql_literal,
@@ -112,8 +113,33 @@ def test_merge_rank_prefers_strong_semantic_match_over_weak_tier_one():
     chunks = [_row(chunk_id="weak_t1", priority_tier=1), _row(chunk_id="strong_t3", priority_tier=3)]
     score_map = {"weak_t1": 0.3, "strong_t3": 0.95}
     ranked = _sort_by_merge_rank(chunks, score_map)
-    # 0.95 * 0.4 = 0.38 beats 0.3 * 1.0 = 0.30
+    # 0.95 + 0.05*0.4 = 0.97 beats 0.3 + 0.05*1.0 = 0.35
     assert [c.chunk_id for c in ranked] == ["strong_t3", "weak_t1"]
+
+
+def test_merge_rank_keeps_highest_sim_tier2_ahead_of_near_neighbor_tier1():
+    """Elder Care F1: citation_backfill gold can be the best VS hit (CIM vision,
+    tier 2) but sit below top_k after multiplicative sim×tier against slightly
+    weaker tier-1 spreadsheet neighbors.
+
+    Live probe on fta.opex.q3_projected_financials (uc13_ale, Elder Care):
+    gold 2d238ee0 sim=0.691 / tier=2 ranked 19 of 23 after sim×tier; top_k=8.
+    """
+    gold = _row(chunk_id="gold_cim", priority_tier=2, source_type="vision")
+    neighbors = [
+        _row(chunk_id=f"t1_{i}", priority_tier=1, source_type="text")
+        for i in range(8)
+    ]
+    score_map = {"gold_cim": 0.6910852}
+    for i in range(8):
+        score_map[f"t1_{i}"] = 0.6583611 - i * 0.001
+    ranked = _sort_by_merge_rank([*neighbors, gold], score_map)
+    top8 = [c.chunk_id for c in ranked[:8]]
+    assert "gold_cim" in top8
+    assert ranked[0].chunk_id == "gold_cim"
+    assert _merge_score(gold, score_map) == pytest.approx(
+        0.6910852 + _TIER_BONUS * _tier_weight(2)
+    )
 
 
 def test_merge_rank_falls_back_to_tier_when_no_scores():
@@ -569,7 +595,7 @@ def test_semantic_search_provenance_emits_after_merge_rank_and_cap(
     mock_get_deploy_client.return_value = mock_client
     mock_client.predict.return_value = {"data": [{"embedding": [0.1, 0.2]}]}
 
-    # c1: tier 1, sim 0.30 -> merge 0.30.  c2: tier 3, sim 0.95 -> merge 0.38.
+    # c1: tier 1, sim 0.30 -> merge 0.35.  c2: tier 3, sim 0.95 -> merge 0.97.
     vs_result = MagicMock()
     vs_result.result.data_array = [
         ["c1", "d1", "CIM.pdf", 0.30],
@@ -682,6 +708,48 @@ def _setup_vs_hydrate_mocks(
     spark = MagicMock()
     spark.sql.return_value.collect.return_value = hydrated_rows
     return spark
+
+
+@patch("agents.shared.retrieval.WorkspaceClient")
+@patch("agents.shared.retrieval.mlflow.deployments.get_deploy_client")
+def test_semantic_search_source_type_priority_keeps_best_sim_gold_in_top_k(
+    mock_get_deploy_client,
+    mock_workspace_client,
+    monkeypatch,
+):
+    """Harness-faithful F1 path: source_type_priority + top_k=8 must keep the
+    highest-sim tier-2 gold chunk after post-filter ranking.
+    """
+    gold = _row(chunk_id="gold_cim", priority_tier=2, source_type="vision")
+    neighbors = [
+        _row(chunk_id=f"t1_{i}", priority_tier=1, source_type="text")
+        for i in range(8)
+    ]
+    data_array = [["gold_cim", "d0", "CIM.pdf", 0.6910852]]
+    data_array.extend(
+        [f"t1_{i}", f"d{i+1}", f"Model_{i}.xlsx", 0.6583611 - i * 0.001]
+        for i in range(8)
+    )
+    spark = _setup_vs_hydrate_mocks(
+        mock_get_deploy_client,
+        mock_workspace_client,
+        monkeypatch,
+        data_array=data_array,
+        hydrated_rows=[gold, *neighbors],
+    )
+
+    result = semantic_search(
+        "projected revenue forecast",
+        spark,
+        top_k=8,
+        company_name="Elder Care",
+        min_chunk_length=50,
+        source_type_priority=True,
+    )
+
+    assert len(result.chunks) == 8
+    assert "gold_cim" in [c.chunk_id for c in result.chunks]
+    assert result.chunks[0].chunk_id == "gold_cim"
 
 
 @patch("agents.shared.retrieval.WorkspaceClient")

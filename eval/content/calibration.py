@@ -32,6 +32,40 @@ NUMERIC_SURFACES = frozenset({"fta_numeric"})
 NON_NUMERIC_SURFACES = frozenset({"exec_summary", "legal_register"})
 CLAIM_VERDICTS = frozenset({"supported", "contradicted", "unsupported"})
 
+# Elder Care cycle-1 F4 judge_cal class: human=supported, judge=unsupported/contradicted.
+EXEC_JUDGE_CAL_F4_CLAIM_IDS = frozenset(
+    {
+        "exec.claim.001",
+        "exec.claim.011",
+        "exec.claim.019",
+        "exec.claim.021",
+        "exec.claim.031",
+        "exec.claim.032",
+        "exec.claim.034",
+        "exec.claim.036",
+        "exec.claim.039",
+        "exec.claim.040",
+        "exec.claim.043",
+        "exec.claim.044",
+        "exec.claim.045",
+        "exec.claim.046",
+        "exec.claim.047",
+        "exec.claim.048",
+        "exec.claim.049",
+        "exec.claim.050",
+        "exec.claim.051",
+        "exec.claim.052",
+        "exec.claim.053",
+    }
+)
+
+_STUB_RATIONALE_REPAIR_SUFFIX = (
+    "Your previous response omitted the required \"rationale\" field "
+    "(verdict-only JSON is invalid). Re-emit JSON with both keys. "
+    "If any evidence record has source_type \"analysis_table\", cite that "
+    "record explicitly in the rationale. Do not return verdict-only JSON."
+)
+
 VERDICT_SYSTEM_PROMPT = """You are a diligence evidence judge. Given a claim and retrieved evidence chunks,
 return ONLY valid JSON with two keys:
   "rationale": a 1-3 sentence explanation citing which evidence supports or contradicts the claim
@@ -47,8 +81,10 @@ return ONLY valid JSON with two keys:
   "rationale": a 1-3 sentence explanation citing which evidence supports or contradicts the claim
   "verdict": one of "supported", "contradicted", "unsupported"
 Use the §16 vocabulary exactly. Base your verdict only on the supplied evidence.
-When evidence includes source_type "analysis_table", prefer that structured analysis-table
-record over vector-retrieved VDR chunks when adjudicating.
+When evidence includes source_type "analysis_table" (or the analysis_table_evidence key),
+you MUST cite that structured analysis-table record in "rationale" and prefer it over
+vector-retrieved VDR chunks when adjudicating. Do not ignore analysis-table evidence.
+Never emit verdict-only JSON such as {"verdict": "unsupported"} — "rationale" is required.
 A claim naming several distinct facts is "supported" if the evidence confirms every fact that
 is material to the claim's substance; do not downgrade to "unsupported" over a peripheral or
 imprecise descriptive label (e.g. a regional nickname) when the underlying facts it summarizes
@@ -288,7 +324,12 @@ def exec_claim_analysis_evidence(
     field: str | None = None
     payload: Any = None
 
-    if claim_id in {"exec.claim.003", "exec.claim.004", "exec.claim.020"}:
+    if claim_id == "exec.claim.001":
+        table, field = "business_model", "customer_operational_metrics_json"
+        payload = cache.get("customer_operational_metrics_json")
+        if payload in (None, {}, []):
+            return None
+    elif claim_id in {"exec.claim.003", "exec.claim.004", "exec.claim.020"}:
         table, field = "kpi", "healthcare_kpis_json"
         payload = cache.get("healthcare_kpis_json")
         if claim_id == "exec.claim.004":
@@ -341,9 +382,27 @@ def exec_claim_analysis_evidence(
             "forecast_assumptions_json": cache.get("forecast_assumptions_json"),
             "credibility_summary_json": cache.get("credibility_summary_json"),
         }
-    elif claim_id == "exec.claim.019":
+    elif claim_id in {"exec.claim.019", "exec.claim.046", "exec.claim.047"}:
         table, field = "diligence_report", "section_ratings_json"
         payload = cache.get("section_ratings_json")
+    elif claim_id in {"exec.claim.031", "exec.claim.034"}:
+        ebitda = cache.get("ebitda_json")
+        scenarios = cache.get("ebitda_scenarios_json")
+        if ebitda in (None, [], {}) and scenarios in (None, {}, []) and not ledger:
+            return None
+        table, field = "financial_trends", "ebitda_json"
+        payload = {
+            "ebitda_json": ebitda,
+            "ebitda_scenarios_json": scenarios,
+            "addback_ledger_json": ledger,
+            "tier4_addback_count": cache.get("tier4_addback_count"),
+        }
+    elif claim_id == "exec.claim.032":
+        item = _qoe_ledger_item(ledger, "D")
+        if item is None:
+            return None
+        table, field = "quality_of_earnings", "addback_ledger_json"
+        payload = item
     elif claim_id in {"exec.claim.025", "exec.claim.026"}:
         table, field = "diligence_report", "section_confidence_json"
         payload = {
@@ -487,6 +546,44 @@ def _extracted_value_parseable(value: Any) -> bool:
     return normalize_unit_magnitude(value.get("magnitude"), value.get("unit")) is not None
 
 
+def is_stub_verdict_json(raw: str | None) -> bool:
+    """True when the judge emitted verdict-only JSON (no rationale text).
+
+    Matches the cycle-1 F4 S2 stubs: ``{"verdict": "unsupported"}`` /
+    ``{"verdict": "contradicted"}`` with no ``rationale`` (or a blank one).
+    """
+    if not isinstance(raw, str) or not raw.strip():
+        return False
+    try:
+        parsed = _parse_json_response(raw)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if not isinstance(parsed, dict):
+        return False
+    if parsed.get("verdict") not in CLAIM_VERDICTS:
+        return False
+    rationale = parsed.get("rationale")
+    if isinstance(rationale, str) and rationale.strip():
+        return False
+    material_keys = {k for k, v in parsed.items() if v not in (None, "", {}, [])}
+    return material_keys <= {"verdict", "rationale"}
+
+
+def format_exec_dual_source_evidence(evidence: list[dict[str, Any]]) -> str:
+    """Serialize exec_summary evidence without dropping analysis-table records."""
+
+    analysis = [e for e in evidence if e.get("source_type") == "analysis_table"]
+    chunks = [e for e in evidence if e.get("source_type") != "analysis_table"]
+    return json.dumps(
+        {
+            "analysis_table_evidence": analysis,
+            "vdr_chunks": chunks,
+        },
+        indent=2,
+        default=str,
+    )
+
+
 def parse_verdict_response(raw: str) -> dict[str, Any]:
     """Parse non-numeric judge JSON; fail-closed per A-EE.
 
@@ -550,15 +647,28 @@ def judge_claim(
     verdict_prompt = (
         EXEC_VERDICT_SYSTEM_PROMPT if surface == "exec_summary" else VERDICT_SYSTEM_PROMPT
     )
+    evidence_json = (
+        format_exec_dual_source_evidence(evidence)
+        if surface == "exec_summary"
+        else json.dumps(evidence, indent=2, default=str)
+    )
+    user_prompt = VERDICT_USER_TEMPLATE.format(
+        claim_text=claim_text,
+        evidence_json=evidence_json,
+    )
     raw = call_llm_with_retry(
         endpoint=endpoint,
         system_prompt=verdict_prompt,
-        user_prompt=VERDICT_USER_TEMPLATE.format(
-            claim_text=claim_text,
-            evidence_json=json.dumps(evidence, indent=2),
-        ),
+        user_prompt=user_prompt,
     )
     parsed = parse_verdict_response(raw)
+    if parsed.get("rationale") is None or is_stub_verdict_json(raw):
+        raw = call_llm_with_retry(
+            endpoint=endpoint,
+            system_prompt=verdict_prompt,
+            user_prompt=f"{user_prompt}\n\n{_STUB_RATIONALE_REPAIR_SUFFIX}",
+        )
+        parsed = parse_verdict_response(raw)
     return {**parsed, "raw_response": raw}
 
 

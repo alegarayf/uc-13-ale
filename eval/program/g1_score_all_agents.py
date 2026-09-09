@@ -391,8 +391,9 @@ def score_legal(d: dict) -> tuple[int, dict]:
 
 def score_profiler(d: dict) -> tuple[int, dict]:
     v = {}
+    overlay = d.get("industry_overlay")
     v["industry_overlay"] = (
-        "pass" if d.get("industry_overlay") == "healthcare_services" else "partial"
+        "pass" if overlay in _OVERLAY_TO_KPI_COLUMN else "partial"
     )
     v["revenue_model"] = "pass" if d.get("revenue_model") else "partial"
     v["business_description"] = "pass" if nonempty(d.get("business_description")) else "partial"

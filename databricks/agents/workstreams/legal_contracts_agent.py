@@ -303,6 +303,76 @@ def _reconcile_t4c_from_nested_fields(merged: dict) -> None:
             tfc["present"] = "true"
 
 
+# Handbook / offer / restricted-stock / at-will / employment-agreement
+# instruments the LLM often labels only founder_key. G1 employment pass
+# needs ≥2 agreement_class=employee rows; Elder Care golden treats
+# restricted stock as an employee citation as well as founder_key.
+_EMPLOYEE_INSTRUMENT_RE = re.compile(
+    r"handbook|offer[\s_-]?letter|orientation|"
+    r"employment[\s_-]?agreement|restricted[\s_-]?stock|"
+    r"non[\s_-]?compete|at[\s_-]?will",
+    re.IGNORECASE,
+)
+
+
+def _employment_instrument_blob(row: dict) -> str:
+    return " ".join(
+        str(row.get(key) or "")
+        for key in ("source_doc", "person_or_role", "source_location")
+    )
+
+
+def _is_employee_instrument(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    return bool(_EMPLOYEE_INSTRUMENT_RE.search(_employment_instrument_blob(row)))
+
+
+def _ensure_employee_class_rows(rows: list) -> list:
+    """Dual-class handbook / restricted-stock / offer / at-will rows as employee.
+
+    Does not invent register rows — only emits an employee sibling when an
+    already-extracted instrument matches and no employee row exists for that
+    person_or_role. Contractor IC language and stock-transfer / bylaws docs
+    are left unchanged (they do not match the instrument regex).
+    """
+    if not rows:
+        return []
+    out = [dict(row) if isinstance(row, dict) else row for row in rows]
+    seen_employee_roles = {
+        _normalize_name(row.get("person_or_role"))
+        for row in out
+        if isinstance(row, dict) and _eq_str(row.get("agreement_class"), "employee")
+    }
+    extras: list[dict] = []
+    for row in out:
+        if not isinstance(row, dict):
+            continue
+        if not _is_employee_instrument(row):
+            continue
+        if _eq_str(row.get("agreement_class"), "employee"):
+            continue
+        role_key = _normalize_name(row.get("person_or_role"))
+        if role_key in seen_employee_roles:
+            continue
+        sibling = dict(row)
+        sibling["agreement_class"] = "employee"
+        extras.append(sibling)
+        seen_employee_roles.add(role_key)
+    return out + extras
+
+
+def _reconcile_employee_class_from_instrument(merged: dict) -> None:
+    """Backfill agreement_class=employee siblings for employee instruments
+    the LLM labeled only as founder_key (or contractor/commission).
+    Cycle-1 Elder Care F3: Sept 1 register had 1 employee + Kate Marks
+    Restricted Stock as founder_key-only — golden counts that award as an
+    employee citation too. Idempotent on a second call."""
+    merged["employment_register"] = _ensure_employee_class_rows(
+        merged.get("employment_register") or []
+    )
+
+
 def _merge_register_records(existing: dict, incoming: dict) -> dict:
     """Within-register conflict resolution — prefer row with longer raw_quote — §5.6.2."""
     preferred = existing if _raw_quote_len(existing) >= _raw_quote_len(incoming) else incoming
@@ -508,6 +578,19 @@ RETRIEVED DOCUMENT CONTEXT:
 {focused_chunk_text}
 
 EXTRACTION TASK — employment, contractor, commission, and founder/key agreements (§5.8.2).
+
+CLASSIFICATION RULES:
+1. Employee handbook, at-will notice, offer letter, orientation, caregiver
+   employment, and employment-agreement templates are agreement_class "employee"
+   — extract them even when they are company-wide (no named individual).
+2. A restricted-stock award to a named grantee is a key-employee equity
+   instrument: emit one founder_key row AND a separate employee row for the
+   same person and source_doc (do not collapse the two classes).
+3. Independent-contractor / "not an employee" language is agreement_class
+   "contractor", never "employee".
+4. Stock-transfer / bylaws / shareholder-restriction docs without an
+   employment or restricted-stock award are founder_key, not employee.
+
 Return ONLY this JSON object:
 
 {{
@@ -706,6 +789,7 @@ _DOMAIN_PASS_BUDGETS: dict[str, dict] = {
         "file_name_filter": [
             "Employment", "Offer", "Contractor", "Commission", "Founder",
             "Handbook", "Orientation", "401", "Restricted", "Stock", "Bylaws",
+            "Non-Compete", "Non Solicitation", "Unicity", "Caregiver",
         ],
         # T3: founder/key-employee equity docs (Restricted Stock Award, Stock
         # Transfer) were filename-matched but starved out of the top-10 ANN
@@ -782,7 +866,8 @@ _DOMAIN_PASS_QUERIES: dict[str, str | tuple[str, ...]] = {
     # employee/contractor agreements in the ANN window (see merge_slot_allocation).
     "employment": (
         "employment agreement offer letter contractor commission plan employee "
-        "handbook orientation non-compete non-solicit severance 401k staffing agreement",
+        "handbook orientation non-compete non-solicit severance 401k staffing agreement "
+        "at-will unicity handbook caregiver employment employee handbook",
         "founder key employee agreement restricted stock award agreement stock transfer "
         "agreement shareholders agreement equity grant ownership joinder operating agreement bylaws",
     ),
@@ -1995,6 +2080,7 @@ class LegalContractsAgent(WorkstreamAgent):
         _reconcile_register_from_citations(merged, self._citations_as_dicts())
         _reconcile_coc_from_nested_fields(merged)
         _reconcile_t4c_from_nested_fields(merged)
+        _reconcile_employee_class_from_instrument(merged)
         contract_register = merged.get("contract_register") or []
         litigation_register = merged.get("litigation_register") or []
 

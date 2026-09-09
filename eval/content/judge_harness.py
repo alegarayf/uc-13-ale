@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 from eval.content.calibration import (
     _workspace_client,
     build_exec_dual_source_evidence,
+    is_stub_verdict_json,
     judge_claim,
 )
 from eval.content.legal_register_verifier import make_warehouse_chunk_id_resolver
@@ -80,10 +81,14 @@ def _rationale_from_output(output: dict[str, Any]) -> str:
     valid verdict on this specific field alone.
     """
     rationale = output.get("rationale")
-    if isinstance(rationale, str) and rationale.strip():
+    if (
+        isinstance(rationale, str)
+        and rationale.strip()
+        and not is_stub_verdict_json(rationale)
+    ):
         return rationale.strip()
     raw = str(output.get("raw_response") or "").strip()
-    if raw:
+    if raw and not is_stub_verdict_json(raw):
         return raw
     return f"judge_harness: verdict {output.get('verdict')!r} (no rationale text returned)"
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-09
+
+- patch-cycle-1 (retrieval, Elder Care): default `sim_tier` merge-rank is now `sim + 0.05 * tier_weight` instead of `sim × tier_weight`, so high-sim citation gold is not buried under slightly-weaker tier-1 neighbors. Pin `fta.opex.q3_projected_financials` recall_at_10 was 0.0.
+- patch-cycle-1 (checklist, Elder Care): legal agent dual-classes restricted-stock / handbook / offer instruments as `employee` without inventing rows. Live G1 stays 8/11 until an authorized legal rebuild; hermetic Sept-1 fixture is 1→≥2 employee rows.
+- patch-cycle-1 (checklist, Clearsulting): `score_profiler()` accepts any overlay in `_OVERLAY_TO_KPI_COLUMN`, not only `healthcare_services`. Live Profiler 5/7 → 6/7.
+- patch-cycle-1 (judge_cal, Elder Care): exec dual-source evidence no longer drops analysis-table rows; stub verdict-only JSON is retried and refused as the S2 rationale. No new judge run this cycle — 21/53 disagreements not yet closed.
+
 ## ledger-honesty-pass — 2026-09-02
 
 - Judge prompt honesty fix: `EXEC_VERDICT_SYSTEM_PROMPT` / `VERDICT_SYSTEM_PROMPT` in `eval/content/calibration.py` now require a structured `rationale` field and instruct the judge not to downgrade a compound/bundled claim to `not_supported` over a peripheral descriptive detail; `eval/content/judge_harness.py` prefers the structured `rationale`, falling back to raw text. Unverified at production scale — the 2026-09-01 at-scale run (`run_id=20260901T134541Z-7610`) still measured verdict_agreement 32/53 = 0.6038 vs the human reconciliation, below the 0.80 (N=28) calibration bar; filed `PB-exec_summary-chk27-judge-production-accuracy-gap` rather than closing on the N=28 result alone.

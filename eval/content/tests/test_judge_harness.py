@@ -108,6 +108,42 @@ def test_build_claim_rows_excludes_parse_failures() -> None:
     assert rows[0].cited_chunk_id == "c-1234"
 
 
+def test_build_claim_rows_rejects_stub_json_as_rationale() -> None:
+    """Falsifier: S2 must not persist verdict-only JSON as the claim rationale."""
+
+    judged = [
+        {
+            "claim": _claim("exec.claim.021"),
+            "judge_output": {
+                "verdict": "unsupported",
+                "parse_failure": False,
+                "rationale": None,
+                "raw_response": '{"verdict": "unsupported"}',
+            },
+        },
+        {
+            "claim": _claim("exec.claim.031"),
+            "judge_output": {
+                "verdict": "contradicted",
+                "parse_failure": False,
+                "rationale": '{"verdict": "contradicted"}',
+                "raw_response": '{"verdict": "contradicted"}',
+            },
+        },
+    ]
+
+    rows, parse_failures = build_claim_rows(
+        "elder_care", "20260831T120000Z-abc", _run_ts(), judged
+    )
+
+    assert parse_failures == 0
+    assert len(rows) == 2
+    for row in rows:
+        assert row.rationale.strip() != ""
+        assert '{"verdict"' not in row.rationale
+        assert "no rationale text returned" in row.rationale
+
+
 def test_build_claim_rows_falls_back_rationale_when_raw_response_blank() -> None:
     """Falsifier for _rationale_from_output: blank raw_response must not yield an empty rationale.
 

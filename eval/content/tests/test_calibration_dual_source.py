@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock
 
 from eval.content.calibration import (
+    EXEC_JUDGE_CAL_F4_CLAIM_IDS,
     build_exec_dual_source_evidence,
     exec_claim_analysis_evidence,
+    format_exec_dual_source_evidence,
+    is_stub_verdict_json,
+    judge_claim,
 )
 
 
@@ -33,7 +38,40 @@ def _sample_cache() -> dict[str, object]:
             }
         ],
         "healthcare_kpis_json": {"active_clients_q2_2025": 352},
+        "customer_operational_metrics_json": {
+            "by_location": [
+                {"location": "NYC"},
+                {"location": "Long Island"},
+                {"location": "Westchester"},
+                {"location": "NJ"},
+                {"location": "MA"},
+                {"location": "CT"},
+            ]
+        },
+        "ebitda_json": [{"period": "TTM Aug-24", "ebitda_dollars": "7730"}],
+        "ebitda_scenarios_json": {"reported_ebitda": "7730"},
+        "tier4_addback_count": 17,
     }
+
+
+def _f4_cache() -> dict[str, object]:
+    """Cache populated for every cycle-1 F4 judge_cal claim_id."""
+
+    cache = _sample_cache()
+    ledger = list(cache["addback_ledger_json"])  # type: ignore[arg-type]
+    ledger.append(
+        {
+            "description": "[D] Cash-to-accrual revenue adjustment",
+            "amount": "665000",
+            "source_doc": "2024 Elder Care - CIM_vF.pdf",
+        }
+    )
+    cache["addback_ledger_json"] = ledger
+    cache["top_10_issues_json"] = [
+        {"rank": rank, "issue": f"issue {rank}", "citations": ["CIM.pdf"]}
+        for rank in range(1, 11)
+    ]
+    return cache
 
 
 def test_exec_claim_analysis_evidence_returns_analysis_table_record() -> None:
@@ -108,3 +146,88 @@ def test_build_exec_dual_source_evidence_chunk_only_when_no_analysis_slice(
     )
 
     assert merged == chunk_evidence
+
+
+def test_is_stub_verdict_json_detects_verdict_only_payloads() -> None:
+    assert is_stub_verdict_json('{"verdict": "unsupported"}')
+    assert is_stub_verdict_json('{"verdict": "contradicted"}')
+    assert is_stub_verdict_json('{"verdict": "unsupported", "rationale": "   "}')
+    assert not is_stub_verdict_json(
+        '{"verdict": "unsupported", "rationale": "analysis_table rank 3 supports the open item."}'
+    )
+    assert not is_stub_verdict_json("not json")
+
+
+def test_format_exec_dual_source_does_not_drop_analysis_table() -> None:
+    """Falsifier: unused dual-source — analysis_table must stay in the judge payload."""
+
+    evidence = [
+        {"source_type": "analysis_table", "payload": {"forecast": "Red"}},
+        {"chunk_id": "c1", "chunk_text": "vdr only"},
+    ]
+    parsed = json.loads(format_exec_dual_source_evidence(evidence))
+    assert parsed["analysis_table_evidence"]
+    assert parsed["analysis_table_evidence"][0]["payload"]["forecast"] == "Red"
+    assert parsed["vdr_chunks"][0]["chunk_id"] == "c1"
+
+
+def test_f4_claim_class_gets_analysis_table_when_cache_populated(monkeypatch) -> None:
+    """Every F4 claim_id must carry analysis-table evidence; chunks stay secondary."""
+
+    chunk_evidence = [{"chunk_id": "vdr-1", "chunk_text": "nearby vdr"}]
+    monkeypatch.setattr(
+        "eval.content.calibration.retrieve_evidence",
+        lambda *_a, **_k: chunk_evidence,
+    )
+    cache = _f4_cache()
+    missing: list[str] = []
+    for claim_id in sorted(EXEC_JUDGE_CAL_F4_CLAIM_IDS):
+        merged = build_exec_dual_source_evidence(
+            MagicMock(),
+            claim_id=claim_id,
+            claim_text=f"text for {claim_id}",
+            cache=cache,
+            company_slug="elder_care",
+            catalog="uc13_ale",
+            company="Elder Care",
+        )
+        if not merged or merged[0].get("source_type") != "analysis_table":
+            missing.append(claim_id)
+    assert missing == []
+
+
+def test_judge_claim_retries_stub_json_for_rationale(monkeypatch) -> None:
+    """Falsifier: stub-only JSON must trigger a repair call that supplies rationale."""
+
+    calls: list[str] = []
+
+    def _fake_llm(*, endpoint: str, system_prompt: str, user_prompt: str, retries: int = 3):
+        calls.append(user_prompt)
+        if len(calls) == 1:
+            return '{"verdict": "unsupported"}'
+        return (
+            '{"verdict": "supported", '
+            '"rationale": "analysis_table_evidence confirms the six locations."}'
+        )
+
+    monkeypatch.setattr("eval.content.calibration.call_llm_with_retry", _fake_llm)
+
+    output = judge_claim(
+        surface="exec_summary",
+        claim={"claim_text": "Elder Care operates across six locations."},
+        evidence=[
+            {
+                "source_type": "analysis_table",
+                "payload": {"by_location": [{"location": "NYC"}]},
+            }
+        ],
+        endpoint="databricks-claude-sonnet-4-6",
+        chunk_meta_by_id={},
+    )
+
+    assert len(calls) == 2
+    assert "verdict-only JSON is invalid" in calls[1]
+    assert "analysis_table_evidence" in calls[0]
+    assert output["verdict"] == "supported"
+    assert output["rationale"]
+    assert not is_stub_verdict_json(output["raw_response"])
