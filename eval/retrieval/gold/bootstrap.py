@@ -109,9 +109,135 @@ KPI_ITEM12_INTENT_IDS: frozenset[str] = frozenset(
 )
 
 KPI_CLAIM_INTENT_MAP_PATH = Path(__file__).resolve().parent / "kpi_claim_intent_map.yaml"
+CITATION_CLAIM_INTENT_MAP_PATH = (
+    Path(__file__).resolve().parent / "citation_claim_intent_map.yaml"
+)
 GOLD_EXCLUSIONS_PATH = Path(__file__).resolve().parent / "gold_exclusions.yaml"
 
 CitationRef = tuple[str, str | None, str | None]
+
+DESTACK_AGENT_IDS: frozenset[str] = frozenset(
+    {"cqa", "bma", "fta.opex", "fta.revenue", "fta.ebitda"}
+)
+
+CQA_JSON_COLUMNS: tuple[str, ...] = (
+    "top_customers_json",
+    "concentration_summary_json",
+    "retention_json",
+    "customer_tenure_json",
+    "average_account_size_json",
+    "payor_mix_json",
+    "cohort_analysis_json",
+    "customer_health_indicators_json",
+    "contract_terms_summary_json",
+    "revenue_type_mix_json",
+    "renewal_patterns_json",
+)
+
+BMA_JSON_COLUMNS: tuple[str, ...] = (
+    "products_services_json",
+    "revenue_by_location_json",
+    "people_and_org_json",
+    "workforce_capacity_json",
+    "customer_operational_metrics_json",
+    "customer_profile_json",
+    "sales_motion_json",
+    "revenue_visibility_json",
+    "key_dependencies_json",
+    "recent_model_changes_json",
+)
+
+FTA_JSON_COLUMNS: tuple[str, ...] = (
+    "revenue_trend_json",
+    "gross_margin_json",
+    "ebitda_json",
+    "revenue_by_segment_json",
+    "revenue_by_customer_json",
+    "cost_structure_json",
+    "working_capital_json",
+    "budget_vs_actual_json",
+    "addback_schedule_json",
+    "opex_breakdown_json",
+)
+
+DESTACK_JSON_COLUMNS: dict[str, tuple[str, ...]] = {
+    "cqa": CQA_JSON_COLUMNS,
+    "bma": BMA_JSON_COLUMNS,
+    "fta.opex": FTA_JSON_COLUMNS,
+    "fta.revenue": FTA_JSON_COLUMNS,
+    "fta.ebitda": FTA_JSON_COLUMNS,
+}
+
+ANALYSIS_ROW_FALLBACK_KEYS: tuple[str, ...] = (
+    "citations",
+    "contract_register_json",
+    "vendor_register_json",
+    "employment_register_json",
+    "litigation_register_json",
+    "privacy_security_register_json",
+    "insurance_register_json",
+    "kpi_dashboard_json",
+    "created_at",
+    *CQA_JSON_COLUMNS,
+    *BMA_JSON_COLUMNS,
+    *FTA_JSON_COLUMNS,
+)
+
+DESTACK_MAX_CHUNKS_PER_REF = 80
+_DESTACK_HEAD_SPLIT_RE = re.compile(r"\s*[\u2014\u2013,/\-]\s*")
+_DESTACK_SECTION_PREFIX_RE = re.compile(r"^section(?:\s*:|\s+)\s*", re.IGNORECASE)
+
+
+def destack_location_patterns(location: str) -> list[str]:
+    """Section ILIKE patterns for destacked citations: full location, then head token."""
+    patterns: list[str] = []
+    full = _section_pattern_from_location(location)
+    if full:
+        patterns.append(full)
+    cleaned = _DESTACK_SECTION_PREFIX_RE.sub("", location.strip())
+    head = _DESTACK_HEAD_SPLIT_RE.split(cleaned, maxsplit=1)[0].strip()
+    if head and len(head) >= 4:
+        pattern = f"%{head[:80]}%"
+        if pattern not in patterns:
+            patterns.append(pattern)
+    return patterns
+
+
+DESTACK_INTENT_IDS: frozenset[str] = frozenset(
+    {
+        "bma.detect_cim_presence",
+        "bma.retrieve_business_overview",
+        "bma.retrieve_model_changes_and_dependencies",
+        "bma.retrieve_people_and_org",
+        "bma.retrieve_pricing_and_margins",
+        "bma.retrieve_revenue_by_location_and_metrics",
+        "bma.retrieve_revenue_visibility",
+        "bma.retrieve_sales_and_customers",
+        "bma.retrieve_workforce_and_capacity",
+        "cqa.retrieve_account_size",
+        "cqa.retrieve_cohort_data",
+        "cqa.retrieve_contract_terms",
+        "cqa.retrieve_customer_concentration",
+        "cqa.retrieve_customer_health",
+        "cqa.retrieve_customer_tenure",
+        "cqa.retrieve_payor_mix",
+        "cqa.retrieve_retention_metrics",
+        "cqa.retrieve_revenue_type_and_renewals",
+        "fta.ebitda.q1_financial_statements",
+        "fta.ebitda.q2_ebitda_and_margins",
+        "fta.ebitda.q3_working_capital",
+        "fta.ebitda.q4_addback_schedule",
+        "fta.opex.q1_financial_statements",
+        "fta.opex.q2_working_capital",
+        "fta.opex.q3_projected_financials",
+        "fta.revenue.q1_financial_statements",
+        "fta.revenue.q2_revenue_by_segment",
+        "fta.revenue.q3_revenue_by_geography",
+        "fta.revenue.q4_customer_concentration",
+        "fta.revenue.q4_customer_concentration_fallback",
+        "fta.revenue.q5_quickbooks_pl",
+    }
+)
 
 
 class SparkSessionLike(Protocol):
@@ -282,6 +408,124 @@ def load_kpi_claim_intent_map(
     return claim_map, intent_block
 
 
+def _normalize_claim_token(value: str) -> str:
+    return (
+        value.strip()
+        .lower()
+        .replace("\u2014", "-")
+        .replace("\u2013", "-")
+    )
+
+
+def _claim_hits_prefix(claim: str, prefix: str) -> bool:
+    """True when claim equals prefix or prefix is a path/token head."""
+    normalized_claim = _normalize_claim_token(claim)
+    normalized_prefix = _normalize_claim_token(prefix)
+    if not normalized_claim or not normalized_prefix:
+        return False
+    if normalized_claim == normalized_prefix:
+        return True
+    if normalized_claim.startswith(normalized_prefix) and len(normalized_claim) > len(
+        normalized_prefix
+    ):
+        boundary = normalized_claim[len(normalized_prefix)]
+        if boundary in ".:_-[] /":
+            return True
+    if f".{normalized_prefix}" in normalized_claim:
+        return True
+    if f"{normalized_prefix}_json" in normalized_claim:
+        return True
+    return False
+
+
+def load_citation_claim_intent_map(
+    path: Path = CITATION_CLAIM_INTENT_MAP_PATH,
+) -> tuple[dict[str, tuple[str, ...]], dict[str, Any]]:
+    """Load CQA/BMA/FTA claim-prefix → intent destack map."""
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise PreconditionError(
+            f"Citation claim→intent map must be a mapping at {path}"
+        )
+    prefixes_raw = payload.get("prefixes")
+    intents = payload.get("intents")
+    if not isinstance(prefixes_raw, dict):
+        raise PreconditionError(
+            f"Citation claim→intent map missing prefixes mapping at {path}"
+        )
+    if not isinstance(intents, dict):
+        raise PreconditionError(
+            f"Citation claim→intent map missing intents totality block at {path}"
+        )
+
+    prefix_map: dict[str, tuple[str, ...]] = {}
+    mapped_intents: set[str] = set()
+    for raw_prefix, targets in prefixes_raw.items():
+        if not isinstance(targets, list) or not targets:
+            raise PreconditionError(
+                f"Citation claim prefix {raw_prefix!r} must map to a non-empty list"
+            )
+        intent_targets = tuple(str(item) for item in targets)
+        unknown = set(intent_targets) - DESTACK_INTENT_IDS
+        if unknown:
+            raise PreconditionError(
+                "Citation claim→intent map targets unknown destack intents: "
+                f"{sorted(unknown)}"
+            )
+        prefix_map[str(raw_prefix)] = intent_targets
+        mapped_intents.update(intent_targets)
+
+    intent_block = {str(key): value for key, value in intents.items()}
+    missing_intents = DESTACK_INTENT_IDS - set(intent_block)
+    if missing_intents:
+        raise PreconditionError(
+            "Citation claim→intent map missing destack intents: "
+            f"{sorted(missing_intents)}"
+        )
+    extra_intents = set(intent_block) - DESTACK_INTENT_IDS
+    if extra_intents:
+        raise PreconditionError(
+            "Citation claim→intent map has unknown destack intents: "
+            f"{sorted(extra_intents)}"
+        )
+    return prefix_map, intent_block
+
+
+def destack_intents_for_claim(
+    claim: str | None,
+    prefix_map: Mapping[str, Sequence[str]],
+) -> frozenset[str]:
+    """Return destack intents for a citation claim; longest prefix wins."""
+    if not claim:
+        return frozenset()
+    hits: list[tuple[int, str]] = []
+    for prefix, targets in prefix_map.items():
+        if not _claim_hits_prefix(claim, prefix):
+            continue
+        for intent_id in targets:
+            hits.append((len(prefix), str(intent_id)))
+    if not hits:
+        return frozenset()
+    max_len = max(length for length, _intent in hits)
+    return frozenset(intent_id for length, intent_id in hits if length == max_len)
+
+
+def filter_citation_refs_for_intent(
+    refs: Sequence[CitationRef],
+    intent_id: str,
+    prefix_map: Mapping[str, Sequence[str]],
+) -> list[CitationRef]:
+    """Keep claim-mapped refs for this intent; claim-less citation-array refs stay shared."""
+    kept: list[CitationRef] = []
+    for document, location, claim in refs:
+        if not claim:
+            kept.append((document, location, claim))
+            continue
+        if intent_id in destack_intents_for_claim(claim, prefix_map):
+            kept.append((document, location, claim))
+    return kept
+
+
 def load_gold_exclusions(
     path: Path = GOLD_EXCLUSIONS_PATH,
     *,
@@ -353,19 +597,46 @@ def _validate_exclude_reason_membership(label: GoldLabel) -> None:
         )
 
 
-def _walk_json_for_source_refs(value: Any, refs: list[CitationRef]) -> None:
+def _walk_json_for_source_refs(
+    value: Any,
+    refs: list[CitationRef],
+    *,
+    default_claim: str | None = None,
+) -> None:
     if isinstance(value, dict):
         doc = value.get("source_doc") or value.get("document")
         loc = value.get("source_location") or value.get("location")
-        claim_raw = value.get("claim")
-        claim = str(claim_raw) if claim_raw is not None else None
+        claim_raw = value.get("claim") or value.get("field")
+        claim = str(claim_raw) if claim_raw is not None else default_claim
         if doc:
             refs.append((str(doc), str(loc) if loc else None, claim))
         for nested in value.values():
-            _walk_json_for_source_refs(nested, refs)
+            _walk_json_for_source_refs(
+                nested, refs, default_claim=default_claim
+            )
     elif isinstance(value, list):
         for item in value:
-            _walk_json_for_source_refs(item, refs)
+            _walk_json_for_source_refs(
+                item, refs, default_claim=default_claim
+            )
+
+
+def _analysis_row_as_dict(row: Any) -> dict[str, Any]:
+    if isinstance(row, Mapping):
+        return dict(row)
+    as_dict = getattr(row, "asDict", None)
+    if callable(as_dict):
+        try:
+            payload = as_dict()
+        except TypeError:
+            payload = as_dict(False)
+        if isinstance(payload, Mapping):
+            return dict(payload)
+    return {
+        key: _row_value(row, key)
+        for key in ANALYSIS_ROW_FALLBACK_KEYS
+        if _row_value(row, key) is not None
+    }
 
 
 def _parse_json_field(raw: Any) -> Any:
@@ -400,6 +671,9 @@ class GoldLabelBootstrap:
         self._ingestion_snapshot: str | None = None
         self._analysis_row_cache: dict[str, dict[str, Any] | None] = {}
         self._kpi_claim_map_cache: tuple[dict[str, str], dict[str, Any]] | None = None
+        self._citation_claim_map_cache: (
+            tuple[dict[str, tuple[str, ...]], dict[str, Any]] | None
+        ) = None
         self._gold_exclusions_cache: dict[str, str] | None = None
         self._gold_exclusions_cache_slug: str | None = None
         self._last_excel_citation_notes: dict[str, str] = {}
@@ -649,6 +923,13 @@ class GoldLabelBootstrap:
             self._kpi_claim_map_cache = load_kpi_claim_intent_map()
         return self._kpi_claim_map_cache
 
+    def _citation_claim_intent_map(
+        self,
+    ) -> tuple[dict[str, tuple[str, ...]], dict[str, Any]]:
+        if self._citation_claim_map_cache is None:
+            self._citation_claim_map_cache = load_citation_claim_intent_map()
+        return self._citation_claim_map_cache
+
     def _gold_exclusions(self) -> dict[str, str]:
         from eval.retrieval.companies import canonical_company_slug
 
@@ -735,6 +1016,29 @@ class GoldLabelBootstrap:
         refs = self._citation_refs_for_agent(intent.agent_id)
         if intent.agent_id == "kpi":
             return self._positives_from_kpi_citations(intent, refs)
+        if intent.agent_id in DESTACK_AGENT_IDS:
+            prefix_map, _intent_block = self._citation_claim_intent_map()
+            before = len(refs)
+            refs = filter_citation_refs_for_intent(
+                refs, intent.intent_id, prefix_map
+            )
+            refs = [
+                (document, location, claim)
+                for document, location, claim in refs
+                if location
+            ]
+            dropped = before - len(refs)
+            if dropped:
+                self._last_excel_citation_notes[intent.intent_id] = (
+                    f"citation_destack: kept={len(refs)} dropped={dropped}"
+                )
+            chunk_ids: list[str] = []
+            for document, location, _claim in refs:
+                assert location is not None
+                chunk_ids.extend(
+                    self._chunks_for_destack_citation(document, location)
+                )
+            return _dedupe_preserve_order(chunk_ids)
 
         chunk_ids: list[str] = []
         company_lit = _sql_literal(self.company_name)
@@ -760,6 +1064,31 @@ class GoldLabelBootstrap:
             """
             chunk_ids.extend(_chunk_ids_from_sql(self.spark, query))
         return _dedupe_preserve_order(chunk_ids)
+
+    def _chunks_for_destack_citation(
+        self, document: str, location: str
+    ) -> list[str]:
+        """Resolve one destacked citation; skip file-wide / oversized matches."""
+        company_lit = _sql_literal(self.company_name)
+        doc_lit = _sql_literal(document)
+        page = _parse_page_from_location(location)
+        page_clause = f"AND c.page_start = {page}" if page is not None else ""
+        for pattern in destack_location_patterns(location):
+            query = f"""
+                SELECT c.chunk_id
+                FROM {self.catalog}.ingestion.chunks c
+                WHERE c.company_name = {company_lit}
+                  AND (c.file_name = {doc_lit} OR c.file_name ILIKE {_sql_literal('%' + document[-40:] + '%')})
+                  {page_clause}
+                  AND c.section_header ILIKE {_sql_literal(pattern)}
+            """
+            matched = _chunk_ids_from_sql(self.spark, query)
+            if not matched:
+                continue
+            if len(matched) > DESTACK_MAX_CHUNKS_PER_REF:
+                continue
+            return matched
+        return []
 
     def _chunks_for_kpi_pdf_citation(
         self, document: str, location: str
@@ -918,10 +1247,27 @@ class GoldLabelBootstrap:
                     continue
                 doc = cite.get("document") or cite.get("source_doc")
                 loc = cite.get("location") or cite.get("source_location")
-                claim_raw = cite.get("claim")
+                claim_raw = cite.get("claim") or cite.get("field")
                 claim = str(claim_raw) if claim_raw is not None else None
                 if doc:
                     refs.append((str(doc), str(loc) if loc else None, claim))
+        if agent_id == "kpi":
+            for value in row.values():
+                parsed = _parse_json_field(value)
+                if parsed is not None:
+                    _walk_json_for_source_refs(parsed, refs)
+            return _dedupe_preserve_order_refs(refs)
+        if agent_id in DESTACK_AGENT_IDS:
+            for column in DESTACK_JSON_COLUMNS.get(agent_id, ()):
+                raw = row.get(column)
+                if raw is None:
+                    continue
+                parsed = _parse_json_field(raw)
+                if parsed is not None:
+                    _walk_json_for_source_refs(
+                        parsed, refs, default_claim=column
+                    )
+            return _dedupe_preserve_order_refs(refs)
         for value in row.values():
             parsed = _parse_json_field(value)
             if parsed is not None:
@@ -944,28 +1290,7 @@ class GoldLabelBootstrap:
             self._analysis_row_cache[table] = None
             return None
         row = rows[0]
-        if isinstance(row, Mapping):
-            payload = dict(row)
-        else:
-            payload = {
-                key: _row_value(row, key)
-                for key in (
-                    "citations",
-                    "contract_register_json",
-                    "vendor_register_json",
-                    "employment_register_json",
-                    "litigation_register_json",
-                    "privacy_security_register_json",
-                    "insurance_register_json",
-                    "revenue_trend_json",
-                    "opex_breakdown_json",
-                    "ebitda_bridge_json",
-                    "addback_schedule_json",
-                    "kpi_dashboard_json",
-                    "created_at",
-                )
-                if _row_value(row, key) is not None
-            }
+        payload = _analysis_row_as_dict(row)
         self._analysis_row_cache[table] = payload
         return payload
 

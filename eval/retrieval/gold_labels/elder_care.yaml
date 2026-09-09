@@ -318,57 +318,53 @@
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 45e19d1c-b764-4446-953f-c03d305db309
-  - 7fe97773-1db9-4f4c-895a-7458771708f6
-  - 1e83730c-4ff0-4378-a296-216abeb6db5f
-  - c9440283-8eda-49f2-985b-834a807a8c2a
-  - e8b780d6-3939-41a1-b02d-a60d65449b9b
-  - 74bdf645-78f1-4551-82ff-c8a063877d84
-  - 28fc9f07-3c54-4a7f-b046-edd2a8fa3687
-  - e8b90615-cf78-49f9-ad28-7c12d0a8280e
-  - 11aba086-ac47-4c23-9e37-9568c91a76ae
-  - fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc
+  - fc297a1c-7880-4e4b-9aa5-3ad03297cdfa
+  - 7eee449f-d112-4f96-b2d0-6efa1be59bf1
+  - f127d094-da77-428a-8677-71bfc066ea2b
+  - 51ab8e08-1a85-4648-84e2-75332214915a
+  - 89e3ec06-b94a-425e-a41d-3686188add8b
+  - 8512e87c-21a8-4b7b-955f-c317ccc7cbeb
+  - 0c4d4eb0-4edc-4737-8e27-5fb32c05551f
+  - 70739759-e9e2-4249-9728-ff3c159e0cc5
+  - 918b41ad-0373-4c67-a8ef-88c8f842b494
+  - 81819dae-f3f5-41a5-8f88-ca3c7c0bc990
+  - 544afab6-38be-4e91-b18b-db204f39c105
+  - 72f15d49-9c93-4d4c-be8d-3a258ffa25b4
+  - 62e05fcb-91f9-49a7-9bcd-40a5be21e456
+  - 45d0889b-5788-4985-9da1-b66828f367ff
+  - 721cf337-b073-4371-ae85-eb8c116a1ff7
+  - 6bc18042-8292-4ee0-8afd-85255879eff6
+  - a986db27-1275-4c85-96f9-c243f3887c90
+  - 97c030af-93fc-4110-accd-dd2e6b26cbeb
+  - f3500e68-c5f4-4fb1-b4ed-bbfc24c8a48e
+  - c178173f-fd07-40c3-ada5-7a7612fc748d
+  - b31d2999-5376-4586-9709-b9b9e5ce729c
+  - b924b05d-2dd3-4f39-8d3c-f86d0ef05341
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
   confidence: high
+  notes: 'citation_destack: kept_refs=1 chunks=22'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_cohort_data
   company_name: Elder Care
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 45e19d1c-b764-4446-953f-c03d305db309
-  - 7fe97773-1db9-4f4c-895a-7458771708f6
-  - 1e83730c-4ff0-4378-a296-216abeb6db5f
-  - c9440283-8eda-49f2-985b-834a807a8c2a
-  - e8b780d6-3939-41a1-b02d-a60d65449b9b
-  - 74bdf645-78f1-4551-82ff-c8a063877d84
-  - 28fc9f07-3c54-4a7f-b046-edd2a8fa3687
-  - e8b90615-cf78-49f9-ad28-7c12d0a8280e
-  - 11aba086-ac47-4c23-9e37-9568c91a76ae
-  - fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_contract_terms
   company_name: Elder Care
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 45e19d1c-b764-4446-953f-c03d305db309
-  - 7fe97773-1db9-4f4c-895a-7458771708f6
-  - 1e83730c-4ff0-4378-a296-216abeb6db5f
-  - c9440283-8eda-49f2-985b-834a807a8c2a
-  - e8b780d6-3939-41a1-b02d-a60d65449b9b
-  - 74bdf645-78f1-4551-82ff-c8a063877d84
-  - 28fc9f07-3c54-4a7f-b046-edd2a8fa3687
-  - e8b90615-cf78-49f9-ad28-7c12d0a8280e
-  - 11aba086-ac47-4c23-9e37-9568c91a76ae
-  - fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc
+  - fe5ba53d-76f9-4c65-bca3-24e12e5dafe5
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
   confidence: high
+  notes: 'citation_destack: kept_refs=2 chunks=1'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_customer_concentration
   company_name: Elder Care
@@ -388,101 +384,57 @@
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
   confidence: high
+  notes: 'citation_destack: kept_refs=11 chunks=10'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_customer_health
   company_name: Elder Care
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 45e19d1c-b764-4446-953f-c03d305db309
-  - 7fe97773-1db9-4f4c-895a-7458771708f6
-  - 1e83730c-4ff0-4378-a296-216abeb6db5f
-  - c9440283-8eda-49f2-985b-834a807a8c2a
-  - e8b780d6-3939-41a1-b02d-a60d65449b9b
-  - 74bdf645-78f1-4551-82ff-c8a063877d84
-  - 28fc9f07-3c54-4a7f-b046-edd2a8fa3687
-  - e8b90615-cf78-49f9-ad28-7c12d0a8280e
-  - 11aba086-ac47-4c23-9e37-9568c91a76ae
-  - fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=1)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_customer_tenure
   company_name: Elder Care
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 45e19d1c-b764-4446-953f-c03d305db309
-  - 7fe97773-1db9-4f4c-895a-7458771708f6
-  - 1e83730c-4ff0-4378-a296-216abeb6db5f
-  - c9440283-8eda-49f2-985b-834a807a8c2a
-  - e8b780d6-3939-41a1-b02d-a60d65449b9b
-  - 74bdf645-78f1-4551-82ff-c8a063877d84
-  - 28fc9f07-3c54-4a7f-b046-edd2a8fa3687
-  - e8b90615-cf78-49f9-ad28-7c12d0a8280e
-  - 11aba086-ac47-4c23-9e37-9568c91a76ae
-  - fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=1)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_payor_mix
   company_name: Elder Care
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 45e19d1c-b764-4446-953f-c03d305db309
-  - 7fe97773-1db9-4f4c-895a-7458771708f6
-  - 1e83730c-4ff0-4378-a296-216abeb6db5f
-  - c9440283-8eda-49f2-985b-834a807a8c2a
-  - e8b780d6-3939-41a1-b02d-a60d65449b9b
-  - 74bdf645-78f1-4551-82ff-c8a063877d84
-  - 28fc9f07-3c54-4a7f-b046-edd2a8fa3687
-  - e8b90615-cf78-49f9-ad28-7c12d0a8280e
-  - 11aba086-ac47-4c23-9e37-9568c91a76ae
-  - fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_retention_metrics
   company_name: Elder Care
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 45e19d1c-b764-4446-953f-c03d305db309
-  - 7fe97773-1db9-4f4c-895a-7458771708f6
-  - 1e83730c-4ff0-4378-a296-216abeb6db5f
-  - c9440283-8eda-49f2-985b-834a807a8c2a
-  - e8b780d6-3939-41a1-b02d-a60d65449b9b
-  - 74bdf645-78f1-4551-82ff-c8a063877d84
-  - 28fc9f07-3c54-4a7f-b046-edd2a8fa3687
-  - e8b90615-cf78-49f9-ad28-7c12d0a8280e
-  - 11aba086-ac47-4c23-9e37-9568c91a76ae
-  - fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_revenue_type_and_renewals
   company_name: Elder Care
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 45e19d1c-b764-4446-953f-c03d305db309
-  - 7fe97773-1db9-4f4c-895a-7458771708f6
-  - 1e83730c-4ff0-4378-a296-216abeb6db5f
-  - c9440283-8eda-49f2-985b-834a807a8c2a
-  - e8b780d6-3939-41a1-b02d-a60d65449b9b
-  - 74bdf645-78f1-4551-82ff-c8a063877d84
-  - 28fc9f07-3c54-4a7f-b046-edd2a8fa3687
-  - e8b90615-cf78-49f9-ad28-7c12d0a8280e
-  - 11aba086-ac47-4c23-9e37-9568c91a76ae
-  - fec98f6e-a71d-4786-b2d2-9cb6b8fc89cc
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:55819:2026-08-20
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.ebitda.q1_financial_statements
   company_name: Elder Care

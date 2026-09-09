@@ -1,0 +1,173 @@
+# Claim/field → intent destack for citation_backfill (CQA / BMA / FTA).
+# Same pattern as kpi_claim_intent_map.yaml: only refs whose claim maps to the
+# intent become positives. Prefix match; longest prefix wins.
+# Live claim keys from uc13_ale Elder Care CQA + GKF BMA/FTA (2026-09-01).
+
+prefixes:
+  average_account_size:
+    - cqa.retrieve_account_size
+  cohort:
+    - cqa.retrieve_cohort_data
+  cohort_analysis:
+    - cqa.retrieve_cohort_data
+  contract_terms:
+    - cqa.retrieve_contract_terms
+  contract_terms_summary:
+    - cqa.retrieve_contract_terms
+  top_customers:
+    - cqa.retrieve_customer_concentration
+  concentration:
+    - cqa.retrieve_customer_concentration
+  concentration_summary:
+    - cqa.retrieve_customer_concentration
+  customer_health:
+    - cqa.retrieve_customer_health
+  customer_health_indicators:
+    - cqa.retrieve_customer_health
+  customer_tenure:
+    - cqa.retrieve_customer_tenure
+  payor:
+    - cqa.retrieve_payor_mix
+  payor_mix:
+    - cqa.retrieve_payor_mix
+  retention:
+    - cqa.retrieve_retention_metrics
+  nrr:
+    - cqa.retrieve_retention_metrics
+  grr:
+    - cqa.retrieve_retention_metrics
+  revenue_type:
+    - cqa.retrieve_revenue_type_and_renewals
+  renewal:
+    - cqa.retrieve_revenue_type_and_renewals
+  revenue_type_mix:
+    - cqa.retrieve_revenue_type_and_renewals
+  renewal_patterns:
+    - cqa.retrieve_revenue_type_and_renewals
+  cim_detected:
+    - bma.detect_cim_presence
+  products_services:
+    - bma.retrieve_business_overview
+  revenue_model:
+    - bma.retrieve_business_overview
+  executive_summary:
+    - bma.retrieve_business_overview
+  key_dependencies:
+    - bma.retrieve_model_changes_and_dependencies
+  recent_model_changes:
+    - bma.retrieve_model_changes_and_dependencies
+  people_and_org:
+    - bma.retrieve_people_and_org
+  key_executives:
+    - bma.retrieve_people_and_org
+  pricing:
+    - bma.retrieve_pricing_and_margins
+  geographic_concentration:
+    - bma.retrieve_revenue_by_location_and_metrics
+  revenue_by_location:
+    - bma.retrieve_revenue_by_location_and_metrics
+  customer_operational_metrics:
+    - bma.retrieve_revenue_by_location_and_metrics
+  revenue_visibility:
+    - bma.retrieve_revenue_visibility
+  sales_motion:
+    - bma.retrieve_sales_and_customers
+  customer_profile:
+    - bma.retrieve_sales_and_customers
+  workforce:
+    - bma.retrieve_workforce_and_capacity
+  workforce_capacity:
+    - bma.retrieve_workforce_and_capacity
+  ebitda:
+    - fta.ebitda.q1_financial_statements
+    - fta.ebitda.q2_ebitda_and_margins
+  working_capital:
+    - fta.ebitda.q3_working_capital
+    - fta.opex.q2_working_capital
+  addback_schedule:
+    - fta.ebitda.q4_addback_schedule
+  opex_breakdown:
+    - fta.opex.q1_financial_statements
+    - fta.opex.q3_projected_financials
+  cost_structure:
+    - fta.opex.q1_financial_statements
+    - fta.opex.q3_projected_financials
+  budget_vs_actual:
+    - fta.opex.q3_projected_financials
+  revenue_trend:
+    - fta.revenue.q1_financial_statements
+    - fta.revenue.q5_quickbooks_pl
+  gross_margin:
+    - fta.ebitda.q2_ebitda_and_margins
+    - fta.revenue.q1_financial_statements
+  revenue_by_segment:
+    - fta.revenue.q2_revenue_by_segment
+  revenue_by_geography:
+    - fta.revenue.q3_revenue_by_geography
+  revenue_by_customer:
+    - fta.revenue.q4_customer_concentration
+    - fta.revenue.q4_customer_concentration_fallback
+
+intents:
+  bma.detect_cim_presence:
+    role: claim_target
+  bma.retrieve_business_overview:
+    role: claim_target
+  bma.retrieve_model_changes_and_dependencies:
+    role: claim_target
+  bma.retrieve_people_and_org:
+    role: claim_target
+  bma.retrieve_pricing_and_margins:
+    role: claim_target
+  bma.retrieve_revenue_by_location_and_metrics:
+    role: claim_target
+  bma.retrieve_revenue_visibility:
+    role: claim_target
+  bma.retrieve_sales_and_customers:
+    role: claim_target
+  bma.retrieve_workforce_and_capacity:
+    role: claim_target
+  cqa.retrieve_account_size:
+    role: claim_target
+  cqa.retrieve_cohort_data:
+    role: claim_target
+  cqa.retrieve_contract_terms:
+    role: claim_target
+  cqa.retrieve_customer_concentration:
+    role: claim_target
+  cqa.retrieve_customer_health:
+    role: claim_target
+  cqa.retrieve_customer_tenure:
+    role: claim_target
+  cqa.retrieve_payor_mix:
+    role: claim_target
+  cqa.retrieve_retention_metrics:
+    role: claim_target
+  cqa.retrieve_revenue_type_and_renewals:
+    role: claim_target
+  fta.ebitda.q1_financial_statements:
+    role: claim_target
+  fta.ebitda.q2_ebitda_and_margins:
+    role: claim_target
+  fta.ebitda.q3_working_capital:
+    role: claim_target
+  fta.ebitda.q4_addback_schedule:
+    role: claim_target
+  fta.opex.q1_financial_statements:
+    role: claim_target
+  fta.opex.q2_working_capital:
+    role: claim_target
+  fta.opex.q3_projected_financials:
+    role: claim_target
+  fta.revenue.q1_financial_statements:
+    role: claim_target
+  fta.revenue.q2_revenue_by_segment:
+    role: claim_target
+  fta.revenue.q3_revenue_by_geography:
+    role: claim_target
+  fta.revenue.q4_customer_concentration:
+    role: claim_target
+  fta.revenue.q4_customer_concentration_fallback:
+    role: claim_target
+  fta.revenue.q5_quickbooks_pl:
+    role: claim_target

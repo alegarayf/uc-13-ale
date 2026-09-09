@@ -1,29 +1,12 @@
 - intent_id: bma.detect_cim_presence
   company_name: GKF
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
-  - 220b97ec-300d-4009-b0b4-2acbc756cd44
-  - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
-  - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_business_overview
   company_name: GKF
@@ -32,214 +15,161 @@
   positive_chunk_ids:
   - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
   - 160c861c-470c-4424-8a8f-7398d7aef825
-  - 220b97ec-300d-4009-b0b4-2acbc756cd44
-  - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
-  - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  - 76e0f1bf-3f50-4855-b868-88aae2a9e67b
+  - a2c1c0aa-b813-491c-bb94-c6ee7a3c3857
+  - 7b8cd93c-3c01-4ea4-a5db-5951f247827f
+  - 1c2c0a95-fd2d-4718-a48c-ad580595ee55
+  - c9aa1b67-afcc-467e-9f59-043392c2b6f3
+  - df678841-c8b4-4b63-9c75-ae5d3825a3de
+  - c0760f82-60e2-49f5-9579-ad90bd2438ec
+  - 10d2f8f5-0514-4f31-9ef3-bbed6777a601
+  - d8dc82e3-96a3-4189-8b1c-07ee08968d23
+  - 9598d594-a909-4327-bce2-b44bc96678a8
+  - 7e1a0fff-fa76-4fe4-a20e-4119fc6c7f52
+  - d21542fc-323f-4eda-817b-10a18f6d7e6a
+  - 80801ea9-78ee-46f4-84ec-491d92b1f8f7
+  - 966217f7-41ab-4583-b410-80b3f57356df
+  - b8ce25c8-06b6-498b-858d-5cfe6e8c3319
+  - 3bab6c9d-e0d2-45c5-8bee-590ce723f366
+  - 94b8ee1e-ee0a-4908-8926-189e05630e27
+  - ca3ed25f-e540-4ba0-b830-6ec77a05c86f
+  - acc03b2a-319d-4ba4-ada2-d57759579c8e
+  - ba256351-7d4b-43ba-ac89-ecac6218c848
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=3 chunks=22'
   aggregate_exclude: false
 - intent_id: bma.retrieve_model_changes_and_dependencies
   company_name: GKF
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
+  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
   - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
   - 160c861c-470c-4424-8a8f-7398d7aef825
-  - 220b97ec-300d-4009-b0b4-2acbc756cd44
-  - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
-  - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  - 7cf96d1b-55b5-4a82-b1ea-64d0ffe40826
+  - 27fae906-73bc-4c71-a8e6-be2c2163aa49
+  - a69b741d-ac8f-4604-8ee8-22d2dafc8c45
+  - d12a04f2-a3e6-48ca-ab20-c2105908550b
+  - 09da0065-0562-4900-a337-91027b9a2db5
+  - 4e1d4f86-daea-4e2a-b0bb-0df25d259980
+  - 4559d8d6-68df-48b4-9f4b-3d77b5b7febd
+  - be327f0f-5df5-4e8b-8656-2b627edae961
+  - 4e54e0ee-7738-42bd-898e-256af00c5fef
+  - d8d03d45-e6f8-4f8a-aa58-447cbe87a07f
+  - abc8adcd-6dda-40a3-bf87-7cd78c551fc5
+  - 8445da72-3c48-4af7-8d80-5403655fb764
+  - 2a0400e6-cb32-46b2-a389-9b49e31022b6
+  - 3fb3a2f5-e64a-404a-8ec3-f5fc97f1641f
+  - fe8db8f7-4b00-4550-b1fb-292911d9aa24
+  - 7163247a-a659-49f3-88a7-4f0b6e5d220b
+  - 0156539a-44d5-4ad3-a9de-23c44a7be01f
+  - d2616fc7-fe48-4715-85bc-982ca81c7de0
+  - aa57e50f-c2ca-420e-a221-5eb29e3658a5
+  - f0bca195-2a39-4408-94ac-f297afe47df0
+  - b2d1f33d-80de-46a3-8998-343e4e452928
+  - db8f908f-c222-4358-b723-3757662e1208
+  - 6998e198-96b8-4b22-b181-668ba0ded269
+  - f34d4142-135e-4ff1-9f7a-504c54ce0b54
+  - 7e8ed12e-57d8-4ca1-b119-73694a87d9e2
+  - d11566ea-5468-4046-b34f-503d0d20861a
+  - be656be2-b802-4fc6-b829-392e1a310784
+  - 743c8093-36b1-4986-bec7-53a6b68a00fd
+  - 75a99710-2516-4c68-bdc1-358d657dae03
+  - c41a9f5b-d293-4f2d-8f14-12e4b38b7627
+  - a8aa4153-c25d-441b-84a3-acaca96ebffa
+  - 7ea35a9a-d19a-49af-955a-44da0c03e176
+  - 83d2090c-ba0a-4d2d-ae21-db9340455687
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=12 chunks=36'
   aggregate_exclude: false
 - intent_id: bma.retrieve_people_and_org
   company_name: GKF
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
-  - 220b97ec-300d-4009-b0b4-2acbc756cd44
-  - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
-  - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  - 7ea9e435-7087-4912-a7fb-65c08f29c563
+  - c066cd6d-232c-484e-b994-c4bf523d3722
+  - d4ea4710-a264-460a-a31b-020bc266be1c
+  - 5c3b9bab-953a-44be-946a-79893b3fc7ef
+  - 4a3caac0-397e-4d22-a53a-d813bdb7b524
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=2 chunks=5'
   aggregate_exclude: false
 - intent_id: bma.retrieve_pricing_and_margins
   company_name: GKF
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
-  - 220b97ec-300d-4009-b0b4-2acbc756cd44
-  - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
-  - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_revenue_by_location_and_metrics
   company_name: GKF
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
-  - 220b97ec-300d-4009-b0b4-2acbc756cd44
-  - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
-  - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  - a8aa4153-c25d-441b-84a3-acaca96ebffa
+  - 7ea35a9a-d19a-49af-955a-44da0c03e176
+  - 83d2090c-ba0a-4d2d-ae21-db9340455687
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=8 chunks=3'
   aggregate_exclude: false
 - intent_id: bma.retrieve_revenue_visibility
   company_name: GKF
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
-  - 220b97ec-300d-4009-b0b4-2acbc756cd44
-  - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
-  - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  - 7e36e82a-9ea5-4f58-a3ea-784db939d889
+  - 01b679e7-c51f-4a78-a241-3325de3a4a10
+  - 2e481cfc-be95-4a21-9dac-367168c4f708
+  - 03bc5fc7-0143-4cc3-a560-c0f6cdf98ff0
+  - 163d851a-75b0-41e6-a005-da0b519c8273
+  - 0dc99862-3fb8-48db-97f4-440d45a3ec04
+  - 67e0e54f-c031-4c7b-9ebe-650abbbb0115
+  - 602fd512-4479-4091-9d5b-9a26d4fbdef2
+  - 1118055b-f3b4-4d51-a487-a20d0becd6dc
+  - 0cc6d4c2-0c0e-4586-ba10-c5d2ef5e7132
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=3 chunks=10'
   aggregate_exclude: false
 - intent_id: bma.retrieve_sales_and_customers
   company_name: GKF
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
   - 220b97ec-300d-4009-b0b4-2acbc756cd44
   - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
   - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  - f5dd5891-c420-47fc-876c-a514e2a1a810
+  - 82a68644-e119-4a2a-a79a-b4ea83ee15bd
+  - 91d661bf-7e42-4fb6-b88d-6f674ee81413
+  - 8d2b5887-87e9-428d-ba6e-edaca9056ca5
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=6 chunks=7'
   aggregate_exclude: false
 - intent_id: bma.retrieve_workforce_and_capacity
   company_name: GKF
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
-  - 220b97ec-300d-4009-b0b4-2acbc756cd44
-  - 9bf75962-0de6-44ef-8c85-b2e2a769dbf9
-  - f0990437-bb7e-451f-9e4a-7f06a4c5dcf6
-  - 25592a82-533e-4652-9adc-fca683bc2fea
-  - fba71025-e66c-4f2c-8ad9-f65777b1404b
-  - d83cb1cd-13c3-404a-bd19-ea5321a94115
-  - ae5fa909-438f-497e-acf6-5d09724bc2ea
-  - 9814e611-75be-45de-a475-92d4c0629b6c
-  - c3469c95-9439-40a4-9687-cd24020828cc
-  - e03f3d7c-754c-4f51-8c96-16c11bd3304c
-  - f80d4224-924e-450f-8d25-f9dc0fec0d6e
-  - 49e668fd-3c2c-4a36-ad3f-0c4bf5e8ef97
-  - 0423825d-c6d5-4a72-a70e-15f43891a3fd
-  - f10f6741-f411-42ab-b96d-4b4208a41392
-  - a5c6a3bb-eb64-442c-87a2-cec4cc9274a0
-  - 1cb2bd99-36ae-461f-a696-fc7cafe3c5f3
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: cqa.retrieve_account_size
   company_name: GKF
@@ -362,31 +292,40 @@
   positive_chunk_ids:
   - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
   - 160c861c-470c-4424-8a8f-7398d7aef825
+  - 0fe56256-4829-4c7d-88b1-a1dac3751d69
+  - 27b4a3c4-a376-4a79-b88d-a2c4b9404feb
+  - 4a8db05d-c081-4a50-afeb-92cddbaf5bfc
+  - dd50b27e-8af0-48ba-8157-4f9531eb0ae6
+  - a9d13c2e-0dab-4857-9e75-3bb109c3004b
+  - 3912455e-b3d8-4375-9019-ed72243b41cf
+  - 34c31930-4671-463c-a008-75b0c283b7ef
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=4 chunks=9'
   aggregate_exclude: false
 - intent_id: fta.ebitda.q3_working_capital
   company_name: GKF
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.ebitda.q4_addback_schedule
   company_name: GKF
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
+  - 4a8db05d-c081-4a50-afeb-92cddbaf5bfc
+  - dd50b27e-8af0-48ba-8157-4f9531eb0ae6
+  - a9d13c2e-0dab-4857-9e75-3bb109c3004b
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=1 chunks=3'
   aggregate_exclude: false
 - intent_id: fta.opex.q1_financial_statements
   company_name: GKF
@@ -403,13 +342,12 @@
 - intent_id: fta.opex.q2_working_capital
   company_name: GKF
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.opex.q3_projected_financials
   company_name: GKF
@@ -421,6 +359,7 @@
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=1 chunks=2'
   aggregate_exclude: false
 - intent_id: fta.revenue.q1_financial_statements
   company_name: GKF
@@ -439,44 +378,88 @@
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
+  - ddcc92e5-2d88-435f-b7b3-78378355b30c
+  - 1d447598-c3f6-4f55-9151-0148975248bc
+  - 2cbc490b-5ddd-4cbf-93d1-28fbc360dbe0
+  - 9d45ecb2-1ed2-45e2-8d38-9117a65d6242
+  - aa978764-3817-4b49-b878-120f039b93d7
+  - 7bc616e7-fd94-4de5-80df-e3be3765135d
+  - 59ec0815-fdf0-4ba7-8062-293d25c7f731
+  - 949941e5-5a99-4143-86d9-5a904dc6f9a0
+  - f20e5cce-55a2-44e2-9e8a-4ac1658de84c
+  - 9c6ec948-c54f-4851-ac7e-d3f4f547a688
+  - 508b29c8-0995-478a-a8b0-33e91f858c6a
+  - 13394444-43c9-4fce-990a-7b2f981c1014
+  - 23c95062-d80b-49e2-bed7-e02003f5b3e0
+  - 3385eb81-ce85-4018-94ad-a0f357ea1644
+  - 22fc139e-e56e-4949-92fb-8ef6e6e05784
+  - 4a14e53c-600c-44c6-83c0-806c1ce7fed9
+  - b2ba23cc-3815-4925-99ce-bc9924b96676
+  - 6c5007ac-a33d-41fe-9eef-4c9560d775e5
+  - 6fdc5a7b-5a6d-4905-b19a-6162bbb51cd3
+  - ec9e18a0-87e9-4d3e-b722-484715805bf5
+  - aa0b88ba-c65b-4bf3-88e0-08ee3e705473
+  - d0ab2e02-ea19-4672-811d-d6f5768997d2
+  - b63e4878-dbd6-4630-98d5-8718e4b6f3ea
+  - 276add4d-c0ea-41bd-a8fb-0acc2115a6a2
+  - 494ef541-d7b0-455c-bd43-4e0409c52c97
+  - d9905022-c796-417b-a62a-89afd6c5b3b6
+  - 422ca4d3-d811-4065-803d-c4555ae7f487
+  - cc9727df-b8b6-4300-905d-89dbadc8d226
+  - abc99983-c84e-49e2-80a7-eee2f1f5b999
+  - 71323373-3530-44d1-addc-fb5dcad6aca2
+  - db850e39-638a-43e3-84ce-d31fba57453b
+  - adaea23f-a816-4e23-bfda-f8eba7ffbe7e
+  - 5055ee7e-0b81-4840-86d0-76daaae04250
+  - 508519f0-ecf9-432e-aea1-bae4fadde9d1
+  - aa985a18-3f57-4935-84c8-712e22da9fca
+  - ff5960de-7af8-49b7-9d8b-e5f1e58b7f97
+  - 8512372c-cd0e-4d29-b547-a2acf29d7554
+  - 6969e099-4560-4bb0-a9b0-e59544286e40
+  - 7168ef2a-8eb1-4048-a415-c50a476d9414
+  - 4dceb845-8e89-4959-8d8f-0ed0324fe1ea
+  - 19952766-b591-4403-bc1c-3cd3c9354d45
+  - f3b3b701-81e3-45fd-aa4f-37b89fc85583
+  - eac6a4ec-fd2a-45d6-8b31-3386431cbf13
+  - 8ca18f58-adc9-422e-b1d7-8ba19b3e1d5b
+  - 1567ad0d-ac3e-4115-a3e9-296bac89e64b
+  - 230927f4-9fdb-4cf4-ac14-814f0081ae39
+  - b1bd6a79-51fa-4afa-a560-2020fea3a039
+  - 2a041c94-2762-40fa-aadc-fe32a5b483e1
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=1 chunks=48'
   aggregate_exclude: false
 - intent_id: fta.revenue.q3_revenue_by_geography
   company_name: GKF
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.revenue.q4_customer_concentration
   company_name: GKF
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.revenue.q4_customer_concentration_fallback
   company_name: GKF
   catalog: uc13_ale
-  gold_status: ready
-  positive_chunk_ids:
-  - 6b4271d3-f5a4-4555-9c96-c5b4eda58cbf
-  - 160c861c-470c-4424-8a8f-7398d7aef825
+  gold_status: bootstrap_failed
+  positive_chunk_ids: []
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
-  confidence: high
+  confidence: low
+  notes: 'citation_destack: no bounded positives (kept_refs=0)'
   aggregate_exclude: false
 - intent_id: fta.revenue.q5_quickbooks_pl
   company_name: GKF
@@ -488,6 +471,7 @@
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-08-19
   confidence: high
+  notes: 'citation_destack: kept_refs=1 chunks=2'
   aggregate_exclude: false
 - intent_id: kpi.retrieve_bench_and_capacity
   company_name: GKF

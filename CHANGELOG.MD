@@ -2,6 +2,7 @@
 
 ## eval-loop-experiment-9-9-2026 — 2026-09-09
 
+- patch-cycle-8 (retrieval, Elder Care + GKF): citation-backfill gold destacks CQA/BMA/FTA by claim the way KPI already does. New complete harness `baseline_e828d3409c9c` (EC) and `baseline_d0259e6da178` (GKF). Named EC empty-CQA falsifier missed (0/3); GKF cloned bags are gone but the gated set shrank (22→14). Cycle-8 diagnose also landed EC `baseline_f719fe92f9b9` (first wet measure of merge-rank: zero-recall 35→30).
 - patch-cycle-4 (checklist, Clearsulting): `score_kpi()` overlay-block depth counts all nonempty sibling KPI fields (not only the 9-key subset). Live KPI 2/3→3/3.
 - patch-cycle-3 (checklist, Elder Care + Clearsulting): `score_legal` restrictive honors employment `non_compete`/`non_solicit` (Elder Care Legal 8/11→9/11 PASS); `score_qoe` can pass a present report and counts Tier-4 rows for fidelity (Clearsulting QoE 4/6→6/6); `score_fta` no longer treats plain `2024` actuals as a projection (Clearsulting FTA 17→16.5/18).
 - patch-cycle-2 (judge_cal, Clearsulting): `spot_check.py` `MANIFEST_PATHS` is company-scoped; Clearsulting no longer silently enumerates Elder Care FTA/exec rubric claims.
