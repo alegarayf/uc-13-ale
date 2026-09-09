@@ -499,6 +499,15 @@ definitions:
         items:
           type: object
           additionalProperties: true
+      # The addback ledger the chart draws. Optional: a company whose QoE agent
+      # found no addback schedule has none, and the section renders empty.
+      addbacks:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      tier4_count:
+        type: ["integer", "null"]
 
   legal:
     type: object

@@ -12,13 +12,17 @@ generalizes across verticals (plan §Principios rectores, P2).
 
 from __future__ import annotations
 
+import json
+
 from agents.exec_summary.field_mapping import (
     _company_framing_from_bma,
     _fta_table_rows,
     _headline_from_fta,
+    _addbacks_from_qoe,
     _derive_customer_shares,
     _kpi_overlay_block,
     _kpi_rows_from_yaml,
+    _qoe_from_snapshots,
     _revenue_quality_from_agents,
     _segment_performance_from_fta,
     money_to_dollars,
@@ -716,3 +720,54 @@ def test_derived_share_falls_back_to_latest_when_the_client_names_no_period():
     ]}
     enriched, _ = _derive_customer_shares(customers, fta_yaml)
     assert enriched[0]["revenue_pct_yr1"] == "20.0%"
+
+
+# ---------------------------------------------------------------------------
+# Quality of earnings — the section the recommendation leans on hardest, and
+# the one rendering "Addbacks — not extracted" over a full ledger.
+# ---------------------------------------------------------------------------
+
+
+def test_addbacks_map_from_the_qoe_ledger():
+    snap = {"yaml_dict": {"addback_ledger": [
+        {"description": "Separation agreement [A]", "amount_dollars": "256",
+         "period": "TTM25", "tier_classification": "Tier 4",
+         "tier_rationale": "No supporting document referenced."},
+    ]}}
+    rows = _addbacks_from_qoe(snap)
+    assert rows[0]["label"] == "Separation agreement [A]"
+    assert rows[0]["amount"] == "256"
+    assert rows[0]["tier"] == "Tier 4"
+
+
+def test_addbacks_read_the_delta_json_column_when_no_yaml():
+    snap = {"delta_row": {"addback_ledger_json": json.dumps(
+        [{"description": "Signing bonus [B]", "amount_dollars": "95", "tier_classification": "Tier 4"}]
+    )}}
+    rows = _addbacks_from_qoe(snap)
+    assert rows[0]["label"] == "Signing bonus [B]"
+
+
+def test_addbacks_skip_an_item_with_no_amount():
+    snap = {"yaml_dict": {"addback_ledger": [{"description": "Unpriced item", "amount_dollars": None}]}}
+    assert _addbacks_from_qoe(snap) == []
+
+
+def test_addbacks_empty_when_the_agent_produced_no_ledger():
+    assert _addbacks_from_qoe(None) == []
+    assert _addbacks_from_qoe({"yaml_dict": {}}) == []
+
+
+def test_qoe_reads_the_real_percentage_column_not_the_short_name():
+    """The column is total_addbacks_pct_of_ebitda. Reading the short name
+    always returned None and fell through to FTA's own figure — how a caption
+    came to read "Addbacks total 569.3 of reported EBITDA"."""
+    snap = {"delta_row": {"total_addbacks_pct_of_ebitda": 12.2}}
+    fta = {"addback_schedule": {"addback_pct_of_ebitda": 569.3}}
+    result = _qoe_from_snapshots(snap, fta)
+    assert result["addback_pct_of_ebitda"] == "12.2%"
+
+
+def test_qoe_still_falls_back_to_fta_when_the_agent_computed_none():
+    result = _qoe_from_snapshots({"delta_row": {}}, {"addback_schedule": {"addback_pct_of_ebitda": "40%"}})
+    assert result["addback_pct_of_ebitda"] == "40%"

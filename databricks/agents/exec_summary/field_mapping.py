@@ -987,18 +987,77 @@ def _matching_total(
     return totals[max(totals)] if totals else fallback
 
 
+def _as_percent_text(value: Any) -> str:
+    """Render a share as a percentage, whether the source stated it as a bare
+    number or already carried the sign. ``total_addbacks_pct_of_ebitda`` is a
+    float column (12.2), and printing it raw produced captions reading
+    "Addbacks total 12.2 of reported EBITDA"."""
+    if value in (None, ""):
+        return ""
+    text = str(value).strip()
+    if text.endswith("%"):
+        return text
+    try:
+        return f"{float(text):g}%"
+    except ValueError:
+        return text
+
+
+def _addbacks_from_qoe(qoe_snap: dict | None) -> list[dict[str, Any]]:
+    """Map the QoE addback ledger onto the shape ``_quality`` renders.
+
+    The final report's addback chart reads ``qoe.addbacks`` (label / amount /
+    tier) and this mapper never produced the key, so the section rendered
+    "Addbacks — not extracted from the data room" for every company while the
+    agent had a full ledger: GKF ten Tier 4 items with amounts and rationale,
+    Clearsulting eleven. The prose beside the empty chart discussed those very
+    addbacks, which is how the contradiction stayed visible but unexplained.
+    """
+    snap = qoe_snap or {}
+    ledger = (snap.get("yaml_dict") or {}).get("addback_ledger")
+    if ledger is None:
+        ledger = _parse_json_column((snap.get("delta_row") or {}).get("addback_ledger_json"))
+    if not isinstance(ledger, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in ledger:
+        if not isinstance(item, dict):
+            continue
+        amount = item.get("amount_dollars")
+        if amount in (None, "", "null"):
+            continue
+        out.append(
+            {
+                "label": str(item.get("description") or item.get("label") or ""),
+                "amount": amount,
+                "tier": item.get("tier_classification") or item.get("tier"),
+                "period": item.get("period"),
+                "rationale": item.get("tier_rationale"),
+            }
+        )
+    return out
+
+
 def _qoe_from_snapshots(qoe_snap: dict | None, fta_yaml: dict | None) -> dict[str, Any]:
     delta = (qoe_snap or {}).get("delta_row") or {}
-    addback_pct = delta.get("addback_pct_of_ebitda")
+    # The column is total_addbacks_pct_of_ebitda; reading the shorter name
+    # always returned None and silently fell through to FTA's own figure, which
+    # is how a caption came to read "Addbacks total 569.3 of reported EBITDA"
+    # for a company whose QoE agent had computed no percentage at all.
+    addback_pct = delta.get("total_addbacks_pct_of_ebitda")
+    if addback_pct is None:
+        addback_pct = delta.get("addback_pct_of_ebitda")
     if addback_pct is None and fta_yaml:
         addback_pct = (fta_yaml.get("addback_schedule") or {}).get("addback_pct_of_ebitda")
     flags = delta.get("flags") or []
     if isinstance(flags, str):
         flags = json.loads(flags or "[]")
     return {
-        "addback_pct_of_ebitda": str(addback_pct or ""),
+        "addback_pct_of_ebitda": _as_percent_text(addback_pct),
         "tier_summary": str(delta.get("tier_summary") or delta.get("executive_summary") or ""),
         "flags": flags if isinstance(flags, list) else [],
+        "addbacks": _addbacks_from_qoe(qoe_snap),
+        "tier4_count": delta.get("tier4_addback_count"),
     }
 
 

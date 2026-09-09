@@ -594,3 +594,40 @@ def test_final_report_view_renders_all_six_take_boxes_with_full_narrative():
 def test_final_report_view_renders_zero_take_boxes_with_degraded_narrative():
     view = frv.final_report_view({}, _DEGRADED_NARRATIVE)
     assert not any(_take_sites(view))
+
+
+# ---------------------------------------------------------------------------
+# Raw agent records rendered into reader-facing cells (points 5, 6, 9 of the
+# 2026-09-09 review of the first live reports).
+# ---------------------------------------------------------------------------
+
+
+def test_flag_text_prefers_the_note_the_agent_wrote():
+    flag = {"metric": "tier4_addback", "value": "Signing bonus ($95)",
+            "severity": "Red", "note": "Tier 4 addback: unlikely to survive buyer QofE."}
+    assert frv.flag_text(flag) == "Tier 4 addback: unlikely to survive buyer QofE."
+
+
+def test_flag_text_never_prints_a_dict_repr():
+    """The defect this replaces: falling back to the record itself put
+    "{'metric': 'tier4_addback', 'value': ...}" into the earnings-quality and
+    legal tables of every report."""
+    rendered = frv.flag_text({"metric": "x", "severity": "Red"})
+    assert "{" not in rendered and "'" not in rendered
+
+
+def test_flag_text_falls_back_to_value_when_there_is_no_note():
+    assert frv.flag_text({"metric": "x", "value": "Goddard Franchising, LLC"}) == "Goddard Franchising, LLC"
+
+
+def test_humanize_metric_reads_as_prose_not_as_an_identifier():
+    assert frv.humanize_metric("coc_consent_required") == "CoC consent required"
+    assert frv.humanize_metric("revenue_quality_non_recurring_in_run_rate") == (
+        "Revenue quality non recurring in run rate"
+    )
+    assert frv.humanize_metric("nrr_pct") == "NRR %"
+    assert frv.humanize_metric("") == ""
+
+
+def test_humanize_metric_leaves_an_already_readable_label_alone():
+    assert frv.humanize_metric("Unusual indemnity") == "Unusual indemnity"

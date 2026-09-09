@@ -327,3 +327,23 @@ def test_summary_and_scenarios_share_consistent_extracted_fixture():
     assert tier4_count == 1
     assert scenarios["reported_ebitda"] == 2_000_000.0
     assert scenarios["tier1_plus_tier2_ebitda"] == 2_080_000.0
+
+
+# ---------------------------------------------------------------------------
+# Flag money labels — the doubled sign visible in every live report's Tier 4
+# rows ("Non-Recurring Items (A) ($$22K)", "Owner Compensation (D) ($($561K))").
+# ---------------------------------------------------------------------------
+
+
+def test_money_label_does_not_double_a_sign_the_extraction_already_wrote():
+    from agents.workstreams.quality_of_earnings_agent import _money_label
+
+    assert _money_label("$22K") == "$22K"
+    assert _money_label("($561K)") == "($561K)"
+
+
+def test_money_label_adds_the_sign_to_a_bare_figure():
+    from agents.workstreams.quality_of_earnings_agent import _money_label
+
+    assert _money_label("256") == "$256"
+    assert _money_label(None) == "$unknown"

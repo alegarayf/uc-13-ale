@@ -382,6 +382,60 @@ def _concentration(bundle: dict[str, Any], sector: str) -> dict[str, Any]:
     return out
 
 
+_FLAG_TEXT_KEYS = ("note", "description", "flag", "value", "text", "message")
+
+
+def flag_text(flag: Any) -> str:
+    """Readable sentence for an agent flag record.
+
+    Agent flags are dicts of ``metric``/``value``/``threshold``/``severity``/
+    ``note``. Reaching for ``description``/``flag`` and falling back to the
+    record itself printed the Python repr of the dict into the report — the
+    "{'metric': 'tier4_addback', 'value': ...}" that appears in the earnings
+    quality and legal tables. ``note`` is the field the agents write a
+    sentence into; the rest are labels. When a record carries none of them,
+    an empty string is better than punctuation soup: the row still renders
+    with its severity and metric, just without a sentence it never had.
+    """
+    if not isinstance(flag, dict):
+        return str(flag or "")
+    for key in _FLAG_TEXT_KEYS:
+        value = flag.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def humanize_metric(metric: Any) -> str:
+    """``coc_consent_required`` -> ``CoC consent required``.
+
+    Agent metric ids are snake_case identifiers and were rendered verbatim
+    into the risk and legal tables, where they read as code rather than as
+    risks. Acronyms the deal team reads as words are restored to their
+    conventional casing; everything else is sentence case.
+    """
+    text = str(metric or "").strip()
+    if not text:
+        return ""
+    words = text.replace("-", "_").split("_")
+    acronyms = {
+        "coc": "CoC", "qofe": "QofE", "qoe": "QoE", "nrr": "NRR", "grr": "GRR",
+        "ebitda": "EBITDA", "yoy": "YoY", "ar": "AR", "kpi": "KPI", "pct": "%",
+        "ip": "IP", "hr": "HR", "it": "IT", "ttm": "TTM", "sla": "SLA",
+    }
+    out = []
+    for index, word in enumerate(words):
+        low = word.lower()
+        if low in acronyms:
+            out.append(acronyms[low])
+        elif index == 0:
+            out.append(word.capitalize())
+        else:
+            out.append(low)
+    rendered = " ".join(w for w in out if w)
+    return rendered.replace(" %", " %").strip()
+
+
 def _trunc(text: Any, n: int) -> str:
     """Chart labels and narrow table cells are truncated HERE, not in the
     template, so the cap is testable and consistent across charts."""
@@ -454,7 +508,11 @@ def _risks(bundle: dict[str, Any]) -> dict[str, Any]:
     raw.sort(key=lambda r: order.get(str(r.get("severity") or "").lower(), 3))
     grid = [
         {
-            "risk": str(r.get("risk") or ""),
+            # Agent risk ids are snake_case metric names (coc_consent_required,
+            # revenue_quality_non_recurring_in_run_rate). Rendered verbatim they
+            # read as code in a document a deal team circulates, and the long
+            # unbroken tokens overflowed the column.
+            "risk": humanize_metric(r.get("risk")) or str(r.get("risk") or ""),
             "evidence": str(r.get("evidence") or ""),
             "mitigant": str(r.get("mitigant_or_question") or ""),
             "severity_label": severity_label(r.get("severity")),
@@ -733,12 +791,28 @@ def _quality(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, Any
         "addback_bars": {**_axis_bars(items, None), "title": "Addbacks"},
         "addback_caption": f"Addbacks total {qoe.get('addback_pct_of_ebitda') or '—'} of reported EBITDA. {qoe.get('tier_summary') or ''}".strip(),
         "flags": [
-            {"text": str(f.get("description") or f.get("flag") or f), "severity_label": severity_label((f or {}).get("severity") if isinstance(f, dict) else None),
-             "severity_class": severity_class((f or {}).get("severity") if isinstance(f, dict) else None), "cite": None}
+            {
+                "text": flag_text(f),
+                "severity_label": severity_label((f or {}).get("severity") if isinstance(f, dict) else None),
+                "severity_class": severity_class((f or {}).get("severity") if isinstance(f, dict) else None),
+                "cite": None,
+            }
             for f in (qoe.get("flags") or [])[:5]
         ],
         "take": narrative.get("quality_take"),
     }
+
+
+def _legal_issue_label(flag: Any) -> str:
+    """Short human label for a legal flag: the humanised metric, qualified by
+    the counterparty when the agent named one."""
+    if not isinstance(flag, dict):
+        return _trunc(flag, 70)
+    label = humanize_metric(flag.get("metric"))
+    subject = str(flag.get("value") or "").strip()
+    if label and subject:
+        return _trunc(f"{label} — {subject}", 70)
+    return _trunc(label or subject, 70)
 
 
 def _legal(bundle: dict[str, Any]) -> dict[str, Any]:
@@ -750,11 +824,18 @@ def _legal(bundle: dict[str, Any]) -> dict[str, Any]:
             {"label": "Section confidence", "value": severity_label(legal.get("section_confidence")), "flag": False},
         ],
         "flags": [
-            {"issue": str((f or {}).get("flag") or (f or {}).get("summary") or f)[:70] if isinstance(f, dict) else str(f)[:70],
-             "impact": (f or {}).get("impact") or (f or {}).get("description") or "—" if isinstance(f, dict) else "—",
-             "severity_label": severity_label((f or {}).get("severity") if isinstance(f, dict) else None),
-             "severity_class": severity_class((f or {}).get("severity") if isinstance(f, dict) else None),
-             "cite": None}
+            {
+                # The issue column names WHAT the flag is about; the impact
+                # column carries the sentence. Previously both reached for keys
+                # the legal agent does not write ("flag"/"summary") and fell
+                # back to the record, printing a dict repr into the table and
+                # leaving impact as an em-dash on every row.
+                "issue": _legal_issue_label(f),
+                "impact": flag_text(f) or "—",
+                "severity_label": severity_label((f or {}).get("severity") if isinstance(f, dict) else None),
+                "severity_class": severity_class((f or {}).get("severity") if isinstance(f, dict) else None),
+                "cite": None,
+            }
             for f in (legal.get("top_flags") or [])[:5]
         ],
     }
