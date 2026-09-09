@@ -272,7 +272,16 @@ eval/retrieval/reports/*.json
 # Rallyday — local operator/agent workspace. Do not git add -f.
 # Nothing a clone or pytest needs belongs here.
 .claude/
-.dev/
+# .dev/ is gitignored by default (see .dev/README.md). BRANCH-SCOPED EXCEPTION on
+# eval_loop_experiment_9_9_2026 only: the eval-loop-experiment-9-9-2026 plan tree is
+# git-tracked so a multi-day diagnose/patch loop gets commit-level ledger checkpoints.
+# Local-only: this branch is never pushed to origin (see branch.<name>.pushRemote guard).
+# On merge back to main, revert this block and decide whether to keep/discard the
+# committed .dev/plans/eval-loop-experiment-9-9-2026/ history.
+.dev/*
+!.dev/plans/
+.dev/plans/*
+!.dev/plans/eval-loop-experiment-9-9-2026/
 databricks/.env
 databricks/tmp/
 databricks/context_docs/
