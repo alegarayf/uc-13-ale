@@ -2,6 +2,7 @@
 
 ## eval-loop-experiment-9-9-2026 — 2026-09-09
 
+- patch-cycle-3 (checklist, Elder Care + Clearsulting): `score_legal` restrictive honors employment `non_compete`/`non_solicit` (Elder Care Legal 8/11→9/11 PASS); `score_qoe` can pass a present report and counts Tier-4 rows for fidelity (Clearsulting QoE 4/6→6/6); `score_fta` no longer treats plain `2024` actuals as a projection (Clearsulting FTA 17→16.5/18).
 - patch-cycle-2 (judge_cal, Clearsulting): `spot_check.py` `MANIFEST_PATHS` is company-scoped; Clearsulting no longer silently enumerates Elder Care FTA/exec rubric claims.
 - patch-cycle-2 (retrieval, Elder Care): registry extractor resolves `query=query` Name bindings so CQA harness queries match production ACV/AR-aging text; `legal.ip_privacy` / `profiler.revenue_model` filename tokens widened. Pin empty-set still unchanged pending a harness re-run.
 - patch-cycle-2 (retrieval, Clearsulting): seven remaining healthcare `filename_closure` intents added to `gold_exclusions.yaml` (`no_citation_source`). Live pin recall unchanged pending gold bootstrap.

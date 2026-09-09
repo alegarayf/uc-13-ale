@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -84,6 +85,27 @@ def nonempty(v: object) -> bool:
 
 def count_pass(verdicts: dict) -> int:
     return sum(1 for v in verdicts.values() if v == "pass")
+
+
+def _revenue_period_is_projection(period: object) -> bool:
+    """True when a revenue_trend period label marks a forward projection spine.
+
+    Plain calendar years (e.g. ``2024``) and actuals suffixes (``2024A``) are
+    historical — the Elder Care-era ``\"2024\" in period`` substring was a false
+    positive on Clearsulting reported actuals.
+    """
+    label = str(period or "").strip()
+    if not label:
+        return False
+    if re.fullmatch(r"\d{4}A?", label, re.IGNORECASE):
+        return False
+    return bool(
+        re.search(
+            r"\d{4}[EPFB]|proj|forecast|budget|estimate",
+            label,
+            re.IGNORECASE,
+        )
+    )
 
 
 def fetch_analysis(table: str, cols: list[str], company_name: str) -> dict:
@@ -292,11 +314,21 @@ def score_qoe(d: dict) -> tuple[int, dict]:
     v["ebitda_scenarios"] = "pass" if isinstance(scenarios, dict) and scenarios else "partial"
     v["pre_qofe_scope"] = "pass" if isinstance(scope, list) and len(scope) >= 5 else "partial"
     v["qofe_report_present"] = (
-        "gap-correct" if str(qofe).lower() in ("false", "0") else "partial"
+        "gap-correct"
+        if str(qofe).lower() in ("false", "0")
+        else "pass"
+        if str(qofe).lower() in ("true", "1")
+        else "partial"
     )
     if isinstance(ledger, list) and ledger:
+        tier4_rows = sum(
+            1
+            for row in ledger
+            if isinstance(row, dict)
+            and str(row.get("tier_classification", "")).strip() == "Tier 4"
+        )
         v["tier_classification_fidelity"] = (
-            "pass" if str(tier4) == str(len(ledger)) else "partial"
+            "pass" if str(tier4) == str(tier4_rows) else "partial"
         )
     else:
         v["tier_classification_fidelity"] = "partial"
@@ -356,7 +388,8 @@ def score_fta(d: dict) -> tuple[float, dict]:
 
     bva_list = bva if isinstance(bva, list) else []
     has_proj = len(rev_list) > 0 and any(
-        isinstance(r, dict) and "2024" in str(r.get("period", "")) for r in rev_list
+        isinstance(r, dict) and _revenue_period_is_projection(r.get("period"))
+        for r in rev_list
     )
     v["11_projected_financials"] = "partial" if has_proj and not bva_list else "pass" if has_proj else "miss"
 
@@ -413,6 +446,22 @@ def score_legal(d: dict) -> tuple[int, dict]:
         and str(c.get("restrictive_covenants", {}).get("present", "")).lower() == "true"
         for c in contracts
     )
+    if not restrictive_pass:
+        restrictive_pass = any(
+            isinstance(e, dict)
+            and bool(str(e.get("source_doc") or "").strip())
+            and (
+                str((e.get("non_compete") or {}).get("present") or "")
+                .strip()
+                .lower()
+                not in ("", "not_found")
+                or str((e.get("non_solicit") or {}).get("present") or "")
+                .strip()
+                .lower()
+                not in ("", "not_found")
+            )
+            for e in employment
+        )
     v["restrictive"] = "pass" if restrictive_pass else "gap-correct"
 
     v["vendor"] = "pass" if len(vendor) >= 1 else "partial"
