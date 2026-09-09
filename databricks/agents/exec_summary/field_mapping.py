@@ -1080,7 +1080,8 @@ def _kpi_rows_from_yaml(kpi_yaml: dict | None, overlay_hint: str = "") -> list[d
             {
                 "metric_id": metric_id,
                 "display_name": metric_id.replace("_", " ").title(),
-                "stated_value": format_kpi_value(stated),
+                "stated_value": _format_kpi_by_field(metric_id, stated),
+                "value_kind": kpi_value_kind(metric_id, stated),
                 "threshold": "",
                 "flag": "N/A",
                 "confidence": "low",
@@ -1088,6 +1089,63 @@ def _kpi_rows_from_yaml(kpi_yaml: dict | None, overlay_hint: str = "") -> list[d
             }
         )
     return rows[:12]
+
+
+# How a KPI field should be presented, decided from the field name and the
+# shape of what the agent put in it. Every overlay's schema mixes three kinds
+# of field in one flat block, and treating them alike is what produced a page
+# of bill rates and a bar chart drawn from prose.
+_KIND_BREAKDOWN = "breakdown"   # a list/dict of per-role or per-segment rows
+_KIND_NOTE = "note"             # a sentence the agent wrote
+_KIND_METRIC = "metric"         # a single figure
+
+_PROSE_MIN_WORDS = 8
+
+
+def kpi_value_kind(metric_id: str, stated: Any) -> str:
+    """Classify a KPI field as a breakdown, a note, or a single figure.
+
+    The distinction matters because only a single figure can honestly be
+    drawn as a bar. ``bookings_stated`` is a paragraph that happens to contain
+    "up over 15%"; parsed for a percentage it produced a bar filled to 15% of
+    a screen it was never measured against — a number invented by the chart,
+    not extracted by the agent.
+    """
+    if isinstance(stated, (list, dict)):
+        return _KIND_BREAKDOWN
+    text = str(stated or "").strip()
+    if text.startswith(("[", "{")):
+        return _KIND_BREAKDOWN
+    if metric_id.endswith(("_note", "_stated", "_explained")):
+        return _KIND_NOTE
+    if len(text.split()) >= _PROSE_MIN_WORDS:
+        return _KIND_NOTE
+    return _KIND_METRIC
+
+
+def _format_kpi_by_field(metric_id: str, stated: Any) -> str:
+    """Render a KPI figure with the unit its field name declares.
+
+    The agents write bare numbers into fields whose names carry the unit —
+    ``attrition_rate_pct`` holds 14, ``revenue_per_fte_dollars`` holds 200000
+    — and the table printed them bare, so a reader saw "14" and "200000" with
+    no way to know one was a percentage and the other dollars.
+    """
+    base = format_kpi_value(stated)
+    if kpi_value_kind(metric_id, stated) != _KIND_METRIC:
+        return base
+    text = base.strip()
+    if not text or any(ch in text for ch in "%$"):
+        return text
+    try:
+        number = float(text.replace(",", ""))
+    except ValueError:
+        return text
+    if metric_id.endswith("_pct"):
+        return f"{number:g}%"
+    if metric_id.endswith("_dollars"):
+        return f"${number:,.0f}"
+    return text
 
 
 def _build_legal_block(delta_row: dict[str, Any]) -> dict[str, Any]:

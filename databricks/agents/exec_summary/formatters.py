@@ -124,8 +124,32 @@ def format_kpi_value(stated: Any) -> str:
     if isinstance(stated, list):
         parts = [format_kpi_value(item) for item in stated]
         parts = [part for part in parts if part]
-        return "; ".join(parts)
+        return summarize_breakdown(parts)
     return str(stated)
+
+
+# A KPI field holding a per-role or per-segment breakdown is a table in
+# disguise. Joining every entry produced a single cell 7,315 characters long
+# — Clearsulting's bill_rates_by_role, every practice at every level, which
+# ran for a page and a half of the rendered report and pushed the sections
+# after it off their own pages.
+_BREAKDOWN_PREVIEW = 3
+
+
+def summarize_breakdown(parts: list[str]) -> str:
+    """First few entries of a breakdown, then a count of the rest.
+
+    Deliberately lossy: the point of this cell is to tell the reader the
+    breakdown exists and roughly what it looks like. The full detail belongs
+    in the data room, not in a summary table, and an unbounded join makes the
+    page unreadable without making it more informative.
+    """
+    if not parts:
+        return ""
+    if len(parts) <= _BREAKDOWN_PREVIEW:
+        return "; ".join(parts)
+    shown = "; ".join(parts[:_BREAKDOWN_PREVIEW])
+    return f"{shown}; and {len(parts) - _BREAKDOWN_PREVIEW} more"
 
 
 def format_diligence_entry(entry: dict[str, Any] | str) -> str:

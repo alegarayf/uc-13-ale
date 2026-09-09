@@ -50,6 +50,16 @@ CAP_RISKS = 8
 CAP_QUESTIONS = 8
 CAP_GAPS = 10
 
+# A KPI cell is a summary line, not the underlying schedule. Clearsulting's
+# bill_rates_by_role held 7,315 characters — every practice at every level —
+# which rendered as a page and a half of prose and displaced the sections
+# after it.
+CAP_KPI_NOTE_CHARS = 240
+CAP_KPI_OTHER = 8
+
+KPI_KIND_NOTE = "note"
+KPI_KIND_BREAKDOWN = "breakdown"
+
 MPS_MAX_SCORE = 5
 
 # --- Rallyday first-pass screens -----------------------------------------
@@ -72,8 +82,24 @@ _SCREENS: tuple[dict[str, Any], ...] = (
     {"key": "utilization_pct", "name": "Utilization", "threshold": 70, "dir": "min", "sector": "healthcare_services"},
 )
 
-_SEVERITY_CLASS = {"high": "high", "red": "high", "medium": "medium", "yellow": "medium", "low": "low", "green": "low"}
-_SEVERITY_LABEL = {"high": "High", "red": "High", "medium": "Medium", "yellow": "Medium", "low": "Low", "green": "Low"}
+# Three vocabularies reach this module and all three must map. The agents
+# write Red/Yellow/Green; bundle_builder._FLAG_TO_RISK translates those to
+# critical/material/track before a risk reaches the bundle; some rows carry
+# high/medium/low directly. Knowing only two of the three is why the risk
+# page counted 0 high, 0 medium and 0 low above a table of rows chipped
+# CRITICAL — every one of them classified "neutral" and fell into no bucket.
+# rainmaker_view already speaks critical/material/track; this is the final
+# report catching up to the same vocabulary.
+_SEVERITY_CLASS = {
+    "high": "high", "red": "high", "critical": "high",
+    "medium": "medium", "yellow": "medium", "material": "medium",
+    "low": "low", "green": "low", "track": "low",
+}
+_SEVERITY_LABEL = {
+    "high": "High", "red": "High", "critical": "Critical",
+    "medium": "Medium", "yellow": "Medium", "material": "Material",
+    "low": "Low", "green": "Low", "track": "Track",
+}
 
 # forecast_agent applies its credibility rubric deterministically as
 # Supported/Plausible/Stretch (forecast_agent.py:632-707); the template's
@@ -477,17 +503,25 @@ def _concentration(bundle: dict[str, Any], sector: str) -> dict[str, Any]:
     rq = bundle.get("revenue_quality") or {}
     customers = [c for c in (rq.get("top_customers") or []) if isinstance(c, dict)]
     threshold = 20.0 if sector == "healthcare_services" else 25.0
-    items = []
-    for c in customers[:CAP_TOP_CUSTOMERS]:
+    # Largest share first. A concentration chart is read top-down as a
+    # ranking, and the agent's extraction order is the order it happened to
+    # find the clients in — Clearsulting's rendered 18.3%, 5.9%, 2.6%, 3.4%,
+    # 2.4%, which reads as noise rather than as a concentration profile.
+    scored = []
+    for c in customers:
         pct = parse_percent(c.get("revenue_pct_yr1"))
-        if pct is None:
-            continue
-        items.append({
+        if pct is not None:
+            scored.append((pct, c))
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+    items = [
+        {
             "label": _trunc(c.get("customer_name") or "Account", 26),
             "value": f"{pct:.1f}%",
             "value_num": pct,
             "flag": pct > threshold,
-        })
+        }
+        for pct, c in scored[:CAP_TOP_CUSTOMERS]
+    ]
     out = _axis_bars(items, threshold)
     out["title"] = "Concentration"
     return out
@@ -560,15 +594,23 @@ def _kpi_scorecard(bundle: dict[str, Any], sector: str, narrative: dict[str, Any
     ``not_extracted`` list with the stated reason rather than shown as a
     zero-length bar."""
     screens = {s["key"]: s for s in _SCREENS if s["sector"] == sector}
-    rows, flagged, missing, others = [], [], [], []
+    rows, flagged, missing, others, notes = [], [], [], [], []
     for kpi in (bundle.get("kpi_dashboard") or [])[: CAP_KPIS * 2]:
         if not isinstance(kpi, dict):
             continue
         key = str(kpi.get("metric_id") or "")
         screen = screens.get(key)
         raw_value = kpi.get("stated_value")
-        value_num = parse_percent(raw_value)
         name = str(kpi.get("display_name") or key or "KPI")
+        # A field the agent filled with a sentence or a per-role breakdown is
+        # not a metric, and must never reach the bar path: parse_percent will
+        # happily pull "15" out of "up over 15% from prior year" and draw a
+        # bar against a screen that number was never measured against.
+        kind = str(kpi.get("value_kind") or "")
+        if kind in (KPI_KIND_NOTE, KPI_KIND_BREAKDOWN):
+            notes.append({"name": name, "value": _trunc(raw_value, CAP_KPI_NOTE_CHARS)})
+            continue
+        value_num = parse_percent(raw_value)
         if value_num is None:
             missing.append({"name": name, "reason": str(kpi.get("fill_state") or "not extracted").replace("_", " ")})
             continue
@@ -577,7 +619,7 @@ def _kpi_scorecard(bundle: dict[str, Any], sector: str, narrative: dict[str, Any
         # percentages — a $40.6 revenue-per-client bar filled to 40% would be
         # a made-up claim.
         if "%" not in str(raw_value) and key not in screens:
-            others.append({"name": name, "value": str(raw_value)})
+            others.append({"name": name, "value": _trunc(raw_value, CAP_KPI_NOTE_CHARS)})
             continue
         threshold = screen["threshold"] if screen else None
         flag = bool(
@@ -604,7 +646,7 @@ def _kpi_scorecard(bundle: dict[str, Any], sector: str, narrative: dict[str, Any
         "overlay_label": sector.replace("_", " ").title(),
         "rows": rows[:CAP_KPIS],
         "flagged": flagged,
-        "other_metrics": others[:5],
+        "other_metrics": (others + notes)[:CAP_KPI_OTHER],
         "not_extracted": missing[:5],
         "take": (narrative or {}).get("kpi_take"),
     }
@@ -867,6 +909,9 @@ def _retention_rows(bundle: dict[str, Any], sector: str) -> list[dict[str, Any]]
 
 
 def _top_customers(bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    """Same ranking as the concentration chart beside it — a table that
+    disagrees with the chart above it about who the largest account is makes
+    the reader check both."""
     return [
         {
             "name": str(c.get("customer_name") or ""),
@@ -877,9 +922,19 @@ def _top_customers(bundle: dict[str, Any]) -> list[dict[str, Any]]:
             "tenure": c.get("years_as_customer"),
             "cite": None,
         }
-        for c in ((bundle.get("revenue_quality") or {}).get("top_customers") or [])[:CAP_TOP_CUSTOMERS]
-        if isinstance(c, dict)
+        for c in _ranked_customers(bundle)[:CAP_TOP_CUSTOMERS]
     ]
+
+
+def _ranked_customers(bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    """Client records ordered by revenue share, largest first; those without
+    a share keep their extraction order after the ranked ones."""
+    raw = [c for c in ((bundle.get("revenue_quality") or {}).get("top_customers") or []) if isinstance(c, dict)]
+    with_share = [(parse_percent(c.get("revenue_pct_yr1")), c) for c in raw]
+    ranked = sorted(
+        (pair for pair in with_share if pair[0] is not None), key=lambda p: p[0], reverse=True
+    )
+    return [c for _, c in ranked] + [c for pct, c in with_share if pct is None]
 
 
 def _quality(bundle: dict[str, Any], narrative: dict[str, Any]) -> dict[str, Any]:

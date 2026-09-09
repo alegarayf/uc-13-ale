@@ -403,6 +403,10 @@ _EXPECTED_CAPS = {
     "CAP_RISKS": 8,
     "CAP_QUESTIONS": 8,
     "CAP_GAPS": 10,
+    # Bounds on a KPI cell. Without them a per-role breakdown rendered as a
+    # page and a half of prose inside one table cell.
+    "CAP_KPI_NOTE_CHARS": 240,
+    "CAP_KPI_OTHER": 8,
 }
 
 
@@ -748,3 +752,74 @@ def test_absolute_revenue_trusts_a_figure_that_names_its_own_magnitude():
     assert frv.absolute_revenue("$21,403K", "in thousands") == 21_403_000
     assert frv.absolute_revenue("$21,403", "in thousands") == 21_403_000
     assert frv.absolute_revenue(None, "in thousands") is None
+
+
+# ---------------------------------------------------------------------------
+# KPI page, concentration order and the third severity vocabulary — found by
+# rendering Clearsulting from its live rows (2026-09-09).
+# ---------------------------------------------------------------------------
+
+
+def test_kpi_prose_never_becomes_a_bar():
+    """bookings_stated is a paragraph containing "up over 15%". Parsed for a
+    percentage it drew a bar filled to 15% of a screen that number was never
+    measured against — a figure invented by the chart."""
+    bundle = {"meta": {"vertical_overlay": "tech_services"}, "kpi_dashboard": [
+        {"metric_id": "bookings_stated", "display_name": "Bookings Stated",
+         "stated_value": "Increased pace of bookings; strong 2025 results, up over 15% from prior year.",
+         "value_kind": "note"},
+    ]}
+    out = frv._kpi_scorecard(bundle, "tech_services")
+    assert out["rows"] == []
+    assert any("Bookings" in o["name"] for o in out["other_metrics"])
+
+
+def test_kpi_breakdown_cell_is_capped():
+    """bill_rates_by_role held 7,315 characters and rendered as a page and a
+    half of prose, displacing the sections after it."""
+    bundle = {"meta": {}, "kpi_dashboard": [
+        {"metric_id": "bill_rates_by_role", "display_name": "Bill Rates By Role",
+         "stated_value": "role: X; " * 900, "value_kind": "breakdown"},
+    ]}
+    out = frv._kpi_scorecard(bundle, "tech_services")
+    assert len(out["other_metrics"][0]["value"]) <= frv.CAP_KPI_NOTE_CHARS
+
+
+def test_concentration_bars_are_ranked_largest_first():
+    bundle = {"revenue_quality": {"top_customers": [
+        {"customer_name": "C1", "revenue_pct_yr1": "18.3%"},
+        {"customer_name": "C3", "revenue_pct_yr1": "5.9%"},
+        {"customer_name": "C5", "revenue_pct_yr1": "2.6%"},
+        {"customer_name": "C10", "revenue_pct_yr1": "3.4%"},
+    ]}}
+    values = [b["value"] for b in frv._concentration(bundle, "tech_services")["bars"]]
+    assert values == ["18.3%", "5.9%", "3.4%", "2.6%"]
+
+
+def test_top_accounts_table_matches_the_chart_order():
+    bundle = {"revenue_quality": {"top_customers": [
+        {"customer_name": "Small", "revenue_pct_yr1": "2.0%"},
+        {"customer_name": "Big", "revenue_pct_yr1": "40.0%"},
+    ]}}
+    assert [c["name"] for c in frv._top_customers(bundle)] == ["Big", "Small"]
+
+
+def test_severity_maps_the_vocabulary_bundle_builder_actually_writes():
+    """bundle_builder._FLAG_TO_RISK turns Red/Yellow/Green into
+    critical/material/track before a risk reaches the bundle. Not knowing
+    those three is why the risk page counted 0/0/0 over rows chipped
+    CRITICAL."""
+    assert frv.severity_class("critical") == "high"
+    assert frv.severity_class("material") == "medium"
+    assert frv.severity_class("track") == "low"
+
+
+def test_risk_counters_count_the_rows_they_sit_above():
+    bundle = {"risks": [
+        {"risk": "a", "severity": "critical"}, {"risk": "b", "severity": "critical"},
+        {"risk": "c", "severity": "material"},
+    ]}
+    counts = {c["label"]: c["count"] for c in frv._risks(bundle)["counts"]}
+    assert counts["High severity"] == 2
+    assert counts["Medium"] == 1
+    assert counts["Low"] == 0
