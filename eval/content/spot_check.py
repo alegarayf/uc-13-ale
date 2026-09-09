@@ -39,9 +39,15 @@ HUMAN_WRITER = "human_spot_check"
 MVP_SURFACES = frozenset({"exec_summary", "fta_numeric", "legal_register"})
 RUNG_ASSIGNMENT_ITEMS = ("CHK-23a", "CHK-26a")
 
-MANIFEST_PATHS: dict[str, str] = {
-    "exec_summary": "eval/content/exec_summary_rubric_claims.json",
-    "fta_numeric": "eval/content/fta_numeric_rubric_claims.json",
+SPOT_CHECK_MANIFEST_SURFACES = frozenset({"exec_summary", "fta_numeric"})
+
+# Company-scoped rubric manifests. Only ``elder_care`` has committed human labels;
+# other companies must not silently reuse Elder Care claim text (judge_cal guard).
+MANIFEST_PATHS: dict[str, dict[str, str]] = {
+    "elder_care": {
+        "exec_summary": "eval/content/exec_summary_rubric_claims.json",
+        "fta_numeric": "eval/content/fta_numeric_rubric_claims.json",
+    },
 }
 
 _FTA_CLAIM_RE = re.compile(
@@ -73,7 +79,7 @@ class SpotCheckConfig:
     def __post_init__(self) -> None:
         if self.surface not in SURFACES:
             raise ValueError(f"surface {self.surface!r} not in §16 vocabulary")
-        if self.surface not in MANIFEST_PATHS:
+        if self.surface not in SPOT_CHECK_MANIFEST_SURFACES:
             raise ValueError(
                 f"surface {self.surface!r} has no committed claim manifest for spot-check"
             )
@@ -160,8 +166,15 @@ def _assert_human_spot_check_allowed(surface: str, registry_path: Path) -> None:
         )
 
 
-def _manifest_path(config: SpotCheckConfig) -> Path:
-    return _repo_root(config) / MANIFEST_PATHS[config.surface]
+def _manifest_rel_path(company_slug: str, surface: str) -> str | None:
+    return MANIFEST_PATHS.get(company_slug, {}).get(surface)
+
+
+def _manifest_path(config: SpotCheckConfig) -> Path | None:
+    rel = _manifest_rel_path(canonical_company_slug(config.company), config.surface)
+    if rel is None:
+        return None
+    return _repo_root(config) / rel
 
 
 def _parse_fta_claim_text(claim_text: str) -> tuple[Decimal | None, str | None]:
@@ -755,6 +768,10 @@ def load_claim_enumeration(
     """Load the whole-surface claim set from the committed rubric manifest."""
     company_slug = canonical_company_slug(config.company)
     manifest_file = _manifest_path(config)
+    if manifest_file is None:
+        return ()
+    if not manifest_file.is_file():
+        raise FileNotFoundError(f"claim manifest not found: {manifest_file}")
     payload = json.loads(manifest_file.read_text(encoding="utf-8"))
     claims = [
         _claim_from_manifest_entry(
@@ -800,6 +817,11 @@ def prepare_spot_check(
     claims = load_claim_enumeration(
         config, chunk_index=chunk_index, exec_analysis_cache=exec_analysis_cache
     )
+    if not claims:
+        raise ValueError(
+            f"no committed claim manifest for company {config.company!r} "
+            f"surface {config.surface!r}; spot-check enumeration skipped"
+        )
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     packet_name = f"{config.surface}_{company_slug}_presentation.yaml"

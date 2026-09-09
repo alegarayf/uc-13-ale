@@ -137,6 +137,37 @@ def score_bma(d: dict) -> tuple[int, dict]:
     return count_pass(v), v
 
 
+_NOT_FOUND_SOURCE_MARKERS = ("not found", "n/a", "not applicable")
+
+
+def _payor_row_source_na(source_doc: object) -> bool:
+    if source_doc is None:
+        return False
+    s = str(source_doc).strip().lower()
+    if not s:
+        return False
+    return any(m in s for m in _NOT_FOUND_SOURCE_MARKERS)
+
+
+def _payor_list_explicitly_na(rows: list[dict]) -> bool:
+    if not rows:
+        return False
+    if len(rows) == 1:
+        cat = str(rows[0].get("payor_category") or "").strip().lower()
+        if cat in ("n/a", "na", "not applicable", "none"):
+            return True
+    return all(_payor_row_source_na(r.get("source_doc")) for r in rows)
+
+
+def _customer_tenure_null(tenure: object) -> bool:
+    if not isinstance(tenure, dict):
+        return True
+    return not any(
+        nonempty(tenure.get(k))
+        for k in ("tenure_distribution_note", "average_tenure_years", "source_doc")
+    )
+
+
 def score_cqa(d: dict) -> tuple[int, dict]:
     v = {}
     top = jl(d.get("top_customers_json"))
@@ -151,16 +182,25 @@ def score_cqa(d: dict) -> tuple[int, dict]:
         ret.get(k) is None for k in ("nrr_pct", "grr_pct", "logo_churn_pct")
     )
     v["retention"] = "gap-correct" if ret_null and disc else "pass" if not ret_null else "partial"
+    tenure_null = _customer_tenure_null(tenure)
     v["customer_tenure"] = (
         "pass"
         if isinstance(tenure, dict) and nonempty(tenure.get("tenure_distribution_note"))
+        else "gap-correct"
+        if tenure_null and disc
         else "partial"
     )
     if isinstance(payor, list):
-        has_vals = any(
-            isinstance(p, dict) and p.get("pct_of_revenue") is not None for p in payor
-        )
-        v["payor_mix"] = "pass" if has_vals else "partial"
+        rows = [p for p in payor if isinstance(p, dict)]
+        has_vals = any(p.get("pct_of_revenue") is not None for p in rows)
+        if has_vals:
+            v["payor_mix"] = "pass"
+        elif rows and _payor_list_explicitly_na(rows):
+            v["payor_mix"] = "gap-correct"
+        elif rows:
+            v["payor_mix"] = "partial"
+        else:
+            v["payor_mix"] = "gap-correct"
     elif isinstance(payor, dict):
         v["payor_mix"] = "partial" if any(x is not None for x in payor.values()) else "gap-correct"
     else:

@@ -2,6 +2,11 @@
 
 ## eval-loop-experiment-9-9-2026 — 2026-09-09
 
+- patch-cycle-2 (judge_cal, Clearsulting): `spot_check.py` `MANIFEST_PATHS` is company-scoped; Clearsulting no longer silently enumerates Elder Care FTA/exec rubric claims.
+- patch-cycle-2 (retrieval, Elder Care): registry extractor resolves `query=query` Name bindings so CQA harness queries match production ACV/AR-aging text; `legal.ip_privacy` / `profiler.revenue_model` filename tokens widened. Pin empty-set still unchanged pending a harness re-run.
+- patch-cycle-2 (retrieval, Clearsulting): seven remaining healthcare `filename_closure` intents added to `gold_exclusions.yaml` (`no_citation_source`). Live pin recall unchanged pending gold bootstrap.
+- patch-cycle-2 (checklist, Clearsulting): `score_cqa()` gap-corrects consultancy-correct N/A payor and all-null tenure; pass count stays 4/6.
+
 - patch-cycle-1 (retrieval, Elder Care): default `sim_tier` merge-rank is now `sim + 0.05 * tier_weight` instead of `sim × tier_weight`, so high-sim citation gold is not buried under slightly-weaker tier-1 neighbors. Pin `fta.opex.q3_projected_financials` recall_at_10 was 0.0.
 - patch-cycle-1 (checklist, Elder Care): legal agent dual-classes restricted-stock / handbook / offer instruments as `employee` without inventing rows. Live G1 stays 8/11 until an authorized legal rebuild; hermetic Sept-1 fixture is 1→≥2 employee rows.
 - patch-cycle-1 (checklist, Clearsulting): `score_profiler()` accepts any overlay in `_OVERLAY_TO_KPI_COLUMN`, not only `healthcare_services`. Live Profiler 5/7 → 6/7.

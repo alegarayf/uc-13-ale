@@ -1,6 +1,7 @@
 # Aggregate-exclusion population (Contract T3-b / T13) — company-scoped machinery.
 # Launch population: profiler (no analysis table) + zero-claim / no_citation_source KPI intents.
-# Clearsulting: 12 bloated filename_closure debt cohort + profiler.company_size_indicators (M5 re-bootstrap 2026-08-19).
+# Clearsulting: 12 bloated filename_closure debt cohort + profiler.company_size_indicators (M5 re-bootstrap 2026-08-19)
+# + 7 remaining healthcare-overlay filename_closure intents (cycle-2 T11 pattern; gold_labels re-bootstrap deferred).
 companies:
   elder_care:
     excluded:
@@ -32,7 +33,21 @@ companies:
         exclude_reason: no_citation_source
       - intent_id: kpi.retrieve_delivery_model
         exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_healthcare_labor_market
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_healthcare_ops
+        exclude_reason: no_citation_source
+      - intent_id: kpi.retrieve_healthcare_revenue_per_unit
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_cohort_data
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_customer_health
+        exclude_reason: no_citation_source
       - intent_id: cqa.retrieve_customer_tenure
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_payor_mix
+        exclude_reason: no_citation_source
+      - intent_id: cqa.retrieve_retention_metrics
         exclude_reason: no_citation_source
       - intent_id: cqa.retrieve_revenue_type_and_renewals
         exclude_reason: no_citation_source

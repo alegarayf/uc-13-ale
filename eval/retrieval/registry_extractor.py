@@ -118,12 +118,21 @@ def _call_name(node: ast.Call) -> str | None:
     return None
 
 
-def _extract_kwargs(call: ast.Call) -> dict[str, Any]:
+def _extract_kwargs(
+    call: ast.Call, bindings: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Literal kwargs, plus same-function Name bindings (e.g. ``query=query``)."""
     kwargs: dict[str, Any] = {}
     for keyword in call.keywords:
         if keyword.arg is None:
             continue
         value = _literal_value(keyword.value)
+        if (
+            value is None
+            and bindings is not None
+            and isinstance(keyword.value, ast.Name)
+        ):
+            value = bindings.get(keyword.value.id)
         if value is not None:
             kwargs[keyword.arg] = value
     return kwargs
@@ -153,13 +162,25 @@ class _IntentVisitor(ast.NodeVisitor):
         self._function_stack: list[str] = []
         self._fta_query_index = 0
         self._in_wrapper_def = False
+        self._bindings: dict[str, Any] = {}
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        prev_bindings = self._bindings
+        self._bindings = {}
         self._function_stack.append(node.name)
         self._in_wrapper_def = node.name in WRAPPER_DEF_NAMES
         self.generic_visit(node)
         self._function_stack.pop()
         self._in_wrapper_def = False
+        self._bindings = prev_bindings
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        value = _literal_value(node.value)
+        if value is not None:
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    self._bindings[target.id] = value
+        self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self.visit_FunctionDef(node)  # type: ignore[arg-type]
@@ -178,7 +199,7 @@ class _IntentVisitor(ast.NodeVisitor):
             self.generic_visit(node)
             return
 
-        kwargs = _extract_kwargs(node)
+        kwargs = _extract_kwargs(node, self._bindings)
         invocation_path: str
         if name in WRAPPER_DEF_NAMES:
             invocation_path = "with_fallback"
@@ -239,7 +260,9 @@ def _profiler_intents(source_file: str) -> list[RetrievalIntent]:
         ),
         "revenue_model": (
             "revenue model contract type recurring revenue subscription retainer",
-            ["CIM", "Business", "Overview", "Summary", "Profile"],
+            # Memorandum = production profiler token. Contract matches Elder Care
+            # gold filename Deel Contract_SAMPLE.pdf (no CIM/Overview substring).
+            ["CIM", "Memorandum", "Business", "Overview", "Summary", "Profile", "Contract"],
             ["BUSINESS_MODEL"],
         ),
         "business_description": (
@@ -308,7 +331,9 @@ def _legal_intents(source_file: str) -> list[RetrievalIntent]:
         ),
         "ip_privacy": (
             "intellectual property IP ownership assignment data privacy GDPR HIPAA "
-            "indemnification liability cap open source OSS data processing agreement BAA"
+            "indemnification liability cap open source OSS data processing agreement BAA "
+            "HIPAA confidentiality agreement employee non-disclosure agreement protected "
+            "health information PHI release consent authorization data security breach notification"
         ),
         "insurance": (
             "insurance certificate policy COI certificate of insurance indemnity "
@@ -345,6 +370,7 @@ def _legal_intents(source_file: str) -> list[RetrievalIntent]:
             "min_chunk_length": 150,
             "file_name_filter": [
                 "IP", "Privacy", "GDPR", "HIPAA", "OSS", "Data Processing", "BAA",
+                "Non-Disclosure", "ND Agreement", "SaaS", "ClearCare", "Restricted Stock",
             ],
         },
         "insurance": {

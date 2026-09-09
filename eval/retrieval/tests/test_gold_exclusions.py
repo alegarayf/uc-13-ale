@@ -101,7 +101,11 @@ def _sample_intent(intent_id: str) -> RetrievalIntent:
 
 
 def _claim_resolved_kpi_for_company(gold_path: Path) -> set[str]:
-    """KPI intents this company's committed gold treats as claim-resolved (not excluded)."""
+    """KPI intents this company's committed gold treats as claim-resolved (not excluded).
+
+    `filename_closure` overlay gold is not claim-resolved — it is the T11 bloat
+    pattern, not a citation-backed positive set.
+    """
     labels = load_gold_labels(gold_path)
     return {
         label.intent_id
@@ -109,6 +113,7 @@ def _claim_resolved_kpi_for_company(gold_path: Path) -> set[str]:
         if label.intent_id.startswith("kpi.")
         and not label.aggregate_exclude
         and label.gold_status in {"ready", "partial"}
+        and label.gold_method == "citation_backfill"
     }
 
 
@@ -213,7 +218,7 @@ def test_committed_exclusions_artifact_validates():
     assert len(elder) == 5
     assert all(reason == "no_citation_source" for reason in elder.values())
     pilot = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="clearsulting")
-    assert len(pilot) == 13
+    assert len(pilot) == 20
     assert all(reason == "no_citation_source" for reason in pilot.values())
     assert CLEARSULTING_BLOATED_EXCLUDED <= set(pilot)
 
@@ -229,7 +234,7 @@ def test_exclusions_are_company_scoped_and_do_not_leak_across_companies():
     elder = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="elder_care")
     pilot = load_gold_exclusions(GOLD_EXCLUSIONS_PATH, company_slug="clearsulting")
     assert len(elder) == 5
-    assert len(pilot) == 13
+    assert len(pilot) == 20
     assert "kpi.retrieve_bill_rates_and_margins" in elder
     assert "kpi.retrieve_bill_rates_and_margins" not in pilot
 

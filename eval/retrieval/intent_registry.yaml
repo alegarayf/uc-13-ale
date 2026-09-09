@@ -257,7 +257,7 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve account size
+  query: average account size ACV annual contract value revenue per customer SMB enterprise
   workstream_filter:
   - CUSTOMER
   - KPI_OPS
@@ -269,7 +269,8 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve cohort data
+  query: cohort analysis customer vintage revenue by cohort retention by cohort new
+    customer revenue expansion churn by year acquired
   workstream_filter:
   - CUSTOMER
   - QUALITY_EARNINGS
@@ -287,7 +288,9 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve contract terms
+  query: contract terms termination for convenience change of control pricing escalator
+    CPI escalation auto-renewal exclusivity MSA SOW renewal mechanics notice period
+    right to terminate
   workstream_filter:
   - CUSTOMER
   - LEGAL
@@ -306,7 +309,7 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve customer concentration
+  query: top customers revenue concentration customer list percentage revenue share
   workstream_filter:
   - CUSTOMER
   file_name_filter:
@@ -323,7 +326,8 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve customer health
+  query: customer health AR aging late payment overdue DSO discounts rebates concessions
+    complaints NPS utilization declining spend collections
   workstream_filter:
   - CUSTOMER
   - QUALITY_EARNINGS
@@ -343,7 +347,7 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve customer tenure
+  query: customer tenure average tenure years relationship length customer vintage
   workstream_filter:
   - CUSTOMER
   - BUSINESS_MODEL
@@ -355,7 +359,7 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve payor mix
+  query: payor mix Medicare Medicaid government commercial insurance reimbursement
   workstream_filter:
   - CUSTOMER
   - FINANCIAL
@@ -367,7 +371,8 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve retention metrics
+  query: net revenue retention NRR gross revenue retention GRR churn logo retention
+    cohort
   workstream_filter:
   - CUSTOMER
   - QUALITY_EARNINGS
@@ -379,7 +384,8 @@
   agent_id: cqa
   source_file: databricks/agents/workstreams/customer_quality_agent.py
   catalog: uc13_ale
-  query: retrieve revenue type and renewals
+  query: recurring revenue project revenue one-time revenue retainer ARR MRR renewal
+    rate expansion revenue upsell revenue mix contracted backlog
   workstream_filter:
   - CUSTOMER
   - BUSINESS_MODEL
@@ -984,7 +990,9 @@
   source_file: databricks/agents/workstreams/legal_contracts_agent.py
   catalog: uc13_ale
   query: intellectual property IP ownership assignment data privacy GDPR HIPAA indemnification
-    liability cap open source OSS data processing agreement BAA
+    liability cap open source OSS data processing agreement BAA HIPAA confidentiality
+    agreement employee non-disclosure agreement protected health information PHI release
+    consent authorization data security breach notification
   workstream_filter:
   - LEGAL
   file_name_filter:
@@ -995,6 +1003,11 @@
   - OSS
   - Data Processing
   - BAA
+  - Non-Disclosure
+  - ND Agreement
+  - SaaS
+  - ClearCare
+  - Restricted Stock
   top_k: 8
   min_chunk_length: 150
   min_results: 3
@@ -1122,10 +1135,12 @@
   - BUSINESS_MODEL
   file_name_filter:
   - CIM
+  - Memorandum
   - Business
   - Overview
   - Summary
   - Profile
+  - Contract
   top_k: 5
   min_chunk_length: 100
   tier_filter: 1

@@ -12,6 +12,7 @@ import yaml
 
 from eval.content.s2_writer import S2Writer
 from eval.retrieval.companies import canonical_company_slug
+import eval.content.spot_check as spot_check_module
 from eval.content.spot_check import (
     ChunkIndex,
     ChunkRecord,
@@ -762,6 +763,7 @@ def test_exec_claim_source_non_elder_care_skips_hardcoded_elder_docs() -> None:
 
 def test_load_claim_enumeration_exec_summary_uses_company_cache(
     spot_check_tree: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Integration: exec_summary citations derive from cache for non-Elder Care."""
     cfg = _config(spot_check_tree, company="Clearsulting")
@@ -770,20 +772,61 @@ def test_load_claim_enumeration_exec_summary_uses_company_cache(
             {"rank": 1, "citations": ["Clearsulting CIM 2024.pdf"]},
         ],
     }
-    manifest_path = spot_check_tree / "eval/content/exec_summary_rubric_claims.json"
-    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    payload["claims"] = [
-        {
-            "section": "Issues",
-            "claim_id": "exec.claim.038",
-            "claim_text": "Top issue one.",
-        }
-    ]
+    manifest_path = (
+        spot_check_tree / "eval/content/exec_summary_rubric_claims_clearsulting.json"
+    )
+    payload = {
+        "schema_version": 1,
+        "claim_count": 1,
+        "claims": [
+            {
+                "section": "Issues",
+                "claim_id": "exec.claim.038",
+                "claim_text": "Top issue one.",
+            }
+        ],
+    }
     manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setitem(
+        spot_check_module.MANIFEST_PATHS.setdefault("clearsulting", {}),
+        "exec_summary",
+        "eval/content/exec_summary_rubric_claims_clearsulting.json",
+    )
 
     claims = load_claim_enumeration(cfg, exec_analysis_cache=cache)
     assert len(claims) == 1
     assert claims[0].source_doc == "Clearsulting CIM 2024.pdf"
+
+
+def test_load_claim_enumeration_clearsulting_skips_elder_care_manifest(
+    spot_check_tree: Path,
+) -> None:
+    """Clearsulting must not silently enumerate Elder Care rubric claims."""
+    fta_cfg = _config(
+        spot_check_tree,
+        company="Clearsulting",
+        surface="fta_numeric",
+        source="uc13_ale.analysis.financial_trends",
+    )
+    fta_claims = load_claim_enumeration(fta_cfg)
+    assert fta_claims == ()
+
+    exec_cfg = _config(spot_check_tree, company="Clearsulting")
+    exec_claims = load_claim_enumeration(exec_cfg)
+    assert exec_claims == ()
+
+    elder_cfg = _config(spot_check_tree)
+    elder_claims = load_claim_enumeration(elder_cfg)
+    assert len(elder_claims) == 2
+    assert elder_claims[0].claim_id == "exec.claim.001"
+
+
+def test_prepare_spot_check_clearsulting_raises_without_manifest(
+    spot_check_tree: Path,
+) -> None:
+    cfg = _config(spot_check_tree, company="Clearsulting")
+    with pytest.raises(ValueError, match="no committed claim manifest"):
+        prepare_spot_check(cfg)
 
 
 _CLAIM_009_CHUNK_ID = "chunk-009-diligence-adjusted"
