@@ -455,9 +455,15 @@ debts:
   layer: retrieval
   kind: location_zero_after_shared_query
   opened_at: '2026-09-10'
+  closed_at: '2026-09-10'
   evidence_refs:
   - baseline_1357f7981d11
   - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-15/gate2.md
+  closed_evidence_refs:
+  - enhancement_0f3bacbbec1a
+  - enhancement_0177dc5b5d8c
+  - enhancement_c7d48341149b
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-27/gate2.md
   closes_when: >-
     bma.retrieve_revenue_by_location_and_metrics recall_at_10 > 0 on a complete
     Clearsulting harness run versus baseline_1357f7981d11 (or successor) after a

@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 27)
+
+- patch-cycle-27 (retrieval, Clearsulting): harness-time CS-only override on `bma.retrieve_revenue_by_location_and_metrics` (shared BMA `query:` unchanged). Complete hash-no `enhancement_0f3bacbbec1a`: location r@10 0→0.286, Memorandum golds in-pool ranks 2/7/13. Blended exam 0.163→0.172. Closed `clearsulting:global:location_zero_after_shared_query`. GKF loc 0.333 and SPG loc 0.037 held. Do not treat subset `gate_pass` as §4a.
+- patch-cycle-27 (retrieval, Integrity Risk sidecar): first complete sidecar `baseline_1748baa6d13a` (54 eval / 40 zero / mean 0.077). Cycle-26 aliases covered all live KPI claims. Do not average into incumbent-4.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 26)
 
 - patch-cycle-26 (retrieval, Clearsulting): harness-time CS-only override on `fta.revenue.q4_customer_concentration_fallback` (shared Ajax `query:` unchanged). Complete hash-no `enhancement_f0be058ba1ff`: fallback r@10 0→1.0, CIM golds in-pool ranks 2–4. Blended exam 0.129→0.163. Closed `clearsulting:global:q4_fallback_zero_after_c15_remint`. Do not treat subset `gate_pass` as §4a.

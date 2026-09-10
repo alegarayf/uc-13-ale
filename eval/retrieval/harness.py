@@ -160,6 +160,19 @@ CS_Q4_FALLBACK_QUERY = (
 )
 CS_Q4_FALLBACK_FILE_NAME_FILTER = ("CIM",)
 
+# Clearsulting-only location override (cycle 27). Shared GKF/SPG healthcare
+# tail stays byte-identical (D11). Hash-no: harness-time only.
+# Token "CIM" does not substring-match "Confidential Information Memorandum.pdf";
+# "Memorandum" is the live filename token. "CIM" is kept as a no-op extra.
+CS_LOCATION_INTENT_ID = "bma.retrieve_revenue_by_location_and_metrics"
+CS_LOCATION_QUERY = (
+    "multinational presence office locations global delivery platform Cleveland "
+    "Columbus Chicago Dallas London Toronto United States United Kingdom Canada "
+    "Australia full-time employees remote delivery location established total "
+    "resources delivery capability revenue by geography"
+)
+CS_LOCATION_FILE_NAME_FILTER = ("Memorandum", "CIM")
+
 
 def apply_company_intent_overrides(
     intent: RetrievalIntent,
@@ -170,22 +183,31 @@ def apply_company_intent_overrides(
 
     Clearsulting q4 fallback uses the proven primary-q4 CIM neighborhood so
     golds e22211ae / 5f569542 / 96db4e1f can enter the top_k*3 window.
-    GKF and SPG keep the shared Ajax/tuition registry text.
+    Clearsulting location uses the Memorandum office-locations neighborhood so
+    golds c7ad6845 / 22d42b52 / 11fb91be can enter the top_k*3 window.
+    GKF and SPG keep the shared registry text (Ajax/tuition; healthcare/org tail).
     """
-    if intent.intent_id != CS_Q4_FALLBACK_INTENT_ID:
-        return intent
     try:
         slug = canonical_company_slug(company_name)
     except (TypeError, UnnormalizableCompanySlugError):
         return intent
     if slug != "clearsulting":
         return intent
-    return intent.model_copy(
-        update={
-            "query": CS_Q4_FALLBACK_QUERY,
-            "file_name_filter": list(CS_Q4_FALLBACK_FILE_NAME_FILTER),
-        }
-    )
+    if intent.intent_id == CS_Q4_FALLBACK_INTENT_ID:
+        return intent.model_copy(
+            update={
+                "query": CS_Q4_FALLBACK_QUERY,
+                "file_name_filter": list(CS_Q4_FALLBACK_FILE_NAME_FILTER),
+            }
+        )
+    if intent.intent_id == CS_LOCATION_INTENT_ID:
+        return intent.model_copy(
+            update={
+                "query": CS_LOCATION_QUERY,
+                "file_name_filter": list(CS_LOCATION_FILE_NAME_FILTER),
+            }
+        )
+    return intent
 
 
 def build_search_kwargs(
