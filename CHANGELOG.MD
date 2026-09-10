@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 28)
+
+- patch-cycle-28 (retrieval, GKF): harness-time GKF-only override on `bma.retrieve_revenue_by_location_and_metrics` (shared BMA `query:` unchanged). Complete hash-no `enhancement_dd79b7298350`: location r@10 0.333→0.667, gold `7ea35a9a` rank 1. Blended exam 0.144→0.156. CS location 0.286 / q4 1.0 and SPG loc 0.037 held. Do not treat subset `gate_pass` as §4a.
+- patch-cycle-28 (retrieval, Northbound sidecar): first complete sidecar `baseline_04811a946614` (54 eval / 31 zero / mean 0.061). Cycle-26 aliases covered all live KPI claims. Do not average into incumbent-4.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 27)
 
 - patch-cycle-27 (retrieval, Clearsulting): harness-time CS-only override on `bma.retrieve_revenue_by_location_and_metrics` (shared BMA `query:` unchanged). Complete hash-no `enhancement_0f3bacbbec1a`: location r@10 0→0.286, Memorandum golds in-pool ranks 2/7/13. Blended exam 0.163→0.172. Closed `clearsulting:global:location_zero_after_shared_query`. GKF loc 0.333 and SPG loc 0.037 held. Do not treat subset `gate_pass` as §4a.

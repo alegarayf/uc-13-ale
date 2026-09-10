@@ -90,10 +90,10 @@ def test_clearsulting_location_gets_memorandum_override():
     assert list(intent.file_name_filter) == SHARED_LOCATION_FILE_NAME_FILTER
 
 
-def test_gkf_and_spg_location_keep_shared_registry_query():
+def test_spg_and_elder_care_location_keep_shared_registry_query():
     live = _by_id()
     intent = live[CS_LOCATION_INTENT_ID]
-    for company in ("GKF", "SPG", "Elder Care"):
+    for company in ("SPG", "Elder Care"):
         resolved = apply_company_intent_overrides(intent, company_name=company)
         assert resolved.query == SHARED_LOCATION_QUERY
         assert resolved is intent
@@ -153,12 +153,12 @@ def test_dispatch_cs_location_sends_override_query(mock_semantic, mock_fallback)
 
 @patch("agents.shared.fallback.semantic_search_with_fallback")
 @patch("agents.shared.retrieval.semantic_search")
-def test_dispatch_gkf_location_sends_shared_healthcare_query(mock_semantic, mock_fallback):
+def test_dispatch_spg_location_sends_shared_healthcare_query(mock_semantic, mock_fallback):
     mock_fallback.return_value = (MagicMock(chunks=[], mode="semantic"), False)
     live = _by_id()
     dispatch_retrieval(
         live[CS_LOCATION_INTENT_ID],
-        company_name="GKF",
+        company_name="SPG",
         spark=MagicMock(),
     )
     assert mock_fallback.call_args.kwargs["query"] == SHARED_LOCATION_QUERY

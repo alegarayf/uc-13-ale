@@ -173,6 +173,20 @@ CS_LOCATION_QUERY = (
 )
 CS_LOCATION_FILE_NAME_FILTER = ("Memorandum", "CIM")
 
+# GKF-only location override (cycle 28 / Arm A). Shared registry healthcare/org
+# tail stays byte-identical (D11). Hash-no: harness-time only.
+# Live file is Project Ajax CIM vF - Rallyday Partners.pdf. D29: do not copy
+# CS Memorandum — that token matches 0 GKF files. CIM / Ajax / Rallyday all
+# substring-match the Ajax CIM pdf.
+GKF_LOCATION_INTENT_ID = CS_LOCATION_INTENT_ID
+GKF_LOCATION_QUERY = (
+    "Corporate Organization Current State leadership team DMV Mike Pesi CEO "
+    "Ross Flax established leadership team strong presence in the DMV area "
+    "expand into new regions Academic Director Teachers and Staff Rockville "
+    "Bethesda"
+)
+GKF_LOCATION_FILE_NAME_FILTER = ("CIM", "Ajax", "Rallyday")
+
 
 def apply_company_intent_overrides(
     intent: RetrievalIntent,
@@ -185,26 +199,35 @@ def apply_company_intent_overrides(
     golds e22211ae / 5f569542 / 96db4e1f can enter the top_k*3 window.
     Clearsulting location uses the Memorandum office-locations neighborhood so
     golds c7ad6845 / 22d42b52 / 11fb91be can enter the top_k*3 window.
-    GKF and SPG keep the shared registry text (Ajax/tuition; healthcare/org tail).
+    GKF location uses the Ajax CIM corp-org / leadership / DMV neighborhood so
+    gold 7ea35a9a can enter the location pool. SPG keeps the shared registry
+    healthcare/org tail. Shared BMA query: stays byte-identical (D11).
     """
     try:
         slug = canonical_company_slug(company_name)
     except (TypeError, UnnormalizableCompanySlugError):
         return intent
-    if slug != "clearsulting":
+    if slug == "clearsulting":
+        if intent.intent_id == CS_Q4_FALLBACK_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": CS_Q4_FALLBACK_QUERY,
+                    "file_name_filter": list(CS_Q4_FALLBACK_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == CS_LOCATION_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": CS_LOCATION_QUERY,
+                    "file_name_filter": list(CS_LOCATION_FILE_NAME_FILTER),
+                }
+            )
         return intent
-    if intent.intent_id == CS_Q4_FALLBACK_INTENT_ID:
+    if slug == "gkf" and intent.intent_id == GKF_LOCATION_INTENT_ID:
         return intent.model_copy(
             update={
-                "query": CS_Q4_FALLBACK_QUERY,
-                "file_name_filter": list(CS_Q4_FALLBACK_FILE_NAME_FILTER),
-            }
-        )
-    if intent.intent_id == CS_LOCATION_INTENT_ID:
-        return intent.model_copy(
-            update={
-                "query": CS_LOCATION_QUERY,
-                "file_name_filter": list(CS_LOCATION_FILE_NAME_FILTER),
+                "query": GKF_LOCATION_QUERY,
+                "file_name_filter": list(GKF_LOCATION_FILE_NAME_FILTER),
             }
         )
     return intent
