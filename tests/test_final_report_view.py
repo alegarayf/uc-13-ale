@@ -346,7 +346,7 @@ def test_pnl_row_kept_with_none_in_missing_cells_when_partially_present():
     }
     view = frv._pnl_table(bundle)
     capex_row = next(r for r in view["rows"] if r["label"] == "Capital expenditure")
-    assert capex_row["cells"][0] == "1.5"
+    assert capex_row["cells"][0] == "$1.5"  # every money cell carries the symbol
     assert capex_row["cells"][1] is None
 
 

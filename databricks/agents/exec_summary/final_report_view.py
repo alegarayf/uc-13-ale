@@ -242,6 +242,7 @@ def _pnl_table(bundle: dict[str, Any]) -> dict[str, Any]:
     figures were extracted in a different unit than its neighbours."""
     ordered = ordered_financials(bundle)
     periods = [str(r.get("year") or "").strip() for r in ordered]
+    currency = (bundle.get("financials") or {}).get("currency") or "$"
 
     specs = (
         ("Revenue", "revenue", "total", "money"),
@@ -263,7 +264,7 @@ def _pnl_table(bundle: dict[str, Any]) -> dict[str, Any]:
             # Same formatter the executive review uses, so the two documents
             # cannot disagree about how a figure is written — only, legitimately,
             # about which figures a run extracted.
-            cells = [format_period_money(r.get(field)) for r in ordered]
+            cells = [format_period_money(r.get(field), currency) for r in ordered]
         else:
             cells = [None if r.get(field) in (None, "") else str(r.get(field)).strip() for r in ordered]
         if not any(cells):

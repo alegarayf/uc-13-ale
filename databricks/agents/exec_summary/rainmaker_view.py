@@ -526,7 +526,7 @@ def _format_money(value: float, original: Any) -> str:
 _NUMERIC_RE = re.compile(r"-?\d+(?:\.\d+)?")
 
 
-def format_period_money(value: Any) -> str | None:
+def format_period_money(value: Any, currency: str = "$") -> str | None:
     """One money cell, rendered the same way for every period.
 
     Extraction is not uniform even within a single row: the same company's
@@ -553,7 +553,11 @@ def format_period_money(value: Any) -> str | None:
     # to remove.
     digits = _NUMERIC_RE.search(cleaned.replace(",", ""))
     decimals = len(digits.group(0).split(".")[1]) if digits and "." in digits.group(0) else 0
-    prefix = "$" if cleaned.startswith(("$", "($")) else ""
+    # Every money cell carries the symbol, whether or not the agent wrote one.
+    # Deriving it from the source left a P&L whose Revenue row read "$40,251"
+    # and whose EBITDA row read "14,000" — the same kind of figure written two
+    # ways, for no reason a reader could see.
+    prefix = currency or "$"
     body = f"{abs(parsed):,.{decimals}f}"
     if parsed < 0 or cleaned.startswith("("):
         return f"({prefix}{body})"

@@ -422,10 +422,10 @@ def test_margin_reconciliation_overrides_a_contradicting_stated_percent():
     # the source's own precision kept), so a column does not mix "35136" with
     # "$57,090 thousand". The reconciliation below is about the % rows and is
     # unaffected by how the $ row is written.
-    assert metrics["Total Revenue"] == ["35,136"]
-    assert metrics["Gross Profit"] == ["3,208"]  # the $ VALUE is never touched, only its formatting
+    assert metrics["Total Revenue"] == ["$35,136"]
+    assert metrics["Gross Profit"] == ["$3,208"]  # the $ VALUE is never touched, only its formatting
     assert metrics["% Gross Margin"] == ["9.1%"]  # recomputed, not the stated 36.6%
-    assert metrics["EBITDA"] == ["9,239"]
+    assert metrics["EBITDA"] == ["$9,239"]
     assert metrics["% EBITDA Margin"] == ["26.3%"]  # recomputed, not the stated 19.9%
 
 
@@ -631,9 +631,9 @@ def test_growth_column_never_alters_dollar_cells():
     }
     view = rainmaker_view(bundle)
     rows = {r["metric_name"]: r for r in view["financials"]["rows"]}
-    assert rows["Total Revenue"]["cells"] == ["100", "121"]
-    assert rows["Gross Profit"]["cells"] == ["40", "48.4"]
-    assert rows["EBITDA"]["cells"] == ["10", "12.1"]
+    assert rows["Total Revenue"]["cells"] == ["$100", "$121"]
+    assert rows["Gross Profit"]["cells"] == ["$40", "$48.4"]
+    assert rows["EBITDA"]["cells"] == ["$10", "$12.1"]
 
 
 # ---------------------------------------------------------------------------
@@ -908,8 +908,8 @@ def test_format_period_money_keeps_the_precision_the_source_stated():
     significant digit the agent did not write."""
     from agents.exec_summary.rainmaker_view import format_period_money
 
-    assert format_period_money("40") == "40"
-    assert format_period_money("48.4") == "48.4"
+    assert format_period_money("40") == "$40"
+    assert format_period_money("48.4") == "$48.4"
 
 
 def test_format_period_money_passes_unparseable_text_through():
@@ -923,3 +923,19 @@ def test_format_period_money_keeps_a_negative_in_parentheses():
     from agents.exec_summary.rainmaker_view import format_period_money
 
     assert format_period_money("($1,200)") == "($1,200)"
+
+
+def test_format_period_money_adds_the_symbol_the_agent_omitted():
+    """A P&L whose Revenue row read "$40,251" and whose EBITDA row read
+    "14,000" wrote the same kind of figure two ways, for no reason a reader
+    could see."""
+    from agents.exec_summary.rainmaker_view import format_period_money
+
+    assert format_period_money("14000") == "$14,000"
+    assert format_period_money("$14,000") == "$14,000"
+
+
+def test_format_period_money_honours_a_non_dollar_currency():
+    from agents.exec_summary.rainmaker_view import format_period_money
+
+    assert format_period_money("14000", "€") == "€14,000"
