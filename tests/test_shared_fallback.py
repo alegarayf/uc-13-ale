@@ -47,8 +47,20 @@ _RETRIEVAL_CALLS = frozenset(
 
 
 def _route_result(chunk_count: int) -> RouteResult:
-    chunks = [SimpleNamespace(file_name=f"doc_{i}.pdf") for i in range(chunk_count)]
+    chunks = [
+        SimpleNamespace(chunk_id=f"doc_{i}", file_name=f"doc_{i}.pdf")
+        for i in range(chunk_count)
+    ]
     return RouteResult(chunks=chunks, mode="semantic", scores=[0.9] * chunk_count)
+
+
+def _chunk(*, chunk_id: str, file_name: str, source_type: str = "table"):
+    return SimpleNamespace(
+        chunk_id=chunk_id,
+        file_name=file_name,
+        source_type=source_type,
+        priority_tier=2,
+    )
 
 
 def _call_name(node: ast.AST) -> str | None:
@@ -111,9 +123,9 @@ def test_retries_without_filename_filter_when_below_min_results(mock_search):
 
 
 @patch("agents.shared.fallback.semantic_search")
-def test_no_retry_at_min_results_boundary(mock_search):
-    mock_search.return_value = _route_result(3)
-    _, used_fallback = semantic_search_with_fallback(
+def test_unions_unfiltered_at_min_results_boundary(mock_search):
+    mock_search.side_effect = [_route_result(3), _route_result(5)]
+    result, used_fallback = semantic_search_with_fallback(
         company_name="Elder Care",
         spark=MagicMock(),
         query="q",
@@ -122,24 +134,141 @@ def test_no_retry_at_min_results_boundary(mock_search):
         file_name_filter=["Handbook"],
         min_results=3,
     )
-    assert used_fallback is False
-    assert mock_search.call_count == 1
+    assert used_fallback is True
+    assert mock_search.call_count == 2
+    assert mock_search.call_args_list[1].kwargs["file_name_filter"] is None
+    assert len(result.chunks) == 5
 
 
 @patch("agents.shared.fallback.semantic_search")
-def test_no_retry_when_file_name_filter_is_none(mock_search):
+def test_unions_unfiltered_gold_when_filtered_spreadsheet_meets_min_results(mock_search):
+    """q4-style: filtered Revenue/Client spreadsheet fills min_results; CIM gold
+    only appears on the unfiltered retry and must survive the top_k cap after union.
+    """
+    spreadsheet = [
+        _chunk(chunk_id=f"xlsx-{i}", file_name="Revenue by Client.xlsx")
+        for i in range(6)
+    ]
+    gold_ids = ["cim-gold-a", "cim-gold-b", "cim-gold-c"]
+    unfiltered = [
+        _chunk(chunk_id="other-1", file_name="Pipeline.xlsx"),
+        _chunk(chunk_id="cim-gold-a", file_name="Confidential Information Memorandum.pdf"),
+        _chunk(chunk_id="cim-gold-b", file_name="Confidential Information Memorandum.pdf"),
+        _chunk(chunk_id="cim-gold-c", file_name="Confidential Information Memorandum.pdf"),
+        _chunk(chunk_id="other-2", file_name="Utilization.xlsx"),
+        _chunk(chunk_id="other-3", file_name="Pipeline.xlsx"),
+    ]
+    mock_search.side_effect = [
+        RouteResult(
+            chunks=spreadsheet,
+            mode="semantic",
+            scores=[0.62, 0.61, 0.60, 0.59, 0.58, 0.57],
+        ),
+        RouteResult(
+            chunks=unfiltered,
+            mode="semantic",
+            scores=[0.70, 0.85, 0.84, 0.83, 0.55, 0.54],
+        ),
+    ]
+    result, used_fallback = semantic_search_with_fallback(
+        company_name="Clearsulting",
+        spark=MagicMock(),
+        query="customer concentration revenue by client",
+        workstream_filter=["FINANCIAL", "BUSINESS_MODEL", "CUSTOMER_QUALITY"],
+        top_k=6,
+        file_name_filter=["Revenue", "Client"],
+        min_results=2,
+        source_type_priority=True,
+    )
+    assert used_fallback is True
+    assert mock_search.call_count == 2
+    assert mock_search.call_args_list[0].kwargs["file_name_filter"] == ["Revenue", "Client"]
+    assert mock_search.call_args_list[1].kwargs["file_name_filter"] is None
+    returned_ids = [c.chunk_id for c in result.chunks]
+    assert len(result.chunks) == 6
+    gold_in_top_k = [gid for gid in gold_ids if gid in returned_ids]
+    assert len(gold_in_top_k) >= 2, returned_ids
+
+
+@patch("agents.shared.fallback.semantic_search")
+def test_no_retry_when_empty_and_no_filters(mock_search):
     mock_search.return_value = _route_result(0)
     _, used_fallback = semantic_search_with_fallback(
         company_name="Elder Care",
         spark=MagicMock(),
         query="q",
-        workstream_filter=["LEGAL"],
+        workstream_filter=[],
         top_k=5,
         file_name_filter=None,
         min_results=3,
     )
     assert used_fallback is False
     assert mock_search.call_count == 1
+
+
+@patch("agents.shared.fallback.semantic_search")
+def test_empty_path_drops_workstream_filter_and_admits_gold(mock_search):
+    """CQA-style: workstream filter returns 0; gold is BUSINESS_MODEL-only."""
+    gold = _chunk(
+        chunk_id="cim-gold-account",
+        file_name="Confidential Information Memorandum.pdf",
+        source_type="text",
+    )
+    neighbor = _chunk(chunk_id="other-1", file_name="Databook.xlsx")
+    mock_search.side_effect = [
+        RouteResult(chunks=[], mode="empty", scores=[]),
+        RouteResult(chunks=[gold, neighbor], mode="semantic", scores=[0.88, 0.70]),
+    ]
+    result, used_fallback = semantic_search_with_fallback(
+        company_name="GKF",
+        spark=MagicMock(),
+        query="average account size ACV",
+        workstream_filter=["CUSTOMER", "KPI_OPS", "FINANCIAL", "QUALITY_EARNINGS"],
+        top_k=6,
+        file_name_filter=None,
+        min_results=3,
+    )
+    assert used_fallback is True
+    assert mock_search.call_count == 2
+    assert mock_search.call_args_list[0].kwargs["workstream_filter"] == [
+        "CUSTOMER",
+        "KPI_OPS",
+        "FINANCIAL",
+        "QUALITY_EARNINGS",
+    ]
+    assert mock_search.call_args_list[1].kwargs["file_name_filter"] is None
+    assert mock_search.call_args_list[1].kwargs["workstream_filter"] is None
+    returned_ids = [c.chunk_id for c in result.chunks]
+    assert "cim-gold-account" in returned_ids
+
+
+@patch("agents.shared.fallback.semantic_search")
+def test_empty_path_drops_filename_and_workstream_when_filtered_zero(mock_search):
+    """q4-style: filename+workstream filter returns 0; Databook gold only on unfiltered retry."""
+    gold = _chunk(
+        chunk_id="databook-gold",
+        file_name="FDD Databook.xlsx",
+        source_type="table",
+    )
+    mock_search.side_effect = [
+        RouteResult(chunks=[], mode="empty", scores=[]),
+        RouteResult(chunks=[gold], mode="semantic", scores=[0.81]),
+    ]
+    result, used_fallback = semantic_search_with_fallback(
+        company_name="GKF",
+        spark=MagicMock(),
+        query="top customers revenue by customer",
+        workstream_filter=["FINANCIAL", "BUSINESS_MODEL", "CUSTOMER_QUALITY"],
+        top_k=6,
+        file_name_filter=["Customer", "QuickBooks", "Revenue"],
+        min_results=2,
+        source_type_priority=True,
+    )
+    assert used_fallback is True
+    assert mock_search.call_count == 2
+    assert mock_search.call_args_list[1].kwargs["file_name_filter"] is None
+    assert mock_search.call_args_list[1].kwargs["workstream_filter"] is None
+    assert [c.chunk_id for c in result.chunks] == ["databook-gold"]
 
 
 @patch("agents.shared.fallback.semantic_search")

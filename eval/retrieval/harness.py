@@ -236,7 +236,25 @@ def dispatch_retrieval(
 
     if merge_rank_mode is not None:
         kwargs["merge_rank_mode"] = merge_rank_mode
-    return semantic_search(**kwargs)
+    result = semantic_search(**kwargs)
+    # Empty-path: direct intents (CQA/KPI) skip the fallback wrapper, but a
+    # workstream/filename filter that yields 0 cannot admit gold. Re-enter
+    # fallback.py so it can drop those filters. Non-empty direct stays direct.
+    if (
+        merge_rank_mode is None
+        and len(getattr(result, "chunks", None) or []) == 0
+        and (intent.workstream_filter or intent.file_name_filter)
+    ):
+        from agents.shared.fallback import semantic_search_with_fallback
+
+        result, _used_fallback = semantic_search_with_fallback(
+            **_fallback_kwargs_from_intent(
+                intent,
+                company_name=company_name,
+                spark=spark,
+            )
+        )
+    return result
 
 
 def compute_mrr(positive_ids: set[str], ranked_ids: Sequence[str]) -> float:

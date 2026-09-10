@@ -26,6 +26,7 @@ from eval.retrieval.harness import (
     default_registry_path,
     dispatch_retrieval,
     metric_gate_pass,
+    uses_fallback_wrapper,
 )
 from eval.retrieval.gold.bootstrap import load_gold_labels, load_registry
 from eval.retrieval.models import GoldLabel, HarnessResult, RetrievalIntent
@@ -264,6 +265,72 @@ def test_dispatch_retrieval_direct_path_skips_shared_fallback(
     mock_fallback.assert_not_called()
     mock_semantic_search.assert_called_once()
     assert result is route
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_retrieval_empty_direct_reenters_fallback(
+    mock_semantic_search,
+    mock_fallback,
+):
+    """Empty-path: CQA-style direct + workstream filter + 0 hits re-enters fallback.py."""
+    direct_intent = _with_fallback_intent().model_copy(
+        update={
+            "invocation_path": "direct",
+            "file_name_filter": None,
+            "min_results": None,
+            "workstream_filter": ["CUSTOMER", "KPI_OPS", "FINANCIAL", "QUALITY_EARNINGS"],
+        }
+    )
+    empty = _FakeRouteResult(chunks=[], mode="empty", scores=[])
+    recovered = _FakeRouteResult(
+        chunks=[_FakeChunk("cim-gold-account")],
+        mode="semantic",
+        scores=[0.88],
+    )
+    mock_semantic_search.return_value = empty
+    mock_fallback.return_value = (recovered, True)
+
+    result = dispatch_retrieval(
+        direct_intent,
+        company_name="GKF",
+        spark=MagicMock(),
+    )
+
+    mock_semantic_search.assert_called_once()
+    mock_fallback.assert_called_once()
+    assert mock_fallback.call_args.kwargs["workstream_filter"] == [
+        "CUSTOMER",
+        "KPI_OPS",
+        "FINANCIAL",
+        "QUALITY_EARNINGS",
+    ]
+    assert result is recovered
+
+
+def test_uses_fallback_wrapper_direct_with_filename_filter():
+    """D6: bool(file_name_filter) → fallback even when invocation_path is direct."""
+    intent = _with_fallback_intent().model_copy(
+        update={
+            "invocation_path": "direct",
+            "min_results": None,
+            "file_name_filter": ["Cohort", "Customer"],
+        }
+    )
+    assert uses_fallback_wrapper(intent) is True
+
+
+def test_uses_fallback_wrapper_direct_without_filename_stays_direct():
+    """payor_mix / delivery_model: no file_name_filter, no min_results → direct."""
+    intent = _with_fallback_intent().model_copy(
+        update={
+            "invocation_path": "direct",
+            "file_name_filter": None,
+            "min_results": None,
+            "workstream_filter": ["CUSTOMER", "FINANCIAL"],
+        }
+    )
+    assert uses_fallback_wrapper(intent) is False
 
 
 @patch("agents.shared.fallback.semantic_search_with_fallback")
