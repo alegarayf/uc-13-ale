@@ -2708,6 +2708,10 @@
   - 602fd512-4479-4091-9d5b-9a26d4fbdef2
   - 1118055b-f3b4-4d51-a487-a20d0becd6dc
   - 0cc6d4c2-0c0e-4586-ba10-c5d2ef5e7132
+  - d49e7ca3-a4f2-456f-8b22-a683f002dc3a
+  - ecf4c82a-a923-4714-b3b6-3881e129d07e
+  - cf38e173-aa0f-4011-ae20-4b5b120771de
+  - f18e821d-317f-4ed7-b345-aaa48bc557e7
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-09-09
   confidence: high
