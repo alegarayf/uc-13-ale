@@ -331,6 +331,104 @@ def test_dashboard_bonus_does_not_invert_003_similarity_lead():
     assert [c.chunk_id for c in ranked] == ["assets_lead", "84311b20"]
 
 
+def test_overview_regex_skips_growth_levers_body_only():
+    """CS F1: body-only 'Complementary Service Lines' on Growth Levers must
+    not take the 0.004 bonus. Kyriba ``# Core Services`` and Other Service
+    Lines ``section_header`` must still fire. Do not weaken the existing
+    overview near-tie test.
+    """
+    growth_levers = _row(
+        chunk_id="db736e70",
+        priority_tier=1,
+        source_type="vision",
+        section_header="Growth Levers",
+        chunk_text=(
+            "# Growth Levers (Left Column)\n"
+            "Account Farming | Land & Expand | Strategic Partnerships\n"
+            "Evolving Technologies | Cost Efficiencies | Complementary Service Lines\n"
+            "Value-at-Risk Contracts | AMS New Venture | Digital Asset Revenue\n"
+        ),
+    )
+    kyriba = _row(
+        chunk_id="7b76f634",
+        priority_tier=1,
+        source_type="vision",
+        section_header="Kyriba",
+        chunk_text="# Core Services\n**1 - Financial Close** FY24 Revenue: $26M",
+    )
+    osl = _row(
+        chunk_id="ce839bfb",
+        priority_tier=1,
+        source_type="text",
+        section_header="Other Service Lines",
+        chunk_text="Clearsulting services focus on business process first",
+    )
+    assert _section_tiebreak(growth_levers) == 0.0
+    assert _section_tiebreak(kyriba) == _SECTION_TIEBREAK_BONUS
+    assert _section_tiebreak(osl) == _SECTION_TIEBREAK_BONUS
+
+
+def test_overview_scope_returns_model_changes_gold_to_eval_k():
+    """CS F1 live band: Growth Levers raw sim 0.64120 + 0.004 sat at rank 8
+    and evicted gold f044f447 (0.64321) to rank 11. After scoping, gold
+    must sit at rank ≤10 and Growth Levers must not keep the bonus.
+    """
+    growth_levers = _row(
+        chunk_id="db736e70",
+        priority_tier=1,
+        source_type="vision",
+        section_header="Growth Levers",
+        chunk_text=(
+            "# Growth Levers (Left Column)\n"
+            "Evolving Technologies | Cost Efficiencies | Complementary Service Lines\n"
+        ),
+    )
+    gold = _row(
+        chunk_id="f044f447",
+        priority_tier=1,
+        source_type="vision",
+        section_header="Shift Towards Fixed-Fee + Hybrid Models (% of Total Revenue)(1)",
+        chunk_text="Notable Expansion in Fixed-Fee Models.",
+    )
+    neighbors = [
+        _row(
+            chunk_id=f"nb_{i}",
+            priority_tier=1,
+            source_type="vision",
+            section_header="Key Drivers & Opportunities:",
+            chunk_text="Account Ownership | SAP Partnership",
+        )
+        for i in range(7)
+    ]
+    overview = _row(
+        chunk_id="4e680732",
+        priority_tier=1,
+        section_header="Overview",
+        chunk_text="Situation overview without service-line heading",
+    )
+    offerings = _row(
+        chunk_id="5c225664",
+        priority_tier=1,
+        section_header="Offerings",
+        chunk_text="Offerings slide without a service-line heading",
+    )
+    score_map = {
+        "db736e70": 0.64120363,
+        "f044f447": 0.64320515,
+        "4e680732": 0.64418360,
+        "5c225664": 0.64386927,
+    }
+    for i, n in enumerate(neighbors):
+        score_map[n.chunk_id] = 0.6585744 - i * 0.0015
+    ranked = _sort_by_merge_rank(
+        [*neighbors, overview, offerings, growth_levers, gold], score_map
+    )
+    top10 = [c.chunk_id for c in ranked[:10]]
+    assert "f044f447" in top10
+    assert _section_tiebreak(growth_levers) == 0.0
+    assert ranked.index(gold) < ranked.index(growth_levers)
+
+
 def test_hydrate_sql_escapes_company_name_and_has_no_order_by():
     sql = _hydrate_chunks_sql(["c1"], "Acme's Corp", "uc13_ale")
     assert "ORDER BY" not in sql.upper()

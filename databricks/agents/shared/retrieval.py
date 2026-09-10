@@ -58,6 +58,13 @@ _DASHBOARD_SECTION_RE = re.compile(
     re.IGNORECASE,
 )
 
+# SPG kpi.retrieve_healthcare_revenue_per_unit: a clinic D-I + "Profit and
+# Loss" 0.010 bonus was tried cycle 16 and measured dead —
+# enhancement_0eb376c923f6 vs baseline_01eb14090e9b stayed r@10=0 (gold
+# 63ce825e still out of top-8; live gap ~0.038 > 0.010). Reverted. Do not
+# raise ``_DASHBOARD_SECTION_BONUS`` to chase this. See
+# runs/cycle-16/patch-p1-retrieval-combined.md.
+
 
 def _default_catalog() -> str:
     return os.environ.get("catalog", "uc13").strip() or "uc13"
@@ -96,15 +103,33 @@ def _tier_weight(priority_tier: int | None) -> float:
     return _TIER_WEIGHT.get(priority_tier, _DEFAULT_TIER_WEIGHT)
 
 
+def _current_state_overview_hit(header: str, text: str) -> bool:
+    """Apply ``_CURRENT_STATE_OVERVIEW_RE`` to headers and heading-shaped body.
+
+    Body-only hits (Clearsulting Growth Levers ``Complementary Service
+    Lines`` on ``db736e70``) must not take the 0.004 bonus — that eviction
+    dropped ``f044f447`` off eval_k. Overview golds still hit: Kyriba via
+    ``# Core Services`` in chunk_text; Other Service Lines via
+    ``section_header``. Do not delete ``_CURRENT_STATE_OVERVIEW_RE``.
+    """
+    if _CURRENT_STATE_OVERVIEW_RE.search(header):
+        return True
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("#") and _CURRENT_STATE_OVERVIEW_RE.search(stripped):
+            return True
+    return False
+
+
 def _section_tiebreak(chunk) -> float:
     """Independent additive bumps for section-language near-ties.
 
     ``_TYPE_ORDER`` cannot break this class of tie: the Clearsulting
     overview golds are mixed vision/text against other vision slides at
-    the same tier. Phrase match on section_header or chunk_text is the
-    scoped signal (Kyriba vision extract is headed as a client name but
-    the figure is ``# Core Services``; ``Other Service Lines`` is a
-    section title).
+    the same tier. Phrase match on section_header, or heading-shaped
+    chunk_text, is the scoped CS signal (Kyriba vision extract is headed
+    as a client name but the figure is ``# Core Services``; ``Other
+    Service Lines`` is a section title).
 
     SPG dashboard language is its own additive term, independent magnitude;
     it must not piggyback on the CS regex, and must survive
@@ -117,11 +142,10 @@ def _section_tiebreak(chunk) -> float:
     file_name = getattr(chunk, "file_name", None) or ""
     blob = f"{header}\n{text}"
     bonus = 0.0
-    if _CURRENT_STATE_OVERVIEW_RE.search(blob):
+    if _current_state_overview_hit(header, text):
         bonus += _SECTION_TIEBREAK_BONUS
-    # SPG also searches file_name; CS stays header+text so its live pin
-    # ranks are byte-stable against a filename that happens to say
-    # "service lines".
+    # SPG also searches file_name; CS stays header + heading-shaped text
+    # so a filename that happens to say "service lines" is not enough.
     extended = f"{blob}\n{file_name}"
     if _DASHBOARD_SECTION_RE.search(extended):
         bonus += _DASHBOARD_SECTION_BONUS

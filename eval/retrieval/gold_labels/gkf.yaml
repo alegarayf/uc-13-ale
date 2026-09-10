@@ -657,6 +657,8 @@
   - a8aa4153-c25d-441b-84a3-acaca96ebffa
   - 7ea35a9a-d19a-49af-955a-44da0c03e176
   - 83d2090c-ba0a-4d2d-ae21-db9340455687
+  - 67e0e54f-c031-4c7b-9ebe-650abbbb0115
+  - 6893b60b-2d13-48ee-a2e3-2a606640b3de
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:3107:2026-09-09
   confidence: high
