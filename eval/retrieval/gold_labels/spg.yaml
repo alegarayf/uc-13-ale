@@ -74752,29 +74752,7 @@
   catalog: uc13_ale
   gold_status: partial
   positive_chunk_ids:
-  - 822a3331-2298-483d-8482-732e12a52840
-  - 0d76e9ee-207d-4c47-a9a9-d023ca595fca
-  - d477a470-12b7-48b6-ab95-ce7fc669b1fe
-  - a0a9752d-36a0-4713-9f3d-6e6e7ed342c2
-  - 39ed933d-e625-4601-95e9-92170cab81ee
-  - 9b981bc9-65b5-4588-8637-002fa76a819d
-  - 785a3c53-61f0-4b56-8758-274eacb0e19b
-  - b25ba33e-5116-4960-b94d-640c5dd5622b
-  - ff6de925-8953-4488-869d-3fb8d44c944d
-  - 90574ae4-fb9d-46d3-9bd0-5fc1d0e6d52c
-  - 5c81c273-a9f2-475a-865f-577023e883b1
-  - 342f583d-c531-4d13-be94-df407174a5e0
-  - 3cf29605-49bc-48ad-b113-5454ce0b96e2
-  - bfe3a49d-48c5-4fa6-b3dd-de05a1e62449
-  - 5430eabb-ace3-4bc8-be84-5cdb459a804f
-  - 52e7f429-ea57-46bf-835d-419878c00f72
-  - e8d12ebb-3118-46db-9559-8e12cfc4be53
-  - 3298545f-81d4-4cf1-a079-91975dc3f2bf
-  - b6e7837e-43ee-4a30-ad45-db6685845b5d
-  - 01d44510-b508-4240-a875-e1d3cfaf8bc2
-  - 85037ca3-a553-4e7b-8cbb-eb9842f5c8e5
-  - 7e051439-8a44-49f3-84cf-3c6f0e56a26b
-  - d9cbf2f6-7387-49e8-af62-837b88b1e247
+  - ed765133-48fe-4109-a344-9f38a9971db4
   gold_method: filename_closure
   ingestion_snapshot: uc13_ale:44038:2026-09-09
   confidence: medium
@@ -74874,29 +74852,7 @@
   catalog: uc13_ale
   gold_status: partial
   positive_chunk_ids:
-  - 822a3331-2298-483d-8482-732e12a52840
-  - 0d76e9ee-207d-4c47-a9a9-d023ca595fca
-  - d477a470-12b7-48b6-ab95-ce7fc669b1fe
-  - a0a9752d-36a0-4713-9f3d-6e6e7ed342c2
-  - 39ed933d-e625-4601-95e9-92170cab81ee
-  - 9b981bc9-65b5-4588-8637-002fa76a819d
-  - 785a3c53-61f0-4b56-8758-274eacb0e19b
-  - b25ba33e-5116-4960-b94d-640c5dd5622b
-  - ff6de925-8953-4488-869d-3fb8d44c944d
-  - 90574ae4-fb9d-46d3-9bd0-5fc1d0e6d52c
-  - 5c81c273-a9f2-475a-865f-577023e883b1
-  - 342f583d-c531-4d13-be94-df407174a5e0
-  - 3cf29605-49bc-48ad-b113-5454ce0b96e2
-  - bfe3a49d-48c5-4fa6-b3dd-de05a1e62449
-  - 5430eabb-ace3-4bc8-be84-5cdb459a804f
-  - 52e7f429-ea57-46bf-835d-419878c00f72
-  - e8d12ebb-3118-46db-9559-8e12cfc4be53
-  - 3298545f-81d4-4cf1-a079-91975dc3f2bf
-  - b6e7837e-43ee-4a30-ad45-db6685845b5d
-  - 01d44510-b508-4240-a875-e1d3cfaf8bc2
-  - 85037ca3-a553-4e7b-8cbb-eb9842f5c8e5
-  - 7e051439-8a44-49f3-84cf-3c6f0e56a26b
-  - d9cbf2f6-7387-49e8-af62-837b88b1e247
+  - ed765133-48fe-4109-a344-9f38a9971db4
   gold_method: filename_closure
   ingestion_snapshot: uc13_ale:44038:2026-09-09
   confidence: medium
