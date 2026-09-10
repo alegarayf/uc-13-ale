@@ -74970,12 +74970,8 @@
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - bed51ad8-0c32-49e0-848f-078fb1b4c7dc
-  - dc27aff3-a24a-42d8-ac44-123c3195bfe3
   - e4682415-cd5b-4b48-ab65-f3573db482ef
   - 0e007abc-576f-4870-97a6-319ec5c43222
-  - 86e2f31f-771a-4bbf-a7b6-d0b088d8b430
-  - 020f8b5b-d8dc-4bc1-8489-b7410202ce6c
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-09-09
   confidence: high
