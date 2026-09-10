@@ -295,7 +295,7 @@ def render_final_report(
     mps_runs = [*(prior_mps or []), mps] if mps else (prior_mps or None)
     mps_projection = _rainmaker_view(bundle, mps_runs=mps_runs)["mps"]
 
-    html_out = f"{vol_dir}/final_report.html"
+    html_out = f"{vol_dir}/full_report.html"
     html = renderer.render(
         bundle,
         _TEMPLATES_DIR / _FINAL_REPORT_TEMPLATE,
@@ -310,7 +310,7 @@ def render_final_report(
 
     written: dict[str, str] = {"html": html_out}
 
-    pdf_out = f"{vol_dir}/final_report.pdf"
+    pdf_out = f"{vol_dir}/full_report.pdf"
     engine = _html_to_pdf(html, pdf_out, page_rect_spec="a4")
     if engine:
         written["pdf"] = pdf_out

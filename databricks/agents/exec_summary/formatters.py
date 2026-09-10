@@ -30,10 +30,30 @@ def normalize_gap(text: str) -> str:
     return re.sub(r"\s+", " ", lowered).strip()
 
 
+# A gap that names a BUNDLE FIELD rather than a document — "people_and_org.
+# ownership is empty", "customer_operational_metrics is empty". The phrase
+# list above cannot catch these: there is no diagnostic vocabulary in them,
+# only a schema path. They read as pipeline internals in a table a deal team
+# reads as "what we are asking the seller for".
+_FIELD_PATH_GAP_RE = re.compile(
+    r"^[a-z][a-z0-9_]*(?:[._][a-z0-9_]+)+\s+(?:is|was|are|were)?\s*"
+    r"(?:empty|missing|null|not populated|unpopulated)\b",
+    re.IGNORECASE,
+)
+
+
 def is_operator_gap(item: str) -> bool:
-    """True when item matches operator/pipeline diagnostic vocabulary (spec §4.4)."""
-    lowered = item.lower()
-    return any(pattern.lower() in lowered for pattern in _OPERATOR_GAP_PATTERNS)
+    """True when item is a pipeline diagnostic rather than a document request.
+
+    Two shapes: the diagnostic vocabulary above (spec §4.4), and a bare
+    schema field path reported as empty. Both are useful to an operator
+    debugging a run and useless to the reader of an information request.
+    """
+    text = str(item or "").strip()
+    lowered = text.lower()
+    if any(pattern.lower() in lowered for pattern in _OPERATOR_GAP_PATTERNS):
+        return True
+    return bool(_FIELD_PATH_GAP_RE.match(text))
 
 
 def format_agent_flag(flag: dict[str, Any]) -> str:

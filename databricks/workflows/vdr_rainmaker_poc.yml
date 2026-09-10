@@ -23,9 +23,10 @@
 #   /Volumes/rallyday_partners_llc/default/vdr/{company_snake}/{ISO_timestamp}/
 #       executive_summary.pdf                     (Rainmaker executive review, both modes — published as soon as stage 1 finishes)
 #       rainmaker_opportunity_summary.html
-#       full_report.docx                          (full-room mode only — orchestrator memo)
-#       final_report.pdf                          (final diligence report, both modes — stage 2, may be absent if stage 2 failed)
-#       final_report.html
+#       (full_report.docx — the Phase-5 orchestrator memo — is temporarily NOT
+#        shipped: the stage-2 report now delivers under that base name)
+#       full_report.pdf                           (final diligence report, both modes — stage 2, may be absent if stage 2 failed)
+#       full_report.html
 #
 # Trigger (manual):
 #   databricks jobs run-now <job_id> \
@@ -44,7 +45,7 @@ resources:
         executive review, plus the full diligence memo (full_report.docx).
         The executive review is published to the record as soon as it
         exists. The run then continues into a second stage that builds a
-        final diligence report (final_report.pdf/html) over the whole data
+        final diligence report (full_report.pdf/html) over the whole data
         room; a stage-2 failure never fails the run — the executive review
         stays downloadable. Progress is exposed via four additive columns on
         the record (progress_stage, progress_pct, progress_json,

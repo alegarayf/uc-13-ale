@@ -25,6 +25,7 @@ import re
 from typing import Any
 
 from agents.exec_summary.final_report_view import _SCREENS, _pnl_table
+from agents.exec_summary.formatters import is_operator_gap
 from agents.shared import llm_client
 from agents.shared.agent_base import accumulate_tokens
 
@@ -210,7 +211,9 @@ def _gaps_needing_reason(bundle: dict[str, Any]) -> list[dict[str, Any]]:
         if not isinstance(gap, dict) or gap.get("why"):
             continue
         item = str(gap.get("item") or "").strip()
-        if item:
+        # The appendix does not print pipeline diagnostics, so there is no
+        # point paying for a sentence explaining why a bundle field is empty.
+        if item and not is_operator_gap(item):
             out.append({"i": index, "item": _trunc(item, 200)})
         if len(out) >= _CAP_GAP_REASONS:
             break

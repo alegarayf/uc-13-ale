@@ -355,7 +355,11 @@ def test_no_cim_runs_full_pipeline_and_renders_rainmaker(monkeypatch, _common_pa
     assert result["mode"] == "full_pipeline"
     assert result["cim_files"] == []
     names = {Path(p).name for p in result["files"]}
-    assert names == {"executive_summary.pdf", "rainmaker_opportunity_summary.html", "full_report.docx"}
+    # The Phase-5 orchestrator memo is still generated, but no longer copied
+    # into the delivery folder: the stage-2 final report now delivers as
+    # full_report.pdf/html and the UI resolves a run's report by that base
+    # name alone, so two different documents cannot share it.
+    assert names == {"executive_summary.pdf", "rainmaker_opportunity_summary.html"}
     assert "executive_summary.docx" not in names
 
     updates = _common_patches["updates"]
@@ -506,13 +510,13 @@ def _stub_final_report(monkeypatch, tmp_path, *, status="success", pdf=True,
               "synthesis_status": status, "final_narrative_status": status,
               "mps_status": status, "error": None}
     if pdf:
-        pdf_path = tmp_path / "final_report.pdf"
+        pdf_path = tmp_path / "full_report.pdf"
         pdf_path.write_bytes(b"%PDF-fake-final")
         result["pdf"] = str(pdf_path)
     else:
         result["pdf"] = None
     if html:
-        html_path = tmp_path / "final_report.html"
+        html_path = tmp_path / "full_report.html"
         html_path.write_text("<html>final</html>")
         result["html"] = str(html_path)
     else:
@@ -584,7 +588,7 @@ def test_branch_a_stage1_untouched_and_stage2_success(monkeypatch, _common_patch
     names = {Path(p).name for p in result["files"]}
     assert names == {
         "executive_summary.pdf", "rainmaker_opportunity_summary.html",
-        "final_report.pdf", "final_report.html",
+        "full_report.pdf", "full_report.html",
     }
 
     updates = _common_patches["updates"]
@@ -711,7 +715,7 @@ def test_branch_a_stage2_unanticipated_exception_keeps_er_intact(monkeypatch, _c
 def test_branch_a_stage2_copy_final_report_raises_keeps_er_intact(monkeypatch, _common_patches):
     """DoD-18: a realistic unhandled raise from a stage-2 collaborator that
     is not `run_ingestion_pipeline`/`build_final_report` — here,
-    `shutil.copy2` failing while delivering `final_report.pdf` (permission
+    `shutil.copy2` failing while delivering `full_report.pdf` (permission
     or quota error) — must degrade the same way."""
     tmp_path = _common_patches["tmp_path"]
     _cim_branch_common_mocks(monkeypatch)
@@ -723,7 +727,7 @@ def test_branch_a_stage2_copy_final_report_raises_keeps_er_intact(monkeypatch, _
     real_copy2 = shutil.copy2
 
     def _copy2_router(src, dst, *args, **kwargs):
-        if Path(dst).name == "final_report.pdf":
+        if Path(dst).name == "full_report.pdf":
             raise RuntimeError("disk quota exceeded")
         return real_copy2(src, dst, *args, **kwargs)
 
@@ -804,7 +808,7 @@ def test_branch_b_stage2_reuses_ingestion_and_agents_not_rerun(monkeypatch, _com
     names = {Path(p).name for p in result["files"]}
     assert names == {
         "executive_summary.pdf", "rainmaker_opportunity_summary.html",
-        "full_report.docx", "final_report.pdf", "final_report.html",
+        "full_report.pdf", "full_report.html",
     }
     updates = _common_patches["updates"]
     assert updates[-1]["processing_status"] == "done"
@@ -911,7 +915,7 @@ def test_raising_progress_never_changes_the_outcome(monkeypatch, _common_patches
     names = {Path(p).name for p in result["files"]}
     assert names == {
         "executive_summary.pdf", "rainmaker_opportunity_summary.html",
-        "final_report.pdf", "final_report.html",
+        "full_report.pdf", "full_report.html",
     }
     updates = _common_patches["updates"]
     assert updates[-1]["processing_status"] == "done"

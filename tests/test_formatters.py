@@ -110,3 +110,23 @@ def test_split_gap_rationale_leaves_a_plain_request_alone():
     assert split_gap_rationale("Top Customer Contracts / MSAs / SOWs") == (
         "Top Customer Contracts / MSAs / SOWs", None,
     )
+
+
+def test_is_operator_gap_catches_a_bare_schema_field_path():
+    """The two that reached a delivered report: a bundle field reported empty
+    reads as pipeline internals in a table a deal team reads as "what we are
+    asking the seller for"."""
+    from agents.exec_summary.formatters import is_operator_gap
+
+    assert is_operator_gap("people_and_org.ownership is empty")
+    assert is_operator_gap("customer_operational_metrics is empty")
+    assert is_operator_gap("revenue_by_segment not populated")
+
+
+def test_is_operator_gap_leaves_a_real_document_request_alone():
+    from agents.exec_summary.formatters import is_operator_gap
+
+    assert not is_operator_gap("Top Customer Contracts / MSAs / SOWs")
+    assert not is_operator_gap("Change-of-control consent terms not determinable")
+    assert not is_operator_gap("Missing KPI [Waitlist Length by School]: What is the count?")
+    assert not is_operator_gap("Termination-for-convenience terms not determinable")

@@ -198,12 +198,12 @@ def _run_final_report_stage(
         files_copied = []
         pdf_src = built.get("pdf")
         if pdf_src and os.path.exists(pdf_src):
-            dst = os.path.join(output_dir, "final_report.pdf")
+            dst = os.path.join(output_dir, "full_report.pdf")
             shutil.copy2(pdf_src, dst)
             files_copied.append(dst)
         html_src = built.get("html")
         if html_src and os.path.exists(html_src):
-            dst = os.path.join(output_dir, "final_report.html")
+            dst = os.path.join(output_dir, "full_report.html")
             shutil.copy2(html_src, dst)
             files_copied.append(dst)
 
@@ -361,10 +361,17 @@ def _run_full_room_flow(spark, table_name: str, record_id: int, company_name: st
         shutil.copy2(html_src, dst)
         files_copied.append(dst)
     report_docx = result.get("report_docx_path")
-    if report_docx and os.path.exists(report_docx):
-        dst = os.path.join(output_dir, "full_report.docx")
-        shutil.copy2(report_docx, dst)
-        files_copied.append(dst)
+    # full_report.docx (the Phase-5 orchestrator memo) is temporarily NOT
+    # shipped: the stage-2 final diligence report now delivers under that
+    # base name, and the UI resolves a run's report by name alone. Two
+    # different documents sharing "full_report" would be ambiguous to it.
+    # The memo is still generated and still on disk at report_docx_path —
+    # only the copy into the delivery folder is suspended. Re-enable by
+    # uncommenting, and give one of the two documents a distinct name first.
+    # if report_docx and os.path.exists(report_docx):
+    #     dst = os.path.join(output_dir, "full_report.docx")
+    #     shutil.copy2(report_docx, dst)
+    #     files_copied.append(dst)
 
     # executive_summary.docx (the Rev3 prose one-pager) is intentionally NOT
     # shipped in the VDR delivery folder — the PDF above is the executive

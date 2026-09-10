@@ -27,6 +27,7 @@ from typing import Any
 
 from agents.exec_summary.formatters import (
     format_dollars,
+    is_operator_gap,
     has_explicit_magnitude,
     money_to_dollars,
     period_sort_key,
@@ -696,6 +697,28 @@ def _risks(bundle: dict[str, Any]) -> dict[str, Any]:
     return {"grid": grid, "counts": counts, "suppressed": max(0, len(raw) - CAP_RISKS)}
 
 
+def _reader_facing_gaps(bundle: dict[str, Any]) -> list[tuple[int, dict[str, Any]]]:
+    """The gaps that belong in an information request, with their original
+    index so a model-written reason still lands on the right row.
+
+    Pipeline diagnostics are dropped: "people_and_org.ownership is empty"
+    names a bundle field, not a document, and a deal team reads this table as
+    "what we are asking the seller for". The executive review has always
+    filtered them (rainmaker_view._gaps_mention); this is the final report
+    doing the same. They remain in the bundle for whoever is debugging a run.
+    """
+    out: list[tuple[int, dict[str, Any]]] = []
+    for index, gap in enumerate(bundle.get("data_room_gaps") or []):
+        if not isinstance(gap, dict):
+            continue
+        if is_operator_gap(str(gap.get("item") or "")):
+            continue
+        out.append((index, gap))
+        if len(out) >= CAP_GAPS:
+            break
+    return out
+
+
 def _appendix(bundle: dict[str, Any], narrative: dict[str, Any] | None = None) -> dict[str, Any]:
     # A reason the model wrote for a gap that carried none. Keyed by the gap's
     # index so it can only ever land on the row it was written for; a gap the
@@ -708,8 +731,7 @@ def _appendix(bundle: dict[str, Any], narrative: dict[str, Any] | None = None) -
             "priority_label": severity_label(g.get("priority")),
             "priority_class": severity_class(g.get("priority")),
         }
-        for index, g in enumerate((bundle.get("data_room_gaps") or [])[:CAP_GAPS])
-        if isinstance(g, dict)
+        for index, g in _reader_facing_gaps(bundle)
     ]
     confidence = [
         {"area": k.replace("_", " ").title(), "level": severity_label(v), "level_class": confidence_class(v)}

@@ -863,3 +863,30 @@ def test_appendix_prefers_the_agents_own_rationale_over_a_written_one():
 def test_appendix_without_a_narrative_leaves_the_column_empty():
     bundle = {"data_room_gaps": [{"item": "X"}]}
     assert frv._appendix(bundle)["gaps"][0]["why"] is None
+
+
+def test_appendix_drops_pipeline_diagnostics_from_the_information_request():
+    """Two of these reached a delivered report. The table is read as "what we
+    are asking the seller for"; a bundle field path is not that."""
+    bundle = {"data_room_gaps": [
+        {"item": "people_and_org.ownership is empty"},
+        {"item": "Top Customer Contracts / MSAs / SOWs"},
+        {"item": "customer_operational_metrics is empty"},
+        {"item": "Litigation Summary"},
+    ]}
+    items = [g["item"] for g in frv._appendix(bundle)["gaps"]]
+    assert items == ["Top Customer Contracts / MSAs / SOWs", "Litigation Summary"]
+
+
+def test_appendix_reason_still_lands_correctly_after_filtering():
+    """The reason is keyed by the gap's ORIGINAL index, so dropping a
+    diagnostic row must not shift the remaining reasons onto the wrong rows."""
+    bundle = {"data_room_gaps": [
+        {"item": "people_and_org.ownership is empty"},   # index 0, dropped
+        {"item": "Top Customer Contracts"},              # index 1
+        {"item": "Litigation Summary"},                  # index 2
+    ]}
+    narrative = {"gap_reasons": {1: "Confirms churn exposure.", 2: "Sizes the liability."}}
+    gaps = frv._appendix(bundle, narrative)["gaps"]
+    assert gaps[0]["why"] == "Confirms churn exposure."
+    assert gaps[1]["why"] == "Sizes the liability."
