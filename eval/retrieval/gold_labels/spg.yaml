@@ -28964,21 +28964,14 @@
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - f2d95c43-896c-4285-9658-708e98c81c13
-  - 0522fe62-d249-4b70-bc12-20af17c23656
-  - fdd85c74-de83-4190-8327-3585164561e2
-  - 69bec3fc-e536-44f7-8373-9519d8413945
-  - e18dd441-59a1-4c69-ae5a-ee45bd1cc045
-  - 88a24e61-a650-4f29-9045-a7532cfe5185
-  - ae9c27c4-9f16-4f6a-9028-cf01b1eafe2c
-  - 8c75f604-9422-4a0b-8b4b-2b487db43ad7
-  - 944a80fe-76c7-4bb5-9ef5-36d2842e2959
-  - a9e8dcc3-d7ea-4c2e-8721-3c34455d8047
-  - 2412d5c8-f840-4cfa-846e-639d5482fb3c
-  - c22e312d-2334-4cf2-8fd5-5d969eaec461
-  - 55c52b87-8604-4d27-8de5-dfbf69495fd9
-  - bb098890-d49d-4d2c-a275-e8fd81739a99
-  - 041bb96e-e148-409d-8d34-7c1542220eb7
+  - cbb7aca7-871e-4454-b80f-8de6be09409c
+  - e26a8e67-68bb-4ff5-9151-9db766d4fec2
+  - 4f892601-0cac-4fac-a4fd-4eb77609cf5e
+  - 94ef2304-b606-4953-a27b-4e2c26bcba1a
+  - d7a8313d-06e9-41c8-b2d4-bc4f07030ea3
+  - b29ae281-6367-4ffe-9e0d-828b057b996f
+  - bd2f7383-d780-4f11-8607-b40e6605865e
+  - 17d0e0a7-bb3e-4cb1-ae9a-5d807c6f2309
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-09-09
   confidence: high
