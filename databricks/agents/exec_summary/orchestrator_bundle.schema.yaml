@@ -481,6 +481,16 @@ definitions:
         $ref: "#/definitions/area_confidence"
       fill_state:
         $ref: "#/definitions/fill_state"
+      # Whether this row is a single figure, a sentence, or a per-role
+      # breakdown. Only a figure can honestly be drawn as a bar; the
+      # classification is made once in the mapper so the view does not have to
+      # re-derive it from the rendered string.
+      value_kind:
+        type: string
+        enum:
+          - metric
+          - note
+          - breakdown
 
   qoe:
     type: object
