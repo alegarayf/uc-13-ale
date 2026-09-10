@@ -74961,6 +74961,10 @@
   - 0e007abc-576f-4870-97a6-319ec5c43222
   - 86e2f31f-771a-4bbf-a7b6-d0b088d8b430
   - 020f8b5b-d8dc-4bc1-8489-b7410202ce6c
+  - 387811dd-fefb-45ba-b589-d9843c7bf494
+  - 8d6ef1bf-cc1e-4b3a-beda-880311992e67
+  - 5417e6d6-16dc-42a7-901c-a48dbd9887f6
+  - 64da2189-770b-432d-abcc-bc0ded3733ed
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:44038:2026-09-09
   confidence: high
