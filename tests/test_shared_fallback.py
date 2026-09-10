@@ -188,6 +188,56 @@ def test_unions_unfiltered_gold_when_filtered_spreadsheet_meets_min_results(mock
     assert len(result.chunks) == 6
     gold_in_top_k = [gid for gid in gold_ids if gid in returned_ids]
     assert len(gold_in_top_k) >= 2, returned_ids
+    # Stored scores stay raw merge scores (sort-only filtered floor).
+    assert all(s >= 0.54 for s in result.scores)
+
+
+@patch("agents.shared.fallback.semantic_search")
+def test_union_keeps_filtered_gold_against_similar_score_unfiltered(mock_search):
+    """Elder Care F1: CIM gold at 0.621 must not be evicted by unfiltered
+    Projection-Model neighbors at ~0.627–0.640 after the union cap.
+    """
+    filtered = [
+        _chunk(chunk_id="cim-vision", file_name="2024 Elder Care - CIM_vF.pdf"),
+        _chunk(chunk_id="cim-gold", file_name="2024 Elder Care - CIM_vF.pdf"),
+        _chunk(chunk_id="cim-other", file_name="2024 Elder Care - CIM_vF.pdf"),
+        _chunk(chunk_id="cim-pl", file_name="2024 Elder Care - CIM_vF.pdf"),
+        _chunk(chunk_id="cim-margin", file_name="2024 Elder Care - CIM_vF.pdf"),
+    ]
+    unfiltered = [
+        _chunk(chunk_id="cim-vision", file_name="2024 Elder Care - CIM_vF.pdf"),
+        *[
+            _chunk(chunk_id=f"xlsx-{i}", file_name="Elder Care Projection Model.xlsx")
+            for i in range(14)
+        ],
+    ]
+    mock_search.side_effect = [
+        RouteResult(
+            chunks=filtered,
+            mode="semantic",
+            scores=[0.627, 0.621, 0.618, 0.615, 0.612],
+        ),
+        RouteResult(
+            chunks=unfiltered,
+            mode="semantic",
+            scores=[0.627] + [0.640 - i * 0.001 for i in range(14)],
+        ),
+    ]
+    result, used_fallback = semantic_search_with_fallback(
+        company_name="Elder Care",
+        spark=MagicMock(),
+        query="pricing gross margin by product",
+        workstream_filter=["BUSINESS_MODEL", "FINANCIAL"],
+        top_k=15,
+        file_name_filter=["CIM", "Pricing", "Margin"],
+        min_results=3,
+    )
+    assert used_fallback is True
+    returned_ids = [c.chunk_id for c in result.chunks]
+    assert "cim-gold" in returned_ids, returned_ids
+    assert len(result.chunks) == 15
+    gold_score = result.scores[returned_ids.index("cim-gold")]
+    assert gold_score == pytest.approx(0.621)
 
 
 @patch("agents.shared.fallback.semantic_search")
@@ -243,32 +293,36 @@ def test_empty_path_drops_workstream_filter_and_admits_gold(mock_search):
 
 
 @patch("agents.shared.fallback.semantic_search")
-def test_empty_path_drops_filename_and_workstream_when_filtered_zero(mock_search):
-    """q4-style: filename+workstream filter returns 0; Databook gold only on unfiltered retry."""
+def test_empty_path_drops_filename_only_when_both_filters_set(mock_search):
+    """SPG F2: filename+workstream return 0; retry drops filename only so
+    workstream-valid Playbook gold is not flooded by other-workstream neighbors.
+    """
     gold = _chunk(
-        chunk_id="databook-gold",
-        file_name="FDD Databook.xlsx",
-        source_type="table",
+        chunk_id="playbook-gold",
+        file_name="4.2.1.2_Data Centraliztion Playbook.pdf",
+        source_type="text",
     )
     mock_search.side_effect = [
         RouteResult(chunks=[], mode="empty", scores=[]),
         RouteResult(chunks=[gold], mode="semantic", scores=[0.81]),
     ]
     result, used_fallback = semantic_search_with_fallback(
-        company_name="GKF",
+        company_name="SPG",
         spark=MagicMock(),
-        query="top customers revenue by customer",
-        workstream_filter=["FINANCIAL", "BUSINESS_MODEL", "CUSTOMER_QUALITY"],
-        top_k=6,
-        file_name_filter=["Customer", "QuickBooks", "Revenue"],
-        min_results=2,
-        source_type_priority=True,
+        query="business model change pricing change",
+        workstream_filter=["BUSINESS_MODEL", "KPI_OPS"],
+        top_k=18,
+        file_name_filter=["CIM", "Overview", "Management"],
+        min_results=5,
     )
     assert used_fallback is True
     assert mock_search.call_count == 2
     assert mock_search.call_args_list[1].kwargs["file_name_filter"] is None
-    assert mock_search.call_args_list[1].kwargs["workstream_filter"] is None
-    assert [c.chunk_id for c in result.chunks] == ["databook-gold"]
+    assert mock_search.call_args_list[1].kwargs["workstream_filter"] == [
+        "BUSINESS_MODEL",
+        "KPI_OPS",
+    ]
+    assert [c.chunk_id for c in result.chunks] == ["playbook-gold"]
 
 
 @patch("agents.shared.fallback.semantic_search")

@@ -10,6 +10,14 @@ from agents.shared.retrieval import semantic_search
 # Same vocabulary as retrieval.py; secondary key only — do not change merge-rank.
 _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
 
+# Sort-only floor inside `_union_merge_cap`. Filtered-pass chunks keep this
+# much of a lead over unfiltered-only neighbors so similar-score files that
+# failed `file_name_filter` cannot evict them (Elder Care pricing / FTA q1,
+# gaps ~0.01–0.03). Does not mutate stored scores. Does not raise `_TIER_BONUS`
+# or restore multiplicative rank. Unfiltered gold with a large score lead
+# (Clearsulting q4, ~0.23) still wins the cap.
+_FILTERED_PASS_CAP_BONUS = 0.05
+
 
 def _chunk_key(chunk: Any, index: int) -> str:
     cid = getattr(chunk, "chunk_id", None)
@@ -35,27 +43,34 @@ def _union_merge_cap(
 ) -> RouteResult:
     """Union filtered + unfiltered pools, keep best score per chunk, cap to top_k.
 
+    Chunks present in ``filtered`` get a sort-only ``_FILTERED_PASS_CAP_BONUS``
+    so similar-score unfiltered-only neighbors cannot evict them. Stored
+    scores stay the original merge scores.
+
     Scores on each RouteResult are already similarity-primary merge scores
     (``sim + 0.05 * tier_weight``). This does not raise ``_TIER_BONUS`` or restore
     multiplicative rank.
     """
-    by_id: dict[str, tuple[Any, float]] = {}
-    for origin in (filtered, unfiltered):
+    by_id: dict[str, tuple[Any, float, bool]] = {}
+    for is_filtered, origin in ((True, filtered), (False, unfiltered)):
         for index, (chunk, score) in enumerate(_scored_pairs(origin)):
             key = _chunk_key(chunk, index)
             prev = by_id.get(key)
-            if prev is None or score > prev[1]:
-                by_id[key] = (chunk, float(score))
+            if prev is None:
+                by_id[key] = (chunk, float(score), is_filtered)
+            elif score > prev[1]:
+                by_id[key] = (chunk, float(score), prev[2] or is_filtered)
 
-    def _sort_key(item: tuple[Any, float]) -> tuple:
-        chunk, score = item
+    def _sort_key(item: tuple[Any, float, bool]) -> tuple:
+        chunk, score, from_filtered = item
+        adj = score + (_FILTERED_PASS_CAP_BONUS if from_filtered else 0.0)
         if source_type_priority:
-            return (-score, _TYPE_ORDER.get(getattr(chunk, "source_type", "text"), 2))
-        return (-score, 0)
+            return (-adj, _TYPE_ORDER.get(getattr(chunk, "source_type", "text"), 2))
+        return (-adj, 0)
 
     ranked = sorted(by_id.values(), key=_sort_key)[:top_k]
-    chunks = [chunk for chunk, _ in ranked]
-    scores = [score for _, score in ranked]
+    chunks = [chunk for chunk, _, _ in ranked]
+    scores = [score for _, score, _ in ranked]
     modes = {filtered.mode, unfiltered.mode}
     if not chunks:
         mode = "empty"
@@ -86,11 +101,17 @@ def semantic_search_with_fallback(
 ) -> tuple[RouteResult, bool]:
     """Semantic search with filename/workstream-filter empty-path fallback.
 
-    When the filtered search returns **0** hits and a filename or workstream
-    filter was applied, retries once with both filters dropped and **replaces**
-    (union with empty is the retry set). That is the empty-path: gold tagged
-    outside the caller's workstream (e.g. BUSINESS_MODEL vs CQA CUSTOMER/…)
-    can enter the pool.
+    When the filtered search returns **0** hits and a **filename** filter was
+    applied, retries once with only ``file_name_filter`` dropped (workstream
+    kept) and **replaces**. That matches the ``>= min_results`` / ``< min_results``
+    arms, which never drop ``workstream_filter``. Dropping both on this path
+    let other-workstream neighbors flood SPG
+    ``bma.retrieve_model_changes_and_dependencies`` (cycle 15).
+
+    When the filtered search returns **0** hits and **only** a workstream
+    filter was applied (filename already unset), retries once with
+    ``workstream_filter`` dropped so gold tagged outside the caller's
+    workstream (e.g. BUSINESS_MODEL vs CQA CUSTOMER/…) can enter the pool.
 
     When the filtered search returns `< min_results` (but not 0) and a filename
     filter was applied, retries once without the filename filter and
@@ -130,13 +151,18 @@ def semantic_search_with_fallback(
     used_fallback = False
     if len(result.chunks) == 0 and (file_name_filter or workstream_filter):
         used_fallback = True
-        result = semantic_search(
-            **{
-                **search_kwargs,
-                "file_name_filter": None,
-                "workstream_filter": None,
-            }
-        )
+        if file_name_filter:
+            # Filename was the (or a) blocker — drop it only; keep workstream.
+            result = semantic_search(**{**search_kwargs, "file_name_filter": None})
+        else:
+            # Filename already unset; workstream was the blocker (CQA-style).
+            result = semantic_search(
+                **{
+                    **search_kwargs,
+                    "file_name_filter": None,
+                    "workstream_filter": None,
+                }
+            )
         return result, used_fallback
 
     if len(result.chunks) < min_results and file_name_filter is not None:

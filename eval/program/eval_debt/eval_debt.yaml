@@ -410,3 +410,51 @@ debts:
     profiler.revenue_model has result_count > 0 and recall_at_10 > 0 on a complete
     harness run versus baseline_b57e58145b2d (or its successor pin) after a
     query, filter, or corpus change other than the cycle-10 Deel/MSA tokens
+  closed_at: '2026-09-09'
+  closed_evidence_refs:
+  - baseline_7cae9bd94911
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-14/gate2.md
+- id: elder_care:global:kpi_and_pricing_margins_regressed_after_p1
+  company: elder_care
+  surface: null
+  layer: retrieval
+  kind: kpi_and_pricing_margins_regressed_after_p1
+  opened_at: '2026-09-09'
+  evidence_refs:
+  - baseline_7cae9bd94911
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-14/gate2.md
+  closes_when: >-
+    bma.retrieve_pricing_and_margins and fta.opex.q1_financial_statements recover
+    above 0 on a complete harness run versus baseline_7cae9bd94911 (or successor)
+    without deleting Clearsulting's >=min_results union
+  closed_at: '2026-09-10'
+  closed_evidence_refs:
+  - enhancement_8cb9379e4e3f
+  - baseline_651c84abef14
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-15/gate2.md
+- id: clearsulting:global:q4_fallback_zero_after_c15_remint
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: q4_fallback_zero_after_c15_remint
+  opened_at: '2026-09-10'
+  evidence_refs:
+  - baseline_1357f7981d11
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-15/gate2.md
+  closes_when: >-
+    fta.revenue.q4_customer_concentration_fallback recall_at_10 > 0 on a complete
+    harness run versus baseline_1357f7981d11 (or successor), with CIM gold
+    e22211ae / 5f569542 / 96db4e1f in the retrieved pool
+- id: clearsulting:global:location_zero_after_shared_query
+  company: clearsulting
+  surface: null
+  layer: retrieval
+  kind: location_zero_after_shared_query
+  opened_at: '2026-09-10'
+  evidence_refs:
+  - baseline_1357f7981d11
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-15/gate2.md
+  closes_when: >-
+    bma.retrieve_revenue_by_location_and_metrics recall_at_10 > 0 on a complete
+    Clearsulting harness run versus baseline_1357f7981d11 (or successor) after a
+    query/filter change that does not zero GKF/SPG location

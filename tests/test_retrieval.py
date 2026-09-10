@@ -40,6 +40,7 @@ if "mlflow" not in sys.modules:
     sys.modules["mlflow.deployments"] = deployments_mod
 
 from agents.shared.retrieval import (  # noqa: E402
+    _DASHBOARD_SECTION_BONUS,
     _SECTION_TIEBREAK_BONUS,
     _TIER_BONUS,
     _build_vs_filters_dict,
@@ -76,10 +77,11 @@ def _row(
     source_type: str = "text",
     section_header: str = "Revenue",
     chunk_text: str | None = None,
+    file_name: str | None = None,
 ):
     return SimpleNamespace(
         chunk_id=chunk_id,
-        file_name=f"{chunk_id}.pdf",
+        file_name=file_name if file_name is not None else f"{chunk_id}.pdf",
         chunk_text=("A" * 120) if chunk_text is None else chunk_text,
         section_header=section_header,
         page_start=1,
@@ -234,6 +236,99 @@ def test_section_tiebreak_does_not_invert_003_similarity_lead():
     score_map = {"growth_lead": 0.63, "services": 0.60}
     ranked = _sort_by_merge_rank([services, growth_lead], score_map)
     assert [c.chunk_id for c in ranked] == ["growth_lead", "services"]
+
+
+def test_dashboard_section_tiebreak_promotes_gold_across_0006_gap():
+    """SPG F1: gold 84311b20 sits ~0.006 below rank-10. CS/GKF 0.004 is too
+    small; a 0.010 dashboard-specific bonus must land it in top-10. A 0.004
+    bump would leave it at ranks 11–14.
+    """
+    gold = _row(
+        chunk_id="84311b20",
+        priority_tier=2,
+        source_type="text",
+        section_header="new patient visits distribution",
+        chunk_text="Shared Practices Dashboard new patient visits distribution",
+        file_name="Shared Practices Dashboard.xlsx",
+    )
+    neighbors = [
+        _row(
+            chunk_id=f"assets_{i}",
+            priority_tier=2,
+            source_type="table",
+            section_header="Assets",
+            chunk_text="Projection Model PL database — Summary",
+            file_name="Financial Statement.xlsx",
+        )
+        for i in range(10)
+    ]
+    # Live estimate: gold merge ~0.6544 vs rank-10 cutoff ~0.6608 (gap 0.006).
+    score_map = {"84311b20": 0.6544}
+    for i, n in enumerate(neighbors):
+        score_map[n.chunk_id] = 0.6717 - i * 0.0012  # rank-10 ≈ 0.6609
+    ranked = _sort_by_merge_rank([*neighbors, gold], score_map)
+    top10 = [c.chunk_id for c in ranked[:10]]
+    assert "84311b20" in top10
+    assert _section_tiebreak(gold) == pytest.approx(_DASHBOARD_SECTION_BONUS)
+    assert _DASHBOARD_SECTION_BONUS == pytest.approx(0.010)
+    assert _DASHBOARD_SECTION_BONUS < 0.03
+    # 0.004 would not close a 0.006 gap against the rank-10 cutoff.
+    gold_with_cs_only = 0.6544 + _SECTION_TIEBREAK_BONUS
+    rank10_sim = min(score_map[n.chunk_id] for n in neighbors)
+    assert gold_with_cs_only < rank10_sim
+    assert 0.6544 + _DASHBOARD_SECTION_BONUS > rank10_sim
+
+
+def test_section_tiebreaks_are_independent_and_company_specific():
+    """New regexes must not fire on each other's (or CS's) language."""
+    kyriba = _row(
+        chunk_id="7b76f634",
+        priority_tier=1,
+        source_type="vision",
+        section_header="Kyriba",
+        chunk_text="# Core Services\n**1 - Financial Close** FY24 Revenue: $26M",
+    )
+    osl = _row(
+        chunk_id="ce839bfb",
+        priority_tier=1,
+        source_type="text",
+        section_header="Other Service Lines",
+        chunk_text="Clearsulting services focus on business process first",
+    )
+    dashboard = _row(
+        chunk_id="spg_dash",
+        section_header="new patient visits distribution",
+        chunk_text="network visits by location",
+        file_name="Shared Practices Dashboard.xlsx",
+    )
+    generic_visits = _row(
+        chunk_id="generic_visits",
+        section_header="Patient visits",
+        chunk_text="visits and network volume",
+    )
+    assert _section_tiebreak(kyriba) == pytest.approx(_SECTION_TIEBREAK_BONUS)
+    assert _section_tiebreak(osl) == pytest.approx(_SECTION_TIEBREAK_BONUS)
+    assert _section_tiebreak(dashboard) == pytest.approx(_DASHBOARD_SECTION_BONUS)
+    assert _section_tiebreak(generic_visits) == 0.0
+
+
+def test_dashboard_bonus_does_not_invert_003_similarity_lead():
+    """SPG's larger 0.010 bump is still below the 0.03 sim-lead floor."""
+    lead = _row(
+        chunk_id="assets_lead",
+        priority_tier=2,
+        section_header="Assets",
+        chunk_text="Projection Model",
+    )
+    dashboard = _row(
+        chunk_id="84311b20",
+        priority_tier=2,
+        section_header="new patient visits distribution",
+        chunk_text="Shared Practices Dashboard",
+    )
+    score_map = {"assets_lead": 0.63, "84311b20": 0.60}
+    ranked = _sort_by_merge_rank([dashboard, lead], score_map)
+    assert [c.chunk_id for c in ranked] == ["assets_lead", "84311b20"]
 
 
 def test_hydrate_sql_escapes_company_name_and_has_no_order_by():

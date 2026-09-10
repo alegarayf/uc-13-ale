@@ -41,6 +41,23 @@ _CURRENT_STATE_OVERVIEW_RE = re.compile(
     re.IGNORECASE,
 )
 
+# GKF kpi.retrieve_headcount_attrition: a "Payroll Build — Summary" phrase
+# tiebreak (0.004, same magnitude as CS) was tried cycle 15 and measured
+# dead — recall_at_10 held at 0.0625 before/after on baseline_2a65186e46d3
+# (top-6 stayed all same-file "Payroll Detail — Summary", not gold). Real
+# sim gap there exceeds what a 0.004 near-tie bonus can close; reverted.
+# See runs/cycle-15/patch-p2-retrieval-combined.md and runs/cycle-15/gate2.md.
+
+# SPG bma.retrieve_revenue_by_location_and_metrics: dashboard gold 84311b20
+# sits ~0.006 below the rank-10 cutoff. CS/GKF 0.004 is too small; diagnose
+# calibrated 0.010 (still < 0.03 sim-lead floor). Dashboard-specific phrases
+# only — not "visits" / "network" / "payroll".
+_DASHBOARD_SECTION_BONUS = 0.010
+_DASHBOARD_SECTION_RE = re.compile(
+    r"\b(new patient visits distribution|shared practices dashboard)\b",
+    re.IGNORECASE,
+)
+
 
 def _default_catalog() -> str:
     return os.environ.get("catalog", "uc13").strip() or "uc13"
@@ -80,7 +97,7 @@ def _tier_weight(priority_tier: int | None) -> float:
 
 
 def _section_tiebreak(chunk) -> float:
-    """Tiny additive bump for current-state service/offering language.
+    """Independent additive bumps for section-language near-ties.
 
     ``_TYPE_ORDER`` cannot break this class of tie: the Clearsulting
     overview golds are mixed vision/text against other vision slides at
@@ -88,13 +105,27 @@ def _section_tiebreak(chunk) -> float:
     scoped signal (Kyriba vision extract is headed as a client name but
     the figure is ``# Core Services``; ``Other Service Lines`` is a
     section title).
+
+    SPG dashboard language is its own additive term, independent magnitude;
+    it must not piggyback on the CS regex, and must survive
+    ``_union_merge_cap`` re-sort (hence baked into ``_merge_score``). SPG
+    also matches ``file_name`` because the dashboard file itself is the
+    scoped signal.
     """
     header = getattr(chunk, "section_header", None) or ""
     text = getattr(chunk, "chunk_text", None) or ""
+    file_name = getattr(chunk, "file_name", None) or ""
     blob = f"{header}\n{text}"
+    bonus = 0.0
     if _CURRENT_STATE_OVERVIEW_RE.search(blob):
-        return _SECTION_TIEBREAK_BONUS
-    return 0.0
+        bonus += _SECTION_TIEBREAK_BONUS
+    # SPG also searches file_name; CS stays header+text so its live pin
+    # ranks are byte-stable against a filename that happens to say
+    # "service lines".
+    extended = f"{blob}\n{file_name}"
+    if _DASHBOARD_SECTION_RE.search(extended):
+        bonus += _DASHBOARD_SECTION_BONUS
+    return bonus
 
 
 def _merge_score(chunk, score_map: dict[str, float]) -> float:
@@ -104,10 +135,11 @@ def _merge_score(chunk, score_map: dict[str, float]) -> float:
     which is what zeroed Elder Care citation_backfill recall_at_10 on
     ``fta.opex.q3_projected_financials`` (F1).
 
-    A second additive term (``_SECTION_TIEBREAK_BONUS``) reorders
-    razor-thin same-tier ties when the chunk names current-state services.
-    It is not a rescale of primary similarity and must not be raised
-    enough to invert a 0.03 sim lead.
+    Additional additive terms from ``_section_tiebreak`` reorder
+    razor-thin same-tier ties for CS current-state services (0.004)
+    and SPG dashboard sections (0.010). None is a rescale of primary
+    similarity; none may invert a 0.03 sim lead (0.010 is still well
+    under that floor).
     """
     sim = score_map.get(chunk.chunk_id, 0.0)
     return sim + _TIER_BONUS * _tier_weight(chunk.priority_tier) + _section_tiebreak(chunk)
