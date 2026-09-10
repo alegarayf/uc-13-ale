@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 26)
+
+- patch-cycle-26 (retrieval, Clearsulting): harness-time CS-only override on `fta.revenue.q4_customer_concentration_fallback` (shared Ajax `query:` unchanged). Complete hash-no `enhancement_f0be058ba1ff`: fallback r@10 0→1.0, CIM golds in-pool ranks 2–4. Blended exam 0.129→0.163. Closed `clearsulting:global:q4_fallback_zero_after_c15_remint`. Do not treat subset `gate_pass` as §4a.
+- patch-cycle-26 (retrieval, Infinitive sidecar): 122 W3 KPI citation aliases in `kpi_claim_intent_map.yaml`. First complete sidecar `baseline_bc8f56c5f04b` (42 eval / 23 zero / mean 0.088). Do not average into incumbent-4.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-09
 
 - patch-cycle-10 (retrieval, Clearsulting): KPI walker skips claim-less overlay `source_doc` (`skip_claimless=True` on the kpi branch only). Bootstrap job `695737618607096` succeeded; new complete harness `baseline_4b2621ee867e`. Healthcare `filename_closure` intents left the gated set (37→30 evaluated). Do not treat 8/30 as beating 22/37.

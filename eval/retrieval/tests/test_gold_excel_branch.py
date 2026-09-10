@@ -551,6 +551,43 @@ _EC_LIVE_CLAIMS_CYCLE9: tuple[tuple[str, str], ...] = (
     ("healthcare_kpis.site_level_visibility_note", "kpi.retrieve_healthcare_ops"),
 )
 
+# Cycle-26 W3 live citation aliases (packet-named blockers + Infinitive warehouse walk).
+_W3_LIVE_CLAIMS_CYCLE26: tuple[tuple[str, str], ...] = (
+    (
+        "average_bill_rate_dollars (2025 total)",
+        "kpi.retrieve_bill_rates_and_margins",
+    ),
+    (
+        "delivery_capacity_note (headcount by level)",
+        "kpi.retrieve_headcount_attrition",
+    ),
+    ("utilization_rate_pct", "kpi.retrieve_bench_and_capacity"),
+    ("tech_services_kpis.bookings_stated", "kpi.retrieve_pipeline_backlog"),
+    (
+        "tech_services_kpis.delivery_geography_note",
+        "kpi.retrieve_bench_and_capacity",
+    ),
+    (
+        "account_lead_comp_plan — billability factor",
+        "kpi.retrieve_bench_and_capacity",
+    ),
+    (
+        "average_bill_rate_dollars — T&M 2025",
+        "kpi.retrieve_bill_rates_and_margins",
+    ),
+    (
+        "pipeline_vs_capacity_note — booked backlog as of 03/31/26",
+        "kpi.retrieve_pipeline_backlog",
+    ),
+    ("contractor_workforce_presence", "kpi.retrieve_headcount_attrition"),
+    ("delivery_capacity_note", "kpi.retrieve_headcount_attrition"),
+    (
+        "tech_services_kpis.bookings_stated (subscription booked)",
+        "kpi.retrieve_pipeline_backlog",
+    ),
+    ("utilization_rate_pct (target)", "kpi.retrieve_bench_and_capacity"),
+)
+
 
 @pytest.mark.parametrize(("claim", "intent_id"), _GKF_WAREHOUSE_CLAIMS)
 def test_gkf_warehouse_claims_resolve(claim: str, intent_id: str):
@@ -584,6 +621,12 @@ def test_spg_live_claims_cycle9_resolve(claim: str, intent_id: str):
 
 @pytest.mark.parametrize(("claim", "intent_id"), _EC_LIVE_CLAIMS_CYCLE9)
 def test_ec_live_claims_cycle9_resolve(claim: str, intent_id: str):
+    claim_map, _ = load_kpi_claim_intent_map()
+    assert claim_map[claim] == intent_id
+
+
+@pytest.mark.parametrize(("claim", "intent_id"), _W3_LIVE_CLAIMS_CYCLE26)
+def test_w3_live_claims_cycle26_resolve(claim: str, intent_id: str):
     claim_map, _ = load_kpi_claim_intent_map()
     assert claim_map[claim] == intent_id
 

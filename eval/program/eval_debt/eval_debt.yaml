@@ -438,9 +438,13 @@ debts:
   layer: retrieval
   kind: q4_fallback_zero_after_c15_remint
   opened_at: '2026-09-10'
+  closed_at: '2026-09-10'
   evidence_refs:
   - baseline_1357f7981d11
   - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-15/gate2.md
+  closed_evidence_refs:
+  - enhancement_f0be058ba1ff
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-26/gate2.md
   closes_when: >-
     fta.revenue.q4_customer_concentration_fallback recall_at_10 > 0 on a complete
     harness run versus baseline_1357f7981d11 (or successor), with CIM gold

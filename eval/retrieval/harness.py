@@ -13,7 +13,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from eval.retrieval.companies import require_folded_company_slug
+from eval.retrieval.companies import (
+    UnnormalizableCompanySlugError,
+    canonical_company_slug,
+    require_folded_company_slug,
+)
 from eval.retrieval.errors import (
     BaselineInvalidError,
     CoverageError,
@@ -146,12 +150,51 @@ def uses_fallback_wrapper(intent: RetrievalIntent) -> bool:
     return bool(intent.file_name_filter)
 
 
+# Clearsulting-only q4 fallback override (cycle 26). Shared Ajax/tuition
+# registry query stays byte-identical (D11). Hash-no: harness-time only.
+CS_Q4_FALLBACK_INTENT_ID = "fta.revenue.q4_customer_concentration_fallback"
+CS_Q4_FALLBACK_QUERY = (
+    "customer concentration top customers revenue by customer largest customers "
+    "customer mix payor mix client revenue key customers top 10 customers "
+    "customer revenue breakdown revenue by payor revenue by client"
+)
+CS_Q4_FALLBACK_FILE_NAME_FILTER = ("CIM",)
+
+
+def apply_company_intent_overrides(
+    intent: RetrievalIntent,
+    *,
+    company_name: str,
+) -> RetrievalIntent:
+    """Apply company-scoped query/filter overrides without mutating the registry.
+
+    Clearsulting q4 fallback uses the proven primary-q4 CIM neighborhood so
+    golds e22211ae / 5f569542 / 96db4e1f can enter the top_k*3 window.
+    GKF and SPG keep the shared Ajax/tuition registry text.
+    """
+    if intent.intent_id != CS_Q4_FALLBACK_INTENT_ID:
+        return intent
+    try:
+        slug = canonical_company_slug(company_name)
+    except (TypeError, UnnormalizableCompanySlugError):
+        return intent
+    if slug != "clearsulting":
+        return intent
+    return intent.model_copy(
+        update={
+            "query": CS_Q4_FALLBACK_QUERY,
+            "file_name_filter": list(CS_Q4_FALLBACK_FILE_NAME_FILTER),
+        }
+    )
+
+
 def build_search_kwargs(
     intent: RetrievalIntent,
     *,
     company_name: str,
     spark: Any,
 ) -> dict[str, Any]:
+    intent = apply_company_intent_overrides(intent, company_name=company_name)
     kwargs: dict[str, Any] = {
         "query": intent.query,
         "spark": spark,
@@ -179,6 +222,7 @@ def _fallback_kwargs_from_intent(
     spark: Any,
 ) -> dict[str, Any]:
     """Kwargs for ``fallback.semantic_search_with_fallback`` — mirrors FTA production path."""
+    intent = apply_company_intent_overrides(intent, company_name=company_name)
     min_results = intent.min_results if intent.min_results is not None else 3
     min_chunk_length = intent.min_chunk_length if intent.min_chunk_length is not None else 150
     kwargs: dict[str, Any] = {
