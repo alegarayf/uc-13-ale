@@ -3,8 +3,13 @@
 Cycle 10 / P2: cqa.retrieve_customer_concentration and profiler.revenue_model
 stay mode=empty on baseline_70342489afec. Gold already passes
 filename/workstream/tier. Query text is the remaining miss — concentration
-needs billing-by-client tokens; revenue_model needs Deel/MSA contract-type
-tokens (Contract filename token is already landed).
+needs billing-by-client tokens.
+
+Cycle 14 / P1: Deel/MSA tokens are nearly absent from revenue_model gold
+body text (deel 3/32, msa 0/32). Rewrite uses gold-body tokens
+(contractor / operating agreement / statement of work). KPI dashboard
+query drops SAMPLE-matching dashboard/scorecard tokens for GL
+spreadsheet / intranet tokens.
 """
 
 from __future__ import annotations
@@ -29,8 +34,13 @@ CONCENTRATION_QUERY = (
     "billing amount summary by client Billing"
 )
 REVENUE_MODEL_QUERY = (
-    "revenue model contract type recurring revenue subscription retainer Deel MSA"
+    "contractor agreement statement of work operating agreement homecare membership LLC"
 )
+KPI_DASHBOARD_INTENT = "kpi.retrieve_kpi_dashboard"
+KPI_DASHBOARD_QUERY = (
+    "GL KPI spreadsheet internal intranet utilization revenue per FTE headcount operating"
+)
+KPI_AGENT_PATH = REPO_ROOT / "databricks" / "agents" / "workstreams" / "kpi_agent.py"
 
 
 def _cqa_concentration_query() -> str:
@@ -63,6 +73,22 @@ def _profiler_revenue_model_query() -> str:
     raise AssertionError("_PROFILING_QUERIES[revenue_model] query not found")
 
 
+def _kpi_dashboard_query() -> str:
+    tree = ast.parse(KPI_AGENT_PATH.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name != "_tool_retrieve_kpi_dashboard":
+            continue
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Call):
+                continue
+            for keyword in child.keywords:
+                if keyword.arg == "query":
+                    return ast.literal_eval(keyword.value)
+    raise AssertionError("_tool_retrieve_kpi_dashboard query not found")
+
+
 def _committed_query(intent_id: str) -> str:
     rows = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
     by_id = {row["intent_id"]: row for row in rows}
@@ -82,12 +108,25 @@ def test_concentration_query_has_billing_by_client_tokens():
     assert "Billing" in query
 
 
-def test_revenue_model_query_has_deel_msa_tokens():
+def test_revenue_model_query_has_gold_body_tokens():
     query = _profiler_revenue_model_query()
     assert query == REVENUE_MODEL_QUERY
-    assert "Deel" in query
-    assert "MSA" in query
+    assert "contractor" in query
+    assert "operating agreement" in query
+    assert "statement of work" in query
+    assert "Deel" not in query
+    assert "MSA" not in query
     assert "Contract" in _committed_file_name_filter(REVENUE_MODEL_INTENT)
+
+
+def test_kpi_dashboard_query_has_gl_spreadsheet_tokens():
+    query = _kpi_dashboard_query()
+    assert query == KPI_DASHBOARD_QUERY
+    assert "GL" in query
+    assert "spreadsheet" in query
+    assert "intranet" in query
+    assert "dashboard" not in query.lower()
+    assert "scorecard" not in query.lower()
 
 
 def test_concentration_agent_registry_extractor_lockstep():
@@ -98,6 +137,11 @@ def test_concentration_agent_registry_extractor_lockstep():
 def test_revenue_model_profiler_registry_extractor_lockstep():
     assert _profiler_revenue_model_query() == _committed_query(REVENUE_MODEL_INTENT)
     assert _committed_query(REVENUE_MODEL_INTENT) == _live_query(REVENUE_MODEL_INTENT)
+
+
+def test_kpi_dashboard_agent_registry_extractor_lockstep():
+    assert _kpi_dashboard_query() == _committed_query(KPI_DASHBOARD_INTENT)
+    assert _committed_query(KPI_DASHBOARD_INTENT) == _live_query(KPI_DASHBOARD_INTENT)
 
 
 def _committed_file_name_filter(intent_id: str) -> list[str]:

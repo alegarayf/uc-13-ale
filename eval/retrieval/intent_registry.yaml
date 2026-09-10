@@ -135,12 +135,15 @@
   source_file: databricks/agents/workstreams/business_model_agent.py
   catalog: uc13_ale
   query: clients served active accounts customers by location by market by segment
-    billed hours per client revenue per customer revenue per account utilization per
-    customer sessions per user visits per patient customer count trend quarterly growth
-    by location by geography length of stay customer tenure distribution cohort by
-    duration revenue per location revenue by market adjusted revenue by geography
+    billed hours per client revenue per customer revenue per account utilization
+    per customer sessions per user visits per patient customer count trend quarterly
+    growth by location by geography length of stay customer tenure distribution cohort
+    by duration revenue per location revenue by market adjusted revenue by geography
     revenue CAGR financial highlights headline metrics acquisition pipeline same store
-    revenue organic growth by market revenue goal by location
+    revenue organic growth by market revenue goal by location Shared Practices
+    Dashboard new patient visits distribution within my network locations Corporate
+    Organization Current State leadership team DMV Mike Pesi CEO Ross Flax Ellicott
+    City Academic Director Teachers and Staff
   workstream_filter:
   - BUSINESS_MODEL
   - FINANCIAL
@@ -164,13 +167,9 @@
   agent_id: bma
   source_file: databricks/agents/workstreams/business_model_agent.py
   catalog: uc13_ale
-  query: backlog contracted revenue pipeline forward revenue visibility renewal rate
-    retention MSA SOW retainer recurring revenue customer tenure average tenure length
-    of stay cohort distribution revenue per customer units per client usage per account
-    sessions per user acquisition pipeline M&A targets addressable market revenue
-    goal by market revenue predictability pipeline coverage months weighted pipeline
-    repeat purchase rate retention cohort same store revenue trajectory order backlog
-    booking rate renewal cadence contract coverage
+  query: Clear Strategic Roadmap of Growth Opportunities Project Ajax revenue target
+    86.6 million 2030 24 schools historical projected revenue PF Adj EBITDA School
+    Financial Performance BALANCE SHEET SUMMARY
   workstream_filter:
   - BUSINESS_MODEL
   - FINANCIAL
@@ -682,9 +681,8 @@
   agent_id: fta.revenue
   source_file: databricks/agents/subagents/workstream/financial/revenue_sub_agent.py
   catalog: uc13_ale
-  query: top customers revenue by customer customer concentration sales by customer
-    client revenue largest customers QuickBooks customer summary revenue concentration
-    payor concentration revenue by client top 10 customers
+  query: Project Ajax Financial Due Diligence Databook Location Analysis Revenue
+    Detail Combined FY23 tuition by school enrollment
   workstream_filter:
   - FINANCIAL
   - BUSINESS_MODEL
@@ -698,6 +696,10 @@
   - Client
   - Payor
   - Revenue
+  - Databook
+  - CIM
+  - Ajax
+  - Model
   top_k: 6
   min_chunk_length: 80
   min_results: 2
@@ -803,8 +805,8 @@
   agent_id: kpi
   source_file: databricks/agents/workstreams/kpi_agent.py
   catalog: uc13_ale
-  query: headcount full time employees FTE attrition turnover rate hiring plan revenue
-    per employee
+  query: Employee Retention Analysis Staff beginning of Year Hires Terminations Staff
+    at End of Year Employee Count Payroll Build Project Ajax Model vE
   workstream_filter:
   - KPI_OPS
   - FINANCIAL
@@ -883,7 +885,7 @@
   agent_id: kpi
   source_file: databricks/agents/workstreams/kpi_agent.py
   catalog: uc13_ale
-  query: KPI dashboard metrics scorecard utilization revenue per FTE headcount operating
+  query: GL KPI spreadsheet internal intranet utilization revenue per FTE headcount operating
   workstream_filter:
   - KPI_OPS
   file_name_filter:
@@ -1133,7 +1135,7 @@
   agent_id: profiler
   source_file: databricks/jobs/scripts/company_profiler.py
   catalog: uc13_ale
-  query: revenue model contract type recurring revenue subscription retainer Deel MSA
+  query: contractor agreement statement of work operating agreement homecare membership LLC
   workstream_filter:
   - BUSINESS_MODEL
   file_name_filter:

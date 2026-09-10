@@ -259,9 +259,11 @@ def _profiler_intents(source_file: str) -> list[RetrievalIntent]:
             ["BUSINESS_MODEL"],
         ),
         "revenue_model": (
-            "revenue model contract type recurring revenue subscription retainer Deel MSA",
+            "contractor agreement statement of work operating agreement homecare membership LLC",
             # Memorandum = production profiler token. Contract matches Elder Care
             # gold filename Deel Contract_SAMPLE.pdf (no CIM/Overview substring).
+            # Query uses gold-body tokens (contractor / operating agreement / SOW);
+            # Deel/MSA are nearly absent from gold chunk_text (cycle-14 diagnose F2).
             ["CIM", "Memorandum", "Business", "Overview", "Summary", "Profile", "Contract"],
             ["BUSINESS_MODEL"],
         ),

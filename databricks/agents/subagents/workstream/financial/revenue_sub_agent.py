@@ -270,13 +270,13 @@ class RevenueSubAgent:
             result, _ = semantic_search_with_fallback(
                 company_name=company_name, spark=spark,
                 query=(
-                    "top customers revenue by customer customer concentration sales by customer "
-                    "client revenue largest customers QuickBooks customer summary "
-                    "revenue concentration payor concentration revenue by client top 10 customers"
+                    "Project Ajax Financial Due Diligence Databook Location Analysis Revenue "
+                    "Detail Combined FY23 tuition by school enrollment"
                 ),
                 workstream_filter=["FINANCIAL", "BUSINESS_MODEL", "CUSTOMER_QUALITY"],
                 top_k=6,
-                file_name_filter=["Customer", "QuickBooks", "QBO", "Sales", "Concentration", "Client", "Payor", "Revenue"],
+                file_name_filter=["Customer", "QuickBooks", "QBO", "Sales", "Concentration", "Client", "Payor", "Revenue",
+                                  "Databook", "CIM", "Ajax", "Model"],
                 min_chunk_length=80, min_results=2,
                 source_type_priority=True,
                 intent_id="fta.revenue.q4_customer_concentration_fallback",

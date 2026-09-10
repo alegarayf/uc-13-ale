@@ -380,7 +380,7 @@ class KPIAgent(WorkstreamAgent):
     def _tool_retrieve_kpi_dashboard(self, spark):
         from agents.shared.retrieval import semantic_search
         chunks = semantic_search(
-            query="KPI dashboard metrics scorecard utilization revenue per FTE headcount operating",
+            query="GL KPI spreadsheet internal intranet utilization revenue per FTE headcount operating",
             spark=spark,
             company_name=self._company_name,
             top_k=12,
@@ -392,7 +392,7 @@ class KPIAgent(WorkstreamAgent):
         confidence = "high" if chunks else "low"
         return self._tool_call(
             tool_name="retrieve_kpi_dashboard",
-            input_summary="semantic search: KPI dashboard metrics scorecard utilization revenue per FTE headcount operating",
+            input_summary="semantic search: GL KPI spreadsheet internal intranet utilization revenue per FTE headcount operating",
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
             confidence=confidence,
@@ -465,7 +465,7 @@ class KPIAgent(WorkstreamAgent):
     def _tool_retrieve_headcount_attrition(self, spark):
         from agents.shared.retrieval import semantic_search
         chunks = semantic_search(
-            query="headcount full time employees FTE attrition turnover rate hiring plan revenue per employee",
+            query="Employee Retention Analysis Staff beginning of Year Hires Terminations Staff at End of Year Employee Count Payroll Build Project Ajax Model vE",
             spark=spark,
             company_name=self._company_name,
             top_k=6,
@@ -476,7 +476,7 @@ class KPIAgent(WorkstreamAgent):
         confidence = "high" if chunks else "low"
         return self._tool_call(
             tool_name="retrieve_headcount_attrition",
-            input_summary="semantic search: headcount full time employees FTE attrition turnover rate hiring plan revenue per employee",
+            input_summary="semantic search: Employee Retention Analysis Staff beginning of Year Hires Terminations Staff at End of Year Employee Count Payroll Build Project Ajax Model vE",
             data=chunks,
             output_summary=f"{len(chunks)} chunks returned from {len(source_docs)} files",
             confidence=confidence,

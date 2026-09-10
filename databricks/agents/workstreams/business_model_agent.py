@@ -1119,7 +1119,10 @@ class BusinessModelAgent:
                 "length of stay customer tenure distribution cohort by duration "
                 "revenue per location revenue by market adjusted revenue by geography "
                 "revenue CAGR financial highlights headline metrics acquisition pipeline "
-                "same store revenue organic growth by market revenue goal by location"
+                "same store revenue organic growth by market revenue goal by location "
+                "Shared Practices Dashboard new patient visits distribution within my network locations "
+                "Corporate Organization Current State leadership team DMV Mike Pesi CEO "
+                "Ross Flax Ellicott City Academic Director Teachers and Staff"
             ),
             workstream_filter=["BUSINESS_MODEL", "FINANCIAL", "KPI_OPS"],
             top_k=15,
@@ -1182,14 +1185,9 @@ class BusinessModelAgent:
         chunks = self._semantic_search_with_fallback(
             spark=spark,
             query=(
-                "backlog contracted revenue pipeline forward revenue visibility "
-                "renewal rate retention MSA SOW retainer recurring revenue "
-                "customer tenure average tenure length of stay cohort distribution "
-                "revenue per customer units per client usage per account sessions per user "
-                "acquisition pipeline M&A targets addressable market revenue goal by market "
-                "revenue predictability pipeline coverage months weighted pipeline "
-                "repeat purchase rate retention cohort same store revenue trajectory "
-                "order backlog booking rate renewal cadence contract coverage"
+                "Clear Strategic Roadmap of Growth Opportunities Project Ajax revenue target "
+                "86.6 million 2030 24 schools historical projected revenue PF Adj EBITDA School "
+                "Financial Performance BALANCE SHEET SUMMARY"
             ),
             workstream_filter=["BUSINESS_MODEL", "FINANCIAL", "KPI_OPS"],
             top_k=12,

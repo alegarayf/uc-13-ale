@@ -40,6 +40,7 @@ if "mlflow" not in sys.modules:
     sys.modules["mlflow.deployments"] = deployments_mod
 
 from agents.shared.retrieval import (  # noqa: E402
+    _SECTION_TIEBREAK_BONUS,
     _TIER_BONUS,
     _build_vs_filters_dict,
     _default_catalog,
@@ -50,6 +51,7 @@ from agents.shared.retrieval import (  # noqa: E402
     _keyword_fallback_sql,
     _merge_score,
     _query_vector_index,
+    _section_tiebreak,
     _sort_by_merge_rank,
     _sort_by_sim_only,
     _sort_by_tier_only,
@@ -67,12 +69,19 @@ from eval.retrieval.provenance import ProvenanceEmitter  # noqa: E402
 from eval.retrieval.store import SqliteEvalStore  # noqa: E402
 
 
-def _row(*, chunk_id: str, priority_tier: int = 2, source_type: str = "text"):
+def _row(
+    *,
+    chunk_id: str,
+    priority_tier: int = 2,
+    source_type: str = "text",
+    section_header: str = "Revenue",
+    chunk_text: str | None = None,
+):
     return SimpleNamespace(
         chunk_id=chunk_id,
         file_name=f"{chunk_id}.pdf",
-        chunk_text="A" * 120,
-        section_header="Revenue",
+        chunk_text=("A" * 120) if chunk_text is None else chunk_text,
+        section_header=section_header,
         page_start=1,
         source_type=source_type,
         workstream=["FINANCIAL"],
@@ -146,6 +155,85 @@ def test_merge_rank_falls_back_to_tier_when_no_scores():
     chunks = [_row(chunk_id="b", priority_tier=2), _row(chunk_id="a", priority_tier=1)]
     ranked = _sort_by_merge_rank(chunks, {})
     assert [c.chunk_id for c in ranked] == ["a", "b"]
+
+
+def test_section_tiebreak_promotes_near_tied_service_overview_over_growth():
+    """Clearsulting P2: gold Kyriba (vision, headed as a client but body is
+    Core Services) and Other Service Lines sit 0.001–0.003 below the rank-10
+    Overview of Growth Opportunity cutoff. ``_TYPE_ORDER`` cannot help
+    (vision vs vision; text would lose). A 0.004 current-state bonus must
+    lift both into eval_k=10 without inverting a 0.03 sim lead.
+    """
+    growth_cutoff = _row(
+        chunk_id="31b3d603",
+        priority_tier=1,
+        source_type="vision",
+        section_header="Overview of Growth Opportunity",
+        chunk_text="Growth Opportunities: Account Ownership | SAP Partnership | Geo. Expansion",
+    )
+    kyriba = _row(
+        chunk_id="7b76f634",
+        priority_tier=1,
+        source_type="vision",
+        section_header="Kyriba",
+        chunk_text="# Core Services\n**1 - Financial Close** FY24 Revenue: $26M",
+    )
+    osl = _row(
+        chunk_id="ce839bfb",
+        priority_tier=1,
+        source_type="text",
+        section_header="Other Service Lines",
+        chunk_text="Clearsulting services focus on business process first",
+    )
+    neighbors = [
+        _row(
+            chunk_id=f"growth_{i}",
+            priority_tier=1,
+            source_type="vision",
+            section_header="Overview of Growth Opportunity",
+            chunk_text="Growth Opportunities: Account Ownership | SAP Partnership",
+        )
+        for i in range(8)
+    ]
+    # Live pin band: cutoff sim 0.5999, Kyriba 0.5988, OSL 0.5974 (all tier 1).
+    score_map = {
+        "31b3d603": 0.5998854,
+        "7b76f634": 0.598755,
+        "ce839bfb": 0.5973552,
+    }
+    for i, n in enumerate(neighbors):
+        score_map[n.chunk_id] = 0.61234723 - i * 0.0015
+    ranked = _sort_by_merge_rank([*neighbors, growth_cutoff, kyriba, osl], score_map)
+    top10 = [c.chunk_id for c in ranked[:10]]
+    assert "7b76f634" in top10
+    assert "ce839bfb" in top10
+    assert _section_tiebreak(kyriba) == _SECTION_TIEBREAK_BONUS
+    assert _section_tiebreak(osl) == _SECTION_TIEBREAK_BONUS
+    assert _section_tiebreak(growth_cutoff) == 0.0
+    # Bonus is smaller than the 0.03 sim-lead floor.
+    assert _SECTION_TIEBREAK_BONUS < 0.03
+    assert _SECTION_TIEBREAK_BONUS > 0.0026
+
+
+def test_section_tiebreak_does_not_invert_003_similarity_lead():
+    """Merge-decisions: a section bump must not invert a ≥~0.03 sim lead."""
+    growth_lead = _row(
+        chunk_id="growth_lead",
+        priority_tier=1,
+        source_type="vision",
+        section_header="Overview of Growth Opportunity",
+        chunk_text="Growth Opportunities: Account Ownership",
+    )
+    services = _row(
+        chunk_id="services",
+        priority_tier=1,
+        source_type="text",
+        section_header="Other Service Lines",
+        chunk_text="# Core Services",
+    )
+    score_map = {"growth_lead": 0.63, "services": 0.60}
+    ranked = _sort_by_merge_rank([services, growth_lead], score_map)
+    assert [c.chunk_id for c in ranked] == ["growth_lead", "services"]
 
 
 def test_hydrate_sql_escapes_company_name_and_has_no_order_by():

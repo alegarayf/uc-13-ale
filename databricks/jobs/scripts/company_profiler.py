@@ -147,7 +147,7 @@ _PROFILING_QUERIES: dict[str, tuple[str, list[str], list[str]]] = {
         ["BUSINESS_MODEL"],
     ),
     "revenue_model": (
-        "revenue model contract type recurring revenue subscription retainer Deel MSA",
+        "contractor agreement statement of work operating agreement homecare membership LLC",
         ["CIM", "Memorandum", "Business", "Overview", "Summary", "Profile"],
         ["BUSINESS_MODEL"],
     ),

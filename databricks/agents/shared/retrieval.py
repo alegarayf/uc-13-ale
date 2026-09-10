@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Literal
 
 from databricks.sdk import WorkspaceClient
@@ -28,6 +29,17 @@ _TIER_BONUS = 0.05
 
 # R-09: canonical source-type sort order (shared with context_utils.py)
 _TYPE_ORDER = {"table": 0, "vision": 1, "text": 2}
+
+# Near-tie section signal for current-state overview language (service mix /
+# service lines). Must stay well below the 0.03 sim-lead floor that additive
+# tier is capped against — this only reorders ~0.001–0.003 VS ties.
+# Baked into merge-score (not a Python-only sort key) so with_fallback's
+# score-based `_union_merge_cap` cannot undo it. Do not raise `_TIER_BONUS`.
+_SECTION_TIEBREAK_BONUS = 0.004
+_CURRENT_STATE_OVERVIEW_RE = re.compile(
+    r"\b(core services|service lines?|product lines?|service offering)\b",
+    re.IGNORECASE,
+)
 
 
 def _default_catalog() -> str:
@@ -67,15 +79,38 @@ def _tier_weight(priority_tier: int | None) -> float:
     return _TIER_WEIGHT.get(priority_tier, _DEFAULT_TIER_WEIGHT)
 
 
+def _section_tiebreak(chunk) -> float:
+    """Tiny additive bump for current-state service/offering language.
+
+    ``_TYPE_ORDER`` cannot break this class of tie: the Clearsulting
+    overview golds are mixed vision/text against other vision slides at
+    the same tier. Phrase match on section_header or chunk_text is the
+    scoped signal (Kyriba vision extract is headed as a client name but
+    the figure is ``# Core Services``; ``Other Service Lines`` is a
+    section title).
+    """
+    header = getattr(chunk, "section_header", None) or ""
+    text = getattr(chunk, "chunk_text", None) or ""
+    blob = f"{header}\n{text}"
+    if _CURRENT_STATE_OVERVIEW_RE.search(blob):
+        return _SECTION_TIEBREAK_BONUS
+    return 0.0
+
+
 def _merge_score(chunk, score_map: dict[str, float]) -> float:
     """Similarity-primary merge rank with a small additive tier bonus.
 
     Tier remains a tie-break (B-W4) but cannot invert a ≥0.03 similarity gap,
     which is what zeroed Elder Care citation_backfill recall_at_10 on
     ``fta.opex.q3_projected_financials`` (F1).
+
+    A second additive term (``_SECTION_TIEBREAK_BONUS``) reorders
+    razor-thin same-tier ties when the chunk names current-state services.
+    It is not a rescale of primary similarity and must not be raised
+    enough to invert a 0.03 sim lead.
     """
     sim = score_map.get(chunk.chunk_id, 0.0)
-    return sim + _TIER_BONUS * _tier_weight(chunk.priority_tier)
+    return sim + _TIER_BONUS * _tier_weight(chunk.priority_tier) + _section_tiebreak(chunk)
 
 
 def _sort_by_merge_rank(chunks: list, score_map: dict[str, float]) -> list:
