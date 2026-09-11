@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 41)
+
+- patch-cycle-41 (retrieval, Solvd): company-scoped `harness.py` BMA trio override (CIM filename, skip fallback) moved leftover gold in-pool (visibility 0→0.667 / overview 0→0.50). Overlay `enhancement_66ea41d6f4b8` vs exam `baseline_3ae4a4591d8d`. Closed q2/q3/contract 1.0 and concentration 0.25 held. Model_changes stayed 0 (gold at rank 11). Blended Solvd mean 0.145→0.169. Shared registry strings unchanged (D11). Not §4a.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 40)
 
 - patch-cycle-40 (retrieval, Stride): company-scoped `harness.py` revenue_type override (12.1 / Embedded Relationships; skip fallback) moved leftover gold in-pool (0→1.0). Overlay `enhancement_d3b17e48cdd1` vs exam `baseline_9e06ef3c2527`. F1–F3 held. Blended Stride mean 0.113→0.131. Shared registry strings unchanged (D11). Not §4a.

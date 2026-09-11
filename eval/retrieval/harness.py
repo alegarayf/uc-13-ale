@@ -462,6 +462,36 @@ SOLVD_CONTRACT_QUERY = (
 SOLVD_CONTRACT_FILE_NAME_FILTER = ("CIM",)
 SOLVD_CONTRACT_WORKSTREAM_FILTER = ("BUSINESS_MODEL",)
 
+# Cycle-41: Solvd-only BMA trio. Shared BMA registry query: stays
+# byte-identical (D11 Ajax / 24 schools / 86.6 million). Hash-no:
+# harness-time only. D29 live CIM tokens: Revenue Retention /
+# Managed Services Client; Subscription-First Economic; AI-Native
+# Operating MODEL / Executive Leadership. file_name_filter=("CIM",)
+# is the analog of closed q2/q3. workstream_filter=None — skip
+# semantic_search_with_fallback (D35) so CIM never drops (cycle-38
+# CIP death / Inf overview T-M). Keep q2/q3/concentration/contract
+# byte-intact. Do not destack. Do not invent leftover-zero ranking.
+SOLVD_VISIBILITY_INTENT_ID = CS_VISIBILITY_INTENT_ID
+SOLVD_VISIBILITY_QUERY = (
+    "Revenue Retention Managed Services Client AI-Native Operating MODEL "
+    "historical projected revenue contracted bookings visibility"
+)
+SOLVD_VISIBILITY_FILE_NAME_FILTER = ("CIM",)
+
+SOLVD_OVERVIEW_INTENT_ID = INF_OVERVIEW_INTENT_ID
+SOLVD_OVERVIEW_QUERY = (
+    "Subscription-First Economic subscription-based fixed monthly pricing "
+    "business overview revenue streams what the company sells"
+)
+SOLVD_OVERVIEW_FILE_NAME_FILTER = ("CIM",)
+
+SOLVD_MODEL_CHANGES_INTENT_ID = "bma.retrieve_model_changes_and_dependencies"
+SOLVD_MODEL_CHANGES_QUERY = (
+    "AI-Native Operating MODEL Executive Leadership Subscription-First "
+    "Economic business model change recent initiative"
+)
+SOLVD_MODEL_CHANGES_FILE_NAME_FILTER = ("CIM",)
+
 
 def apply_company_intent_overrides(
     intent: RetrievalIntent,
@@ -731,6 +761,30 @@ def apply_company_intent_overrides(
                     "workstream_filter": list(SOLVD_CONTRACT_WORKSTREAM_FILTER),
                 }
             )
+        if intent.intent_id == SOLVD_VISIBILITY_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SOLVD_VISIBILITY_QUERY,
+                    "file_name_filter": list(SOLVD_VISIBILITY_FILE_NAME_FILTER),
+                    "workstream_filter": None,
+                }
+            )
+        if intent.intent_id == SOLVD_OVERVIEW_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SOLVD_OVERVIEW_QUERY,
+                    "file_name_filter": list(SOLVD_OVERVIEW_FILE_NAME_FILTER),
+                    "workstream_filter": None,
+                }
+            )
+        if intent.intent_id == SOLVD_MODEL_CHANGES_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SOLVD_MODEL_CHANGES_QUERY,
+                    "file_name_filter": list(SOLVD_MODEL_CHANGES_FILE_NAME_FILTER),
+                    "workstream_filter": None,
+                }
+            )
         return intent
     return intent
 
@@ -806,6 +860,18 @@ def _is_stride_revenue_type(intent: RetrievalIntent, company_name: str) -> bool:
     return slug == "stride" and intent.intent_id == STRIDE_REVENUE_TYPE_INTENT_ID
 
 
+def _is_solvd_bma_trio(intent: RetrievalIntent, company_name: str) -> bool:
+    try:
+        slug = canonical_company_slug(company_name)
+    except (TypeError, UnnormalizableCompanySlugError):
+        return False
+    return slug == "solvd" and intent.intent_id in {
+        SOLVD_VISIBILITY_INTENT_ID,
+        SOLVD_OVERVIEW_INTENT_ID,
+        SOLVD_MODEL_CHANGES_INTENT_ID,
+    }
+
+
 def dispatch_retrieval(
     intent: RetrievalIntent,
     *,
@@ -851,6 +917,15 @@ def dispatch_retrieval(
                 }
             )
         return result
+
+    # Solvd BMA trio: CIM only. Never drop filename — shared fallback
+    # unions / drops CIM and floods Pipeline / Databook (cycle-38 CIP
+    # death). workstream_filter=None so D35 skip is mandatory. Closed
+    # q2/q3/CQA stay on the shared fallback path.
+    if _is_solvd_bma_trio(intent, company_name):
+        if merge_rank_mode is not None:
+            kwargs["merge_rank_mode"] = merge_rank_mode
+        return semantic_search(**kwargs)
 
     if uses_fallback_wrapper(intent):
         min_results = intent.min_results if intent.min_results is not None else 3

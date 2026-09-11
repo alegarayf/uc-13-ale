@@ -85,12 +85,21 @@ from eval.retrieval.harness import (
     SOLVD_CONTRACT_INTENT_ID,
     SOLVD_CONTRACT_QUERY,
     SOLVD_CONTRACT_WORKSTREAM_FILTER,
+    SOLVD_MODEL_CHANGES_FILE_NAME_FILTER,
+    SOLVD_MODEL_CHANGES_INTENT_ID,
+    SOLVD_MODEL_CHANGES_QUERY,
+    SOLVD_OVERVIEW_FILE_NAME_FILTER,
+    SOLVD_OVERVIEW_INTENT_ID,
+    SOLVD_OVERVIEW_QUERY,
     SOLVD_Q2_FILE_NAME_FILTER,
     SOLVD_Q2_INTENT_ID,
     SOLVD_Q2_QUERY,
     SOLVD_Q3_FILE_NAME_FILTER,
     SOLVD_Q3_INTENT_ID,
     SOLVD_Q3_QUERY,
+    SOLVD_VISIBILITY_FILE_NAME_FILTER,
+    SOLVD_VISIBILITY_INTENT_ID,
+    SOLVD_VISIBILITY_QUERY,
     STRIDE_CONCENTRATION_INTENT_ID,
     STRIDE_CONCENTRATION_WORKSTREAM_FILTER,
     STRIDE_CQA_FILE_NAME_FILTER,
@@ -388,6 +397,28 @@ SHARED_REVENUE_TYPE_WORKSTREAM_FILTER = [
     "FINANCIAL",
 ]
 
+SHARED_MODEL_CHANGES_QUERY = (
+    "business model change pricing change go to market change recent initiative "
+    "ERP CRM EMR payroll HR software scheduling platform technology system outsourcing "
+    "offshore remote team global staffing third-party operations acquisition M&A history "
+    "strategic initiative timeline milestones launched expanded hired opened acquired "
+    "transitioned implemented automated key dependency concentration risk single vendor "
+    "platform tool new product new service new geography new channel new pricing model "
+    "digital transformation process improvement technology adoption"
+)
+SHARED_MODEL_CHANGES_FILE_NAME_FILTER = [
+    "CIM",
+    "Overview",
+    "Timeline",
+    "History",
+    "OM",
+    "Strategy",
+    "Presentation",
+    "Management",
+    "Deck",
+]
+SHARED_MODEL_CHANGES_WORKSTREAM_FILTER = ["BUSINESS_MODEL", "KPI_OPS"]
+
 SHARED_ACCOUNT_SIZE_QUERY = (
     "average account size ACV annual contract value revenue per customer SMB enterprise"
 )
@@ -409,6 +440,7 @@ REGISTRY_LOCKSTEP = (
     (SHERPA_QOFE_INTENT_ID, SHARED_QOFE_QUERY, SHARED_QOFE_FILE_NAME_FILTER),
     (SOLVD_Q2_INTENT_ID, SHARED_Q2_QUERY, SHARED_Q2_FILE_NAME_FILTER),
     (SOLVD_CONTRACT_INTENT_ID, SHARED_CONTRACT_QUERY, SHARED_CONTRACT_FILE_NAME_FILTER),
+    (SOLVD_MODEL_CHANGES_INTENT_ID, SHARED_MODEL_CHANGES_QUERY, SHARED_MODEL_CHANGES_FILE_NAME_FILTER),
 )
 
 
@@ -778,6 +810,79 @@ def test_solvd_gets_q2_q3_and_cqa_overrides():
     assert {"Contract", "MSA", "Legal", "Customer"}.isdisjoint(contract.file_name_filter)
 
 
+def test_solvd_gets_bma_trio_overrides():
+    live = _by_id()
+    vis = apply_company_intent_overrides(
+        live[SOLVD_VISIBILITY_INTENT_ID], company_name="Solvd"
+    )
+    assert vis is not live[SOLVD_VISIBILITY_INTENT_ID]
+    assert vis.query == SOLVD_VISIBILITY_QUERY
+    assert list(vis.file_name_filter) == list(SOLVD_VISIBILITY_FILE_NAME_FILTER)
+    assert vis.file_name_filter == ["CIM"]
+    assert vis.workstream_filter is None
+    assert "Revenue Retention" in vis.query
+    assert "Managed Services Client" in vis.query
+    assert "AI-Native Operating MODEL" in vis.query
+    assert "Ajax" not in vis.query
+    assert "24 schools" not in vis.query
+    assert "86.6 million" not in vis.query
+    assert "Pipeline" not in vis.file_name_filter
+    assert live[SOLVD_VISIBILITY_INTENT_ID].query == SHARED_VISIBILITY_QUERY
+    assert "Ajax" in live[SOLVD_VISIBILITY_INTENT_ID].query
+    assert "24 schools" in live[SOLVD_VISIBILITY_INTENT_ID].query
+
+    overview = apply_company_intent_overrides(
+        live[SOLVD_OVERVIEW_INTENT_ID], company_name="Solvd"
+    )
+    assert overview is not live[SOLVD_OVERVIEW_INTENT_ID]
+    assert overview.query == SOLVD_OVERVIEW_QUERY
+    assert list(overview.file_name_filter) == list(SOLVD_OVERVIEW_FILE_NAME_FILTER)
+    assert overview.file_name_filter == ["CIM"]
+    assert overview.workstream_filter is None
+    assert "Subscription-First Economic" in overview.query
+    assert "BUSINESS_MODEL" not in (overview.workstream_filter or [])
+    assert "Offering" not in overview.file_name_filter
+    assert live[SOLVD_OVERVIEW_INTENT_ID].query == SHARED_OVERVIEW_QUERY
+    assert list(live[SOLVD_OVERVIEW_INTENT_ID].workstream_filter) == (
+        SHARED_OVERVIEW_WORKSTREAM_FILTER
+    )
+
+    model = apply_company_intent_overrides(
+        live[SOLVD_MODEL_CHANGES_INTENT_ID], company_name="Solvd"
+    )
+    assert model is not live[SOLVD_MODEL_CHANGES_INTENT_ID]
+    assert model.query == SOLVD_MODEL_CHANGES_QUERY
+    assert list(model.file_name_filter) == list(SOLVD_MODEL_CHANGES_FILE_NAME_FILTER)
+    assert model.file_name_filter == ["CIM"]
+    assert model.workstream_filter is None
+    assert "AI-Native Operating MODEL" in model.query
+    assert "Executive Leadership" in model.query
+    assert "Ajax" not in model.query
+    assert live[SOLVD_MODEL_CHANGES_INTENT_ID].query == SHARED_MODEL_CHANGES_QUERY
+    assert list(live[SOLVD_MODEL_CHANGES_INTENT_ID].workstream_filter) == (
+        SHARED_MODEL_CHANGES_WORKSTREAM_FILTER
+    )
+
+    q2 = apply_company_intent_overrides(
+        live[SOLVD_Q2_INTENT_ID], company_name="Solvd"
+    )
+    assert q2.query == SOLVD_Q2_QUERY
+    assert list(q2.file_name_filter) == list(SOLVD_Q2_FILE_NAME_FILTER)
+    q3 = apply_company_intent_overrides(
+        live[SOLVD_Q3_INTENT_ID], company_name="Solvd"
+    )
+    assert q3.query == SOLVD_Q3_QUERY
+    conc = apply_company_intent_overrides(
+        live[SOLVD_CONCENTRATION_INTENT_ID], company_name="Solvd"
+    )
+    assert conc.query == SOLVD_CONCENTRATION_QUERY
+    contract = apply_company_intent_overrides(
+        live[SOLVD_CONTRACT_INTENT_ID], company_name="Solvd"
+    )
+    assert contract.query == SOLVD_CONTRACT_QUERY
+    assert list(contract.workstream_filter) == list(SOLVD_CONTRACT_WORKSTREAM_FILTER)
+
+
 def test_incumbents_keep_shared_or_landed_not_w3_overrides():
     live = _by_id()
     for company in INCUMBENT_COMPANIES:
@@ -904,12 +1009,15 @@ def test_visibility_location_q4_are_slug_isolated():
     inf = apply_company_intent_overrides(vis_intent, company_name="Infinitive")
     nb = apply_company_intent_overrides(vis_intent, company_name="Northbound")
     cs = apply_company_intent_overrides(vis_intent, company_name="Clearsulting")
+    solvd = apply_company_intent_overrides(vis_intent, company_name="Solvd")
     spg = apply_company_intent_overrides(vis_intent, company_name="SPG")
     assert inf.query == INF_VISIBILITY_QUERY
     assert nb.query == NB_VISIBILITY_QUERY
     assert cs.query == CS_VISIBILITY_QUERY
+    assert solvd.query == SOLVD_VISIBILITY_QUERY
+    assert solvd.workstream_filter is None
     assert spg is vis_intent
-    assert inf.query != cs.query != nb.query
+    assert inf.query != cs.query != nb.query != solvd.query
 
     loc_intent = live[CS_LOCATION_INTENT_ID]
     ir = apply_company_intent_overrides(loc_intent, company_name="Integrity Risk")
@@ -946,6 +1054,9 @@ def test_build_search_kwargs_applies_each_w3_slug():
         ("Stride", STRIDE_REVENUE_TYPE_INTENT_ID, STRIDE_REVENUE_TYPE_QUERY, list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)),
         ("Project Sherpa", SHERPA_SALES_INTENT_ID, SHERPA_SALES_QUERY, list(SHERPA_SALES_FILE_NAME_FILTER)),
         ("Solvd", SOLVD_Q2_INTENT_ID, SOLVD_Q2_QUERY, list(SOLVD_Q2_FILE_NAME_FILTER)),
+        ("Solvd", SOLVD_VISIBILITY_INTENT_ID, SOLVD_VISIBILITY_QUERY, list(SOLVD_VISIBILITY_FILE_NAME_FILTER)),
+        ("Solvd", SOLVD_OVERVIEW_INTENT_ID, SOLVD_OVERVIEW_QUERY, list(SOLVD_OVERVIEW_FILE_NAME_FILTER)),
+        ("Solvd", SOLVD_MODEL_CHANGES_INTENT_ID, SOLVD_MODEL_CHANGES_QUERY, list(SOLVD_MODEL_CHANGES_FILE_NAME_FILTER)),
     )
     for company, intent_id, query, file_filter in cases:
         intent = live[intent_id]
@@ -956,6 +1067,12 @@ def test_build_search_kwargs_applies_each_w3_slug():
             assert kwargs["workstream_filter"] is None
         if company == "Stride" and intent_id == STRIDE_REVENUE_TYPE_INTENT_ID:
             assert kwargs["workstream_filter"] == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
+        if company == "Solvd" and intent_id in {
+            SOLVD_VISIBILITY_INTENT_ID,
+            SOLVD_OVERVIEW_INTENT_ID,
+            SOLVD_MODEL_CHANGES_INTENT_ID,
+        }:
+            assert kwargs["workstream_filter"] is None
         fallback = _fallback_kwargs_from_intent(
             intent, company_name=company, spark=object()
         )
@@ -974,9 +1091,14 @@ def test_w3_siblings_do_not_take_ir_bench_account_or_inf_people():
         overview = apply_company_intent_overrides(
             live[INF_OVERVIEW_INTENT_ID], company_name=company
         )
-        assert overview is live[INF_OVERVIEW_INTENT_ID]
-        assert overview.query == SHARED_OVERVIEW_QUERY
-        assert list(overview.workstream_filter) == SHARED_OVERVIEW_WORKSTREAM_FILTER
+        if company == "Solvd":
+            assert overview.query == SOLVD_OVERVIEW_QUERY
+            assert overview.workstream_filter is None
+            assert list(overview.file_name_filter) == list(SOLVD_OVERVIEW_FILE_NAME_FILTER)
+        else:
+            assert overview is live[INF_OVERVIEW_INTENT_ID]
+            assert overview.query == SHARED_OVERVIEW_QUERY
+            assert list(overview.workstream_filter) == SHARED_OVERVIEW_WORKSTREAM_FILTER
         bench = apply_company_intent_overrides(
             live[IR_BENCH_INTENT_ID], company_name=company
         )
@@ -1179,5 +1301,68 @@ def test_dispatch_spg_overview_keeps_shared_query(mock_semantic, mock_fallback):
     )
     assert mock_fallback.call_args.kwargs["workstream_filter"] == (
         SHARED_OVERVIEW_WORKSTREAM_FILTER
+    )
+    mock_semantic.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_solvd_bma_trio_uses_cim_not_unfiltered(mock_semantic, mock_fallback):
+    mock_semantic.return_value = MagicMock(chunks=["cim-hit"], mode="semantic")
+    live = _by_id()
+    cases = (
+        (SOLVD_VISIBILITY_INTENT_ID, SOLVD_VISIBILITY_QUERY, list(SOLVD_VISIBILITY_FILE_NAME_FILTER)),
+        (SOLVD_OVERVIEW_INTENT_ID, SOLVD_OVERVIEW_QUERY, list(SOLVD_OVERVIEW_FILE_NAME_FILTER)),
+        (SOLVD_MODEL_CHANGES_INTENT_ID, SOLVD_MODEL_CHANGES_QUERY, list(SOLVD_MODEL_CHANGES_FILE_NAME_FILTER)),
+    )
+    for intent_id, query, file_filter in cases:
+        mock_semantic.reset_mock()
+        mock_fallback.reset_mock()
+        dispatch_retrieval(live[intent_id], company_name="Solvd", spark=MagicMock())
+        assert mock_semantic.call_count == 1
+        assert mock_semantic.call_args.kwargs["query"] == query
+        assert mock_semantic.call_args.kwargs["file_name_filter"] == file_filter
+        assert mock_semantic.call_args.kwargs["workstream_filter"] is None
+        assert mock_semantic.call_args.kwargs["file_name_filter"] != [None]
+        mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_solvd_bma_trio_empty_cim_does_not_drop_filename(
+    mock_semantic, mock_fallback
+):
+    mock_semantic.return_value = MagicMock(chunks=[], mode="empty")
+    live = _by_id()
+    result = dispatch_retrieval(
+        live[SOLVD_VISIBILITY_INTENT_ID],
+        company_name="Solvd",
+        spark=MagicMock(),
+    )
+    assert result.chunks == []
+    assert mock_semantic.call_count == 1
+    assert mock_semantic.call_args.kwargs["file_name_filter"] == list(
+        SOLVD_VISIBILITY_FILE_NAME_FILTER
+    )
+    assert mock_semantic.call_args.kwargs["workstream_filter"] is None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_spg_model_changes_keeps_shared_query(mock_semantic, mock_fallback):
+    mock_fallback.return_value = (MagicMock(chunks=["hit"], mode="semantic"), False)
+    live = _by_id()
+    dispatch_retrieval(
+        live[SOLVD_MODEL_CHANGES_INTENT_ID],
+        company_name="SPG",
+        spark=MagicMock(),
+    )
+    assert mock_fallback.call_args.kwargs["query"] == SHARED_MODEL_CHANGES_QUERY
+    assert mock_fallback.call_args.kwargs["file_name_filter"] == (
+        SHARED_MODEL_CHANGES_FILE_NAME_FILTER
+    )
+    assert mock_fallback.call_args.kwargs["workstream_filter"] == (
+        SHARED_MODEL_CHANGES_WORKSTREAM_FILTER
     )
     mock_semantic.assert_not_called()
