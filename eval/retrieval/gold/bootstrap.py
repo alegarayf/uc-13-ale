@@ -88,7 +88,11 @@ AGENT_ANALYSIS_TABLE: dict[str, str] = {
 _PAGE_RE = re.compile(r"(?:p(?:age)?\.?\s*|page\s*)(\d+)", re.IGNORECASE)
 _EXCEL_SHEET_RE = re.compile(r"Sheet:\s*(.+)", re.IGNORECASE)
 _EXCEL_DATA_ROWS_RE = re.compile(
-    r"Sheet:\s*([^,]+),\s*Data Rows",
+    r"Sheet:\s*(?:([^,]+),\s*Data Rows|(.+?)\s+\u2014\s+Data(?:\s+Rows)?)",
+    re.IGNORECASE,
+)
+_EXCEL_EMDASH_DATA_SUFFIX_RE = re.compile(
+    r"\s+\u2014\s+Data(?:\s+Rows\b.*)?$",
     re.IGNORECASE,
 )
 _EXCEL_SECTION_SUFFIX_RE = re.compile(
@@ -340,7 +344,8 @@ def _excel_tab_from_data_rows_location(location: str) -> str | None:
     match = _EXCEL_DATA_ROWS_RE.search(location)
     if not match:
         return None
-    return match.group(1).strip()
+    tab = match.group(1) or match.group(2)
+    return tab.strip() if tab else None
 
 
 def _excel_tab_candidate_from_location(location: str) -> str:
@@ -351,7 +356,9 @@ def _excel_tab_candidate_from_location(location: str) -> str:
     section_match = _EXCEL_SECTION_SUFFIX_RE.search(raw)
     if section_match:
         raw = raw[: section_match.start()].strip()
-    return raw.split(",", 1)[0].strip()
+    raw = raw.split(",", 1)[0].strip()
+    raw = _EXCEL_EMDASH_DATA_SUFFIX_RE.sub("", raw).strip()
+    return raw
 
 
 def _tabs_matching_excel_candidate(tabs: Sequence[str], candidate: str) -> list[str]:

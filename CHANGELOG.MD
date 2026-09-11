@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 31)
+
+- patch-cycle-31 (retrieval, Project Sherpa sidecar): `bootstrap.py` strips U+2014 `Sheet: {tab} — Data` / `— Data Rows` without breaking comma form-i. First complete sidecar `baseline_5b7ec89ca147` (35 eval / 2 zero / mean 0.117). Closed `project_sherpa:global:excel_emdash_tab_resolution`. Do not average into incumbent-4.
+- patch-cycle-31 (retrieval, Solvd sidecar): first complete sidecar `baseline_3ae4a4591d8d` (49 eval / 9 zero / mean 0.079). Cycle-26 aliases covered all live KPI claims. Do not average into incumbent-4.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 30)
 
 - patch-cycle-30 (retrieval, Clearsulting): harness-time CS-only overrides on account_size / kpi_dashboard (shared registry `query:` unchanged). Complete hash-no `enhancement_5699e01ea6a9`: account_size 0→0.571, kpi_dashboard 0→1.0, gold in-pool on both. Blended exam 0.190→0.243. GKF account_size 0.333 and SPG kpi_dashboard 1.0 held. Do not treat subset `gate_pass` as §4a.

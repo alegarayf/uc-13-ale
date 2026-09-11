@@ -483,3 +483,8 @@ debts:
     (U+2014) citations on Project Sherpa AI - Financial Package.xlsx, then
     export-gold + harness-baseline yields a complete baseline_* on uc13_ale
     without inventing gold ids
+  closed_at: '2026-09-10'
+  closed_evidence_refs:
+  - baseline_5b7ec89ca147
+  - job:544762105873447
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-31/gate2.md

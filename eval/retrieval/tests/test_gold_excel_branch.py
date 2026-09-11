@@ -131,6 +131,30 @@ def test_excel_location_form_i_exact_tab():
     assert _excel_tab_from_data_rows_location(loc) == "2025 Company KPIs"
 
 
+def test_excel_location_emdash_data_suffix():
+    """Sherpa KPI citations: U+2014 `Sheet: {tab} — Data` (no comma)."""
+    loc_ps = "Sheet: 2025 PS Rev by End Market — Data"
+    loc_ent = "Sheet: 2025 Ent. Rev by End Market — Data"
+    assert "\u2014" in loc_ps
+    assert _excel_tab_from_data_rows_location(loc_ps) == "2025 PS Rev by End Market"
+    assert _excel_tab_candidate_from_location(loc_ps) == "2025 PS Rev by End Market"
+    assert _excel_tab_from_data_rows_location(loc_ent) == "2025 Ent. Rev by End Market"
+    assert _excel_tab_candidate_from_location(loc_ent) == "2025 Ent. Rev by End Market"
+
+
+def test_excel_location_emdash_data_rows_en_dash_range():
+    """Sherpa: U+2014 before Data Rows; U+2013 in `1–50` must not leak into tab."""
+    loc = "Sheet: Prof. Services Rev by Customer — Data Rows 1–50"
+    assert "\u2014" in loc
+    assert "\u2013" in loc
+    assert _excel_tab_from_data_rows_location(loc) == (
+        "Prof. Services Rev by Customer"
+    )
+    assert _excel_tab_candidate_from_location(loc) == (
+        "Prof. Services Rev by Customer"
+    )
+
+
 def test_excel_location_form_ii_candidate_segment():
     loc = "Sheet: Revenue Build, Summary — Revenue per Client Served"
     assert _excel_tab_from_data_rows_location(loc) is None
@@ -140,6 +164,36 @@ def test_excel_location_form_ii_candidate_segment():
 def test_excel_location_form_iii_slash_section_suffix():
     loc = "Sheet: SUMMARY-Bonus / Section: Summary"
     assert _excel_tab_candidate_from_location(loc) == "SUMMARY-Bonus"
+
+
+def test_resolve_excel_tab_emdash_forms_without_warehouse_lookup():
+    """Exact em-dash strip is form-i style: return tab, do not require DISTINCT."""
+    spark = MockSpark({})
+    bootstrap = GoldLabelBootstrap(
+        spark,
+        company_name="Project Sherpa",
+        ingestion_date=date(2026, 9, 9),
+    )
+    doc = "Project Sherpa AI - Financial Package.xlsx"
+    assert (
+        bootstrap._resolve_excel_tab(
+            doc, "Sheet: 2025 PS Rev by End Market — Data"
+        )
+        == "2025 PS Rev by End Market"
+    )
+    assert (
+        bootstrap._resolve_excel_tab(
+            doc, "Sheet: 2025 Ent. Rev by End Market — Data"
+        )
+        == "2025 Ent. Rev by End Market"
+    )
+    assert (
+        bootstrap._resolve_excel_tab(
+            doc, "Sheet: Prof. Services Rev by Customer — Data Rows 1–50"
+        )
+        == "Prof. Services Rev by Customer"
+    )
+    assert spark.queries == []
 
 
 def test_prefix_resolution_unique_tab():
