@@ -516,7 +516,7 @@ def _stub_final_report(monkeypatch, tmp_path, *, status="success", pdf=True,
     else:
         result["pdf"] = None
     if html:
-        html_path = tmp_path / "full_report.html"
+        html_path = tmp_path / "final_diligence_report.html"
         html_path.write_text("<html>final</html>")
         result["html"] = str(html_path)
     else:
@@ -588,7 +588,7 @@ def test_branch_a_stage1_untouched_and_stage2_success(monkeypatch, _common_patch
     names = {Path(p).name for p in result["files"]}
     assert names == {
         "executive_summary.pdf", "rainmaker_opportunity_summary.html",
-        "full_report.pdf", "full_report.html",
+        "full_report.pdf", "final_diligence_report.html",
     }
 
     updates = _common_patches["updates"]
@@ -808,7 +808,7 @@ def test_branch_b_stage2_reuses_ingestion_and_agents_not_rerun(monkeypatch, _com
     names = {Path(p).name for p in result["files"]}
     assert names == {
         "executive_summary.pdf", "rainmaker_opportunity_summary.html",
-        "full_report.pdf", "full_report.html",
+        "full_report.pdf", "final_diligence_report.html",
     }
     updates = _common_patches["updates"]
     assert updates[-1]["processing_status"] == "done"
@@ -915,7 +915,7 @@ def test_raising_progress_never_changes_the_outcome(monkeypatch, _common_patches
     names = {Path(p).name for p in result["files"]}
     assert names == {
         "executive_summary.pdf", "rainmaker_opportunity_summary.html",
-        "full_report.pdf", "full_report.html",
+        "full_report.pdf", "final_diligence_report.html",
     }
     updates = _common_patches["updates"]
     assert updates[-1]["processing_status"] == "done"

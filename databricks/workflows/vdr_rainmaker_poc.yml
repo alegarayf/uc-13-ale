@@ -26,7 +26,7 @@
 #       (full_report.docx — the Phase-5 orchestrator memo — is temporarily NOT
 #        shipped: the stage-2 report now delivers under that base name)
 #       full_report.pdf                           (final diligence report, both modes — stage 2, may be absent if stage 2 failed)
-#       full_report.html
+#       final_diligence_report.html
 #
 # Trigger (manual):
 #   databricks jobs run-now <job_id> \

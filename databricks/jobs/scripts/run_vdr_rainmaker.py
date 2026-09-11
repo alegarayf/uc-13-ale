@@ -203,7 +203,12 @@ def _run_final_report_stage(
             files_copied.append(dst)
         html_src = built.get("html")
         if html_src and os.path.exists(html_src):
-            dst = os.path.join(output_dir, "full_report.html")
+            # A base name that shares nothing with "full_report", on purpose.
+            # The UI resolves a run's report by that base name and takes the
+            # first match; when the HTML was full_report.html it won
+            # alphabetically and the reader got the HTML instead of the PDF.
+            # full_report.pdf is the deliverable; this is the on-screen view.
+            dst = os.path.join(output_dir, "final_diligence_report.html")
             shutil.copy2(html_src, dst)
             files_copied.append(dst)
 

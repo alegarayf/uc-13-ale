@@ -256,7 +256,7 @@ value, so the vocabulary below stays binary; see "Progress signal").
 - **Stage 2 — the final report.** Re-ingests (Branch A only — Branch B's room
   is already fully ingested) and re-runs the agents (Branch A only), then calls
   `final_report_entry.build_final_report()`, which never raises, and copies
-  `full_report.pdf` / `full_report.html` alongside the ER's files in the same
+  `full_report.pdf` / `final_diligence_report.html` alongside the ER's files in the same
   `results_location` directory. Both branches share one helper,
   `_run_final_report_stage()`, differing only in `run_mode`, whether ingestion/
   agents still have work to do, and whether a prior MPS run should be read back
@@ -268,7 +268,7 @@ value, so the vocabulary below stays binary; see "Progress signal").
 
 **New deliverables.** `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`
 now holds, alongside the unchanged ER files, `full_report.pdf` and
-`full_report.html` — present only if stage 2 succeeded. The UI resolves a
+`final_diligence_report.html` — present only if stage 2 succeeded. The UI resolves a
 run's report by that base name, which is why the Phase-5 orchestrator memo
 (`full_report.docx`) is temporarily no longer copied into the delivery
 folder: two different documents cannot share it. The memo is still generated

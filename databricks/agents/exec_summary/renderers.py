@@ -295,7 +295,7 @@ def render_final_report(
     mps_runs = [*(prior_mps or []), mps] if mps else (prior_mps or None)
     mps_projection = _rainmaker_view(bundle, mps_runs=mps_runs)["mps"]
 
-    html_out = f"{vol_dir}/full_report.html"
+    html_out = f"{vol_dir}/final_diligence_report.html"
     html = renderer.render(
         bundle,
         _TEMPLATES_DIR / _FINAL_REPORT_TEMPLATE,
