@@ -187,6 +187,36 @@ GKF_LOCATION_QUERY = (
 )
 GKF_LOCATION_FILE_NAME_FILTER = ("CIM", "Ajax", "Rallyday")
 
+# Clearsulting-only named-zero overrides (cycle 29 / P1). Shared BMA / FTA /
+# KPI registry query: strings stay byte-identical (D11). Hash-no: harness-time
+# only. D29 live tokens: Memorandum (CIM matches 0 CS files); Employee /
+# Attrition (not Pipeline-only). Do not use QuickBooks / QBO / P&L as filters.
+CS_VISIBILITY_INTENT_ID = "bma.retrieve_revenue_visibility"
+CS_VISIBILITY_QUERY = (
+    "Clients and Go-to-Market YTD 2025 Bookings Project Infinity Clearsulting "
+    "Go-to-Market Engine Driving Consistent Blue-Chip Client Wins Shift Towards "
+    "Fixed-Fee Hybrid Models revenue visibility contracted revenue bookings "
+    "historical projected revenue"
+)
+CS_VISIBILITY_FILE_NAME_FILTER = ("Memorandum",)
+
+CS_Q5_INTENT_ID = "fta.revenue.q5_quickbooks_pl"
+CS_Q5_QUERY = (
+    "Top Client Revenue Overview total income total revenue reported revenue "
+    "diligence adjusted revenue EBITDA Enabling Industry Leading Clients "
+    "Metrics historical financial performance income statement financial "
+    "highlights"
+)
+CS_Q5_FILE_NAME_FILTER = ("Memorandum", "Financial")
+
+CS_BENCH_INTENT_ID = "kpi.retrieve_bench_and_capacity"
+CS_BENCH_QUERY = (
+    "Employee Attrition Analysis Employee Analysis Staff beginning of Year "
+    "Hires Terminations Staff at End of Year Employee Count bench size "
+    "unassigned headcount non-billable available capacity"
+)
+CS_BENCH_FILE_NAME_FILTER = ("Employee", "Attrition")
+
 
 def apply_company_intent_overrides(
     intent: RetrievalIntent,
@@ -199,6 +229,8 @@ def apply_company_intent_overrides(
     golds e22211ae / 5f569542 / 96db4e1f can enter the top_k*3 window.
     Clearsulting location uses the Memorandum office-locations neighborhood so
     golds c7ad6845 / 22d42b52 / 11fb91be can enter the top_k*3 window.
+    Clearsulting visibility / q5 / bench use Memorandum and Employee/Attrition
+    neighborhoods so in-corpus named-zero gold can enter those pools.
     GKF location uses the Ajax CIM corp-org / leadership / DMV neighborhood so
     gold 7ea35a9a can enter the location pool. SPG keeps the shared registry
     healthcare/org tail. Shared BMA query: stays byte-identical (D11).
@@ -220,6 +252,27 @@ def apply_company_intent_overrides(
                 update={
                     "query": CS_LOCATION_QUERY,
                     "file_name_filter": list(CS_LOCATION_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == CS_VISIBILITY_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": CS_VISIBILITY_QUERY,
+                    "file_name_filter": list(CS_VISIBILITY_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == CS_Q5_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": CS_Q5_QUERY,
+                    "file_name_filter": list(CS_Q5_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == CS_BENCH_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": CS_BENCH_QUERY,
+                    "file_name_filter": list(CS_BENCH_FILE_NAME_FILTER),
                 }
             )
         return intent
