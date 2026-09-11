@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 33)
+
+- patch-cycle-33 (judge_cal / agent_err, Elder Care): bind-only remint of the kept `exec.claim.026` ratings-census bind (no prompt edit). New exec batch `20260911T020325Z-a68d` agrees with human `20260813T185002Z-5a1b` on **42/53** (0.7925), up from 41/53 on `0feb`. 026 XOR cleared (judge=`contradicted`). Do not pin `e449` (39/53). `PB-chk27` stays open (bar 43/53).
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 32)
 
 - patch-cycle-32 (judge_cal / agent_err, Elder Care): `exec.claim.026` now binds a `section_ratings_json` census (`red_or_yellow_count`). New exec batch `20260911T013738Z-e449` cleared the 026 XOR (judge=`contradicted`, matching human `5a1b`) but agreement fell 41/53 → 39/53 from a sample-wide exact-count prompt (collateral on 011/019/052). Gate 2 kept the census bind, reverted the prompt, and kept pin `20260909T205913Z-0feb`. `PB-chk27` stays open.

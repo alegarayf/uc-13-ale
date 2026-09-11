@@ -649,7 +649,9 @@ items:
       - eval/program/registry.yaml
       - eval/content/calibration.py
       - eval/content/judge_harness.py
+      - s2_scores:20260911T020325Z-a68d
       - s2_scores:20260909T205913Z-0feb
+      - s2_scores:20260911T013738Z-e449
       - s2_scores:20260901T134541Z-7610
       - s2_scores:20260813T185002Z-5a1b
     fix_lane: eval
