@@ -121,6 +121,10 @@ from eval.retrieval.harness import (
     STRIDE_REVENUE_TYPE_INTENT_ID,
     STRIDE_REVENUE_TYPE_QUERY,
     STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER,
+    STRIDE_BENCH_FILE_NAME_FILTER,
+    STRIDE_BENCH_FILE_NAME_FILTER_FALLBACK,
+    STRIDE_BENCH_INTENT_ID,
+    STRIDE_BENCH_QUERY,
     STRIDE_VISIBILITY_FILE_NAME_FILTER,
     STRIDE_VISIBILITY_FILE_NAME_FILTER_FALLBACK,
     STRIDE_VISIBILITY_INTENT_ID,
@@ -924,6 +928,102 @@ def test_stride_gets_visibility_override_and_keeps_closed_six():
     assert nb.query == NB_VISIBILITY_QUERY
 
 
+def test_stride_gets_bench_override_and_keeps_closed_seven():
+    live = _by_id()
+    bench = apply_company_intent_overrides(
+        live[STRIDE_BENCH_INTENT_ID], company_name="Stride"
+    )
+    assert bench is not live[STRIDE_BENCH_INTENT_ID]
+    assert bench.query == STRIDE_BENCH_QUERY
+    assert "Employee Utilization" in bench.query
+    assert "Highly Scalable" in bench.query
+    assert "Delivery" in bench.query
+    assert "bench size" not in bench.query
+    assert "unassigned headcount" not in bench.query
+    assert "pipeline conversion" not in bench.query
+    assert "Ajax" not in bench.query
+    assert list(bench.file_name_filter) == list(STRIDE_BENCH_FILE_NAME_FILTER)
+    assert bench.file_name_filter == ["12.1"]
+    assert bench.workstream_filter is None
+    assert "Josie" not in (bench.file_name_filter or [])
+    assert "Bench" not in bench.file_name_filter
+    assert "Capacity" not in bench.file_name_filter
+    assert "Pipeline" not in bench.file_name_filter
+    assert "KPI" not in bench.file_name_filter
+    assert "Model" not in bench.file_name_filter
+    assert "Bill" not in bench.file_name_filter
+    assert live[STRIDE_BENCH_INTENT_ID].query == SHARED_BENCH_QUERY
+    assert "bench size" in live[STRIDE_BENCH_INTENT_ID].query
+    assert "unassigned headcount" in live[STRIDE_BENCH_INTENT_ID].query
+    assert list(live[STRIDE_BENCH_INTENT_ID].file_name_filter) == (
+        SHARED_BENCH_FILE_NAME_FILTER
+    )
+
+    # Closed seven stay byte-identical to the closed overlay.
+    vis = apply_company_intent_overrides(
+        live[STRIDE_VISIBILITY_INTENT_ID], company_name="Stride"
+    )
+    assert vis.query == STRIDE_VISIBILITY_QUERY
+    assert list(vis.file_name_filter) == list(STRIDE_VISIBILITY_FILE_NAME_FILTER)
+    assert vis.workstream_filter is None
+    conc = apply_company_intent_overrides(
+        live[STRIDE_CONCENTRATION_INTENT_ID], company_name="Stride"
+    )
+    assert conc.query == STRIDE_CQA_QUERY
+    assert list(conc.file_name_filter) == list(STRIDE_CQA_FILE_NAME_FILTER)
+    assert list(conc.workstream_filter) == list(STRIDE_CONCENTRATION_WORKSTREAM_FILTER)
+    health = apply_company_intent_overrides(
+        live[STRIDE_HEALTH_INTENT_ID], company_name="Stride"
+    )
+    assert health.query == STRIDE_CQA_QUERY
+    assert list(health.file_name_filter) == list(STRIDE_CQA_FILE_NAME_FILTER)
+    q4 = apply_company_intent_overrides(
+        live[STRIDE_Q4_FALLBACK_INTENT_ID], company_name="Stride"
+    )
+    assert q4.query == STRIDE_Q4_FALLBACK_QUERY
+    assert list(q4.file_name_filter) == list(STRIDE_Q4_FALLBACK_FILE_NAME_FILTER)
+    hc = apply_company_intent_overrides(
+        live[STRIDE_HEADCOUNT_INTENT_ID], company_name="Stride"
+    )
+    assert hc.query == STRIDE_HEADCOUNT_QUERY
+    assert list(hc.file_name_filter) == list(STRIDE_HEADCOUNT_FILE_NAME_FILTER)
+    assert list(hc.workstream_filter) == list(STRIDE_HEADCOUNT_WORKSTREAM_FILTER)
+    rev = apply_company_intent_overrides(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID], company_name="Stride"
+    )
+    assert rev.query == STRIDE_REVENUE_TYPE_QUERY
+    assert list(rev.file_name_filter) == list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)
+    assert list(rev.workstream_filter) == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
+    dash = apply_company_intent_overrides(
+        live[STRIDE_KPI_DASHBOARD_INTENT_ID], company_name="Stride"
+    )
+    assert dash.query == STRIDE_KPI_DASHBOARD_QUERY
+    assert list(dash.file_name_filter) == list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER)
+    assert dash.workstream_filter is None
+
+    solvd = apply_company_intent_overrides(
+        live[STRIDE_BENCH_INTENT_ID], company_name="Solvd"
+    )
+    assert solvd is live[STRIDE_BENCH_INTENT_ID]
+    assert solvd.query == SHARED_BENCH_QUERY
+    cs = apply_company_intent_overrides(
+        live[STRIDE_BENCH_INTENT_ID], company_name="Clearsulting"
+    )
+    assert cs.query == CS_BENCH_QUERY
+    assert list(cs.file_name_filter) == list(CS_BENCH_FILE_NAME_FILTER)
+    assert cs.query != STRIDE_BENCH_QUERY
+    inf = apply_company_intent_overrides(
+        live[STRIDE_BENCH_INTENT_ID], company_name="Infinitive"
+    )
+    assert inf.query == INF_BENCH_QUERY
+    assert list(inf.file_name_filter) == list(INF_BENCH_FILE_NAME_FILTER)
+    ir = apply_company_intent_overrides(
+        live[STRIDE_BENCH_INTENT_ID], company_name="Integrity Risk"
+    )
+    assert ir.query == IR_BENCH_QUERY
+    assert list(ir.file_name_filter) == list(IR_BENCH_FILE_NAME_FILTER)
+
+
 def test_project_sherpa_gets_sales_and_qofe_overrides():
     live = _by_id()
     sales = apply_company_intent_overrides(
@@ -1249,6 +1349,7 @@ def test_build_search_kwargs_applies_each_w3_slug():
         ("Stride", STRIDE_REVENUE_TYPE_INTENT_ID, STRIDE_REVENUE_TYPE_QUERY, list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)),
         ("Stride", STRIDE_KPI_DASHBOARD_INTENT_ID, STRIDE_KPI_DASHBOARD_QUERY, list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER)),
         ("Stride", STRIDE_VISIBILITY_INTENT_ID, STRIDE_VISIBILITY_QUERY, list(STRIDE_VISIBILITY_FILE_NAME_FILTER)),
+        ("Stride", STRIDE_BENCH_INTENT_ID, STRIDE_BENCH_QUERY, list(STRIDE_BENCH_FILE_NAME_FILTER)),
         ("Project Sherpa", SHERPA_SALES_INTENT_ID, SHERPA_SALES_QUERY, list(SHERPA_SALES_FILE_NAME_FILTER)),
         ("Solvd", SOLVD_Q2_INTENT_ID, SOLVD_Q2_QUERY, list(SOLVD_Q2_FILE_NAME_FILTER)),
         ("Solvd", SOLVD_VISIBILITY_INTENT_ID, SOLVD_VISIBILITY_QUERY, list(SOLVD_VISIBILITY_FILE_NAME_FILTER)),
@@ -1267,6 +1368,8 @@ def test_build_search_kwargs_applies_each_w3_slug():
         if company == "Stride" and intent_id == STRIDE_KPI_DASHBOARD_INTENT_ID:
             assert kwargs["workstream_filter"] is None
         if company == "Stride" and intent_id == STRIDE_VISIBILITY_INTENT_ID:
+            assert kwargs["workstream_filter"] is None
+        if company == "Stride" and intent_id == STRIDE_BENCH_INTENT_ID:
             assert kwargs["workstream_filter"] is None
         if company == "Solvd" and intent_id in {
             SOLVD_VISIBILITY_INTENT_ID,
@@ -1303,8 +1406,17 @@ def test_w3_siblings_do_not_take_ir_bench_account_or_inf_people():
         bench = apply_company_intent_overrides(
             live[IR_BENCH_INTENT_ID], company_name=company
         )
-        assert bench is live[IR_BENCH_INTENT_ID]
-        assert bench.query == SHARED_BENCH_QUERY
+        if company == "Stride":
+            assert bench.query == STRIDE_BENCH_QUERY
+            assert list(bench.file_name_filter) == list(STRIDE_BENCH_FILE_NAME_FILTER)
+            assert bench.workstream_filter is None
+            assert bench.query != SHARED_BENCH_QUERY
+            assert bench.query != IR_BENCH_QUERY
+            assert bench.query != INF_BENCH_QUERY
+            assert bench.query != CS_BENCH_QUERY
+        else:
+            assert bench is live[IR_BENCH_INTENT_ID]
+            assert bench.query == SHARED_BENCH_QUERY
         acct = apply_company_intent_overrides(
             live[IR_ACCOUNT_SIZE_INTENT_ID], company_name=company
         )
@@ -1565,6 +1677,98 @@ def test_dispatch_stride_visibility_empty_2_24_2_19_retries_12_1(
     assert first["file_name_filter"] != [None]
     assert second["file_name_filter"] is not None
     mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_stride_bench_uses_12_1_not_unfiltered(
+    mock_semantic, mock_fallback
+):
+    mock_semantic.return_value = MagicMock(chunks=["util-hit"], mode="semantic")
+    live = _by_id()
+    dispatch_retrieval(
+        live[STRIDE_BENCH_INTENT_ID],
+        company_name="Stride",
+        spark=MagicMock(),
+    )
+    assert mock_semantic.call_count == 1
+    assert mock_semantic.call_args.kwargs["query"] == STRIDE_BENCH_QUERY
+    assert mock_semantic.call_args.kwargs["file_name_filter"] == list(
+        STRIDE_BENCH_FILE_NAME_FILTER
+    )
+    assert mock_semantic.call_args.kwargs["workstream_filter"] is None
+    assert mock_semantic.call_args.kwargs["file_name_filter"] != [None]
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_stride_bench_empty_12_1_retries_presentation(
+    mock_semantic, mock_fallback
+):
+    empty = MagicMock(chunks=[], mode="empty")
+    filled = MagicMock(chunks=["pres-hit"], mode="semantic")
+    mock_semantic.side_effect = [empty, filled]
+    live = _by_id()
+    result = dispatch_retrieval(
+        live[STRIDE_BENCH_INTENT_ID],
+        company_name="Stride",
+        spark=MagicMock(),
+    )
+    assert result is filled
+    assert mock_semantic.call_count == 2
+    first = mock_semantic.call_args_list[0].kwargs
+    second = mock_semantic.call_args_list[1].kwargs
+    assert first["file_name_filter"] == list(STRIDE_BENCH_FILE_NAME_FILTER)
+    assert second["file_name_filter"] == list(
+        STRIDE_BENCH_FILE_NAME_FILTER_FALLBACK
+    )
+    assert first["workstream_filter"] is None
+    assert second["workstream_filter"] is None
+    assert first["file_name_filter"] != [None]
+    assert second["file_name_filter"] is not None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_solvd_bench_keeps_shared_query(mock_semantic, mock_fallback):
+    mock_fallback.return_value = (MagicMock(chunks=["hit"], mode="semantic"), False)
+    live = _by_id()
+    dispatch_retrieval(
+        live[STRIDE_BENCH_INTENT_ID],
+        company_name="Solvd",
+        spark=MagicMock(),
+    )
+    assert mock_fallback.call_args.kwargs["query"] == SHARED_BENCH_QUERY
+    assert mock_fallback.call_args.kwargs["file_name_filter"] == (
+        SHARED_BENCH_FILE_NAME_FILTER
+    )
+    mock_semantic.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_cs_inf_ir_bench_stay_slug_isolated(mock_semantic, mock_fallback):
+    mock_fallback.return_value = (MagicMock(chunks=["hit"], mode="semantic"), False)
+    live = _by_id()
+    cases = (
+        ("Clearsulting", CS_BENCH_QUERY, list(CS_BENCH_FILE_NAME_FILTER)),
+        ("Infinitive", INF_BENCH_QUERY, list(INF_BENCH_FILE_NAME_FILTER)),
+        ("Integrity Risk", IR_BENCH_QUERY, list(IR_BENCH_FILE_NAME_FILTER)),
+    )
+    for company, query, file_filter in cases:
+        mock_semantic.reset_mock()
+        mock_fallback.reset_mock()
+        dispatch_retrieval(
+            live[STRIDE_BENCH_INTENT_ID],
+            company_name=company,
+            spark=MagicMock(),
+        )
+        assert mock_fallback.call_args.kwargs["query"] == query
+        assert mock_fallback.call_args.kwargs["file_name_filter"] == file_filter
+        assert query != STRIDE_BENCH_QUERY
+        mock_semantic.assert_not_called()
 
 
 @patch("agents.shared.fallback.semantic_search_with_fallback")

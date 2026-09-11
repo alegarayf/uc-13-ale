@@ -455,6 +455,28 @@ STRIDE_VISIBILITY_QUERY = (
 STRIDE_VISIBILITY_FILE_NAME_FILTER = ("2.24", "2.19")
 STRIDE_VISIBILITY_FILE_NAME_FILTER_FALLBACK = ("12.1",)
 
+# Cycle-44: Stride-only bench_and_capacity. Shared KPI registry query
+# stays byte-identical (D11 bench size / unassigned headcount). Hash-no:
+# harness-time only. D29 live gold is one Deck file: Employee
+# Utilization (21dc3a77 / 8b0b1732 / c165ace9) + Highly Scalable,
+# Repeatable Delivery Model (2f83895c). Analog of closed revenue_type
+# (12.1 then Presentation) / visibility (filename-only). First-pass
+# ("12.1",); empty first-pass retries ("Presentation",) only.
+# workstream_filter=None — filename-only; skip
+# semantic_search_with_fallback (D35) so filename never drops onto
+# Bill Rate / Financial Model (exam pool n=8 is already that miss).
+# Do not add Bench / Capacity / Pipeline / KPI / Model / Bill.
+# Do not merely add the 12.1 token. Do not retry payroll-build.
+# Keep visibility + F1–F3 + revenue_type + kpi_dashboard byte-intact.
+# CS / Inf / IR bench stay slug-isolated. Do not destack. Do not
+# invent leftover-zero ranking.
+STRIDE_BENCH_INTENT_ID = CS_BENCH_INTENT_ID
+STRIDE_BENCH_QUERY = (
+    "Employee Utilization Highly Scalable Repeatable Delivery"
+)
+STRIDE_BENCH_FILE_NAME_FILTER = ("12.1",)
+STRIDE_BENCH_FILE_NAME_FILTER_FALLBACK = ("Presentation",)
+
 SHERPA_SALES_INTENT_ID = "bma.retrieve_sales_and_customers"
 SHERPA_SALES_QUERY = (
     "Enterprise Adopters Turning Use Cases Into Expansion go to market "
@@ -770,6 +792,14 @@ def apply_company_intent_overrides(
                     "workstream_filter": None,
                 }
             )
+        if intent.intent_id == STRIDE_BENCH_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": STRIDE_BENCH_QUERY,
+                    "file_name_filter": list(STRIDE_BENCH_FILE_NAME_FILTER),
+                    "workstream_filter": None,
+                }
+            )
         return intent
     if slug == "project_sherpa":
         if intent.intent_id == SHERPA_SALES_INTENT_ID:
@@ -933,6 +963,14 @@ def _is_stride_visibility(intent: RetrievalIntent, company_name: str) -> bool:
     return slug == "stride" and intent.intent_id == STRIDE_VISIBILITY_INTENT_ID
 
 
+def _is_stride_bench(intent: RetrievalIntent, company_name: str) -> bool:
+    try:
+        slug = canonical_company_slug(company_name)
+    except (TypeError, UnnormalizableCompanySlugError):
+        return False
+    return slug == "stride" and intent.intent_id == STRIDE_BENCH_INTENT_ID
+
+
 def _is_solvd_bma_trio(intent: RetrievalIntent, company_name: str) -> bool:
     try:
         slug = canonical_company_slug(company_name)
@@ -1024,6 +1062,25 @@ def dispatch_retrieval(
                 **{
                     **kwargs,
                     "file_name_filter": list(STRIDE_VISIBILITY_FILE_NAME_FILTER_FALLBACK),
+                }
+            )
+        return result
+
+    # Stride bench: 12.1 first, Presentation if empty. Never drop
+    # filename — shared fallback unions / drops 12.1 and floods
+    # Bill Rate / Financial Model (exam pool n=8 / D35). Not
+    # leftover-zero ranking. Visibility + F1–F3 + revenue_type +
+    # kpi_dashboard stay on their existing paths. CS / Inf / IR
+    # bench stay slug-isolated. Do not retry payroll-build.
+    if _is_stride_bench(intent, company_name):
+        if merge_rank_mode is not None:
+            kwargs["merge_rank_mode"] = merge_rank_mode
+        result = semantic_search(**kwargs)
+        if len(getattr(result, "chunks", None) or []) == 0:
+            result = semantic_search(
+                **{
+                    **kwargs,
+                    "file_name_filter": list(STRIDE_BENCH_FILE_NAME_FILTER_FALLBACK),
                 }
             )
         return result

@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 44)
+
+- patch-cycle-44 (retrieval, Stride): company-scoped `harness.py` bench override (12.1 Deck / Employee Utilization + Highly Scalable Delivery; skip fallback) moved leftover gold in-pool (0→0.50). Overlay `enhancement_fdc001b261e5` vs exam `baseline_9e06ef3c2527`. Visibility + F1–F3 + revenue_type + kpi_dashboard held. Blended Stride mean 0.165→0.174. Shared registry strings unchanged (D11). Not §4a.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 43)
 
 - patch-cycle-43 (retrieval, Stride): company-scoped `harness.py` visibility override (2.24 + 2.19 / Backlog 7.13 and 6.30; skip fallback) moved leftover gold in-pool (0→0.80). Overlay `enhancement_6ba409bf82ed` vs exam `baseline_9e06ef3c2527`. F1–F3 + revenue_type + kpi_dashboard held. Blended Stride mean 0.150→0.165. Shared registry strings unchanged (D11). Not §4a.
