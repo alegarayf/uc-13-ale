@@ -305,6 +305,37 @@ def _top10_issue_by_rank(
     return None
 
 
+_FLAG_RATING_LABELS = frozenset({"red", "yellow"})
+
+
+def _section_rating_census(ratings: Any) -> dict[str, Any]:
+    """Derive exact Red/Yellow/Green counts from section_ratings_json.
+
+    Used by exec.claim.026 so the judge sees the table count as an explicit
+    figure rather than inferring a "five of seven" minimum from the raw map.
+    """
+    raw = ratings if isinstance(ratings, dict) else {}
+    red = yellow = green = flagged = 0
+    for value in raw.values():
+        label = value.strip().lower() if isinstance(value, str) else ""
+        if label == "red":
+            red += 1
+        elif label == "yellow":
+            yellow += 1
+        elif label == "green":
+            green += 1
+        if label in _FLAG_RATING_LABELS:
+            flagged += 1
+    return {
+        "section_ratings_json": ratings if ratings is not None else {},
+        "total_workstreams": len(raw),
+        "red_count": red,
+        "yellow_count": yellow,
+        "green_count": green,
+        "red_or_yellow_count": flagged,
+    }
+
+
 def exec_claim_analysis_evidence(
     claim_id: str,
     cache: dict[str, Any],
@@ -403,12 +434,12 @@ def exec_claim_analysis_evidence(
             return None
         table, field = "quality_of_earnings", "addback_ledger_json"
         payload = item
-    elif claim_id in {"exec.claim.025", "exec.claim.026"}:
+    elif claim_id == "exec.claim.025":
         table, field = "diligence_report", "section_confidence_json"
-        payload = {
-            "section_confidence_json": cache.get("section_confidence_json"),
-            "section_ratings_json": cache.get("section_ratings_json"),
-        }
+        payload = cache.get("section_confidence_json")
+    elif claim_id == "exec.claim.026":
+        table, field = "diligence_report", "section_ratings_json"
+        payload = _section_rating_census(cache.get("section_ratings_json"))
     elif claim_id in _EXEC_TOP10_RANK_MAP:
         rank = _EXEC_TOP10_RANK_MAP[claim_id]
         issue = _top10_issue_by_rank(top10, rank)

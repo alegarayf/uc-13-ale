@@ -681,3 +681,9 @@ items:
       Each of the 3 named claim_ids is checked against the live source corpus (same method
       as T3's GKF/SPG elision checks) and either resolves (verifier/extraction fix) or is
       confirmed a genuine content elision/extraction miss and closed as accepted-known-gap.
+    closed_at: '2026-09-10'
+    closed_evidence_refs:
+      - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-32/patch-p2-legal-register.md
+      - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-32/gate2.md
+      - s2_scores:20260902T011639Z-d7db
+      - "accepted-known-gap:legal.contract_register.0010+legal.insurance_register.0002+legal.platform_dependency_register.0000"

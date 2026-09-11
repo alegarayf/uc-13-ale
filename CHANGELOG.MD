@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 32)
+
+- patch-cycle-32 (judge_cal / agent_err, Elder Care): `exec.claim.026` now binds a `section_ratings_json` census (`red_or_yellow_count`). New exec batch `20260911T013738Z-e449` cleared the 026 XOR (judge=`contradicted`, matching human `5a1b`) but agreement fell 41/53 → 39/53 from a sample-wide exact-count prompt (collateral on 011/019/052). Gate 2 kept the census bind, reverted the prompt, and kept pin `20260909T205913Z-0feb`. `PB-chk27` stays open.
+- patch-cycle-32 (content, Elder Care): triaged `legal.contract_register.0010`, `legal.insurance_register.0002`, and `legal.platform_dependency_register.0000` on `20260902T011639Z-d7db` as accepted-known-gap (quote elision vs live chunks). Closed `PB-legal_register-elder-care-contract-register-regressions`. No S2 remint.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 31)
 
 - patch-cycle-31 (retrieval, Project Sherpa sidecar): `bootstrap.py` strips U+2014 `Sheet: {tab} — Data` / `— Data Rows` without breaking comma form-i. First complete sidecar `baseline_5b7ec89ca147` (35 eval / 2 zero / mean 0.117). Closed `project_sherpa:global:excel_emdash_tab_resolution`. Do not average into incumbent-4.

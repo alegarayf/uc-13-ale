@@ -231,3 +231,60 @@ def test_judge_claim_retries_stub_json_for_rationale(monkeypatch) -> None:
     assert output["verdict"] == "supported"
     assert output["rationale"]
     assert not is_stub_verdict_json(output["raw_response"])
+
+
+def _elder_care_seven_ratings() -> dict[str, str]:
+    return {
+        "business_model": "Yellow",
+        "financial_trends": "Red",
+        "customer_quality": "Yellow",
+        "kpi": "Red",
+        "legal_contracts": "Red",
+        "quality_of_earnings": "Red",
+        "forecast": "Red",
+    }
+
+
+def test_exec_claim_025_bind_stays_section_confidence() -> None:
+    cache = _sample_cache()
+    cache["section_confidence_json"] = {
+        "business_model": "Medium",
+        "financial_trends": "Medium",
+        "customer_quality": "Medium",
+        "kpi": "Medium",
+        "legal_contracts": "Medium",
+        "quality_of_earnings": "Medium",
+        "forecast": "Medium",
+    }
+    record = exec_claim_analysis_evidence(
+        "exec.claim.025",
+        cache,
+        company_slug="elder_care",
+    )
+    assert record is not None
+    assert record["field"] == "section_confidence_json"
+    assert record["payload"] == cache["section_confidence_json"]
+    assert "red_or_yellow_count" not in (record["payload"] or {})
+
+
+def test_exec_claim_026_bind_is_ratings_census_not_confidence() -> None:
+    """026 XOR: judge treated 'five of seven' as a minimum of a 7/7 Red/Yellow table."""
+
+    cache = _sample_cache()
+    cache["section_ratings_json"] = _elder_care_seven_ratings()
+    cache["section_confidence_json"] = {"overall": "Medium"}
+    record = exec_claim_analysis_evidence(
+        "exec.claim.026",
+        cache,
+        company_slug="elder_care",
+    )
+    assert record is not None
+    assert record["field"] == "section_ratings_json"
+    payload = record["payload"]
+    assert payload["section_ratings_json"] == cache["section_ratings_json"]
+    assert payload["total_workstreams"] == 7
+    assert payload["red_count"] == 5
+    assert payload["yellow_count"] == 2
+    assert payload["green_count"] == 0
+    assert payload["red_or_yellow_count"] == 7
+    assert "section_confidence_json" not in payload
