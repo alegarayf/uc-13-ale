@@ -275,6 +275,144 @@ EC_CONTRACTS_FILE_NAME_FILTER = (
     "dropbox",
 )
 
+# Wave-3 company-scoped leftover / residual overrides (cycle 37 / P1).
+# Shared BMA / CQA / KPI / FTA / legal / QoE registry query: strings stay
+# byte-identical (D11). Hash-no: harness-time only. D29 live tokens only.
+# Do not destack. Do not invent leftover-zero ranking. Do not raise
+# _DASHBOARD_SECTION_BONUS. CS / GKF / Elder Care branches above stay
+# byte-intact.
+
+INF_VISIBILITY_INTENT_ID = CS_VISIBILITY_INTENT_ID
+INF_VISIBILITY_QUERY = (
+    "2026E Revenue Visibility Revenue Bridge Project Orange Crush "
+    "historical projected revenue contracted bookings visibility"
+)
+INF_VISIBILITY_FILE_NAME_FILTER = ("Visibility", "2026E")
+
+INF_BENCH_INTENT_ID = CS_BENCH_INTENT_ID
+INF_BENCH_QUERY = (
+    "contractor census unassigned headcount billability bench size "
+    "non-billable available capacity Employee Contractor Census"
+)
+INF_BENCH_FILE_NAME_FILTER = ("Contractor",)
+
+INF_PEOPLE_INTENT_ID = "bma.retrieve_people_and_org"
+# Cycle-37 measure: CIP + CUSTOMER stayed gold_in_pool=0 (Datapack flood).
+# Tokens kept as a do-not-rewire marker. Do not invent leftover-zero ranking.
+
+IR_LOCATION_INTENT_ID = CS_LOCATION_INTENT_ID
+IR_LOCATION_QUERY = (
+    "Revenue Retention Dashboard Cube geography revenue by location "
+    "Revenue Retention Dashboard Summary customer cube"
+)
+IR_LOCATION_FILE_NAME_FILTER = ("Cube",)
+
+IR_HEADCOUNT_INTENT_ID = "kpi.retrieve_headcount_attrition"
+IR_HEADCOUNT_QUERY = (
+    "CIP Graphs headcount by level role breakdown attrition retention "
+    "Staff beginning of Year Hires Terminations"
+)
+IR_HEADCOUNT_FILE_NAME_FILTER = ("Attrition", "Retention")
+
+NB_VISIBILITY_INTENT_ID = CS_VISIBILITY_INTENT_ID
+NB_VISIBILITY_QUERY = (
+    "B.4 Revenue by Customer Summary Sheet historical projected revenue "
+    "2021 2022 2023 2024 customer revenue visibility"
+)
+NB_VISIBILITY_FILE_NAME_FILTER = ("B.4.Revenue",)
+NB_VISIBILITY_WORKSTREAM_FILTER = (
+    "BUSINESS_MODEL",
+    "FINANCIAL",
+    "KPI_OPS",
+    "CUSTOMER",
+)
+
+NB_Q3_INTENT_ID = "fta.opex.q3_projected_financials"
+NB_Q3_QUERY = (
+    "Profit and Loss income statement projected financials historical "
+    "operating expenses EBITDA Northbound Consulting"
+)
+NB_Q3_FILE_NAME_FILTER = ("Profit and Loss (1)",)
+
+STRIDE_CONCENTRATION_INTENT_ID = "cqa.retrieve_customer_concentration"
+STRIDE_HEALTH_INTENT_ID = "cqa.retrieve_customer_health"
+STRIDE_CQA_QUERY = (
+    "Audit Customers customer concentration revenue share top customers "
+    "client mix FYE 2021 2022"
+)
+STRIDE_CQA_FILE_NAME_FILTER = ("2.10",)
+STRIDE_CONCENTRATION_WORKSTREAM_FILTER = ("CUSTOMER", "FINANCIAL")
+
+STRIDE_Q4_FALLBACK_INTENT_ID = CS_Q4_FALLBACK_INTENT_ID
+# Reuse the primary q4 neighborhood (already 0.571 on Stride). Shared
+# Ajax/tuition fallback query stays byte-identical (D11).
+STRIDE_Q4_FALLBACK_QUERY = (
+    "customer concentration top customers revenue by customer largest customers "
+    "customer mix payor mix client revenue key customers top 10 customers "
+    "customer revenue breakdown revenue by payor revenue by client"
+)
+STRIDE_Q4_FALLBACK_FILE_NAME_FILTER = ("12.1", "Presentation")
+
+STRIDE_HEADCOUNT_INTENT_ID = IR_HEADCOUNT_INTENT_ID
+STRIDE_HEADCOUNT_QUERY = (
+    "EBITDA Adjustment Detail utilization R&D add-back delivery capacity "
+    "Deck headcount attrition"
+)
+STRIDE_HEADCOUNT_FILE_NAME_FILTER = ("12.1",)
+STRIDE_HEADCOUNT_WORKSTREAM_FILTER = (
+    "KPI_OPS",
+    "FINANCIAL",
+    "BUSINESS_MODEL",
+)
+
+SHERPA_SALES_INTENT_ID = "bma.retrieve_sales_and_customers"
+SHERPA_SALES_QUERY = (
+    "Enterprise Adopters Turning Use Cases Into Expansion go to market "
+    "customer acquisition sales motion"
+)
+SHERPA_SALES_FILE_NAME_FILTER = ("Memorandum", "Confidential")
+
+SHERPA_QOFE_INTENT_ID = "qoe.retrieve_qofe_report"
+SHERPA_QOFE_QUERY = (
+    "quality of earnings Financial Package adjusted EBITDA addback "
+    "due diligence accounting"
+)
+SHERPA_QOFE_FILE_NAME_FILTER = ("Financial", "Package")
+SHERPA_QOFE_WORKSTREAM_FILTER = ("QUALITY_EARNINGS", "FINANCIAL")
+
+SOLVD_Q2_INTENT_ID = "fta.revenue.q2_revenue_by_segment"
+SOLVD_Q2_QUERY = (
+    "FINANCIAL HIGHLIGHT YE- December 2022 2023 2024 2025 2026F "
+    "revenue by segment financial highlights"
+)
+SOLVD_Q2_FILE_NAME_FILTER = ("CIM",)
+
+SOLVD_Q3_INTENT_ID = NB_Q3_INTENT_ID
+SOLVD_Q3_QUERY = (
+    "Income Statement CY22A CY23A CY24A CY25A CY26F CYxxA "
+    "historical income statement projected financials"
+)
+SOLVD_Q3_FILE_NAME_FILTER = ("CIM",)
+
+SOLVD_CONCENTRATION_INTENT_ID = STRIDE_CONCENTRATION_INTENT_ID
+SOLVD_CONCENTRATION_QUERY = (
+    "Key Highlight client mix customer concentration revenue share "
+    "top customers"
+)
+SOLVD_CONCENTRATION_WORKSTREAM_FILTER = (
+    "CUSTOMER",
+    "BUSINESS_MODEL",
+    "FINANCIAL",
+)
+
+SOLVD_CONTRACT_INTENT_ID = "cqa.retrieve_contract_terms"
+SOLVD_CONTRACT_QUERY = (
+    "Revenue Retention Managed Services Client contract terms "
+    "renewal retention"
+)
+SOLVD_CONTRACT_FILE_NAME_FILTER = ("CIM",)
+SOLVD_CONTRACT_WORKSTREAM_FILTER = ("BUSINESS_MODEL",)
+
 
 def apply_company_intent_overrides(
     intent: RetrievalIntent,
@@ -292,10 +430,13 @@ def apply_company_intent_overrides(
     Clearsulting account_size / kpi_dashboard use Memorandum (BUSINESS_MODEL)
     and Organizational Chart neighborhoods so leftover-zero gold can enter
     those pools. GKF location uses the Ajax CIM corp-org / leadership / DMV
-    neighborhood so gold 7ea35a9a can enter the location pool. Elder Care
+    neighborhood so gold 7ea35a9a can enter the location pool.     Elder Care
     leftover CIM / contracts use CIM_vF section tokens plus a top_k raise,
     and HIPAA/BAA/NDA filename tokens, so those leftover bags can enter
-    their pools. SPG keeps the shared registry healthcare/org tail.
+    their pools. Wave-3 slugs (infinitive / integrity_risk / northbound /
+    stride / project_sherpa / solvd) use D29 live filename and workstream
+    tokens so in-corpus first-cut gold can enter those pools. SPG keeps
+    the shared registry healthcare/org tail.
     Shared BMA / CQA / KPI / legal query: stays byte-identical (D11).
     """
     try:
@@ -375,6 +516,138 @@ def apply_company_intent_overrides(
                 update={
                     "query": EC_CONTRACTS_QUERY,
                     "file_name_filter": list(EC_CONTRACTS_FILE_NAME_FILTER),
+                }
+            )
+        return intent
+    if slug == "infinitive":
+        if intent.intent_id == INF_VISIBILITY_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": INF_VISIBILITY_QUERY,
+                    "file_name_filter": list(INF_VISIBILITY_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == INF_BENCH_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": INF_BENCH_QUERY,
+                    "file_name_filter": list(INF_BENCH_FILE_NAME_FILTER),
+                }
+            )
+        # people_and_org: CIP + CUSTOMER first-cut stayed gold_in_pool=0
+        # (fallback flooded Datapack / Revenue-by-Project). Dead leftover —
+        # do not keep the Datapack fill. Visibility + bench carried Infinitive.
+        return intent
+    if slug == "integrity_risk":
+        if intent.intent_id == IR_LOCATION_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": IR_LOCATION_QUERY,
+                    "file_name_filter": list(IR_LOCATION_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == IR_HEADCOUNT_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": IR_HEADCOUNT_QUERY,
+                    "file_name_filter": list(IR_HEADCOUNT_FILE_NAME_FILTER),
+                }
+            )
+        return intent
+    if slug == "northbound":
+        if intent.intent_id == NB_VISIBILITY_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": NB_VISIBILITY_QUERY,
+                    "file_name_filter": list(NB_VISIBILITY_FILE_NAME_FILTER),
+                    "workstream_filter": list(NB_VISIBILITY_WORKSTREAM_FILTER),
+                }
+            )
+        if intent.intent_id == NB_Q3_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": NB_Q3_QUERY,
+                    "file_name_filter": list(NB_Q3_FILE_NAME_FILTER),
+                }
+            )
+        return intent
+    if slug == "stride":
+        if intent.intent_id == STRIDE_CONCENTRATION_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": STRIDE_CQA_QUERY,
+                    "file_name_filter": list(STRIDE_CQA_FILE_NAME_FILTER),
+                    "workstream_filter": list(STRIDE_CONCENTRATION_WORKSTREAM_FILTER),
+                }
+            )
+        if intent.intent_id == STRIDE_HEALTH_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": STRIDE_CQA_QUERY,
+                    "file_name_filter": list(STRIDE_CQA_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == STRIDE_Q4_FALLBACK_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": STRIDE_Q4_FALLBACK_QUERY,
+                    "file_name_filter": list(STRIDE_Q4_FALLBACK_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == STRIDE_HEADCOUNT_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": STRIDE_HEADCOUNT_QUERY,
+                    "file_name_filter": list(STRIDE_HEADCOUNT_FILE_NAME_FILTER),
+                    "workstream_filter": list(STRIDE_HEADCOUNT_WORKSTREAM_FILTER),
+                }
+            )
+        return intent
+    if slug == "project_sherpa":
+        if intent.intent_id == SHERPA_SALES_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SHERPA_SALES_QUERY,
+                    "file_name_filter": list(SHERPA_SALES_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == SHERPA_QOFE_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SHERPA_QOFE_QUERY,
+                    "file_name_filter": list(SHERPA_QOFE_FILE_NAME_FILTER),
+                    "workstream_filter": list(SHERPA_QOFE_WORKSTREAM_FILTER),
+                }
+            )
+        return intent
+    if slug == "solvd":
+        if intent.intent_id == SOLVD_Q2_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SOLVD_Q2_QUERY,
+                    "file_name_filter": list(SOLVD_Q2_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == SOLVD_Q3_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SOLVD_Q3_QUERY,
+                    "file_name_filter": list(SOLVD_Q3_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == SOLVD_CONCENTRATION_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SOLVD_CONCENTRATION_QUERY,
+                    "workstream_filter": list(SOLVD_CONCENTRATION_WORKSTREAM_FILTER),
+                }
+            )
+        if intent.intent_id == SOLVD_CONTRACT_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": SOLVD_CONTRACT_QUERY,
+                    "file_name_filter": list(SOLVD_CONTRACT_FILE_NAME_FILTER),
+                    "workstream_filter": list(SOLVD_CONTRACT_WORKSTREAM_FILTER),
                 }
             )
         return intent

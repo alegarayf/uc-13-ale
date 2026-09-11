@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 37)
+
+- patch-cycle-37 (retrieval, W3): company-scoped `harness.py` overrides moved named leftover / residual gold in-pool for Infinitive (vis 0→0.50 / bench 0→0.583), Integrity Risk (location 0.2→1.0 / headcount 0→1.0), Northbound (vis+q3 0→1.0), Stride (concentration+health 0→1.0, q4 fallback 0→0.571, headcount 0→0.6), Project Sherpa (sales 0→0.167 / qofe 0→0.40), and Solvd (q2+q3+contract 0→1.0 / concentration 0→0.25). Overlays `8efa` / `a2f64` / `4f317` / `391b8` / `4f1dee` / `b08754`. Infinitive people arm reverted (`gold_in_pool=0`). Shared registry strings unchanged (D11). Not §4a. In-loop-10 ~12.3→~14.7. Incumbent-4 held 18.9.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 36)
 
 - patch-cycle-36 (judge_cal, Elder Care): `exec.claim.048` now binds an 048-only rank-1 + 17 / five-over-5% census (`_tier4_open_item_census`). New exec batch `20260911T070549Z-58d3` agrees with human `5a1b` on **44/53** (0.8302, held). 048 XOR cleared. Collateral 052 flip. Do not pin `e449`. No prompt edit.
