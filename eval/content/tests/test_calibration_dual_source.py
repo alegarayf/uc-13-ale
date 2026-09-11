@@ -13,6 +13,7 @@ from eval.content.calibration import (
     is_stub_verdict_json,
     judge_claim,
 )
+from eval.content.spot_check import _EXEC_TOP10_RANK_MAP
 
 
 def _sample_cache() -> dict[str, object]:
@@ -288,3 +289,40 @@ def test_exec_claim_026_bind_is_ratings_census_not_confidence() -> None:
     assert payload["green_count"] == 0
     assert payload["red_or_yellow_count"] == 7
     assert "section_confidence_json" not in payload
+
+
+def test_exec_claim_043_051_bind_live_rank_9_not_rank_7() -> None:
+    """Cycle 34: 043/051 rematch to live rank 9 (T4C/CoC); 052 stays on 9."""
+
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.043"] == 9
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.051"] == 9
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.052"] == 9
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.021"] == 3
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.039"] == 3
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.049"] == 3
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.045"] == 10
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.050"] == 6
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.053"] == 10
+
+    cache = _f4_cache()
+    cache["top_10_issues_json"] = [
+        {
+            "rank": 7,
+            "issue": "Guided Living tax returns outstanding",
+            "citations": ["tax.pdf"],
+        },
+        {
+            "rank": 9,
+            "issue": "T4C / change-of-control in customer contracts (Batistil)",
+            "citations": ["legal.pdf"],
+        },
+    ]
+    for claim_id in ("exec.claim.043", "exec.claim.051", "exec.claim.052"):
+        record = exec_claim_analysis_evidence(
+            claim_id, cache, company_slug="elder_care"
+        )
+        assert record is not None
+        assert record["field"] == "top_10_issues_json"
+        assert record["payload"]["rank"] == 9
+        assert "change-of-control" in record["payload"]["issue"]
+        assert record["payload"]["issue"] != "Guided Living tax returns outstanding"

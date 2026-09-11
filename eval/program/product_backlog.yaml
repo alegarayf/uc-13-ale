@@ -649,6 +649,7 @@ items:
       - eval/program/registry.yaml
       - eval/content/calibration.py
       - eval/content/judge_harness.py
+      - s2_scores:20260911T022507Z-f9cd
       - s2_scores:20260911T020325Z-a68d
       - s2_scores:20260909T205913Z-0feb
       - s2_scores:20260911T013738Z-e449
@@ -661,6 +662,12 @@ items:
       explicit operator decision to accept a lower bar / demote the rung back to human pending
       a decomposition-based rubric rework.
     registry_ref: CHK-26a
+    closed_at: '2026-09-10'
+    closed_evidence_refs:
+      - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-34/patch-p1-043-051.md
+      - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-34/gate2.md
+      - s2_scores:20260911T022507Z-f9cd
+      - "verdict_agreement:44/53=0.8302"
 
   - id: PB-legal_register-elder-care-contract-register-regressions
     company: elder_care

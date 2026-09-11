@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 34)
+
+- patch-cycle-34 (judge_cal, Elder Care): rematched `exec.claim.043` / `051` in `_EXEC_TOP10_RANK_MAP` from rank 7 to live rank 9 (T4C / change-of-control). New exec batch `20260911T022507Z-f9cd` agrees with human `5a1b` on **44/53** (0.8302). Both named XOR cleared. Closed `PB-exec_summary-chk27-judge-production-accuracy-gap`. Do not pin `e449`.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 33)
 
 - patch-cycle-33 (judge_cal / agent_err, Elder Care): bind-only remint of the kept `exec.claim.026` ratings-census bind (no prompt edit). New exec batch `20260911T020325Z-a68d` agrees with human `20260813T185002Z-5a1b` on **42/53** (0.7925), up from 41/53 on `0feb`. 026 XOR cleared (judge=`contradicted`). Do not pin `e449` (39/53). `PB-chk27` stays open (bar 43/53).
