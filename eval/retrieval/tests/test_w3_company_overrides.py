@@ -44,6 +44,10 @@ from eval.retrieval.harness import (
     INF_BENCH_FILE_NAME_FILTER,
     INF_BENCH_INTENT_ID,
     INF_BENCH_QUERY,
+    INF_OVERVIEW_FILE_NAME_FILTER,
+    INF_OVERVIEW_FILE_NAME_FILTER_FALLBACK,
+    INF_OVERVIEW_INTENT_ID,
+    INF_OVERVIEW_QUERY,
     INF_PEOPLE_INTENT_ID,
     INF_VISIBILITY_FILE_NAME_FILTER,
     INF_VISIBILITY_INTENT_ID,
@@ -184,6 +188,26 @@ SHARED_PEOPLE_FILE_NAME_FILTER = [
     "Presentation",
 ]
 SHARED_PEOPLE_WORKSTREAM_FILTER = ["BUSINESS_MODEL"]
+
+SHARED_OVERVIEW_QUERY = (
+    "company overview what does this company do products services offerings geographic "
+    "footprint locations markets business description revenue streams what the company "
+    "sells how it makes money"
+)
+SHARED_OVERVIEW_FILE_NAME_FILTER = [
+    "CIM",
+    "OM",
+    "Overview",
+    "Offering",
+    "Memorandum",
+    "Profile",
+    "Summary",
+    "Presentation",
+    "Deck",
+    "Management",
+    "Executive",
+]
+SHARED_OVERVIEW_WORKSTREAM_FILTER = ["BUSINESS_MODEL"]
 
 SHARED_LOCATION_QUERY = (
     "clients served active accounts customers by location by market by segment "
@@ -349,6 +373,7 @@ REGISTRY_LOCKSTEP = (
     (INF_VISIBILITY_INTENT_ID, SHARED_VISIBILITY_QUERY, SHARED_VISIBILITY_FILE_NAME_FILTER),
     (INF_BENCH_INTENT_ID, SHARED_BENCH_QUERY, SHARED_BENCH_FILE_NAME_FILTER),
     (INF_PEOPLE_INTENT_ID, SHARED_PEOPLE_QUERY, SHARED_PEOPLE_FILE_NAME_FILTER),
+    (INF_OVERVIEW_INTENT_ID, SHARED_OVERVIEW_QUERY, SHARED_OVERVIEW_FILE_NAME_FILTER),
     (IR_LOCATION_INTENT_ID, SHARED_LOCATION_QUERY, SHARED_LOCATION_FILE_NAME_FILTER),
     (IR_HEADCOUNT_INTENT_ID, SHARED_HEADCOUNT_QUERY, None),
     (IR_ACCOUNT_SIZE_INTENT_ID, SHARED_ACCOUNT_SIZE_QUERY, None),
@@ -421,6 +446,52 @@ def test_infinitive_gets_visibility_and_bench_overrides():
     assert list(people.workstream_filter) == SHARED_PEOPLE_WORKSTREAM_FILTER
     assert people.workstream_filter != ["CUSTOMER"]
     assert "CUSTOMER" not in (people.workstream_filter or [])
+
+
+def test_infinitive_gets_overview_tm_override():
+    live = _by_id()
+    overview = apply_company_intent_overrides(
+        live[INF_OVERVIEW_INTENT_ID], company_name="Infinitive"
+    )
+    assert overview is not live[INF_OVERVIEW_INTENT_ID]
+    assert overview.query == INF_OVERVIEW_QUERY
+    assert "T-M vs Fixed Fee Revenue" in overview.query
+    assert "Orange Crush" in overview.query
+    assert list(overview.file_name_filter) == list(INF_OVERVIEW_FILE_NAME_FILTER)
+    assert overview.file_name_filter == ["T-M"]
+    assert overview.workstream_filter is None
+    assert "CIP" not in overview.query
+    assert "CIP" not in (overview.file_name_filter or [])
+    assert "CUSTOMER" not in (overview.workstream_filter or [])
+    assert "BUSINESS_MODEL" not in (overview.workstream_filter or [])
+    assert "CIM" not in overview.file_name_filter
+    assert "Offering" not in overview.file_name_filter
+    assert "Memorandum" not in overview.file_name_filter
+    assert live[INF_OVERVIEW_INTENT_ID].query == SHARED_OVERVIEW_QUERY
+    assert list(live[INF_OVERVIEW_INTENT_ID].workstream_filter) == (
+        SHARED_OVERVIEW_WORKSTREAM_FILTER
+    )
+
+    vis = apply_company_intent_overrides(
+        live[INF_VISIBILITY_INTENT_ID], company_name="Infinitive"
+    )
+    assert vis.query == INF_VISIBILITY_QUERY
+    assert list(vis.file_name_filter) == list(INF_VISIBILITY_FILE_NAME_FILTER)
+    bench = apply_company_intent_overrides(
+        live[INF_BENCH_INTENT_ID], company_name="Infinitive"
+    )
+    assert bench.query == INF_BENCH_QUERY
+    assert list(bench.file_name_filter) == list(INF_BENCH_FILE_NAME_FILTER)
+    people = apply_company_intent_overrides(
+        live[INF_PEOPLE_INTENT_ID], company_name="Infinitive"
+    )
+    assert people is live[INF_PEOPLE_INTENT_ID]
+
+    ir_overview = apply_company_intent_overrides(
+        live[INF_OVERVIEW_INTENT_ID], company_name="Integrity Risk"
+    )
+    assert ir_overview is live[INF_OVERVIEW_INTENT_ID]
+    assert ir_overview.query == SHARED_OVERVIEW_QUERY
 
 
 def test_integrity_risk_gets_location_and_headcount_overrides():
@@ -630,6 +701,13 @@ def test_incumbents_keep_shared_or_landed_not_w3_overrides():
         assert people.query == SHARED_PEOPLE_QUERY
         assert list(people.workstream_filter) == SHARED_PEOPLE_WORKSTREAM_FILTER
 
+        overview = apply_company_intent_overrides(
+            live[INF_OVERVIEW_INTENT_ID], company_name=company
+        )
+        assert overview is live[INF_OVERVIEW_INTENT_ID]
+        assert overview.query == SHARED_OVERVIEW_QUERY
+        assert list(overview.workstream_filter) == SHARED_OVERVIEW_WORKSTREAM_FILTER
+
         qofe = apply_company_intent_overrides(
             live[SHERPA_QOFE_INTENT_ID], company_name=company
         )
@@ -772,6 +850,7 @@ def test_build_search_kwargs_applies_each_w3_slug():
     live = _by_id()
     cases = (
         ("Infinitive", INF_VISIBILITY_INTENT_ID, INF_VISIBILITY_QUERY, list(INF_VISIBILITY_FILE_NAME_FILTER)),
+        ("Infinitive", INF_OVERVIEW_INTENT_ID, INF_OVERVIEW_QUERY, list(INF_OVERVIEW_FILE_NAME_FILTER)),
         ("Integrity Risk", IR_LOCATION_INTENT_ID, IR_LOCATION_QUERY, list(IR_LOCATION_FILE_NAME_FILTER)),
         ("Integrity Risk", IR_BENCH_INTENT_ID, IR_BENCH_QUERY, list(IR_BENCH_FILE_NAME_FILTER)),
         ("Integrity Risk", IR_ACCOUNT_SIZE_INTENT_ID, IR_ACCOUNT_SIZE_QUERY, list(IR_ACCOUNT_SIZE_FILE_NAME_FILTER)),
@@ -785,6 +864,8 @@ def test_build_search_kwargs_applies_each_w3_slug():
         kwargs = build_search_kwargs(intent, company_name=company, spark=object())
         assert kwargs["query"] == query
         assert kwargs["file_name_filter"] == file_filter
+        if company == "Infinitive" and intent_id == INF_OVERVIEW_INTENT_ID:
+            assert kwargs["workstream_filter"] is None
         fallback = _fallback_kwargs_from_intent(
             intent, company_name=company, spark=object()
         )
@@ -800,6 +881,12 @@ def test_w3_siblings_do_not_take_ir_bench_account_or_inf_people():
         )
         assert people is live[INF_PEOPLE_INTENT_ID]
         assert list(people.workstream_filter) == SHARED_PEOPLE_WORKSTREAM_FILTER
+        overview = apply_company_intent_overrides(
+            live[INF_OVERVIEW_INTENT_ID], company_name=company
+        )
+        assert overview is live[INF_OVERVIEW_INTENT_ID]
+        assert overview.query == SHARED_OVERVIEW_QUERY
+        assert list(overview.workstream_filter) == SHARED_OVERVIEW_WORKSTREAM_FILTER
         bench = apply_company_intent_overrides(
             live[IR_BENCH_INTENT_ID], company_name=company
         )
@@ -862,5 +949,73 @@ def test_dispatch_spg_visibility_keeps_shared_query(mock_semantic, mock_fallback
     assert mock_fallback.call_args.kwargs["query"] == SHARED_VISIBILITY_QUERY
     assert mock_fallback.call_args.kwargs["file_name_filter"] == (
         SHARED_VISIBILITY_FILE_NAME_FILTER
+    )
+    mock_semantic.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_infinitive_overview_uses_tm_not_unfiltered(
+    mock_semantic, mock_fallback
+):
+    mock_semantic.return_value = MagicMock(chunks=["tm-hit"], mode="semantic")
+    live = _by_id()
+    dispatch_retrieval(
+        live[INF_OVERVIEW_INTENT_ID],
+        company_name="Infinitive",
+        spark=MagicMock(),
+    )
+    assert mock_semantic.call_count == 1
+    assert mock_semantic.call_args.kwargs["query"] == INF_OVERVIEW_QUERY
+    assert mock_semantic.call_args.kwargs["file_name_filter"] == list(
+        INF_OVERVIEW_FILE_NAME_FILTER
+    )
+    assert mock_semantic.call_args.kwargs["workstream_filter"] is None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_infinitive_overview_empty_tm_retries_fixed_fee(
+    mock_semantic, mock_fallback
+):
+    empty = MagicMock(chunks=[], mode="empty")
+    filled = MagicMock(chunks=["ff-hit"], mode="semantic")
+    mock_semantic.side_effect = [empty, filled]
+    live = _by_id()
+    result = dispatch_retrieval(
+        live[INF_OVERVIEW_INTENT_ID],
+        company_name="Infinitive",
+        spark=MagicMock(),
+    )
+    assert result is filled
+    assert mock_semantic.call_count == 2
+    first = mock_semantic.call_args_list[0].kwargs
+    second = mock_semantic.call_args_list[1].kwargs
+    assert first["file_name_filter"] == list(INF_OVERVIEW_FILE_NAME_FILTER)
+    assert second["file_name_filter"] == list(INF_OVERVIEW_FILE_NAME_FILTER_FALLBACK)
+    assert first["workstream_filter"] is None
+    assert second["workstream_filter"] is None
+    assert first["file_name_filter"] != [None]
+    assert second["file_name_filter"] is not None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_spg_overview_keeps_shared_query(mock_semantic, mock_fallback):
+    mock_fallback.return_value = (MagicMock(chunks=["hit"], mode="semantic"), False)
+    live = _by_id()
+    dispatch_retrieval(
+        live[INF_OVERVIEW_INTENT_ID],
+        company_name="SPG",
+        spark=MagicMock(),
+    )
+    assert mock_fallback.call_args.kwargs["query"] == SHARED_OVERVIEW_QUERY
+    assert mock_fallback.call_args.kwargs["file_name_filter"] == (
+        SHARED_OVERVIEW_FILE_NAME_FILTER
+    )
+    assert mock_fallback.call_args.kwargs["workstream_filter"] == (
+        SHARED_OVERVIEW_WORKSTREAM_FILTER
     )
     mock_semantic.assert_not_called()

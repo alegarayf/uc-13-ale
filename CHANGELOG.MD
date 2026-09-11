@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 39)
+
+- patch-cycle-39 (retrieval, Infinitive): company-scoped `harness.py` overview override (T-M filename, no CUSTOMER / CIP / BUSINESS_MODEL) moved leftover gold in-pool (0→0.588). Overlay `enhancement_a230b557529e` vs exam `baseline_bc8f56c5f04b`. Vis/bench held. Blended Inf mean 0.114→0.128. Shared registry strings unchanged (D11). Not §4a.
+- patch-cycle-39 (retrieval, Northbound): D21 gold-identity remint `baseline_cc58c8de7e25` replaced destack contracts bag 23 with 13 in-pool PO/MPA/suppliers ids. Contracts 0→0.692. Vis/q3/overview/headcount held 1.0. Mean 0.135→0.148. Hash-yes `gold_snapshot`. Cycle 40 owes two-step.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 38)
 
 - patch-cycle-38 (retrieval, Integrity Risk): company-scoped `harness.py` overrides put leftover gold in pool for bench and account_size (both 0→1.0). Overlay `enhancement_f59d010dcfe3` vs exam `baseline_1748baa6d13a`. Location / headcount remasured 1.0. Blended IR mean 0.110→0.147. Infinitive people CIP filename emptied and was reverted; vis/bench still 0.50 / 0.583. Shared registry strings unchanged (D11). Not §4a.

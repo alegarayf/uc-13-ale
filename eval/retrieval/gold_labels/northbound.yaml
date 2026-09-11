@@ -14324,32 +14324,23 @@
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - af544cc1-5c76-4650-8c7f-96a6afc633d2
-  - d7ccade0-14d6-4c36-8c30-b42e5f0accda
-  - 17dc84ad-da71-4e10-85a6-8f61bfc479aa
-  - ba0bc2e0-4655-4a4e-90cc-6677ef2b2f3d
-  - 6f6807eb-3525-4215-99e0-dc03ae3e3072
-  - 6fc1d834-6616-4385-ada8-50c4d2689e47
-  - b7252a44-e500-49e7-a3ad-2337a079b15f
-  - b5b76d4c-3ecd-4484-9904-c319955f0fdd
-  - febd0a28-e3c4-4937-852c-31ef651c1ba3
-  - 57289eee-9639-44f6-a274-430f4a3c36bd
-  - cc2d55ee-86f2-48e9-a597-35b241fb8d61
-  - 2319a926-b132-4b66-bdb5-7fe4467ff8e1
-  - e41a341d-81e3-48f6-9af2-3e5f62de4f00
-  - 510729fb-33d8-4869-8678-7b64d4fff862
-  - 35f913da-79ba-486c-87eb-c1fd8516c272
-  - 1fbdc4ef-95d8-4909-99f2-44a51ef7450f
-  - 390d207e-1590-4a2d-b237-fa3d4c2b9e38
-  - 19f87cf6-16a2-4db8-bd59-b5ca01cf3eb4
-  - 18d34997-92d6-4581-9db4-74accb86a623
-  - d6a212d4-f3f0-460c-b124-9f59a6ec064b
-  - 2ee3f02f-cbfa-4a8e-b1fa-d8481619821b
-  - f3cdf5aa-c8be-47c2-99df-439952f3bb3b
-  - c4788993-4b3f-4b1e-a839-b2ea98f590c9
+  - 22eec51b-c5c5-43cb-861f-bf629732e63c
+  - 212a542b-13aa-4b16-aaba-584cc6d9b894
+  - 0a588b50-a271-4681-97f9-25d15ec42631
+  - 12cef53e-6d15-43e6-bb5a-ec8454737170
+  - 933e1a26-7f06-4764-a58b-b29a0044406a
+  - 8fde1757-af2a-4ed3-a7f1-f54716253481
+  - f7bf07dd-591a-41f6-bcae-98390d1926b0
+  - 6f58db1d-4eab-4393-8524-020bbd058d49
+  - f40188b1-59dc-466b-9f5f-c5db88980dc0
+  - d3dba236-852f-46f7-93bd-985aa09b00f6
+  - 3c3a03df-38d6-48dc-9901-59b7e053e224
+  - 453c200d-b30d-42ae-a351-a454e4ff80c4
+  - 767136b5-6a0f-4db6-b560-245b48689d4f
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:5682:2026-09-10
   confidence: high
+  notes: 'cycle-39 D21: replaced destack Loopio/COI/PIIA 23 with 13 in-pool PO/MPA/suppliers; dropped audit 3ba1cdc5'
   aggregate_exclude: false
 - intent_id: legal.employment
   company_name: Northbound

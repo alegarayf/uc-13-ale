@@ -308,6 +308,20 @@ INF_PEOPLE_QUERY = (
 )
 INF_PEOPLE_FILE_NAME_FILTER = ("CIP",)
 
+INF_OVERVIEW_INTENT_ID = "bma.retrieve_business_overview"
+# Cycle-39: T-M vs Fixed Fee workbook. Unique T-M token (13 chunks / 1 file).
+# workstream_filter=None — shared BUSINESS_MODEL ∩ 0 BM chunks. Do not add
+# CIP. Do not add CUSTOMER. If T-M first-pass empties, dispatch retries
+# Fixed Fee only — never drop filename (cycle-38 CIP Datapack flood).
+# CIP 4/17 stays out; top-10 cap ≈ 10/17. Keep vis/bench byte-intact.
+# People constants stay unused.
+INF_OVERVIEW_QUERY = (
+    "T-M vs Fixed Fee Revenue Project Orange Crush "
+    "business overview revenue streams what the company sells"
+)
+INF_OVERVIEW_FILE_NAME_FILTER = ("T-M",)
+INF_OVERVIEW_FILE_NAME_FILTER_FALLBACK = ("Fixed Fee",)
+
 IR_LOCATION_INTENT_ID = CS_LOCATION_INTENT_ID
 IR_LOCATION_QUERY = (
     "Revenue Retention Dashboard Cube geography revenue by location "
@@ -553,6 +567,14 @@ def apply_company_intent_overrides(
                     "file_name_filter": list(INF_BENCH_FILE_NAME_FILTER),
                 }
             )
+        if intent.intent_id == INF_OVERVIEW_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": INF_OVERVIEW_QUERY,
+                    "file_name_filter": list(INF_OVERVIEW_FILE_NAME_FILTER),
+                    "workstream_filter": None,
+                }
+            )
         # people_and_org: cycle-38 CIP filename + no CUSTOMER first-cut
         # first-pass emptied (CIP not in fetch window); fallback dropped CIP
         # and flooded Datapack / pipeline. Dead leftover — revert. Do not
@@ -744,6 +766,14 @@ def _fallback_kwargs_from_intent(
     return kwargs
 
 
+def _is_infinitive_overview(intent: RetrievalIntent, company_name: str) -> bool:
+    try:
+        slug = canonical_company_slug(company_name)
+    except (TypeError, UnnormalizableCompanySlugError):
+        return False
+    return slug == "infinitive" and intent.intent_id == INF_OVERVIEW_INTENT_ID
+
+
 def dispatch_retrieval(
     intent: RetrievalIntent,
     *,
@@ -756,6 +786,22 @@ def dispatch_retrieval(
 
     kwargs = build_search_kwargs(intent, company_name=company_name, spark=spark)
     merge_rank_mode = ablation_arm_to_merge_rank_mode(ablation_arm)
+
+    # Infinitive overview: T-M first, Fixed Fee if empty. Never drop
+    # filename — shared fallback floods Datapack when workstream is None
+    # (cycle-38 CIP death). Not leftover-zero ranking. Not people.
+    if _is_infinitive_overview(intent, company_name):
+        if merge_rank_mode is not None:
+            kwargs["merge_rank_mode"] = merge_rank_mode
+        result = semantic_search(**kwargs)
+        if len(getattr(result, "chunks", None) or []) == 0:
+            result = semantic_search(
+                **{
+                    **kwargs,
+                    "file_name_filter": list(INF_OVERVIEW_FILE_NAME_FILTER_FALLBACK),
+                }
+            )
+        return result
 
     if uses_fallback_wrapper(intent):
         min_results = intent.min_results if intent.min_results is not None else 3
