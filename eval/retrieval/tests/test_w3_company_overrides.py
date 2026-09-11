@@ -121,6 +121,10 @@ from eval.retrieval.harness import (
     STRIDE_REVENUE_TYPE_INTENT_ID,
     STRIDE_REVENUE_TYPE_QUERY,
     STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER,
+    STRIDE_VISIBILITY_FILE_NAME_FILTER,
+    STRIDE_VISIBILITY_FILE_NAME_FILTER_FALLBACK,
+    STRIDE_VISIBILITY_INTENT_ID,
+    STRIDE_VISIBILITY_QUERY,
     _fallback_kwargs_from_intent,
     apply_company_intent_overrides,
     build_search_kwargs,
@@ -831,6 +835,95 @@ def test_stride_gets_kpi_dashboard_override_and_keeps_f1_f3_revenue_type():
     assert cs.query != STRIDE_KPI_DASHBOARD_QUERY
 
 
+def test_stride_gets_visibility_override_and_keeps_closed_six():
+    live = _by_id()
+    vis = apply_company_intent_overrides(
+        live[STRIDE_VISIBILITY_INTENT_ID], company_name="Stride"
+    )
+    assert vis is not live[STRIDE_VISIBILITY_INTENT_ID]
+    assert vis.query == STRIDE_VISIBILITY_QUERY
+    assert "Backlog & Pipeline 7.13" in vis.query
+    assert "Backlog & Pipeline 6.30" in vis.query
+    assert "Embedded Relationships" in vis.query
+    assert "Ajax" not in vis.query
+    assert "24 schools" not in vis.query
+    assert "86.6 million" not in vis.query
+    assert list(vis.file_name_filter) == list(STRIDE_VISIBILITY_FILE_NAME_FILTER)
+    assert vis.file_name_filter == ["2.24", "2.19"]
+    assert vis.workstream_filter is None
+    assert "Josie" not in (vis.file_name_filter or [])
+    assert "Model" not in vis.file_name_filter
+    assert "KPI" not in vis.file_name_filter
+    assert "Metrics" not in vis.file_name_filter
+    assert "CIM" not in vis.file_name_filter
+    assert "Bill Rate" not in vis.file_name_filter
+    assert live[STRIDE_VISIBILITY_INTENT_ID].query == SHARED_VISIBILITY_QUERY
+    assert "Ajax" in live[STRIDE_VISIBILITY_INTENT_ID].query
+    assert "24 schools" in live[STRIDE_VISIBILITY_INTENT_ID].query
+    assert "86.6 million" in live[STRIDE_VISIBILITY_INTENT_ID].query
+    assert list(live[STRIDE_VISIBILITY_INTENT_ID].file_name_filter) == (
+        SHARED_VISIBILITY_FILE_NAME_FILTER
+    )
+
+    # Closed six stay byte-identical to the closed overlay.
+    conc = apply_company_intent_overrides(
+        live[STRIDE_CONCENTRATION_INTENT_ID], company_name="Stride"
+    )
+    assert conc.query == STRIDE_CQA_QUERY
+    assert list(conc.file_name_filter) == list(STRIDE_CQA_FILE_NAME_FILTER)
+    assert list(conc.workstream_filter) == list(STRIDE_CONCENTRATION_WORKSTREAM_FILTER)
+    health = apply_company_intent_overrides(
+        live[STRIDE_HEALTH_INTENT_ID], company_name="Stride"
+    )
+    assert health.query == STRIDE_CQA_QUERY
+    assert list(health.file_name_filter) == list(STRIDE_CQA_FILE_NAME_FILTER)
+    q4 = apply_company_intent_overrides(
+        live[STRIDE_Q4_FALLBACK_INTENT_ID], company_name="Stride"
+    )
+    assert q4.query == STRIDE_Q4_FALLBACK_QUERY
+    assert list(q4.file_name_filter) == list(STRIDE_Q4_FALLBACK_FILE_NAME_FILTER)
+    hc = apply_company_intent_overrides(
+        live[STRIDE_HEADCOUNT_INTENT_ID], company_name="Stride"
+    )
+    assert hc.query == STRIDE_HEADCOUNT_QUERY
+    assert list(hc.file_name_filter) == list(STRIDE_HEADCOUNT_FILE_NAME_FILTER)
+    assert list(hc.workstream_filter) == list(STRIDE_HEADCOUNT_WORKSTREAM_FILTER)
+    rev = apply_company_intent_overrides(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID], company_name="Stride"
+    )
+    assert rev.query == STRIDE_REVENUE_TYPE_QUERY
+    assert list(rev.file_name_filter) == list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)
+    assert list(rev.workstream_filter) == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
+    dash = apply_company_intent_overrides(
+        live[STRIDE_KPI_DASHBOARD_INTENT_ID], company_name="Stride"
+    )
+    assert dash.query == STRIDE_KPI_DASHBOARD_QUERY
+    assert list(dash.file_name_filter) == list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER)
+    assert dash.workstream_filter is None
+
+    solvd = apply_company_intent_overrides(
+        live[STRIDE_VISIBILITY_INTENT_ID], company_name="Solvd"
+    )
+    assert solvd.query == SOLVD_VISIBILITY_QUERY
+    assert list(solvd.file_name_filter) == list(SOLVD_VISIBILITY_FILE_NAME_FILTER)
+    assert solvd.workstream_filter is None
+    assert solvd.query != STRIDE_VISIBILITY_QUERY
+    cs = apply_company_intent_overrides(
+        live[STRIDE_VISIBILITY_INTENT_ID], company_name="Clearsulting"
+    )
+    assert cs.query == CS_VISIBILITY_QUERY
+    assert list(cs.file_name_filter) == list(CS_VISIBILITY_FILE_NAME_FILTER)
+    assert cs.query != STRIDE_VISIBILITY_QUERY
+    inf = apply_company_intent_overrides(
+        live[STRIDE_VISIBILITY_INTENT_ID], company_name="Infinitive"
+    )
+    assert inf.query == INF_VISIBILITY_QUERY
+    nb = apply_company_intent_overrides(
+        live[STRIDE_VISIBILITY_INTENT_ID], company_name="Northbound"
+    )
+    assert nb.query == NB_VISIBILITY_QUERY
+
+
 def test_project_sherpa_gets_sales_and_qofe_overrides():
     live = _by_id()
     sales = apply_company_intent_overrides(
@@ -1108,14 +1201,18 @@ def test_visibility_location_q4_are_slug_isolated():
     nb = apply_company_intent_overrides(vis_intent, company_name="Northbound")
     cs = apply_company_intent_overrides(vis_intent, company_name="Clearsulting")
     solvd = apply_company_intent_overrides(vis_intent, company_name="Solvd")
+    stride_vis = apply_company_intent_overrides(vis_intent, company_name="Stride")
     spg = apply_company_intent_overrides(vis_intent, company_name="SPG")
     assert inf.query == INF_VISIBILITY_QUERY
     assert nb.query == NB_VISIBILITY_QUERY
     assert cs.query == CS_VISIBILITY_QUERY
     assert solvd.query == SOLVD_VISIBILITY_QUERY
     assert solvd.workstream_filter is None
+    assert stride_vis.query == STRIDE_VISIBILITY_QUERY
+    assert list(stride_vis.file_name_filter) == list(STRIDE_VISIBILITY_FILE_NAME_FILTER)
+    assert stride_vis.workstream_filter is None
     assert spg is vis_intent
-    assert inf.query != cs.query != nb.query != solvd.query
+    assert inf.query != cs.query != nb.query != solvd.query != stride_vis.query
 
     loc_intent = live[CS_LOCATION_INTENT_ID]
     ir = apply_company_intent_overrides(loc_intent, company_name="Integrity Risk")
@@ -1151,6 +1248,7 @@ def test_build_search_kwargs_applies_each_w3_slug():
         ("Stride", STRIDE_CONCENTRATION_INTENT_ID, STRIDE_CQA_QUERY, list(STRIDE_CQA_FILE_NAME_FILTER)),
         ("Stride", STRIDE_REVENUE_TYPE_INTENT_ID, STRIDE_REVENUE_TYPE_QUERY, list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)),
         ("Stride", STRIDE_KPI_DASHBOARD_INTENT_ID, STRIDE_KPI_DASHBOARD_QUERY, list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER)),
+        ("Stride", STRIDE_VISIBILITY_INTENT_ID, STRIDE_VISIBILITY_QUERY, list(STRIDE_VISIBILITY_FILE_NAME_FILTER)),
         ("Project Sherpa", SHERPA_SALES_INTENT_ID, SHERPA_SALES_QUERY, list(SHERPA_SALES_FILE_NAME_FILTER)),
         ("Solvd", SOLVD_Q2_INTENT_ID, SOLVD_Q2_QUERY, list(SOLVD_Q2_FILE_NAME_FILTER)),
         ("Solvd", SOLVD_VISIBILITY_INTENT_ID, SOLVD_VISIBILITY_QUERY, list(SOLVD_VISIBILITY_FILE_NAME_FILTER)),
@@ -1167,6 +1265,8 @@ def test_build_search_kwargs_applies_each_w3_slug():
         if company == "Stride" and intent_id == STRIDE_REVENUE_TYPE_INTENT_ID:
             assert kwargs["workstream_filter"] == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
         if company == "Stride" and intent_id == STRIDE_KPI_DASHBOARD_INTENT_ID:
+            assert kwargs["workstream_filter"] is None
+        if company == "Stride" and intent_id == STRIDE_VISIBILITY_INTENT_ID:
             assert kwargs["workstream_filter"] is None
         if company == "Solvd" and intent_id in {
             SOLVD_VISIBILITY_INTENT_ID,
@@ -1413,6 +1513,78 @@ def test_dispatch_stride_kpi_dashboard_empty_2_24_retries_pipeline(
     assert second["workstream_filter"] is None
     assert first["file_name_filter"] != [None]
     assert second["file_name_filter"] is not None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_stride_visibility_uses_2_24_2_19_not_unfiltered(
+    mock_semantic, mock_fallback
+):
+    mock_semantic.return_value = MagicMock(chunks=["backlog-hit"], mode="semantic")
+    live = _by_id()
+    dispatch_retrieval(
+        live[STRIDE_VISIBILITY_INTENT_ID],
+        company_name="Stride",
+        spark=MagicMock(),
+    )
+    assert mock_semantic.call_count == 1
+    assert mock_semantic.call_args.kwargs["query"] == STRIDE_VISIBILITY_QUERY
+    assert mock_semantic.call_args.kwargs["file_name_filter"] == list(
+        STRIDE_VISIBILITY_FILE_NAME_FILTER
+    )
+    assert mock_semantic.call_args.kwargs["workstream_filter"] is None
+    assert mock_semantic.call_args.kwargs["file_name_filter"] != [None]
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_stride_visibility_empty_2_24_2_19_retries_12_1(
+    mock_semantic, mock_fallback
+):
+    empty = MagicMock(chunks=[], mode="empty")
+    filled = MagicMock(chunks=["deck-hit"], mode="semantic")
+    mock_semantic.side_effect = [empty, filled]
+    live = _by_id()
+    result = dispatch_retrieval(
+        live[STRIDE_VISIBILITY_INTENT_ID],
+        company_name="Stride",
+        spark=MagicMock(),
+    )
+    assert result is filled
+    assert mock_semantic.call_count == 2
+    first = mock_semantic.call_args_list[0].kwargs
+    second = mock_semantic.call_args_list[1].kwargs
+    assert first["file_name_filter"] == list(STRIDE_VISIBILITY_FILE_NAME_FILTER)
+    assert second["file_name_filter"] == list(
+        STRIDE_VISIBILITY_FILE_NAME_FILTER_FALLBACK
+    )
+    assert first["workstream_filter"] is None
+    assert second["workstream_filter"] is None
+    assert first["file_name_filter"] != [None]
+    assert second["file_name_filter"] is not None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_solvd_visibility_keeps_cim_not_stride_filter(
+    mock_semantic, mock_fallback
+):
+    mock_semantic.return_value = MagicMock(chunks=["cim-hit"], mode="semantic")
+    live = _by_id()
+    dispatch_retrieval(
+        live[STRIDE_VISIBILITY_INTENT_ID],
+        company_name="Solvd",
+        spark=MagicMock(),
+    )
+    assert mock_semantic.call_count == 1
+    assert mock_semantic.call_args.kwargs["query"] == SOLVD_VISIBILITY_QUERY
+    assert mock_semantic.call_args.kwargs["file_name_filter"] == list(
+        SOLVD_VISIBILITY_FILE_NAME_FILTER
+    )
+    assert mock_semantic.call_args.kwargs["workstream_filter"] is None
     mock_fallback.assert_not_called()
 
 

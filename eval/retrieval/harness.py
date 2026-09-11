@@ -432,6 +432,29 @@ STRIDE_KPI_DASHBOARD_QUERY = (
 STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER = ("2.24",)
 STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER_FALLBACK = ("Pipeline",)
 
+# Cycle-43: Stride-only revenue_visibility. Shared BMA registry query
+# stays byte-identical (D11 Ajax / 86.6 million / 24 schools). Hash-no:
+# harness-time only. D29 live files: 2.24 Backlog 7.13 (fea17b3f /
+# 8f49f289), 2.19 Backlog 6.30 (f6dea57b / 0a54c2c5), 12.1 Deck
+# Embedded Relationships (78055fa3). Analog of closed kpi_dashboard
+# (2.24 then Pipeline) / revenue_type (12.1 then Presentation).
+# First-pass ("2.24", "2.19"); empty first-pass retries ("12.1",)
+# only. workstream_filter=None — filename-only; skip
+# semantic_search_with_fallback (D35) so filename never drops onto
+# Financial Model / Bill Rate (exam pool n=12 is already that miss).
+# Do not add Model / KPI / Metrics / CIM. Keep F1–F3 + revenue_type
+# + kpi_dashboard byte-intact. CS / Inf / NB / Solvd visibility
+# stay slug-isolated. Do not destack. Do not invent leftover-zero
+# ranking.
+STRIDE_VISIBILITY_INTENT_ID = CS_VISIBILITY_INTENT_ID
+STRIDE_VISIBILITY_QUERY = (
+    "Backlog & Pipeline 7.13 Backlog & Pipeline 6.30 "
+    "Embedded Relationships with Attractive Clients "
+    "historical projected revenue contracted bookings visibility"
+)
+STRIDE_VISIBILITY_FILE_NAME_FILTER = ("2.24", "2.19")
+STRIDE_VISIBILITY_FILE_NAME_FILTER_FALLBACK = ("12.1",)
+
 SHERPA_SALES_INTENT_ID = "bma.retrieve_sales_and_customers"
 SHERPA_SALES_QUERY = (
     "Enterprise Adopters Turning Use Cases Into Expansion go to market "
@@ -739,6 +762,14 @@ def apply_company_intent_overrides(
                     "workstream_filter": None,
                 }
             )
+        if intent.intent_id == STRIDE_VISIBILITY_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": STRIDE_VISIBILITY_QUERY,
+                    "file_name_filter": list(STRIDE_VISIBILITY_FILE_NAME_FILTER),
+                    "workstream_filter": None,
+                }
+            )
         return intent
     if slug == "project_sherpa":
         if intent.intent_id == SHERPA_SALES_INTENT_ID:
@@ -894,6 +925,14 @@ def _is_stride_kpi_dashboard(intent: RetrievalIntent, company_name: str) -> bool
     return slug == "stride" and intent.intent_id == STRIDE_KPI_DASHBOARD_INTENT_ID
 
 
+def _is_stride_visibility(intent: RetrievalIntent, company_name: str) -> bool:
+    try:
+        slug = canonical_company_slug(company_name)
+    except (TypeError, UnnormalizableCompanySlugError):
+        return False
+    return slug == "stride" and intent.intent_id == STRIDE_VISIBILITY_INTENT_ID
+
+
 def _is_solvd_bma_trio(intent: RetrievalIntent, company_name: str) -> bool:
     try:
         slug = canonical_company_slug(company_name)
@@ -966,6 +1005,25 @@ def dispatch_retrieval(
                 **{
                     **kwargs,
                     "file_name_filter": list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER_FALLBACK),
+                }
+            )
+        return result
+
+    # Stride visibility: 2.24+2.19 first, 12.1 if empty. Never drop
+    # filename — shared fallback unions / drops 2.24 and floods
+    # Financial Model / Bill Rate (exam pool n=12 / D35). Not
+    # leftover-zero ranking. F1–F3 + revenue_type + kpi_dashboard
+    # stay on their existing paths. CS / Inf / NB / Solvd visibility
+    # stay slug-isolated.
+    if _is_stride_visibility(intent, company_name):
+        if merge_rank_mode is not None:
+            kwargs["merge_rank_mode"] = merge_rank_mode
+        result = semantic_search(**kwargs)
+        if len(getattr(result, "chunks", None) or []) == 0:
+            result = semantic_search(
+                **{
+                    **kwargs,
+                    "file_name_filter": list(STRIDE_VISIBILITY_FILE_NAME_FILTER_FALLBACK),
                 }
             )
         return result
