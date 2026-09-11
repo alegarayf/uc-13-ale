@@ -109,6 +109,10 @@ from eval.retrieval.harness import (
     STRIDE_HEADCOUNT_QUERY,
     STRIDE_HEADCOUNT_WORKSTREAM_FILTER,
     STRIDE_HEALTH_INTENT_ID,
+    STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER,
+    STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER_FALLBACK,
+    STRIDE_KPI_DASHBOARD_INTENT_ID,
+    STRIDE_KPI_DASHBOARD_QUERY,
     STRIDE_Q4_FALLBACK_FILE_NAME_FILTER,
     STRIDE_Q4_FALLBACK_INTENT_ID,
     STRIDE_Q4_FALLBACK_QUERY,
@@ -422,6 +426,19 @@ SHARED_MODEL_CHANGES_WORKSTREAM_FILTER = ["BUSINESS_MODEL", "KPI_OPS"]
 SHARED_ACCOUNT_SIZE_QUERY = (
     "average account size ACV annual contract value revenue per customer SMB enterprise"
 )
+
+SHARED_KPI_DASHBOARD_QUERY = (
+    "GL KPI spreadsheet internal intranet utilization revenue per FTE headcount operating"
+)
+SHARED_KPI_DASHBOARD_FILE_NAME_FILTER = [
+    "KPI",
+    "Dashboard",
+    "Metrics",
+    "Scorecard",
+    "Operating",
+    "Performance",
+]
+SHARED_KPI_DASHBOARD_WORKSTREAM_FILTER = ["KPI_OPS"]
 
 REGISTRY_LOCKSTEP = (
     (INF_VISIBILITY_INTENT_ID, SHARED_VISIBILITY_QUERY, SHARED_VISIBILITY_FILE_NAME_FILTER),
@@ -741,6 +758,79 @@ def test_stride_gets_revenue_type_override_and_keeps_f1_f3():
     assert cs is live[STRIDE_REVENUE_TYPE_INTENT_ID]
 
 
+def test_stride_gets_kpi_dashboard_override_and_keeps_f1_f3_revenue_type():
+    live = _by_id()
+    dash = apply_company_intent_overrides(
+        live[STRIDE_KPI_DASHBOARD_INTENT_ID], company_name="Stride"
+    )
+    assert dash is not live[STRIDE_KPI_DASHBOARD_INTENT_ID]
+    assert dash.query == STRIDE_KPI_DASHBOARD_QUERY
+    assert "Backlog & Pipeline 7.13" in dash.query
+    assert "utilization" not in dash.query
+    assert "Organizational" not in dash.query
+    assert list(dash.file_name_filter) == list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER)
+    assert dash.file_name_filter == ["2.24"]
+    assert dash.workstream_filter is None
+    assert "Josie" not in (dash.file_name_filter or [])
+    assert "KPI" not in dash.file_name_filter
+    assert "Dashboard" not in dash.file_name_filter
+    assert "Utilization" not in dash.file_name_filter
+    assert "Organizational" not in dash.file_name_filter
+    assert "Chart" not in dash.file_name_filter
+    assert "Bill Rate" not in dash.file_name_filter
+    assert live[STRIDE_KPI_DASHBOARD_INTENT_ID].query == SHARED_KPI_DASHBOARD_QUERY
+    assert list(live[STRIDE_KPI_DASHBOARD_INTENT_ID].file_name_filter) == (
+        SHARED_KPI_DASHBOARD_FILE_NAME_FILTER
+    )
+    assert list(live[STRIDE_KPI_DASHBOARD_INTENT_ID].workstream_filter) == (
+        SHARED_KPI_DASHBOARD_WORKSTREAM_FILTER
+    )
+
+    # F1–F3 + revenue_type stay byte-identical to the closed overlay.
+    conc = apply_company_intent_overrides(
+        live[STRIDE_CONCENTRATION_INTENT_ID], company_name="Stride"
+    )
+    assert conc.query == STRIDE_CQA_QUERY
+    assert list(conc.file_name_filter) == list(STRIDE_CQA_FILE_NAME_FILTER)
+    assert list(conc.workstream_filter) == list(STRIDE_CONCENTRATION_WORKSTREAM_FILTER)
+    health = apply_company_intent_overrides(
+        live[STRIDE_HEALTH_INTENT_ID], company_name="Stride"
+    )
+    assert health.query == STRIDE_CQA_QUERY
+    assert list(health.file_name_filter) == list(STRIDE_CQA_FILE_NAME_FILTER)
+    q4 = apply_company_intent_overrides(
+        live[STRIDE_Q4_FALLBACK_INTENT_ID], company_name="Stride"
+    )
+    assert q4.query == STRIDE_Q4_FALLBACK_QUERY
+    assert list(q4.file_name_filter) == list(STRIDE_Q4_FALLBACK_FILE_NAME_FILTER)
+    hc = apply_company_intent_overrides(
+        live[STRIDE_HEADCOUNT_INTENT_ID], company_name="Stride"
+    )
+    assert hc.query == STRIDE_HEADCOUNT_QUERY
+    assert list(hc.file_name_filter) == list(STRIDE_HEADCOUNT_FILE_NAME_FILTER)
+    assert list(hc.workstream_filter) == list(STRIDE_HEADCOUNT_WORKSTREAM_FILTER)
+    rev = apply_company_intent_overrides(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID], company_name="Stride"
+    )
+    assert rev.query == STRIDE_REVENUE_TYPE_QUERY
+    assert list(rev.file_name_filter) == list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)
+    assert list(rev.workstream_filter) == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
+
+    solvd = apply_company_intent_overrides(
+        live[STRIDE_KPI_DASHBOARD_INTENT_ID], company_name="Solvd"
+    )
+    assert solvd is live[STRIDE_KPI_DASHBOARD_INTENT_ID]
+    assert solvd.query == SHARED_KPI_DASHBOARD_QUERY
+    cs = apply_company_intent_overrides(
+        live[STRIDE_KPI_DASHBOARD_INTENT_ID], company_name="Clearsulting"
+    )
+    assert cs.query == CS_KPI_DASHBOARD_QUERY
+    assert list(cs.file_name_filter) == list(CS_KPI_DASHBOARD_FILE_NAME_FILTER)
+    assert "Organizational" in cs.file_name_filter
+    assert "Chart" in cs.file_name_filter
+    assert cs.query != STRIDE_KPI_DASHBOARD_QUERY
+
+
 def test_project_sherpa_gets_sales_and_qofe_overrides():
     live = _by_id()
     sales = apply_company_intent_overrides(
@@ -992,7 +1082,15 @@ def test_w3_companies_do_not_take_cs_gkf_ec_leftover_branches():
         dash = apply_company_intent_overrides(
             live[CS_KPI_DASHBOARD_INTENT_ID], company_name=company
         )
-        assert dash is live[CS_KPI_DASHBOARD_INTENT_ID]
+        if company == "Stride":
+            assert dash.query == STRIDE_KPI_DASHBOARD_QUERY
+            assert list(dash.file_name_filter) == list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER)
+            assert dash.workstream_filter is None
+            assert dash.query != CS_KPI_DASHBOARD_QUERY
+            assert "Organizational" not in dash.query
+            assert list(dash.file_name_filter) != list(CS_KPI_DASHBOARD_FILE_NAME_FILTER)
+        else:
+            assert dash is live[CS_KPI_DASHBOARD_INTENT_ID]
         cim = apply_company_intent_overrides(
             live[EC_CIM_PRESENCE_INTENT_ID], company_name=company
         )
@@ -1052,6 +1150,7 @@ def test_build_search_kwargs_applies_each_w3_slug():
         ("Northbound", NB_Q3_INTENT_ID, NB_Q3_QUERY, list(NB_Q3_FILE_NAME_FILTER)),
         ("Stride", STRIDE_CONCENTRATION_INTENT_ID, STRIDE_CQA_QUERY, list(STRIDE_CQA_FILE_NAME_FILTER)),
         ("Stride", STRIDE_REVENUE_TYPE_INTENT_ID, STRIDE_REVENUE_TYPE_QUERY, list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)),
+        ("Stride", STRIDE_KPI_DASHBOARD_INTENT_ID, STRIDE_KPI_DASHBOARD_QUERY, list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER)),
         ("Project Sherpa", SHERPA_SALES_INTENT_ID, SHERPA_SALES_QUERY, list(SHERPA_SALES_FILE_NAME_FILTER)),
         ("Solvd", SOLVD_Q2_INTENT_ID, SOLVD_Q2_QUERY, list(SOLVD_Q2_FILE_NAME_FILTER)),
         ("Solvd", SOLVD_VISIBILITY_INTENT_ID, SOLVD_VISIBILITY_QUERY, list(SOLVD_VISIBILITY_FILE_NAME_FILTER)),
@@ -1067,6 +1166,8 @@ def test_build_search_kwargs_applies_each_w3_slug():
             assert kwargs["workstream_filter"] is None
         if company == "Stride" and intent_id == STRIDE_REVENUE_TYPE_INTENT_ID:
             assert kwargs["workstream_filter"] == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
+        if company == "Stride" and intent_id == STRIDE_KPI_DASHBOARD_INTENT_ID:
+            assert kwargs["workstream_filter"] is None
         if company == "Solvd" and intent_id in {
             SOLVD_VISIBILITY_INTENT_ID,
             SOLVD_OVERVIEW_INTENT_ID,
@@ -1263,6 +1364,76 @@ def test_dispatch_stride_revenue_type_empty_12_1_retries_presentation(
     assert first["file_name_filter"] != [None]
     assert second["file_name_filter"] is not None
     mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_stride_kpi_dashboard_uses_2_24_not_unfiltered(
+    mock_semantic, mock_fallback
+):
+    mock_semantic.return_value = MagicMock(chunks=["backlog-hit"], mode="semantic")
+    live = _by_id()
+    dispatch_retrieval(
+        live[STRIDE_KPI_DASHBOARD_INTENT_ID],
+        company_name="Stride",
+        spark=MagicMock(),
+    )
+    assert mock_semantic.call_count == 1
+    assert mock_semantic.call_args.kwargs["query"] == STRIDE_KPI_DASHBOARD_QUERY
+    assert mock_semantic.call_args.kwargs["file_name_filter"] == list(
+        STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER
+    )
+    assert mock_semantic.call_args.kwargs["workstream_filter"] is None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_stride_kpi_dashboard_empty_2_24_retries_pipeline(
+    mock_semantic, mock_fallback
+):
+    empty = MagicMock(chunks=[], mode="empty")
+    filled = MagicMock(chunks=["pipe-hit"], mode="semantic")
+    mock_semantic.side_effect = [empty, filled]
+    live = _by_id()
+    result = dispatch_retrieval(
+        live[STRIDE_KPI_DASHBOARD_INTENT_ID],
+        company_name="Stride",
+        spark=MagicMock(),
+    )
+    assert result is filled
+    assert mock_semantic.call_count == 2
+    first = mock_semantic.call_args_list[0].kwargs
+    second = mock_semantic.call_args_list[1].kwargs
+    assert first["file_name_filter"] == list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER)
+    assert second["file_name_filter"] == list(
+        STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER_FALLBACK
+    )
+    assert first["workstream_filter"] is None
+    assert second["workstream_filter"] is None
+    assert first["file_name_filter"] != [None]
+    assert second["file_name_filter"] is not None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_solvd_kpi_dashboard_keeps_shared_query(mock_semantic, mock_fallback):
+    mock_fallback.return_value = (MagicMock(chunks=["hit"], mode="semantic"), False)
+    live = _by_id()
+    dispatch_retrieval(
+        live[STRIDE_KPI_DASHBOARD_INTENT_ID],
+        company_name="Solvd",
+        spark=MagicMock(),
+    )
+    assert mock_fallback.call_args.kwargs["query"] == SHARED_KPI_DASHBOARD_QUERY
+    assert mock_fallback.call_args.kwargs["file_name_filter"] == (
+        SHARED_KPI_DASHBOARD_FILE_NAME_FILTER
+    )
+    assert mock_fallback.call_args.kwargs["workstream_filter"] == (
+        SHARED_KPI_DASHBOARD_WORKSTREAM_FILTER
+    )
+    mock_semantic.assert_not_called()
 
 
 @patch("agents.shared.fallback.semantic_search_with_fallback")

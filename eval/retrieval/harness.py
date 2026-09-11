@@ -414,6 +414,24 @@ STRIDE_REVENUE_TYPE_FILE_NAME_FILTER = ("12.1",)
 STRIDE_REVENUE_TYPE_FILE_NAME_FILTER_FALLBACK = ("Presentation",)
 STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER = ("BUSINESS_MODEL",)
 
+# Cycle-42: Stride-only kpi_dashboard. Shared KPI registry query: stays
+# byte-identical (D11 GL / spreadsheet / utilization). Hash-no:
+# harness-time only. D29 live file is 2.24_Project Josie - Backlog -
+# Pipeline 7.13.2026.xlsx (gold fea17b3f / 8f49f289). Analog of closed
+# revenue_type (12.1 then Presentation). workstream_filter=None —
+# filename-only; skip semantic_search_with_fallback (D35) so filename
+# never drops onto Bill Rate xlsx (exam pool n=11 is already that
+# miss). Empty 2.24 retries Pipeline only. Keep F1–F3 + revenue_type
+# byte-intact. CS Organizational / Chart stays slug-isolated. Do not
+# destack. Do not invent leftover-zero ranking.
+STRIDE_KPI_DASHBOARD_INTENT_ID = CS_KPI_DASHBOARD_INTENT_ID
+STRIDE_KPI_DASHBOARD_QUERY = (
+    "Backlog & Pipeline 7.13 Data Historical Backlog Pipe Rev "
+    "pipeline backlog weighted pipeline bookings"
+)
+STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER = ("2.24",)
+STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER_FALLBACK = ("Pipeline",)
+
 SHERPA_SALES_INTENT_ID = "bma.retrieve_sales_and_customers"
 SHERPA_SALES_QUERY = (
     "Enterprise Adopters Turning Use Cases Into Expansion go to market "
@@ -713,6 +731,14 @@ def apply_company_intent_overrides(
                     "workstream_filter": list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER),
                 }
             )
+        if intent.intent_id == STRIDE_KPI_DASHBOARD_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": STRIDE_KPI_DASHBOARD_QUERY,
+                    "file_name_filter": list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER),
+                    "workstream_filter": None,
+                }
+            )
         return intent
     if slug == "project_sherpa":
         if intent.intent_id == SHERPA_SALES_INTENT_ID:
@@ -860,6 +886,14 @@ def _is_stride_revenue_type(intent: RetrievalIntent, company_name: str) -> bool:
     return slug == "stride" and intent.intent_id == STRIDE_REVENUE_TYPE_INTENT_ID
 
 
+def _is_stride_kpi_dashboard(intent: RetrievalIntent, company_name: str) -> bool:
+    try:
+        slug = canonical_company_slug(company_name)
+    except (TypeError, UnnormalizableCompanySlugError):
+        return False
+    return slug == "stride" and intent.intent_id == STRIDE_KPI_DASHBOARD_INTENT_ID
+
+
 def _is_solvd_bma_trio(intent: RetrievalIntent, company_name: str) -> bool:
     try:
         slug = canonical_company_slug(company_name)
@@ -914,6 +948,24 @@ def dispatch_retrieval(
                 **{
                     **kwargs,
                     "file_name_filter": list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER_FALLBACK),
+                }
+            )
+        return result
+
+    # Stride kpi_dashboard: 2.24 first, Pipeline if empty. Never drop
+    # filename — shared fallback unions / drops 2.24 and floods Bill
+    # Rate xlsx (exam pool n=11 / D35). Not leftover-zero ranking.
+    # F1–F3 + revenue_type stay on their existing paths. CS
+    # Organizational / Chart stays slug-isolated.
+    if _is_stride_kpi_dashboard(intent, company_name):
+        if merge_rank_mode is not None:
+            kwargs["merge_rank_mode"] = merge_rank_mode
+        result = semantic_search(**kwargs)
+        if len(getattr(result, "chunks", None) or []) == 0:
+            result = semantic_search(
+                **{
+                    **kwargs,
+                    "file_name_filter": list(STRIDE_KPI_DASHBOARD_FILE_NAME_FILTER_FALLBACK),
                 }
             )
         return result
