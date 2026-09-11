@@ -422,6 +422,120 @@ def _tier4_ledger_approx_sum(ledger: Any, *, tier4_addback_count: Any) -> dict[s
     }
 
 
+# exec.claim.048: "17 Tier 4 addbacks … five items individually exceeding 5% of EBITDA."
+# Live Elder Care QoE/FTA (2026-09-01): amount_dollars and ebitda_json.ebitda_dollars
+# are CIM USD_k ("2,773" = $2.773M TTM reported; "2,490" = $2.49M). 5% of TTM
+# reported = $138,650. Ten ledger items exceed that (B, D, E, G, I, J, K, N, O, P).
+# The claim's "five" is a focus subset (the five largest — G/K/O/D/N — all clear
+# 5%); census is consistent when 17 Tier 4 rows exist and at least five items
+# exceed 5% of TTM reported EBITDA. Do not use the stale $7,718K backfill base.
+_CLAIM_048_TIER4_COUNT = 17
+_CLAIM_048_OVER_5PCT_COUNT = 5
+_CLAIM_048_EBITDA_FRACTION = Decimal("0.05")
+
+
+def _as_int(raw: Any) -> int | None:
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        return int(str(raw).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _cim_k_to_usd(raw: Any) -> Decimal | None:
+    """Scale a CIM-thousands figure to USD (same rule as ``_ledger_amount_usd``)."""
+
+    parsed = _parse_accounting_number(raw)
+    if parsed is None:
+        return None
+    if abs(parsed) >= _LEDGER_USD_ALREADY_THRESHOLD:
+        return parsed
+    return parsed * Decimal("1000")
+
+
+def _ttm_reported_ebitda_row(ebitda_json: Any) -> dict[str, Any] | None:
+    rows = [
+        row
+        for row in (ebitda_json if isinstance(ebitda_json, list) else [])
+        if isinstance(row, dict)
+    ]
+    reported_ttm = [
+        row
+        for row in rows
+        if str(row.get("version") or "").lower() == "reported"
+        and "ttm" in str(row.get("period") or "").lower()
+    ]
+    if reported_ttm:
+        return reported_ttm[0]
+    ttm = [row for row in rows if "ttm" in str(row.get("period") or "").lower()]
+    return ttm[0] if ttm else None
+
+
+def _tier4_open_item_census(
+    ledger: Any,
+    *,
+    tier4_addback_count: Any,
+    ebitda_json: Any,
+    rank_1_issue: dict[str, Any],
+) -> dict[str, Any]:
+    """Derive rank-1 + 17 / five-over-5% census for exec.claim.048 only."""
+
+    rows = ledger if isinstance(ledger, list) else []
+    ebitda_row = _ttm_reported_ebitda_row(ebitda_json)
+    ebitda_usd = (
+        _cim_k_to_usd(ebitda_row.get("ebitda_dollars")) if ebitda_row else None
+    )
+    threshold = (
+        abs(ebitda_usd) * _CLAIM_048_EBITDA_FRACTION
+        if ebitda_usd is not None
+        else None
+    )
+    over: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        amount = _ledger_amount_usd(row)
+        if amount is None or threshold is None or ebitda_usd is None:
+            continue
+        if abs(amount) <= threshold:
+            continue
+        pct = (abs(amount) / abs(ebitda_usd) * Decimal("100")).quantize(
+            Decimal("0.1")
+        )
+        over.append(
+            {
+                "description": row.get("description"),
+                "amount_usd": int(amount),
+                "pct_of_ebitda": str(pct),
+            }
+        )
+    over.sort(key=lambda item: abs(int(item["amount_usd"])), reverse=True)
+    ledger_count = len(rows)
+    tier4_n = _as_int(tier4_addback_count)
+    census_17_ok = (
+        tier4_n == _CLAIM_048_TIER4_COUNT
+        and ledger_count == _CLAIM_048_TIER4_COUNT
+    )
+    five_ok = len(over) >= _CLAIM_048_OVER_5PCT_COUNT
+    return {
+        "rank_1_issue": rank_1_issue,
+        "tier4_addback_count": tier4_addback_count,
+        "ledger_item_count": ledger_count,
+        "ebitda_base_period": (ebitda_row or {}).get("period"),
+        "ebitda_base_version": (ebitda_row or {}).get("version") or "reported",
+        "ebitda_base_usd": int(ebitda_usd) if ebitda_usd is not None else None,
+        "threshold_pct": "5",
+        "items_over_5pct_of_ebitda": over,
+        "items_over_5pct_count": len(over),
+        "claim_tier4_count": _CLAIM_048_TIER4_COUNT,
+        "claim_over_5pct_count": _CLAIM_048_OVER_5PCT_COUNT,
+        "census_17_ok": census_17_ok,
+        "five_items_over_5pct_ok": five_ok,
+        "census_17_five_ok": census_17_ok and five_ok,
+    }
+
+
 def exec_claim_analysis_evidence(
     claim_id: str,
     cache: dict[str, Any],
@@ -525,6 +639,18 @@ def exec_claim_analysis_evidence(
     elif claim_id == "exec.claim.026":
         table, field = "diligence_report", "section_ratings_json"
         payload = _section_rating_census(cache.get("section_ratings_json"))
+    elif claim_id == "exec.claim.048":
+        rank = _EXEC_TOP10_RANK_MAP["exec.claim.048"]
+        issue = _top10_issue_by_rank(top10, rank)
+        if issue is None:
+            return None
+        table, field = "diligence_report", "top_10_issues_json"
+        payload = _tier4_open_item_census(
+            ledger,
+            tier4_addback_count=cache.get("tier4_addback_count"),
+            ebitda_json=cache.get("ebitda_json"),
+            rank_1_issue=issue,
+        )
     elif claim_id in _EXEC_TOP10_RANK_MAP:
         rank = _EXEC_TOP10_RANK_MAP[claim_id]
         issue = _top10_issue_by_rank(top10, rank)

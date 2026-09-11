@@ -244,6 +244,37 @@ CS_KPI_DASHBOARD_QUERY = (
 )
 CS_KPI_DASHBOARD_FILE_NAME_FILTER = ("Organizational", "Chart")
 
+# Elder Care-only leftover-zero overrides (cycle 36 / P2). Shared BMA /
+# legal registry query: strings stay byte-identical (D11). Hash-no:
+# harness-time only. D29 live tokens: CIM_vF / CIM (OM / Offering /
+# Memorandum are not the only tokens); HIPAA / BAA / Non-Compete /
+# Non-Disclosure / Jotform / dropbox (Contract / MSA / SOW are not the
+# only tokens). CIM gold is BUSINESS_MODEL on CIM_vF — raise top_k so
+# the 26-bag can enter top_k*3 (shared top_k=3 → pool max 3). Legal
+# gold is LEGAL-tagged BAA/HIPAA/NDA, not caregiver Contract Agreement
+# clones. BACKGROUND is not required: all 15 legal gold rows are LEGAL.
+EC_CIM_PRESENCE_INTENT_ID = "bma.detect_cim_presence"
+EC_CIM_PRESENCE_QUERY = (
+    "Proposed Transaction Overview Key Investment Considerations "
+    "Entity Structure CIM_vF confidential information memorandum"
+)
+EC_CIM_PRESENCE_FILE_NAME_FILTER = ("CIM_vF", "CIM")
+EC_CIM_PRESENCE_TOP_K = 10
+
+EC_CONTRACTS_INTENT_ID = "legal.contracts_vendors_platform"
+EC_CONTRACTS_QUERY = (
+    "HIPAA BAA business associate agreement Non-Compete Non-Solicitation "
+    "Non-Disclosure Jotform dropbox PHI confidentiality"
+)
+EC_CONTRACTS_FILE_NAME_FILTER = (
+    "HIPAA",
+    "BAA",
+    "Non-Compete",
+    "Non-Disclosure",
+    "Jotform",
+    "dropbox",
+)
+
 
 def apply_company_intent_overrides(
     intent: RetrievalIntent,
@@ -261,9 +292,11 @@ def apply_company_intent_overrides(
     Clearsulting account_size / kpi_dashboard use Memorandum (BUSINESS_MODEL)
     and Organizational Chart neighborhoods so leftover-zero gold can enter
     those pools. GKF location uses the Ajax CIM corp-org / leadership / DMV
-    neighborhood so gold 7ea35a9a can enter the location pool. SPG keeps the
-    shared registry healthcare/org tail. Shared BMA / CQA / KPI query: stays
-    byte-identical (D11).
+    neighborhood so gold 7ea35a9a can enter the location pool. Elder Care
+    leftover CIM / contracts use CIM_vF section tokens plus a top_k raise,
+    and HIPAA/BAA/NDA filename tokens, so those leftover bags can enter
+    their pools. SPG keeps the shared registry healthcare/org tail.
+    Shared BMA / CQA / KPI / legal query: stays byte-identical (D11).
     """
     try:
         slug = canonical_company_slug(company_name)
@@ -328,6 +361,23 @@ def apply_company_intent_overrides(
                 "file_name_filter": list(GKF_LOCATION_FILE_NAME_FILTER),
             }
         )
+    if slug == "elder_care":
+        if intent.intent_id == EC_CIM_PRESENCE_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": EC_CIM_PRESENCE_QUERY,
+                    "file_name_filter": list(EC_CIM_PRESENCE_FILE_NAME_FILTER),
+                    "top_k": EC_CIM_PRESENCE_TOP_K,
+                }
+            )
+        if intent.intent_id == EC_CONTRACTS_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": EC_CONTRACTS_QUERY,
+                    "file_name_filter": list(EC_CONTRACTS_FILE_NAME_FILTER),
+                }
+            )
+        return intent
     return intent
 
 

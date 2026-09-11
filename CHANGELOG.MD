@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 36)
+
+- patch-cycle-36 (judge_cal, Elder Care): `exec.claim.048` now binds an 048-only rank-1 + 17 / five-over-5% census (`_tier4_open_item_census`). New exec batch `20260911T070549Z-58d3` agrees with human `5a1b` on **44/53** (0.8302, held). 048 XOR cleared. Collateral 052 flip. Do not pin `e449`. No prompt edit.
+- patch-cycle-36 (retrieval, Elder Care): Elder-Care-only harness overrides put leftover gold in pool for `bma.detect_cim_presence` (0→0.038) and `legal.contracts_vendors_platform` (0→0.333). Overlay `enhancement_b1bdf289355b` vs exam `baseline_651c84abef14`. Blended EC mean 0.114→0.122. Shared BMA / legal registry strings unchanged (D11). Not §4a.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 35)
 
 - patch-cycle-35 (judge_cal, Elder Care): `exec.claim.011` now binds an 011-only ledger-sum / approx-ok census (`_tier4_ledger_approx_sum`, band 6.5–8.0 USD_m). New exec batch `20260911T025227Z-25d2` agrees with human `5a1b` on **44/53** (0.8302, held). 011 XOR cleared. Do not pin `e449`. No prompt edit.

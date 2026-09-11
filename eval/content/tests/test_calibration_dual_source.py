@@ -422,6 +422,133 @@ def test_exec_claim_013_028_031_payload_has_no_011_census() -> None:
             continue
         assert "approx_7_3m_ok" not in payload
         assert "ledger_gross_sum_usd" not in payload
+        assert "census_17_five_ok" not in payload
+        assert "items_over_5pct_count" not in payload
+
+
+def _live_ttm_reported_ebitda() -> list[dict[str, str]]:
+    """2026-09-01 Elder Care FTA TTM reported (CIM USD_k; $2.773M)."""
+
+    return [
+        {
+            "period": "TTM Aug-24",
+            "label": "Reported EBITDA",
+            "version": "reported",
+            "ebitda_dollars": "2,773",
+        },
+        {
+            "period": "TTM Aug-24",
+            "label": "Pro Forma Adjusted EBITDA",
+            "version": "pf_adjusted",
+            "ebitda_dollars": "9,239",
+        },
+    ]
+
+
+def _048_live_cache() -> dict[str, object]:
+    cache = _sample_cache()
+    cache["addback_ledger_json"] = _live_shaped_tier4_ledger()
+    cache["tier4_addback_count"] = 17
+    cache["ebitda_json"] = _live_ttm_reported_ebitda()
+    cache["top_10_issues_json"] = [
+        {
+            "rank": 1,
+            "issue": "Total addbacks represent 246.9% of reported EBITDA",
+            "citations": ["CIM.pdf"],
+        },
+        {
+            "rank": 3,
+            "issue": "NYSDOH citations unresolved",
+            "citations": ["CIM.pdf"],
+        },
+    ]
+    return cache
+
+
+def test_exec_claim_048_bind_is_open_item_census_not_bare_rank() -> None:
+    """048 XOR: rank-1 payload alone hid the 17 / five-over-5% census."""
+
+    assert _EXEC_TOP10_RANK_MAP["exec.claim.048"] == 1
+    cache = _048_live_cache()
+    record = exec_claim_analysis_evidence(
+        "exec.claim.048",
+        cache,
+        company_slug="elder_care",
+    )
+    assert record is not None
+    assert record["field"] == "top_10_issues_json"
+    payload = record["payload"]
+    assert int(payload["rank_1_issue"]["rank"]) == 1
+    assert "246.9%" in payload["rank_1_issue"]["issue"]
+    assert payload["tier4_addback_count"] == 17
+    assert payload["ledger_item_count"] == 17
+    assert payload["ebitda_base_usd"] == 2_773_000
+    assert payload["ebitda_base_period"] == "TTM Aug-24"
+    assert payload["items_over_5pct_count"] == 10
+    assert payload["claim_tier4_count"] == 17
+    assert payload["claim_over_5pct_count"] == 5
+    assert payload["census_17_ok"] is True
+    assert payload["five_items_over_5pct_ok"] is True
+    assert payload["census_17_five_ok"] is True
+    assert "approx_7_3m_ok" not in payload
+    assert "ledger_gross_sum_usd" not in payload
+    assert "red_or_yellow_count" not in payload
+    assert payload["items_over_5pct_of_ebitda"][0]["description"].startswith("[G]")
+
+
+def test_exec_claim_048_census_false_when_fewer_than_five_over_5pct() -> None:
+    cache = _048_live_cache()
+    cache["addback_ledger_json"] = [
+        {
+            "description": "[G] Run-rate executive compensation",
+            "amount_dollars": "2,490",
+            "tier_classification": "Tier 4",
+        },
+        {
+            "description": "[K] Unicity pre-acquisition results",
+            "amount_dollars": "1,077",
+            "tier_classification": "Tier 4",
+        },
+        {
+            "description": "[C] Non-operating transactions",
+            "amount_dollars": "53",
+            "tier_classification": "Tier 4",
+        },
+    ]
+    cache["tier4_addback_count"] = 3
+    record = exec_claim_analysis_evidence(
+        "exec.claim.048",
+        cache,
+        company_slug="elder_care",
+    )
+    assert record is not None
+    payload = record["payload"]
+    assert payload["items_over_5pct_count"] == 2
+    assert payload["census_17_ok"] is False
+    assert payload["five_items_over_5pct_ok"] is False
+    assert payload["census_17_five_ok"] is False
+
+
+def test_exec_claim_011_026_034_payload_has_no_048_census() -> None:
+    cache = _048_live_cache()
+    cache["section_ratings_json"] = _elder_care_seven_ratings()
+    for claim_id in (
+        "exec.claim.011",
+        "exec.claim.013",
+        "exec.claim.026",
+        "exec.claim.031",
+        "exec.claim.034",
+    ):
+        record = exec_claim_analysis_evidence(
+            claim_id, cache, company_slug="elder_care"
+        )
+        assert record is not None
+        payload = record["payload"]
+        if isinstance(payload, list):
+            continue
+        assert "census_17_five_ok" not in payload
+        assert "items_over_5pct_count" not in payload
+        assert "rank_1_issue" not in payload
 
 
 def test_exec_verdict_prompt_has_no_sample_wide_exact_count() -> None:
