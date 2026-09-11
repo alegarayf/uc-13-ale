@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 47)
+
+- patch-cycle-47 (classification, Clearsulting): company-scoped `document_classifier` job `806589931292613` moved LEGAL 0→1 on `Phase I Process Letter.pdf` (0 chunks) and flipped two already-chunked BMA decks to BACKGROUND (Go-to-Market 198 + Technology Partnerships 301). Gate 2 restored the pre-job 28-row snapshot. No remint. No producer git diff. Credit none. Not §4a.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 46)
 
 - patch-cycle-46 (ingest, Northbound): retry of three `should_parse=true` `FAILED` files that died on missing `python-docx` / `openpyxl` raised completeness 90/94→93/94. Remint `baseline_288616f6798c` under HEAD harness absorbed vis/q3. Closed five held; exam mean unchanged at 0.148 (not a retrieval win). Payroll Extract 2025 not parsed. No producer git diff. Not §4a.
