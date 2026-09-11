@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 46)
+
+- patch-cycle-46 (ingest, Northbound): retry of three `should_parse=true` `FAILED` files that died on missing `python-docx` / `openpyxl` raised completeness 90/94→93/94. Remint `baseline_288616f6798c` under HEAD harness absorbed vis/q3. Closed five held; exam mean unchanged at 0.148 (not a retrieval win). Payroll Extract 2025 not parsed. No producer git diff. Not §4a.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 45)
 
 - patch-cycle-45 (ingest, Stride + Infinitive): incremental parser-only ingest of never-parsed `should_parse` docs (`force=none`) raised completeness Stride 37/49→49/49 and Infinitive 51/59→58/59. Remints `baseline_77d47726248a` / `baseline_37a94b7c7401` under HEAD harness absorbed overlays `fdc001` / `a230`. Stride closed eight held; exam mean 0.174→0.163 (not a retrieval win). Inf overlay bars held at 0.128. No producer git diff. Not §4a.
