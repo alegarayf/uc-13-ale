@@ -297,8 +297,16 @@ INF_BENCH_QUERY = (
 INF_BENCH_FILE_NAME_FILTER = ("Contractor",)
 
 INF_PEOPLE_INTENT_ID = "bma.retrieve_people_and_org"
-# Cycle-37 measure: CIP + CUSTOMER stayed gold_in_pool=0 (Datapack flood).
-# Tokens kept as a do-not-rewire marker. Do not invent leftover-zero ranking.
+# Cycle-38: CIP filename + CIP / org-overview query, no CUSTOMER workstream.
+# Cycle-37 CIP + CUSTOMER stayed gold_in_pool=0 (Datapack flood) — do not
+# re-add ("CUSTOMER",). If the first pass is empty, fallback drops CIP and
+# kills this arm — revert the people branch only. Do not invent leftover-zero
+# ranking. Do not destack.
+INF_PEOPLE_QUERY = (
+    "CIP Detailed Organizational Overview Project Orange Crush "
+    "Winter 2026 organizational structure leadership team"
+)
+INF_PEOPLE_FILE_NAME_FILTER = ("CIP",)
 
 IR_LOCATION_INTENT_ID = CS_LOCATION_INTENT_ID
 IR_LOCATION_QUERY = (
@@ -313,6 +321,17 @@ IR_HEADCOUNT_QUERY = (
     "Staff beginning of Year Hires Terminations"
 )
 IR_HEADCOUNT_FILE_NAME_FILTER = ("Attrition", "Retention")
+
+# Cycle-38 siblings of the closed location / headcount arms (same gold
+# neighborhoods). Shared bench / CQA registry query: strings stay
+# byte-identical (D11). Do not destack. Do not invent leftover-zero ranking.
+IR_BENCH_INTENT_ID = CS_BENCH_INTENT_ID
+IR_BENCH_QUERY = IR_HEADCOUNT_QUERY
+IR_BENCH_FILE_NAME_FILTER = IR_HEADCOUNT_FILE_NAME_FILTER
+
+IR_ACCOUNT_SIZE_INTENT_ID = CS_ACCOUNT_SIZE_INTENT_ID
+IR_ACCOUNT_SIZE_QUERY = IR_LOCATION_QUERY
+IR_ACCOUNT_SIZE_FILE_NAME_FILTER = IR_LOCATION_FILE_NAME_FILTER
 
 NB_VISIBILITY_INTENT_ID = CS_VISIBILITY_INTENT_ID
 NB_VISIBILITY_QUERY = (
@@ -534,9 +553,11 @@ def apply_company_intent_overrides(
                     "file_name_filter": list(INF_BENCH_FILE_NAME_FILTER),
                 }
             )
-        # people_and_org: CIP + CUSTOMER first-cut stayed gold_in_pool=0
-        # (fallback flooded Datapack / Revenue-by-Project). Dead leftover —
-        # do not keep the Datapack fill. Visibility + bench carried Infinitive.
+        # people_and_org: cycle-38 CIP filename + no CUSTOMER first-cut
+        # first-pass emptied (CIP not in fetch window); fallback dropped CIP
+        # and flooded Datapack / pipeline. Dead leftover — revert. Do not
+        # re-add ("CUSTOMER",). Do not invent leftover-zero ranking.
+        # Visibility + bench still carry Infinitive.
         return intent
     if slug == "integrity_risk":
         if intent.intent_id == IR_LOCATION_INTENT_ID:
@@ -551,6 +572,20 @@ def apply_company_intent_overrides(
                 update={
                     "query": IR_HEADCOUNT_QUERY,
                     "file_name_filter": list(IR_HEADCOUNT_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == IR_BENCH_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": IR_BENCH_QUERY,
+                    "file_name_filter": list(IR_BENCH_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == IR_ACCOUNT_SIZE_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": IR_ACCOUNT_SIZE_QUERY,
+                    "file_name_filter": list(IR_ACCOUNT_SIZE_FILE_NAME_FILTER),
                 }
             )
         return intent

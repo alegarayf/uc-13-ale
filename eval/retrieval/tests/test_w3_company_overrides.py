@@ -48,6 +48,12 @@ from eval.retrieval.harness import (
     INF_VISIBILITY_FILE_NAME_FILTER,
     INF_VISIBILITY_INTENT_ID,
     INF_VISIBILITY_QUERY,
+    IR_ACCOUNT_SIZE_FILE_NAME_FILTER,
+    IR_ACCOUNT_SIZE_INTENT_ID,
+    IR_ACCOUNT_SIZE_QUERY,
+    IR_BENCH_FILE_NAME_FILTER,
+    IR_BENCH_INTENT_ID,
+    IR_BENCH_QUERY,
     IR_HEADCOUNT_FILE_NAME_FILTER,
     IR_HEADCOUNT_INTENT_ID,
     IR_HEADCOUNT_QUERY,
@@ -335,12 +341,17 @@ SHARED_CONTRACT_FILE_NAME_FILTER = [
 ]
 SHARED_CONTRACT_WORKSTREAM_FILTER = ["CUSTOMER", "LEGAL"]
 
+SHARED_ACCOUNT_SIZE_QUERY = (
+    "average account size ACV annual contract value revenue per customer SMB enterprise"
+)
+
 REGISTRY_LOCKSTEP = (
     (INF_VISIBILITY_INTENT_ID, SHARED_VISIBILITY_QUERY, SHARED_VISIBILITY_FILE_NAME_FILTER),
     (INF_BENCH_INTENT_ID, SHARED_BENCH_QUERY, SHARED_BENCH_FILE_NAME_FILTER),
     (INF_PEOPLE_INTENT_ID, SHARED_PEOPLE_QUERY, SHARED_PEOPLE_FILE_NAME_FILTER),
     (IR_LOCATION_INTENT_ID, SHARED_LOCATION_QUERY, SHARED_LOCATION_FILE_NAME_FILTER),
     (IR_HEADCOUNT_INTENT_ID, SHARED_HEADCOUNT_QUERY, None),
+    (IR_ACCOUNT_SIZE_INTENT_ID, SHARED_ACCOUNT_SIZE_QUERY, None),
     (NB_Q3_INTENT_ID, SHARED_Q3_QUERY, SHARED_Q3_FILE_NAME_FILTER),
     (STRIDE_CONCENTRATION_INTENT_ID, SHARED_CONCENTRATION_QUERY, SHARED_CONCENTRATION_FILE_NAME_FILTER),
     (STRIDE_HEALTH_INTENT_ID, SHARED_HEALTH_QUERY, SHARED_HEALTH_FILE_NAME_FILTER),
@@ -408,6 +419,8 @@ def test_infinitive_gets_visibility_and_bench_overrides():
     assert people is live[INF_PEOPLE_INTENT_ID]
     assert people.query == SHARED_PEOPLE_QUERY
     assert list(people.workstream_filter) == SHARED_PEOPLE_WORKSTREAM_FILTER
+    assert people.workstream_filter != ["CUSTOMER"]
+    assert "CUSTOMER" not in (people.workstream_filter or [])
 
 
 def test_integrity_risk_gets_location_and_headcount_overrides():
@@ -433,6 +446,37 @@ def test_integrity_risk_gets_location_and_headcount_overrides():
     assert "Ajax" not in hc.query
     assert "Payroll Build" not in hc.query
     assert live[IR_HEADCOUNT_INTENT_ID].file_name_filter is None
+
+    bench = apply_company_intent_overrides(
+        live[IR_BENCH_INTENT_ID], company_name="Integrity Risk"
+    )
+    assert bench.query == IR_BENCH_QUERY
+    assert list(bench.file_name_filter) == list(IR_BENCH_FILE_NAME_FILTER)
+    assert "CIP Graphs" in bench.query
+    assert "Attrition" in bench.file_name_filter
+    assert "Retention" in bench.file_name_filter
+    assert "Bench" not in bench.file_name_filter
+    assert "Capacity" not in bench.file_name_filter
+    assert "Staffing" not in bench.file_name_filter
+    assert live[IR_BENCH_INTENT_ID].query == SHARED_BENCH_QUERY
+
+    acct = apply_company_intent_overrides(
+        live[IR_ACCOUNT_SIZE_INTENT_ID], company_name="Integrity Risk"
+    )
+    assert acct.query == IR_ACCOUNT_SIZE_QUERY
+    assert list(acct.file_name_filter) == list(IR_ACCOUNT_SIZE_FILE_NAME_FILTER)
+    assert acct.file_name_filter == ["Cube"]
+    assert "Revenue Retention Dashboard" in acct.query
+    assert "Memorandum" not in acct.file_name_filter
+    assert "ACV" not in acct.query
+    assert live[IR_ACCOUNT_SIZE_INTENT_ID].query == SHARED_ACCOUNT_SIZE_QUERY
+    assert live[IR_ACCOUNT_SIZE_INTENT_ID].file_name_filter is None
+
+    people = apply_company_intent_overrides(
+        live[INF_PEOPLE_INTENT_ID], company_name="Integrity Risk"
+    )
+    assert people is live[INF_PEOPLE_INTENT_ID]
+    assert people.query == SHARED_PEOPLE_QUERY
 
 
 def test_northbound_gets_replace_visibility_and_q3_overrides():
@@ -584,6 +628,7 @@ def test_incumbents_keep_shared_or_landed_not_w3_overrides():
         )
         assert people is live[INF_PEOPLE_INTENT_ID]
         assert people.query == SHARED_PEOPLE_QUERY
+        assert list(people.workstream_filter) == SHARED_PEOPLE_WORKSTREAM_FILTER
 
         qofe = apply_company_intent_overrides(
             live[SHERPA_QOFE_INTENT_ID], company_name=company
@@ -668,7 +713,12 @@ def test_w3_companies_do_not_take_cs_gkf_ec_leftover_branches():
         acct = apply_company_intent_overrides(
             live[CS_ACCOUNT_SIZE_INTENT_ID], company_name=company
         )
-        assert acct is live[CS_ACCOUNT_SIZE_INTENT_ID]
+        if company == "Integrity Risk":
+            assert acct.query == IR_ACCOUNT_SIZE_QUERY
+            assert list(acct.file_name_filter) == list(IR_ACCOUNT_SIZE_FILE_NAME_FILTER)
+            assert acct.query != CS_ACCOUNT_SIZE_QUERY
+        else:
+            assert acct is live[CS_ACCOUNT_SIZE_INTENT_ID]
         dash = apply_company_intent_overrides(
             live[CS_KPI_DASHBOARD_INTENT_ID], company_name=company
         )
@@ -723,6 +773,8 @@ def test_build_search_kwargs_applies_each_w3_slug():
     cases = (
         ("Infinitive", INF_VISIBILITY_INTENT_ID, INF_VISIBILITY_QUERY, list(INF_VISIBILITY_FILE_NAME_FILTER)),
         ("Integrity Risk", IR_LOCATION_INTENT_ID, IR_LOCATION_QUERY, list(IR_LOCATION_FILE_NAME_FILTER)),
+        ("Integrity Risk", IR_BENCH_INTENT_ID, IR_BENCH_QUERY, list(IR_BENCH_FILE_NAME_FILTER)),
+        ("Integrity Risk", IR_ACCOUNT_SIZE_INTENT_ID, IR_ACCOUNT_SIZE_QUERY, list(IR_ACCOUNT_SIZE_FILE_NAME_FILTER)),
         ("Northbound", NB_Q3_INTENT_ID, NB_Q3_QUERY, list(NB_Q3_FILE_NAME_FILTER)),
         ("Stride", STRIDE_CONCENTRATION_INTENT_ID, STRIDE_CQA_QUERY, list(STRIDE_CQA_FILE_NAME_FILTER)),
         ("Project Sherpa", SHERPA_SALES_INTENT_ID, SHERPA_SALES_QUERY, list(SHERPA_SALES_FILE_NAME_FILTER)),
@@ -738,6 +790,26 @@ def test_build_search_kwargs_applies_each_w3_slug():
         )
         assert fallback["query"] == query
         assert fallback["file_name_filter"] == file_filter
+
+
+def test_w3_siblings_do_not_take_ir_bench_account_or_inf_people():
+    live = _by_id()
+    for company in ("Northbound", "Stride", "Project Sherpa", "Solvd", "SPG"):
+        people = apply_company_intent_overrides(
+            live[INF_PEOPLE_INTENT_ID], company_name=company
+        )
+        assert people is live[INF_PEOPLE_INTENT_ID]
+        assert list(people.workstream_filter) == SHARED_PEOPLE_WORKSTREAM_FILTER
+        bench = apply_company_intent_overrides(
+            live[IR_BENCH_INTENT_ID], company_name=company
+        )
+        assert bench is live[IR_BENCH_INTENT_ID]
+        assert bench.query == SHARED_BENCH_QUERY
+        acct = apply_company_intent_overrides(
+            live[IR_ACCOUNT_SIZE_INTENT_ID], company_name=company
+        )
+        assert acct is live[IR_ACCOUNT_SIZE_INTENT_ID]
+        assert acct.query == SHARED_ACCOUNT_SIZE_QUERY
 
 
 @patch("agents.shared.fallback.semantic_search_with_fallback")

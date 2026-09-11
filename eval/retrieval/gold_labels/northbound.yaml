@@ -15,12 +15,11 @@
   catalog: uc13_ale
   gold_status: partial
   positive_chunk_ids:
-  - 78554648-0ded-49e5-93eb-8da06228415b
-  - ac45fc55-0dfe-4e42-9613-600cbcfc7cfe
+  - 6e8c5777-7f1d-49b9-a3bc-fc2cf5004296
   gold_method: filename_closure
   ingestion_snapshot: uc13_ale:5682:2026-09-10
   confidence: medium
-  notes: 'citation_destack: kept=2 dropped=44'
+  notes: 'cycle-38 D21: replaced destack payroll with in-pool Sales & Marketing 6e8c5777'
   aggregate_exclude: false
 - intent_id: bma.retrieve_model_changes_and_dependencies
   company_name: Northbound
@@ -12366,11 +12365,16 @@
   catalog: uc13_ale
   gold_status: ready
   positive_chunk_ids:
-  - 9dc04358-b405-48bf-8411-a587c1b66a67
+  - 2d7aff85-8482-4b4f-9a86-034247eebe9a
+  - 337094f0-bc8c-45a1-9481-0630f3bcab29
+  - c64becd8-f078-42b8-89c0-71f7e9dd3b74
+  - 7f9d39c7-a225-4c61-9909-fa6dc18597a7
+  - c78c2604-9a33-422f-bedf-da34f3be7d6f
+  - ab21cde4-7865-42d5-b35a-4df4902fbbf0
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:5682:2026-09-10
   confidence: high
-  notes: 'excel_branch: claim=delivery_capacity_note; tab=Summary'
+  notes: 'cycle-38 D21: replaced Customer Revenue Summary with six in-pool 2021/2022 Payroll Extract ids'
   aggregate_exclude: false
 - intent_id: kpi.retrieve_healthcare_labor_market
   company_name: Northbound

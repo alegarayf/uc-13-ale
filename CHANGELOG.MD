@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 38)
+
+- patch-cycle-38 (retrieval, Integrity Risk): company-scoped `harness.py` overrides put leftover gold in pool for bench and account_size (both 0→1.0). Overlay `enhancement_f59d010dcfe3` vs exam `baseline_1748baa6d13a`. Location / headcount remasured 1.0. Blended IR mean 0.110→0.147. Infinitive people CIP filename emptied and was reverted; vis/bench still 0.50 / 0.583. Shared registry strings unchanged (D11). Not §4a.
+- patch-cycle-38 (retrieval, Northbound): D21 gold-identity remint `baseline_93dcdb50b554` replaced destack / wrong-workbook bags. Overview and headcount 0→1.0. Vis / q3 1.0 baked into the new exam (HEAD harness). Mean 0.061→0.135 (54 / 27). Hash-yes `gold_snapshot`. Cycle 39 owes two-step.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 37)
 
 - patch-cycle-37 (retrieval, W3): company-scoped `harness.py` overrides moved named leftover / residual gold in-pool for Infinitive (vis 0→0.50 / bench 0→0.583), Integrity Risk (location 0.2→1.0 / headcount 0→1.0), Northbound (vis+q3 0→1.0), Stride (concentration+health 0→1.0, q4 fallback 0→0.571, headcount 0→0.6), Project Sherpa (sales 0→0.167 / qofe 0→0.40), and Solvd (q2+q3+contract 0→1.0 / concentration 0→0.25). Overlays `8efa` / `a2f64` / `4f317` / `391b8` / `4f1dee` / `b08754`. Infinitive people arm reverted (`gold_in_pool=0`). Shared registry strings unchanged (D11). Not §4a. In-loop-10 ~12.3→~14.7. Incumbent-4 held 18.9.
