@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 35)
+
+- patch-cycle-35 (judge_cal, Elder Care): `exec.claim.011` now binds an 011-only ledger-sum / approx-ok census (`_tier4_ledger_approx_sum`, band 6.5–8.0 USD_m). New exec batch `20260911T025227Z-25d2` agrees with human `5a1b` on **44/53** (0.8302, held). 011 XOR cleared. Do not pin `e449`. No prompt edit.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 34)
 
 - patch-cycle-34 (judge_cal, Elder Care): rematched `exec.claim.043` / `051` in `_EXEC_TOP10_RANK_MAP` from rank 7 to live rank 9 (T4C / change-of-control). New exec batch `20260911T022507Z-f9cd` agrees with human `5a1b` on **44/53** (0.8302). Both named XOR cleared. Closed `PB-exec_summary-chk27-judge-production-accuracy-gap`. Do not pin `e449`.

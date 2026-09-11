@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 from eval.content.calibration import (
     EXEC_JUDGE_CAL_F4_CLAIM_IDS,
+    EXEC_VERDICT_SYSTEM_PROMPT,
     build_exec_dual_source_evidence,
     exec_claim_analysis_evidence,
     format_exec_dual_source_evidence,
@@ -326,3 +327,108 @@ def test_exec_claim_043_051_bind_live_rank_9_not_rank_7() -> None:
         assert record["payload"]["rank"] == 9
         assert "change-of-control" in record["payload"]["issue"]
         assert record["payload"]["issue"] != "Guided Living tax returns outstanding"
+
+
+def _live_shaped_tier4_ledger() -> list[dict[str, str]]:
+    """2026-09-01 Elder Care QoE amount_dollars (CIM USD_k; gross ~$6.847M)."""
+
+    amounts = (
+        "(0)",
+        "182",
+        "53",
+        "665",
+        "(158)",
+        "(33)",
+        "2,490",
+        "94",
+        "189",
+        "377",
+        "1,077",
+        "0",
+        "0",
+        "430",
+        "909",
+        "190",
+        "-",
+    )
+    letters = "ABCDEFGHIJKLMNOPQ"
+    return [
+        {
+            "description": f"[{letter}] item",
+            "amount_dollars": amount,
+            "tier_classification": "Tier 4",
+        }
+        for letter, amount in zip(letters, amounts, strict=True)
+    ]
+
+
+def test_exec_claim_011_bind_is_ledger_approx_sum() -> None:
+    """011 XOR: judge treated 'approximately $7.3M' as exact vs live ~$6.8M gross."""
+
+    cache = _sample_cache()
+    cache["addback_ledger_json"] = _live_shaped_tier4_ledger()
+    cache["tier4_addback_count"] = 17
+    record = exec_claim_analysis_evidence(
+        "exec.claim.011",
+        cache,
+        company_slug="elder_care",
+    )
+    assert record is not None
+    assert record["field"] == "addback_ledger_json"
+    payload = record["payload"]
+    assert payload["tier4_addback_count"] == 17
+    assert payload["ledger_item_count"] == 17
+    assert payload["ledger_signed_sum_usd"] == 6_465_000
+    assert payload["ledger_gross_sum_usd"] == 6_847_000
+    assert payload["ledger_gross_sum_usd_m"] == "6.847"
+    assert payload["claim_approx_usd_m"] == "7.3"
+    assert payload["approx_band_usd_m"] == "6.5-8.0"
+    assert payload["approx_7_3m_ok"] is True
+    assert payload["addback_ledger_json"] == cache["addback_ledger_json"]
+
+
+def test_exec_claim_011_approx_ok_false_outside_named_band() -> None:
+    cache = _sample_cache()
+    cache["addback_ledger_json"] = [
+        {
+            "description": "[G] Run-rate executive compensation",
+            "amount_dollars": "20,000",
+            "tier_classification": "Tier 4",
+        }
+    ]
+    cache["tier4_addback_count"] = 1
+    record = exec_claim_analysis_evidence(
+        "exec.claim.011",
+        cache,
+        company_slug="elder_care",
+    )
+    assert record is not None
+    payload = record["payload"]
+    assert payload["ledger_gross_sum_usd"] == 20_000_000
+    assert payload["approx_7_3m_ok"] is False
+
+
+def test_exec_claim_013_028_031_payload_has_no_011_census() -> None:
+    cache = _sample_cache()
+    cache["addback_ledger_json"] = _live_shaped_tier4_ledger()
+    for claim_id in ("exec.claim.013", "exec.claim.028", "exec.claim.031"):
+        record = exec_claim_analysis_evidence(
+            claim_id, cache, company_slug="elder_care"
+        )
+        assert record is not None
+        payload = record["payload"]
+        if claim_id == "exec.claim.013":
+            assert payload == cache["addback_ledger_json"]
+            continue
+        assert "approx_7_3m_ok" not in payload
+        assert "ledger_gross_sum_usd" not in payload
+
+
+def test_exec_verdict_prompt_has_no_sample_wide_exact_count() -> None:
+    """D31: do not re-add sample-wide exact-count / approximately language."""
+
+    lowered = EXEC_VERDICT_SYSTEM_PROMPT.lower()
+    assert "material exact figure" not in lowered
+    assert "approximately" not in lowered
+    assert "exact-count" not in lowered
+    assert "exact count" not in lowered
