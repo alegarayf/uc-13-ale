@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 40)
+
+- patch-cycle-40 (retrieval, Stride): company-scoped `harness.py` revenue_type override (12.1 / Embedded Relationships; skip fallback) moved leftover gold in-pool (0→1.0). Overlay `enhancement_d3b17e48cdd1` vs exam `baseline_9e06ef3c2527`. F1–F3 held. Blended Stride mean 0.113→0.131. Shared registry strings unchanged (D11). Not §4a.
+- patch-cycle-40 (retrieval, Project Sherpa): D21 gold-identity remint `baseline_db1225003b43` added four in-pool CIM ids. Overview/people 0.50→0.667, renewals 0.333→0.50, visibility 0.50→0.60. Sales/qofe 0.167/0.40 baked (HEAD harness). Mean 0.117→0.150. Hash-yes `gold_snapshot`. Cycle 41 owes two-step. Overlay `4f1dee` absorbed (D34).
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 39)
 
 - patch-cycle-39 (retrieval, Infinitive): company-scoped `harness.py` overview override (T-M filename, no CUSTOMER / CIP / BUSINESS_MODEL) moved leftover gold in-pool (0→0.588). Overlay `enhancement_a230b557529e` vs exam `baseline_bc8f56c5f04b`. Vis/bench held. Blended Inf mean 0.114→0.128. Shared registry strings unchanged (D11). Not §4a.

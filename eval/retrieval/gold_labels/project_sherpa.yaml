@@ -234,10 +234,11 @@
   positive_chunk_ids:
   - 9a7116ba-9f18-4acf-90a1-71dda1c2a80a
   - e0f57d3d-42a6-49fa-b449-d414cf886239
+  - 938f8cef-8fc2-4ebf-a6dd-aec12f9762b9
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:489:2026-09-11
   confidence: high
-  notes: 'citation_destack: kept=2 dropped=53'
+  notes: 'citation_destack: kept=2 dropped=53; cycle-40 D21 add 938f8cef (in-pool CIM Company Overview)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_model_changes_and_dependencies
   company_name: Project Sherpa
@@ -278,10 +279,11 @@
   positive_chunk_ids:
   - fe5c401b-8aec-437b-8bea-59ada04dae28
   - bb71116f-748d-4ab1-8d3b-f6fb92f2819a
+  - 928740f7-d5c6-448c-826c-e6b56b2aba88
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:489:2026-09-11
   confidence: high
-  notes: 'citation_destack: kept=1 dropped=54'
+  notes: 'citation_destack: kept=1 dropped=54; cycle-40 D21 add 928740f7 (in-pool CIM Organizational Chart)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_pricing_and_margins
   company_name: Project Sherpa
@@ -750,10 +752,11 @@
   - 9a7116ba-9f18-4acf-90a1-71dda1c2a80a
   - e0f57d3d-42a6-49fa-b449-d414cf886239
   - 028595d8-4fd2-4566-9d5b-21884fcd3e7d
+  - 3d206de5-493e-4760-92f6-d63e7dc2bd0f
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:489:2026-09-11
   confidence: high
-  notes: 'citation_destack: kept=3 dropped=52'
+  notes: 'citation_destack: kept=3 dropped=52; cycle-40 D21 add 3d206de5 (in-pool CIM Growth Opportunities)'
   aggregate_exclude: false
 - intent_id: bma.retrieve_sales_and_customers
   company_name: Project Sherpa
@@ -1319,10 +1322,11 @@
   - ef9b95b5-e8ed-4503-95c1-87e1ff7c7bb6
   - 59a28bdd-901a-4b82-9a38-fb68978e82ac
   - 00287fd2-f70c-489e-8a59-22f3cab85cd5
+  - d94c8aa7-983d-4e7d-bd12-1fed2c60f9e6
   gold_method: citation_backfill
   ingestion_snapshot: uc13_ale:489:2026-09-11
   confidence: high
-  notes: 'citation_destack: kept=3 dropped=19'
+  notes: 'citation_destack: kept=3 dropped=19; cycle-40 D21 add d94c8aa7 (in-pool CIM Enterprise Revenue from New & Repeat Customers)'
   aggregate_exclude: false
 - intent_id: fta.ebitda.q1_financial_statements
   company_name: Project Sherpa

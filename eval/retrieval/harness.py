@@ -398,6 +398,22 @@ STRIDE_HEADCOUNT_WORKSTREAM_FILTER = (
     "BUSINESS_MODEL",
 )
 
+# Cycle-40: Embedded Relationships gold 78055fa3 lives on the Deck
+# (12.1_Project Josie - Management Presentation Deck.pdf), BUSINESS_MODEL.
+# Analog of F1 (2.10 / Audit Customers) — Stride-only replace-filter, not a
+# new CQA registry row (D11). Do not destack. Do not invent leftover-zero
+# ranking. Do not append Josie. Keep F1–F3 byte-intact.
+# D35: skip semantic_search_with_fallback so filename never drops (cycle-38
+# CIP death / Inf overview T-M). Empty 12.1 retries Presentation only.
+STRIDE_REVENUE_TYPE_INTENT_ID = "cqa.retrieve_revenue_type_and_renewals"
+STRIDE_REVENUE_TYPE_QUERY = (
+    "Embedded Relationships with Attractive Clients revenue type renewals "
+    "recurring project one-time retainer ARR Deck Presentation"
+)
+STRIDE_REVENUE_TYPE_FILE_NAME_FILTER = ("12.1",)
+STRIDE_REVENUE_TYPE_FILE_NAME_FILTER_FALLBACK = ("Presentation",)
+STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER = ("BUSINESS_MODEL",)
+
 SHERPA_SALES_INTENT_ID = "bma.retrieve_sales_and_customers"
 SHERPA_SALES_QUERY = (
     "Enterprise Adopters Turning Use Cases Into Expansion go to market "
@@ -659,6 +675,14 @@ def apply_company_intent_overrides(
                     "workstream_filter": list(STRIDE_HEADCOUNT_WORKSTREAM_FILTER),
                 }
             )
+        if intent.intent_id == STRIDE_REVENUE_TYPE_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": STRIDE_REVENUE_TYPE_QUERY,
+                    "file_name_filter": list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER),
+                    "workstream_filter": list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER),
+                }
+            )
         return intent
     if slug == "project_sherpa":
         if intent.intent_id == SHERPA_SALES_INTENT_ID:
@@ -774,6 +798,14 @@ def _is_infinitive_overview(intent: RetrievalIntent, company_name: str) -> bool:
     return slug == "infinitive" and intent.intent_id == INF_OVERVIEW_INTENT_ID
 
 
+def _is_stride_revenue_type(intent: RetrievalIntent, company_name: str) -> bool:
+    try:
+        slug = canonical_company_slug(company_name)
+    except (TypeError, UnnormalizableCompanySlugError):
+        return False
+    return slug == "stride" and intent.intent_id == STRIDE_REVENUE_TYPE_INTENT_ID
+
+
 def dispatch_retrieval(
     intent: RetrievalIntent,
     *,
@@ -799,6 +831,23 @@ def dispatch_retrieval(
                 **{
                     **kwargs,
                     "file_name_filter": list(INF_OVERVIEW_FILE_NAME_FILTER_FALLBACK),
+                }
+            )
+        return result
+
+    # Stride revenue_type: 12.1 first, Presentation if empty. Never drop
+    # filename — shared fallback unions / drops 12.1 and floods CIM /
+    # Revenue / Model (cycle-38 CIP death). Not leftover-zero ranking.
+    # F1–F3 stay on the shared fallback path.
+    if _is_stride_revenue_type(intent, company_name):
+        if merge_rank_mode is not None:
+            kwargs["merge_rank_mode"] = merge_rank_mode
+        result = semantic_search(**kwargs)
+        if len(getattr(result, "chunks", None) or []) == 0:
+            result = semantic_search(
+                **{
+                    **kwargs,
+                    "file_name_filter": list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER_FALLBACK),
                 }
             )
         return result

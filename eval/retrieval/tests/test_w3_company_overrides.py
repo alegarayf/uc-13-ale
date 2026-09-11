@@ -103,6 +103,11 @@ from eval.retrieval.harness import (
     STRIDE_Q4_FALLBACK_FILE_NAME_FILTER,
     STRIDE_Q4_FALLBACK_INTENT_ID,
     STRIDE_Q4_FALLBACK_QUERY,
+    STRIDE_REVENUE_TYPE_FILE_NAME_FILTER,
+    STRIDE_REVENUE_TYPE_FILE_NAME_FILTER_FALLBACK,
+    STRIDE_REVENUE_TYPE_INTENT_ID,
+    STRIDE_REVENUE_TYPE_QUERY,
+    STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER,
     _fallback_kwargs_from_intent,
     apply_company_intent_overrides,
     build_search_kwargs,
@@ -365,6 +370,24 @@ SHARED_CONTRACT_FILE_NAME_FILTER = [
 ]
 SHARED_CONTRACT_WORKSTREAM_FILTER = ["CUSTOMER", "LEGAL"]
 
+SHARED_REVENUE_TYPE_QUERY = (
+    "recurring revenue project revenue one-time revenue retainer ARR MRR renewal "
+    "rate expansion revenue upsell revenue mix contracted backlog"
+)
+SHARED_REVENUE_TYPE_FILE_NAME_FILTER = [
+    "CIM",
+    "Revenue",
+    "Customer",
+    "Model",
+    "KPI",
+    "Metrics",
+]
+SHARED_REVENUE_TYPE_WORKSTREAM_FILTER = [
+    "CUSTOMER",
+    "BUSINESS_MODEL",
+    "FINANCIAL",
+]
+
 SHARED_ACCOUNT_SIZE_QUERY = (
     "average account size ACV annual contract value revenue per customer SMB enterprise"
 )
@@ -381,6 +404,7 @@ REGISTRY_LOCKSTEP = (
     (STRIDE_CONCENTRATION_INTENT_ID, SHARED_CONCENTRATION_QUERY, SHARED_CONCENTRATION_FILE_NAME_FILTER),
     (STRIDE_HEALTH_INTENT_ID, SHARED_HEALTH_QUERY, SHARED_HEALTH_FILE_NAME_FILTER),
     (STRIDE_Q4_FALLBACK_INTENT_ID, SHARED_Q4_FALLBACK_QUERY, SHARED_Q4_FALLBACK_FILE_NAME_FILTER),
+    (STRIDE_REVENUE_TYPE_INTENT_ID, SHARED_REVENUE_TYPE_QUERY, SHARED_REVENUE_TYPE_FILE_NAME_FILTER),
     (SHERPA_SALES_INTENT_ID, SHARED_SALES_QUERY, SHARED_SALES_FILE_NAME_FILTER),
     (SHERPA_QOFE_INTENT_ID, SHARED_QOFE_QUERY, SHARED_QOFE_FILE_NAME_FILTER),
     (SOLVD_Q2_INTENT_ID, SHARED_Q2_QUERY, SHARED_Q2_FILE_NAME_FILTER),
@@ -622,6 +646,69 @@ def test_stride_gets_cqa_q4_and_headcount_overrides():
     assert "Build" not in hc.file_name_filter
 
 
+def test_stride_gets_revenue_type_override_and_keeps_f1_f3():
+    live = _by_id()
+    rev = apply_company_intent_overrides(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID], company_name="Stride"
+    )
+    assert rev is not live[STRIDE_REVENUE_TYPE_INTENT_ID]
+    assert rev.query == STRIDE_REVENUE_TYPE_QUERY
+    assert "Embedded Relationships" in rev.query
+    assert list(rev.file_name_filter) == list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)
+    assert rev.file_name_filter == ["12.1"]
+    assert list(rev.workstream_filter) == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
+    assert rev.workstream_filter == ["BUSINESS_MODEL"]
+    assert "Josie" not in (rev.file_name_filter or [])
+    assert "CIM" not in rev.file_name_filter
+    assert "Revenue" not in rev.file_name_filter
+    assert "Customer" not in rev.file_name_filter
+    assert "Model" not in rev.file_name_filter
+    assert "KPI" not in rev.file_name_filter
+    assert "Metrics" not in rev.file_name_filter
+    assert "CUSTOMER" not in (rev.workstream_filter or [])
+    assert live[STRIDE_REVENUE_TYPE_INTENT_ID].query == SHARED_REVENUE_TYPE_QUERY
+    assert list(live[STRIDE_REVENUE_TYPE_INTENT_ID].file_name_filter) == (
+        SHARED_REVENUE_TYPE_FILE_NAME_FILTER
+    )
+    assert list(live[STRIDE_REVENUE_TYPE_INTENT_ID].workstream_filter) == (
+        SHARED_REVENUE_TYPE_WORKSTREAM_FILTER
+    )
+
+    # F1–F3 stay byte-identical to the closed overlay.
+    conc = apply_company_intent_overrides(
+        live[STRIDE_CONCENTRATION_INTENT_ID], company_name="Stride"
+    )
+    assert conc.query == STRIDE_CQA_QUERY
+    assert list(conc.file_name_filter) == list(STRIDE_CQA_FILE_NAME_FILTER)
+    assert list(conc.workstream_filter) == list(STRIDE_CONCENTRATION_WORKSTREAM_FILTER)
+    health = apply_company_intent_overrides(
+        live[STRIDE_HEALTH_INTENT_ID], company_name="Stride"
+    )
+    assert health.query == STRIDE_CQA_QUERY
+    assert list(health.file_name_filter) == list(STRIDE_CQA_FILE_NAME_FILTER)
+    q4 = apply_company_intent_overrides(
+        live[STRIDE_Q4_FALLBACK_INTENT_ID], company_name="Stride"
+    )
+    assert q4.query == STRIDE_Q4_FALLBACK_QUERY
+    assert list(q4.file_name_filter) == list(STRIDE_Q4_FALLBACK_FILE_NAME_FILTER)
+    hc = apply_company_intent_overrides(
+        live[STRIDE_HEADCOUNT_INTENT_ID], company_name="Stride"
+    )
+    assert hc.query == STRIDE_HEADCOUNT_QUERY
+    assert list(hc.file_name_filter) == list(STRIDE_HEADCOUNT_FILE_NAME_FILTER)
+    assert list(hc.workstream_filter) == list(STRIDE_HEADCOUNT_WORKSTREAM_FILTER)
+
+    solvd = apply_company_intent_overrides(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID], company_name="Solvd"
+    )
+    assert solvd is live[STRIDE_REVENUE_TYPE_INTENT_ID]
+    assert solvd.query == SHARED_REVENUE_TYPE_QUERY
+    cs = apply_company_intent_overrides(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID], company_name="Clearsulting"
+    )
+    assert cs is live[STRIDE_REVENUE_TYPE_INTENT_ID]
+
+
 def test_project_sherpa_gets_sales_and_qofe_overrides():
     live = _by_id()
     sales = apply_company_intent_overrides(
@@ -856,6 +943,7 @@ def test_build_search_kwargs_applies_each_w3_slug():
         ("Integrity Risk", IR_ACCOUNT_SIZE_INTENT_ID, IR_ACCOUNT_SIZE_QUERY, list(IR_ACCOUNT_SIZE_FILE_NAME_FILTER)),
         ("Northbound", NB_Q3_INTENT_ID, NB_Q3_QUERY, list(NB_Q3_FILE_NAME_FILTER)),
         ("Stride", STRIDE_CONCENTRATION_INTENT_ID, STRIDE_CQA_QUERY, list(STRIDE_CQA_FILE_NAME_FILTER)),
+        ("Stride", STRIDE_REVENUE_TYPE_INTENT_ID, STRIDE_REVENUE_TYPE_QUERY, list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)),
         ("Project Sherpa", SHERPA_SALES_INTENT_ID, SHERPA_SALES_QUERY, list(SHERPA_SALES_FILE_NAME_FILTER)),
         ("Solvd", SOLVD_Q2_INTENT_ID, SOLVD_Q2_QUERY, list(SOLVD_Q2_FILE_NAME_FILTER)),
     )
@@ -866,6 +954,8 @@ def test_build_search_kwargs_applies_each_w3_slug():
         assert kwargs["file_name_filter"] == file_filter
         if company == "Infinitive" and intent_id == INF_OVERVIEW_INTENT_ID:
             assert kwargs["workstream_filter"] is None
+        if company == "Stride" and intent_id == STRIDE_REVENUE_TYPE_INTENT_ID:
+            assert kwargs["workstream_filter"] == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
         fallback = _fallback_kwargs_from_intent(
             intent, company_name=company, spark=object()
         )
@@ -999,6 +1089,78 @@ def test_dispatch_infinitive_overview_empty_tm_retries_fixed_fee(
     assert first["file_name_filter"] != [None]
     assert second["file_name_filter"] is not None
     mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_stride_revenue_type_uses_12_1_not_unfiltered(
+    mock_semantic, mock_fallback
+):
+    mock_semantic.return_value = MagicMock(chunks=["deck-hit"], mode="semantic")
+    live = _by_id()
+    dispatch_retrieval(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID],
+        company_name="Stride",
+        spark=MagicMock(),
+    )
+    assert mock_semantic.call_count == 1
+    assert mock_semantic.call_args.kwargs["query"] == STRIDE_REVENUE_TYPE_QUERY
+    assert mock_semantic.call_args.kwargs["file_name_filter"] == list(
+        STRIDE_REVENUE_TYPE_FILE_NAME_FILTER
+    )
+    assert mock_semantic.call_args.kwargs["workstream_filter"] == list(
+        STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER
+    )
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_stride_revenue_type_empty_12_1_retries_presentation(
+    mock_semantic, mock_fallback
+):
+    empty = MagicMock(chunks=[], mode="empty")
+    filled = MagicMock(chunks=["pres-hit"], mode="semantic")
+    mock_semantic.side_effect = [empty, filled]
+    live = _by_id()
+    result = dispatch_retrieval(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID],
+        company_name="Stride",
+        spark=MagicMock(),
+    )
+    assert result is filled
+    assert mock_semantic.call_count == 2
+    first = mock_semantic.call_args_list[0].kwargs
+    second = mock_semantic.call_args_list[1].kwargs
+    assert first["file_name_filter"] == list(STRIDE_REVENUE_TYPE_FILE_NAME_FILTER)
+    assert second["file_name_filter"] == list(
+        STRIDE_REVENUE_TYPE_FILE_NAME_FILTER_FALLBACK
+    )
+    assert first["workstream_filter"] == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
+    assert second["workstream_filter"] == list(STRIDE_REVENUE_TYPE_WORKSTREAM_FILTER)
+    assert first["file_name_filter"] != [None]
+    assert second["file_name_filter"] is not None
+    mock_fallback.assert_not_called()
+
+
+@patch("agents.shared.fallback.semantic_search_with_fallback")
+@patch("agents.shared.retrieval.semantic_search")
+def test_dispatch_solvd_revenue_type_keeps_shared_query(mock_semantic, mock_fallback):
+    mock_fallback.return_value = (MagicMock(chunks=["hit"], mode="semantic"), False)
+    live = _by_id()
+    dispatch_retrieval(
+        live[STRIDE_REVENUE_TYPE_INTENT_ID],
+        company_name="Solvd",
+        spark=MagicMock(),
+    )
+    assert mock_fallback.call_args.kwargs["query"] == SHARED_REVENUE_TYPE_QUERY
+    assert mock_fallback.call_args.kwargs["file_name_filter"] == (
+        SHARED_REVENUE_TYPE_FILE_NAME_FILTER
+    )
+    assert mock_fallback.call_args.kwargs["workstream_filter"] == (
+        SHARED_REVENUE_TYPE_WORKSTREAM_FILTER
+    )
+    mock_semantic.assert_not_called()
 
 
 @patch("agents.shared.fallback.semantic_search_with_fallback")
