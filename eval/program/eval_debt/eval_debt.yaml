@@ -468,3 +468,18 @@ debts:
     bma.retrieve_revenue_by_location_and_metrics recall_at_10 > 0 on a complete
     Clearsulting harness run versus baseline_1357f7981d11 (or successor) after a
     query/filter change that does not zero GKF/SPG location
+- id: project_sherpa:global:excel_emdash_tab_resolution
+  company: project_sherpa
+  surface: null
+  layer: retrieval
+  kind: excel_emdash_tab_resolution
+  opened_at: '2026-09-10'
+  evidence_refs:
+  - job:14383627041389
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-30/patch-p2-w3-sherpa.md
+  - .dev/plans/eval-loop-experiment-9-9-2026/runs/cycle-30/gate2.md
+  closes_when: >-
+    Project Sherpa gold bootstrap succeeds against Sheet: {tab} — Data
+    (U+2014) citations on Project Sherpa AI - Financial Package.xlsx, then
+    export-gold + harness-baseline yields a complete baseline_* on uc13_ale
+    without inventing gold ids

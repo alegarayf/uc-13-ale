@@ -1,5 +1,10 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 30)
+
+- patch-cycle-30 (retrieval, Clearsulting): harness-time CS-only overrides on account_size / kpi_dashboard (shared registry `query:` unchanged). Complete hash-no `enhancement_5699e01ea6a9`: account_size 0→0.571, kpi_dashboard 0→1.0, gold in-pool on both. Blended exam 0.190→0.243. GKF account_size 0.333 and SPG kpi_dashboard 1.0 held. Do not treat subset `gate_pass` as §4a.
+- patch-cycle-30 (retrieval, Project Sherpa sidecar): join halted. Cycle-26 aliases covered 20/20 claims; bootstrap `14383627041389` failed on Excel `Sheet: {tab} — Data` (U+2014). No gold, no `baseline_*`. Opened `project_sherpa:global:excel_emdash_tab_resolution`. Do not average into incumbent-4.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-10 (cycle 29)
 
 - patch-cycle-29 (retrieval, Clearsulting): harness-time CS-only overrides on visibility / q5 / bench (shared registry `query:` unchanged). Complete hash-no `enhancement_62659714921a`: vis 0→0.188, q5 0→0.25, bench 0→0.111, gold in-pool on all three. Blended exam 0.172→0.190. GKF vis 0.429 / loc 0.667 and SPG loc 0.037 held. Do not treat subset `gate_pass` as §4a.

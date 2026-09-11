@@ -217,6 +217,33 @@ CS_BENCH_QUERY = (
 )
 CS_BENCH_FILE_NAME_FILTER = ("Employee", "Attrition")
 
+# Clearsulting-only leftover-zero overrides (cycle 30 / P1). Shared CQA /
+# KPI registry query: strings stay byte-identical (D11). Hash-no: harness-time
+# only. D29 live tokens: Memorandum (CIM / Revenue / ACV / Account match 0
+# useful CS files — Revenue admits ledgers); Organizational / Chart (KPI /
+# Dashboard / Utilization match 0 files or the wrong Utilization workbook).
+# account_size gold is BUSINESS_MODEL-only on Memorandum — the shared
+# CUSTOMER/FINANCIAL workstream drops it, so CS also overrides workstream.
+CS_ACCOUNT_SIZE_INTENT_ID = "cqa.retrieve_account_size"
+CS_ACCOUNT_SIZE_QUERY = (
+    "Enabling Industry Leading Clients Metrics 650+ Lifetime Clients 200+ "
+    "Active Clients Revenue Per Active Client 350k Net Revenue Retention "
+    "Customer Retention Client Win History Go-to-Market Engine Driving "
+    "Consistent Blue-Chip Client Wins Fortune 30 Clients Served 160+ New "
+    "Clients in 2024"
+)
+CS_ACCOUNT_SIZE_FILE_NAME_FILTER = ("Memorandum",)
+CS_ACCOUNT_SIZE_WORKSTREAM_FILTER = ("BUSINESS_MODEL",)
+
+CS_KPI_DASHBOARD_INTENT_ID = "kpi.retrieve_kpi_dashboard"
+CS_KPI_DASHBOARD_QUERY = (
+    "Project Infinity Organizational Chart Global CEO North America President "
+    "EMEA Heads of Practice Strategic Commercial Delivery Head of New Ventures "
+    "Sales Client Relationships Managed Services hierarchical reporting "
+    "structures People Experience Business Enablement Integration CoE"
+)
+CS_KPI_DASHBOARD_FILE_NAME_FILTER = ("Organizational", "Chart")
+
 
 def apply_company_intent_overrides(
     intent: RetrievalIntent,
@@ -231,9 +258,12 @@ def apply_company_intent_overrides(
     golds c7ad6845 / 22d42b52 / 11fb91be can enter the top_k*3 window.
     Clearsulting visibility / q5 / bench use Memorandum and Employee/Attrition
     neighborhoods so in-corpus named-zero gold can enter those pools.
-    GKF location uses the Ajax CIM corp-org / leadership / DMV neighborhood so
-    gold 7ea35a9a can enter the location pool. SPG keeps the shared registry
-    healthcare/org tail. Shared BMA query: stays byte-identical (D11).
+    Clearsulting account_size / kpi_dashboard use Memorandum (BUSINESS_MODEL)
+    and Organizational Chart neighborhoods so leftover-zero gold can enter
+    those pools. GKF location uses the Ajax CIM corp-org / leadership / DMV
+    neighborhood so gold 7ea35a9a can enter the location pool. SPG keeps the
+    shared registry healthcare/org tail. Shared BMA / CQA / KPI query: stays
+    byte-identical (D11).
     """
     try:
         slug = canonical_company_slug(company_name)
@@ -273,6 +303,21 @@ def apply_company_intent_overrides(
                 update={
                     "query": CS_BENCH_QUERY,
                     "file_name_filter": list(CS_BENCH_FILE_NAME_FILTER),
+                }
+            )
+        if intent.intent_id == CS_ACCOUNT_SIZE_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": CS_ACCOUNT_SIZE_QUERY,
+                    "file_name_filter": list(CS_ACCOUNT_SIZE_FILE_NAME_FILTER),
+                    "workstream_filter": list(CS_ACCOUNT_SIZE_WORKSTREAM_FILTER),
+                }
+            )
+        if intent.intent_id == CS_KPI_DASHBOARD_INTENT_ID:
+            return intent.model_copy(
+                update={
+                    "query": CS_KPI_DASHBOARD_QUERY,
+                    "file_name_filter": list(CS_KPI_DASHBOARD_FILE_NAME_FILTER),
                 }
             )
         return intent
