@@ -1,5 +1,9 @@
 # Changelog
 
+## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 45)
+
+- patch-cycle-45 (ingest, Stride + Infinitive): incremental parser-only ingest of never-parsed `should_parse` docs (`force=none`) raised completeness Stride 37/49→49/49 and Infinitive 51/59→58/59. Remints `baseline_77d47726248a` / `baseline_37a94b7c7401` under HEAD harness absorbed overlays `fdc001` / `a230`. Stride closed eight held; exam mean 0.174→0.163 (not a retrieval win). Inf overlay bars held at 0.128. No producer git diff. Not §4a.
+
 ## eval-loop-experiment-9-9-2026 — 2026-09-11 (cycle 44)
 
 - patch-cycle-44 (retrieval, Stride): company-scoped `harness.py` bench override (12.1 Deck / Employee Utilization + Highly Scalable Delivery; skip fallback) moved leftover gold in-pool (0→0.50). Overlay `enhancement_fdc001b261e5` vs exam `baseline_9e06ef3c2527`. Visibility + F1–F3 + revenue_type + kpi_dashboard held. Blended Stride mean 0.165→0.174. Shared registry strings unchanged (D11). Not §4a.
