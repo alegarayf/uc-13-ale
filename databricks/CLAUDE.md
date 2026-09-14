@@ -2,7 +2,9 @@
 
 > **Cursor agents:** live workspace access from the laptop is documented in repo-root [`AGENTS.md`](../AGENTS.md) and the [`databricks-access`](../.cursor/skills/databricks-access/SKILL.md) skill. This file covers pipeline implementation only.
 
-> **Current state (2026-09-02).** Chat and vision calls to Claude no longer go through Databricks Model Serving — they use the Anthropic SDK directly through a single gateway, `agents/shared/llm_client.py`. Read **"The LLM gateway"** below before adding any model call; a static test fails the build if you bypass it. The working catalog is **`uc13_preview`** until further notice. Branch: `feature/anthropic-sdk-migration`, deployed to the shared Databricks Git folder; not yet merged to `main`.
+> **Current state (2026-09-02).** Chat and vision calls to Claude no longer go through Databricks Model Serving — they use the Anthropic SDK directly through a single gateway, `agents/shared/llm_client.py`. Read **"The LLM gateway"** below before adding any model call; a static test fails the build if you bypass it. The VDR working catalog is **`uc13_preview`** until further notice. Branch: `feature/anthropic-sdk-migration`, deployed to the shared Databricks Git folder; not yet merged to `main`.
+>
+> **Ale eval / laptop:** harness, gold, G1, and laptop SQL stay on **`uc13_ale`**. Do not retarget eval or repo-root `.env` catalog to `uc13_preview`. `run_vdr_rainmaker.VDR_CATALOG` stays `uc13_preview`.
 
 ## What this project is
 
@@ -547,7 +549,7 @@ All scripts use a dual-source helper: tries `dbutils.widgets.get()` first, falls
 
 ## Catalog convention
 
-> **Current working catalog: `uc13_preview`, until further notice (2026-09-02).** New feature work on this branch runs against `uc13_preview`. `uc13` stays frozen — do not point a run at it to "test in prod", and do not change `run_vdr_rainmaker.VDR_CATALOG`. Note that `get_param("catalog", default="uc13")` is still the required default in production script entry points (the convention test enforces it); the VDR path overrides it with its own constant, which is why VDR runs land in `uc13_preview` regardless.
+> **VDR working catalog: `uc13_preview`, until further notice (2026-09-02).** Hector VDR / final-report work runs against `uc13_preview`. Ale eval / laptop work stays on `uc13_ale`. `uc13` stays frozen — do not point a run at it to "test in prod", and do not change `run_vdr_rainmaker.VDR_CATALOG`. Note that `get_param("catalog", default="uc13")` is still the required default in production script entry points (the convention test enforces it); the VDR path overrides it with its own constant, which is why VDR runs land in `uc13_preview` regardless.
 
 Three Unity Catalog names appear across the pipeline; they are **not** interchangeable:
 
