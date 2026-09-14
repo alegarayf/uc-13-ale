@@ -4,62 +4,65 @@
 <meta charset="utf-8">
 <title>{{ rainmaker.metadata.company_name | default('Company', true) }} — Opportunity Summary</title>
 <style>
-  @page { size: A4; margin: 16mm 14mm 20mm 14mm; }
+  @page { size: A4 landscape; margin: 12mm 14mm 14mm 14mm; }
   * { box-sizing: border-box; }
   body {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     color: #1A1A1A;
-    font-size: 9.5pt;
-    line-height: 1.35;
+    font-size: 8.5pt;
+    line-height: 1.15;
     margin: 0;
   }
-  .page { page-break-after: always; padding-bottom: 10mm; }
+  .page { page-break-after: always; padding-bottom: 6mm; }
+  /* The framing page is the tightest of the three; it needs no trailing pad. */
+  .page.framing { padding-bottom: 0; }
   .page:last-child { page-break-after: auto; }
-  h1 { color: #1F3864; font-size: 22pt; margin: 6mm 0 2mm 0; text-transform: uppercase; }
-  .eyebrow { color: #C2600D; font-weight: bold; font-size: 9pt; letter-spacing: 0.06em; text-transform: uppercase; }
+  h1 { color: #1F3864; font-size: 18pt; margin: 0 0 1mm 0; text-transform: uppercase; }
+  .eyebrow { color: #C2600D; font-weight: bold; font-size: 8.5pt; letter-spacing: 0.06em; text-transform: uppercase; }
   h2.section-header {
-    color: #1F3864; font-size: 15pt; margin: 0 0 1mm 0;
+    color: #1F3864; font-size: 13pt; margin: 0 0 1mm 0;
   }
   h3.block-header {
-    color: #FFFFFF; font-size: 8.5pt; letter-spacing: 0.03em;
-    text-transform: uppercase; padding: 2mm 3mm; margin: 0 0 2.5mm 0;
+    color: #FFFFFF; font-size: 8pt; letter-spacing: 0.03em;
+    text-transform: uppercase; padding: 0.8mm 2.5mm; margin: 0 0 1mm 0;
     background: #1F3864;
   }
   h3.block-header.watchouts { background: #C2600D; }
-  .subtitle { color: #595959; font-size: 10.5pt; margin-bottom: 4mm; }
+  .subtitle { color: #595959; font-size: 9pt; margin-bottom: 1mm; }
   .logo-row { display: flex; justify-content: space-between; align-items: flex-start; }
-  .logo-row img { max-height: 11mm; }
-  .callout-row { display: flex; gap: 4mm; margin: 90mm 0 0 0; }
-  .callout {
-    flex: 1; background: #F2F4F7; border: 0.5pt solid #BFD0E8;
-    border-radius: 2mm; padding: 3mm 4mm;
+  .logo-row img { max-height: 9mm; }
+  .divider { border-top: 2pt solid #1F3864; border-bottom: 0; margin: 1.5mm 0 2mm 0; }
+  .doc-header h1 { margin: 0 0 0.5mm 0; }
+  .doc-header .subtitle { margin-bottom: 1.5mm; }
+  .running-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    color: #595959; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.03em;
+    border-bottom: 0.5pt solid #BFD0E8; padding-bottom: 1.5mm; margin-bottom: 3mm;
   }
-  .callout .label {
-    color: #1F3864; font-weight: bold; font-size: 8pt;
-    text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 1.5mm;
-  }
-  .divider { border-top: 2pt solid #1F3864; border-bottom: 0; margin: 3mm 0 6mm 0; }
-  .divider.split { border-top: 2pt solid #C2600D; width: 22mm; margin-bottom: 0; }
+  .running-header .company { color: #1F3864; font-weight: bold; }
   .footer {
-    color: #595959; font-size: 7.5pt;
-    border-top: 0.5pt solid #BFD0E8; padding-top: 2mm; margin-top: 8mm;
+    color: #595959; font-size: 7pt;
+    border-top: 0.5pt solid #BFD0E8; padding-top: 1.5mm; margin-top: 3mm;
   }
+  .footer .disclosure { display: block; margin-top: 1mm; }
   .one-liner {
     background: #F2F4F7; border-left: 3pt solid #1F3864;
-    padding: 2.5mm 4mm; font-style: italic; margin: 3mm 0 5mm 0;
+    padding: 1.5mm 3.5mm; font-style: italic; margin: 1.5mm 0 2mm 0;
   }
+  .one-liner .core-line { margin-bottom: 0.8mm; }
+  .one-liner .core-line:last-child { margin-bottom: 0; }
   .recommendation {
     background: #FCEEE0; border-left: 3pt solid #C2600D;
-    padding: 2.5mm 4mm; margin: 4mm 0; font-weight: bold;
+    padding: 2mm 3.5mm; margin: 2mm 0; font-weight: bold;
   }
-  ul.bullets { margin: 0 0 3mm 0; padding-left: 4.5mm; }
-  ul.bullets li { margin-bottom: 1.5mm; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-bottom: 5mm; }
+  ul.bullets { margin: 0 0 2mm 0; padding-left: 4mm; }
+  ul.bullets li { margin-bottom: 0.3mm; }
+  .grid-2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-bottom: 1.5mm; }
   .card {
     background: #fff; border: 0.5pt solid #BFD0E8;
     border-radius: 1.5mm; overflow: hidden;
   }
-  .card-body { padding: 0 3mm 3mm 3mm; }
+  .card-body { padding: 0 2.5mm 1.5mm 2.5mm; }
   table.data-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 2mm 0 4mm 0; }
   table.data-table th, table.data-table td {
     border-bottom: 0.5pt solid #BFD0E8; padding: 1.3mm 2mm; text-align: right; vertical-align: top;
@@ -68,74 +71,76 @@
   table.data-table th:first-child, table.data-table td:first-child { text-align: left; }
   table.data-table th { color: #fff; background: #1F3864; font-size: 7.5pt; text-transform: uppercase; }
   table.data-table tr.highlight td { background: #EEF3FA; font-weight: bold; }
-  .snapshot-row { display: flex; gap: 6mm; margin: 3mm 0 5mm 0; }
-  .snapshot-chart { flex: 1.4; }
-  .chart-legend { font-size: 8pt; color: #595959; margin-bottom: 1mm; }
-  .snapshot-circles { flex: 1; display: flex; flex-direction: column; gap: 3mm; justify-content: center; }
-  .cagr-circle {
-    border: 2pt solid #1F3864; border-radius: 50%; width: 20mm; height: 20mm;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto;
-  }
-  .cagr-circle .value { font-size: 11pt; font-weight: bold; color: #1F3864; }
-  .cagr-circle-wrap { text-align: center; font-size: 6.5pt; color: #595959; }
+  table.data-table td.growth-col { background: #EEF3FA; font-weight: bold; color: #1F3864; }
+  table.data-table th.growth-col { background: #17284c; color: #fff; }
   .tile-row { display: flex; gap: 3mm; margin: 3mm 0 5mm 0; flex-wrap: wrap; }
+  .tile-row-secondary { margin-top: 0; }
+  .tile-row-secondary .tile { padding: 2mm; }
+  .tile-row-secondary .value { font-size: 12pt; }
   .tile {
     flex: 1 1 26mm; background: #F2F4F7; border: 0.5pt solid #BFD0E8;
     border-radius: 2mm; padding: 3mm; text-align: center;
   }
   .tile .value { color: #1F3864; font-size: 15pt; font-weight: bold; display: block; }
   .tile .label { color: #595959; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.02em; }
-  .rule-tile .value { color: #C2600D; }
-  .two-col { display: flex; gap: 8mm; }
+  .rule-band { display: flex; gap: 4mm; margin: 3mm 0 5mm 0; }
+  .rule-band-tile {
+    flex: 1 1 40mm; background: #F2F4F7; border: 1pt solid #595959;
+    border-radius: 2mm; padding: 3mm 4mm; text-align: center;
+  }
+  .rule-band-tile.above { border-color: #1F3864; }
+  .rule-band-tile .value { color: #1F3864; font-size: 26pt; font-weight: bold; display: block; }
+  .rule-band-tile.below .value { color: #595959; }
+  .rule-band-tile .components { display: block; color: #1A1A1A; font-size: 8.5pt; margin-top: 0.5mm; }
+  .rule-band-tile .label { color: #595959; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.02em; }
+  .two-col { display: flex; gap: 10mm; }
   .two-col > div { flex: 1; }
+  .page.mps { page-break-inside: avoid; }
+  table.mps-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 1.5mm 0 1.5mm 0; }
+  table.mps-table th, table.mps-table td {
+    border-bottom: 0.5pt solid #BFD0E8; padding: 0.8mm 2mm; text-align: left; vertical-align: top;
+    font-size: 7.3pt; line-height: 1.1; overflow: hidden;
+  }
+  table.mps-table th { color: #fff; background: #1F3864; font-size: 7pt; text-transform: uppercase; }
+  table.mps-table th.mps-category-col, table.mps-table td.mps-category-col { background: #1F3864; color: #fff; font-weight: bold; }
+  table.mps-table tr { page-break-inside: avoid; }
+  table.mps-table td.mps-score-col { text-align: center; font-size: 12pt; font-weight: bold; color: #1F3864; }
+  table.mps-table td.mps-commentary-col ul.bullets { margin: 0; padding-left: 3mm; }
+  table.mps-table td.mps-commentary-col li { margin-bottom: 0.3mm; }
+  table.mps-table li.mps-counter-evidence { color: #595959; font-style: italic; }
+  table.mps-table tr.mps-total-row td { border-bottom: none; border-top: 1pt solid #1F3864; }
+  table.mps-table tr.mps-total-row td.mps-score-col { font-size: 12pt; }
+  .mps-legend { color: #595959; font-size: 7pt; margin: 0 0 1mm 0; }
+  .mps-footer-note { color: #1F3864; font-weight: bold; font-size: 9pt; margin-top: 1mm; }
 </style>
 </head>
 <body>
 
-<!-- Page 1 — Cover -->
-<section class="page cover">
-  <div class="logo-row">
-    <div></div>
-    {% if brand_logo_data_uri %}<img src="{{ brand_logo_data_uri }}" alt="Rallyday Partners">{% endif %}
-  </div>
-
-  <div class="eyebrow">Business Opportunity Summary</div>
-  <h1>{{ rainmaker.metadata.project_name | default(rainmaker.metadata.company_name, true) | default('Opportunity', true) }}</h1>
-  <div class="subtitle">
-    {{ rainmaker.metadata.company_name | default('', true) }} &nbsp;|&nbsp; First-Pass Investment Screen
-  </div>
-  <div class="subtitle">
-    {% if rainmaker.metadata.prepared_for %}Prepared for {{ rainmaker.metadata.prepared_for }}{% endif %}
-    {% if rainmaker.metadata.date %} &nbsp;·&nbsp; {{ rainmaker.metadata.date }}{% endif %}
-  </div>
-  <div class="divider split"></div>
-  <div class="divider" style="width: 100mm; margin-top: -2pt;"></div>
-
-  <div class="callout-row">
-    <div class="callout">
-      <div class="label">Purpose</div>
-      <div>Initial screen of the data room; frames the operating picture, the thesis, and the issues to diligence.</div>
-    </div>
-    <div class="callout">
-      <div class="label">Basis of Preparation</div>
-      <div>Synthesized from the available data room. Figures are management-reported and unverified.</div>
-    </div>
-    <div class="callout">
-      <div class="label">Status</div>
-      <div>{{ rainmaker.metadata.status }}</div>
-    </div>
-  </div>
-
-  <div class="footer">Proprietary &amp; Confidential — Not for distribution &nbsp;|&nbsp; Page 1</div>
-</section>
-
-<!-- Page 2 — Company & Investment Framing -->
+<!-- Page 1 — Company & Investment Framing (no separate cover page) -->
 <section class="page framing">
+  <div class="doc-header">
+    <div class="logo-row">
+      <div>
+        <h1>{{ rainmaker.metadata.company_name | default('Company', true) }}</h1>
+        <div class="subtitle">
+          Business Opportunity Summary &nbsp;·&nbsp; First-Pass Investment Screen
+          {% if rainmaker.metadata.date %}&nbsp;·&nbsp;{{ rainmaker.metadata.date }}{% endif %}
+        </div>
+      </div>
+      {% if brand_logo_data_uri %}<img src="{{ brand_logo_data_uri }}" alt="Rallyday Partners">{% endif %}
+    </div>
+    <div class="divider"></div>
+  </div>
+
   <div class="eyebrow">Company &amp; Investment Framing</div>
   <h2 class="section-header">What the business is &amp; why it could be interesting</h2>
   <div class="divider"></div>
 
-  {% if narrative and narrative.one_liner %}
+  {% if narrative and narrative.core_business %}
+  <div class="one-liner">
+    {% for line in narrative.core_business[:3] %}<div class="core-line">{{ line }}</div>{% endfor %}
+  </div>
+  {% elif narrative and narrative.one_liner %}
   <div class="one-liner">{{ narrative.one_liner }}</div>
   {% elif bundle.executive.in_one_line %}
   <div class="one-liner">{{ bundle.executive.in_one_line }}</div>
@@ -146,7 +151,7 @@
       <h3 class="block-header">Company Overview</h3>
       <div class="card-body">
         <ul class="bullets">
-          {% for bullet in (narrative.company_overview if (narrative and narrative.company_overview) else (bundle.company_framing.overview_bullets or []))[:5] %}
+          {% for bullet in (narrative.company_overview if (narrative and narrative.company_overview) else (bundle.company_framing.overview_bullets or []))[:4] %}
           <li>{{ bullet }}</li>
           {% else %}
           <li>Not yet assessed in this preview.</li>
@@ -160,7 +165,7 @@
       <div class="card-body">
         <ul class="bullets">
           {% if narrative and narrative.business_model %}
-          {% for bullet in narrative.business_model[:3] %}
+          {% for bullet in narrative.business_model[:4] %}
           <li>{{ bullet }}</li>
           {% endfor %}
           {% elif bundle.company_framing.revenue_model.note %}
@@ -177,10 +182,16 @@
       <div class="card-body">
         <ul class="bullets">
           {% if narrative and narrative.investment_thesis and narrative.investment_thesis.value_drivers %}
-          {% if narrative.investment_thesis.why_special %}<li><strong>{{ narrative.investment_thesis.why_special }}</strong></li>{% endif %}
+          {% if narrative.investment_thesis.why_special %}
+          <li><strong>{{ narrative.investment_thesis.why_special }}</strong></li>
           {% for bullet in narrative.investment_thesis.value_drivers[:3] %}
           <li>{{ bullet }}</li>
           {% endfor %}
+          {% else %}
+          {% for bullet in narrative.investment_thesis.value_drivers[:4] %}
+          <li>{{ bullet }}</li>
+          {% endfor %}
+          {% endif %}
           {% else %}
           {% for bullet in (bundle.executive.thesis_bullets or bundle.company_framing.thesis.bullets or [])[:4] %}
           <li>{{ bullet }}</li>
@@ -196,7 +207,7 @@
       <h3 class="block-header watchouts">Key Watchouts / Areas to Prove</h3>
       <div class="card-body">
         <ul class="bullets">
-          {% for watchout in (bundle.executive.key_watchouts or [])[:4] %}
+          {% for watchout in (narrative.key_watchouts if (narrative and narrative.key_watchouts) else (bundle.executive.key_watchouts or []))[:3] %}
           <li>{{ watchout }}</li>
           {% else %}
           <li>Not yet assessed in this preview.</li>
@@ -211,22 +222,30 @@
   <div class="recommendation">{{ recommendation }}</div>
   {% endif %}
 
-  <div class="footer">Proprietary &amp; Confidential — Not for distribution &nbsp;|&nbsp; Page 2</div>
+  <div class="footer">Proprietary &amp; Confidential — Not for distribution</div>
 </section>
 
-<!-- Page 3 — Financial Performance / Revenue Quality / Diligence Priorities -->
+<!-- Financial Performance / Revenue Quality / Diligence Priorities -->
 <section class="page financials">
+  <div class="running-header">
+    <span class="company">{{ rainmaker.metadata.company_name | default('', true) }}</span>
+    <span>Business Opportunity Summary</span>
+  </div>
+
   <div class="eyebrow">Financial Performance · Revenue Quality · Diligence Priorities</div>
   <h2 class="section-header">The numbers, the customer base, and what to test first</h2>
   <div class="divider"></div>
 
   {% if rainmaker.financials.periods %}
-  {% set period_col_pct = (78 / rainmaker.financials.periods | length) | round(2) %}
+  {% set has_growth_col = rainmaker.financials.growth_col_label is not none %}
+  {% set periods_width = 64 if has_growth_col else 82 %}
+  {% set period_col_pct = (periods_width / rainmaker.financials.periods | length) | round(2) %}
   <table class="data-table">
     <thead>
       <tr>
-        <th style="width: 22%;">({{ rainmaker.financials.currency }} in millions)</th>
+        <th style="width: 18%;">({{ rainmaker.financials.currency }}{{ ' ' ~ rainmaker.financials.unit_label if rainmaker.financials.unit_label }})</th>
         {% for period in rainmaker.financials.periods %}<th style="width: {{ period_col_pct }}%;">{{ period }}</th>{% endfor %}
+        {% if has_growth_col %}<th class="growth-col" style="width: 18%;">{{ rainmaker.financials.growth_col_label }}</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -234,64 +253,18 @@
       <tr {% if row.is_highlighted %}class="highlight"{% endif %}>
         <td>{{ row.metric_name }}</td>
         {% for val in row.cells %}<td>{{ val if val is not none else '–' }}</td>{% endfor %}
+        {% if has_growth_col %}<td class="growth-col">{{ row.growth if row.growth is not none else '–' }}</td>{% endif %}
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <div class="snapshot-row">
-    {% if rainmaker.snapshot.has_data %}
-    {% set n = rainmaker.snapshot.periods | length %}
-    {% set chart_w = 520 %}
-    {% set chart_h = 100 %}
-    {% set chart_x0 = 4 %}
-    {% set group_w = chart_w / n %}
-    {% set max_v = rainmaker.snapshot.max_value %}
-    <div class="snapshot-chart">
-      <h3 class="block-header">Financial Snapshot</h3>
-      <p class="chart-legend"><span style="color: #1F3864;">&#9632;</span> Revenue &nbsp;&nbsp; <span style="color: #C2600D;">&#9632;</span> EBITDA</p>
-      <!-- SVG bars, not CSS flex — PyMuPDF Story (the Databricks Serverless PDF
-           engine; WeasyPrint's cairo/pango cannot install there) has weak
-           flexbox/percent-height support, so an HTML/CSS bar chart renders
-           broken in production. SVG is self-contained pixel math and renders
-           reliably across engines. -->
-      <svg viewBox="0 0 {{ chart_w + 8 }} {{ chart_h + 30 }}" width="100%" height="42mm" xmlns="http://www.w3.org/2000/svg">
-        <line x1="{{ chart_x0 }}" y1="{{ chart_h + 6 }}" x2="{{ chart_x0 + chart_w }}" y2="{{ chart_h + 6 }}" stroke="#BFD0E8" stroke-width="1"/>
-        {% for period in rainmaker.snapshot.periods %}
-        {% set gx = chart_x0 + loop.index0 * group_w %}
-        {% set rev = rainmaker.snapshot.revenue[loop.index0] %}
-        {% set eb = rainmaker.snapshot.ebitda[loop.index0] %}
-        {% if rev is not none %}
-        {% set rh = (rev / max_v) * chart_h %}
-        <rect x="{{ (gx + group_w * 0.28 - 6) | round(1) }}" y="{{ (chart_h + 6 - rh) | round(1) }}" width="12" height="{{ rh | round(1) }}" fill="#1F3864"/>
-        {% endif %}
-        {% if eb is not none %}
-        {% set eh = (eb / max_v) * chart_h %}
-        <rect x="{{ (gx + group_w * 0.58 - 6) | round(1) }}" y="{{ (chart_h + 6 - eh) | round(1) }}" width="12" height="{{ eh | round(1) }}" fill="#C2600D"/>
-        {% endif %}
-        <text x="{{ (gx + group_w / 2) | round(1) }}" y="{{ chart_h + 20 }}" font-size="8" fill="#595959" text-anchor="middle">{{ period }}</text>
-        {% endfor %}
-      </svg>
-    </div>
-    {% endif %}
-
-    {% if rainmaker.cagr_circles or rainmaker.rule_of_x %}
-    <div class="snapshot-circles">
-      {% for circle in rainmaker.cagr_circles %}
-      <div class="cagr-circle-wrap">
-        <div class="cagr-circle"><span class="value">{{ circle.value }}</span></div>
-        {{ circle.label }}
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
-
   {% if rainmaker.rule_of_x %}
-  <div class="tile-row">
+  <div class="rule-band">
     {% for tile in rainmaker.rule_of_x %}
-    <div class="tile rule-tile">
+    <div class="rule-band-tile {{ tile.benchmark }}">
       <span class="value">{{ tile.label }}</span>
+      <span class="components">{{ tile.components }}</span>
       <span class="label">{{ tile.period_label }}</span>
     </div>
     {% endfor %}
@@ -302,7 +275,7 @@
   {% endif %}
 
   {% if rainmaker.key_metrics %}
-  <div class="tile-row">
+  <div class="tile-row tile-row-secondary">
     {% for tile in rainmaker.key_metrics %}
     <div class="tile">
       <span class="value">{{ tile.value }}</span>
@@ -334,11 +307,11 @@
       <h3 class="block-header">Priority Diligence Questions</h3>
       <ul class="bullets">
         {% if narrative and narrative.diligence_priorities %}
-        {% for q in narrative.diligence_priorities[:5] %}
+        {% for q in narrative.diligence_priorities[:6] %}
         <li>{{ q }}</li>
         {% endfor %}
         {% else %}
-        {% for q in (rainmaker.diligence_questions or [])[:5] %}
+        {% for q in (rainmaker.diligence_questions or [])[:6] %}
         <li><strong>{{ q.category | default('', true) | title }}:</strong> {{ q.question | default('', true) }}</li>
         {% else %}
         <li>Not yet assessed in this preview.</li>
@@ -348,7 +321,26 @@
     </div>
   </div>
 
-  <div class="footer">Proprietary &amp; Confidential — Not for distribution &nbsp;|&nbsp; Page 3</div>
+  <div class="footer">
+    Proprietary &amp; Confidential — Not for distribution
+    <span class="disclosure">{{ rainmaker.metadata.status }} Synthesized from the available data room; figures are management-reported and unverified.</span>
+  </div>
+</section>
+
+<!-- Minimum Pursuit Score — the verdict on the argument built by the prior two pages -->
+<section class="page mps">
+  <div class="running-header">
+    <span class="company">{{ rainmaker.metadata.company_name | default('', true) }}</span>
+    <span>Business Opportunity Summary</span>
+  </div>
+
+  <div class="eyebrow">Minimum Pursuit Score</div>
+  <h2 class="section-header">Does this clear Rallyday's bar for further pursuit?</h2>
+  <div class="divider"></div>
+
+  {% include "_mps_page.html.j2" %}
+
+  <div class="footer">Proprietary &amp; Confidential — Not for distribution</div>
 </section>
 
 </body>

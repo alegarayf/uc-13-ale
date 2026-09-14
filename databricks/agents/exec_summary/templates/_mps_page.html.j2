@@ -1,0 +1,57 @@
+{#- Shared MPS table markup — included by both rainmaker_opportunity_summary.html.j2
+   and final_report.html.j2 (plan §5, D-01 Path A). Byte-identical to the block
+   this replaced in both templates (verified by T06's before/after render diff).
+   The surrounding page chrome (section/div wrapper, running header, eyebrow,
+   h2, divider, footer) stays in each template — only this inner markup, the
+   part with zero diff between the two documents, is shared. Do not restyle
+   it, do not add score visualisations, do not re-order columns; if the two
+   documents' MPS pages ever need to diverge, that is a decision to raise, not
+   a change to make here. -#}
+  {% set mps_score_col_pct = (16 / mps.columns | length) | round(2) if mps.columns else 0 %}
+  <table class="mps-table">
+    <thead>
+      <tr>
+        <th class="mps-category-col" style="width: 15%;"></th>
+        {% for col in mps.columns %}<th class="mps-score-col" style="width: {{ mps_score_col_pct }}%;">{{ col.header }}</th>{% endfor %}
+        <th>Commentary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in mps.rows %}
+      <tr>
+        <td class="mps-category-col">
+          {{ row.display_name }}{% if row.evidence_marker %}<sup>{{ row.evidence_marker }}</sup>{% endif %}
+        </td>
+        {% for cell in row.score_cells %}<td class="mps-score-col">{{ cell if cell is not none else '—' }}</td>{% endfor %}
+        <td class="mps-commentary-col">
+          {% if row.bullets %}
+          <ul class="bullets">
+            {% for bullet in row.bullets %}
+            <li{% if bullet.kind == 'counter_evidence' %} class="mps-counter-evidence"{% endif %}>{% if bullet.axis %}<strong>{{ bullet.axis }}:</strong> {% endif %}{{ bullet.text }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <ul class="bullets"><li>Not yet assessed in this preview.</li></ul>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="mps-total-row">
+        <td class="mps-category-col"><strong>Total</strong></td>
+        {% for cell in mps.total_cells %}<td class="mps-score-col">{{ cell if cell is not none else '—' }}</td>{% endfor %}
+        <td class="mps-commentary-col"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  {% if mps.show_legend %}
+  <p class="mps-legend">◇ assessed from proxies and judgment; not directly evidenced in the data room</p>
+  {% endif %}
+
+  {% if mps.mps_status == "degraded" %}
+  <div class="mps-footer-note">Not yet assessed in this preview.</div>
+  {% elif mps.verdict is none %}
+  <div class="mps-footer-note">Total not computable — {{ mps.n_scored }} of 7 categories scored.</div>
+  {% else %}
+  <div class="mps-footer-note">Threshold {{ mps.threshold }} · {{ mps.verdict }}</div>
+  {% endif %}

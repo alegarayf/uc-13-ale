@@ -1,19 +1,34 @@
-# VDR Rainmaker POC — Databricks Asset Bundle workflow.
+# VDR Rainmaker — Databricks Asset Bundle workflow.
 #
-# NEW, separate job from "VDR Diligence Pipeline" (617196299594076) — the CIM-
-# first Rainmaker POC (docs/plans/CIM-first-rainmaker-template/plan.md). Reads
-# a companies_vdr_history record by id; if a CIM is found in the data room,
-# runs a CIM-scoped diligence pass (Ruta 2: 7 workstream agents on an isolated
-# preview catalog) and renders the Rainmaker "Opportunity Summary" PDF; if no
-# CIM is found, no-ops with a message. Does not touch, call, or depend on
-# run_vdr_pipeline.py, run_full_pipeline.py, or the production VDR job.
+# Unified VDR flow (docs/plans/connect-all-vdr-er.md), now two stages
+# (docs/plans/final_report/final_report_plan.md). Reads a
+# companies_vdr_history record by id; if a CIM is found in the data room,
+# runs a CIM-scoped diligence pass (Ruta 2: 7 workstream agents on the
+# uc13_preview catalog) and renders the Rainmaker "Opportunity Summary" PDF;
+# if no CIM is found, runs the full Phase 1-5 pipeline over the whole data
+# room (same uc13_preview catalog) and renders the SAME Rainmaker-format
+# executive review, plus the full diligence memo. Either way, the run then
+# continues into a second stage that builds a final diligence report over
+# the whole data room and cannot fail the run — a stage-2 failure leaves the
+# executive review intact and downloadable. Does not touch, call, or depend
+# on run_vdr_pipeline.py or run_full_pipeline.py's own VDR wrapper.
+#
+# NOTE: the live UI-triggered job ("VDR Diligence Pipeline", 617196299594076)
+# already runs this notebook (jobs/notebooks/run_vdr_rainmaker_job) with its
+# own job resource, its own environment, and a 32400s timeout — this YAML
+# documents the shape of that job rather than being how it is deployed
+# (deploy is via the Databricks Git folder + that job's own settings).
 #
 # Output files are written to:
 #   /Volumes/rallyday_partners_llc/default/vdr/{company_snake}/{ISO_timestamp}/
-#       executive_summary.pdf
+#       executive_summary.pdf                     (Rainmaker executive review, both modes — published as soon as stage 1 finishes)
 #       rainmaker_opportunity_summary.html
+#       (full_report.docx — the Phase-5 orchestrator memo — is temporarily NOT
+#        shipped: the stage-2 report now delivers under that base name)
+#       full_report.pdf                           (final diligence report, both modes — stage 2, may be absent if stage 2 failed)
+#       final_diligence_report.html
 #
-# Trigger (manual, for the POC — no UI wiring yet):
+# Trigger (manual):
 #   databricks jobs run-now <job_id> \
 #     --notebook-params '{"table_name":"rallyday_partners_llc.default.companies_vdr_history","id":"24"}'
 
@@ -22,11 +37,22 @@ resources:
     vdr_rainmaker_poc:
       name: "VDR Rainmaker POC"
       description: >
-        CIM-first Rainmaker POC. Reads a companies_vdr_history record by id;
-        if a CIM is found, runs a CIM-scoped diligence pass (7 workstream
-        agents, isolated uc13_preview catalog) and renders the Rainmaker
-        "Opportunity Summary" PDF; otherwise no-ops with a message. Separate
-        from and does not modify the production VDR Diligence Pipeline job.
+        Unified VDR flow, two stages. Reads a companies_vdr_history record by
+        id; if a CIM is found, runs a CIM-scoped diligence pass (7 workstream
+        agents, uc13_preview catalog) and renders the Rainmaker "Opportunity
+        Summary" PDF; otherwise runs the full Phase 1-5 pipeline over the
+        whole data room (same catalog) and renders the same Rainmaker
+        executive review, plus the full diligence memo (full_report.docx).
+        The executive review is published to the record as soon as it
+        exists. The run then continues into a second stage that builds a
+        final diligence report (full_report.pdf/html) over the whole data
+        room; a stage-2 failure never fails the run — the executive review
+        stays downloadable. Progress is exposed via four additive columns on
+        the record (progress_stage, progress_pct, progress_json,
+        stage_updated_at); processing_status keeps its existing vocabulary
+        and stays "processing" until both stages finish.
+        Pass the no_cim_mode="noop" widget to restore the old message-only
+        no-CIM behavior instead.
 
       # Same pattern as vdr_pipeline.yml: code served from the Databricks Git
       # folder "Rallyday" via the WORKSPACE notebook path below — NOT via
@@ -39,18 +65,22 @@ resources:
       tasks:
         - task_key: run_vdr_rainmaker
           description: >
-            Reads table_name/id/special_folder widgets → detects a CIM →
-            if found, runs the CIM-scoped Ruta 2 diligence pass and renders
-            the Rainmaker PDF; if not, no-ops with a message on the record.
+            Reads table_name/id/special_folder/no_cim_mode widgets → detects
+            a CIM → if found, runs the CIM-scoped Ruta 2 diligence pass and
+            renders the Rainmaker PDF; if not (and no_cim_mode="full", the
+            default), runs the full Phase 1-5 pipeline and renders the same
+            Rainmaker PDF plus the full diligence memo. Either way, continues
+            into stage 2 (final diligence report over the whole data room);
+            a stage-2 failure is recorded but never fails this task.
           notebook_task:
             notebook_path: "/Workspace/Users/hector.corro@nimblegravity.com/Rallyday/databricks/jobs/notebooks/run_vdr_rainmaker_job"
             source: WORKSPACE
           environment_key: vdr_rainmaker_poc_environment
           max_retries: 0
           retry_on_timeout: false
-          # CIM-only ingestion + 7 agents is far cheaper than a full-room run;
-          # generous ceiling still kept for POC headroom.
-          timeout_seconds: 14400
+          # A full-room run (no-CIM path) can take hours, same order of
+          # magnitude as the legacy full pipeline job — mirror its timeout.
+          timeout_seconds: 32400
 
       environments:
         - environment_key: vdr_rainmaker_poc_environment
@@ -73,6 +103,11 @@ resources:
               # serverless environment — the pip install itself won't fail
               # even if the import later does.
               - weasyprint>=62.0
+              # Anthropic SDK -- primary backend of agents/shared/llm_client.py.
+              # This environment spec is independent of requirements.txt/
+              # pyproject.toml (T1); missing it here breaks every Claude call
+              # with ImportError even though those files list it correctly.
+              - anthropic>=1.3.0
 
       email_notifications:
         on_failure: []

@@ -2010,7 +2010,7 @@ def generate_business_model_assessment(
     Returns:
         Markdown string.
     """
-    import mlflow.deployments
+    from agents.shared import llm_client
 
     company_name   = result.get("company_name", "Company")
     generated_at   = result.get("created_at", "")
@@ -2375,19 +2375,14 @@ Write the markdown narrative only — no extra commentary.
 {data_summary}
 """
 
-    _client   = mlflow.deployments.get_deploy_client("databricks")
-    _response = _client.predict(
+    narrative, _usage = llm_client.chat(
+        system_prompt=_ASSESS_SYS,
+        user_content=_ASSESS_USER,
         endpoint=llm_endpoint,
-        inputs={
-            "messages": [
-                {"role": "system", "content": _ASSESS_SYS},
-                {"role": "user",   "content": _ASSESS_USER},
-            ],
-            "max_tokens": 3000,
-            "temperature": 0.1,
-        },
+        max_tokens=3000,
+        temperature=0.1,
     )
-    narrative = _response["choices"][0]["message"]["content"].strip()
+    narrative = narrative.strip()
 
     # ══════════════════════════════════════════════════════════════════════
     # Assemble final markdown

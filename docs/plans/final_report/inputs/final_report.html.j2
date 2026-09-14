@@ -1,0 +1,970 @@
+{#-
+  ============================================================================
+  UC13 — FINAL DILIGENCE REPORT  ·  final_report.html.j2
+  ============================================================================
+  PROPOSAL / v0.1 — structure and format are open for review.
+
+  WHAT THIS TEMPLATE IS
+    The full report deliverable, rebuilt as a 10-page visual document a PE VP
+    can read in 10 minutes and then use as the reference for the deal. It
+    replaces the current text-only `full_report.md.j2`. It sits alongside,
+    and does not replace, `rainmaker_opportunity_summary.html.j2` (the 3-page
+    executive review) — the MPS page is intentionally rendered in BOTH, so
+    the two documents agree.
+
+  HARD RULES FOR WHOEVER GENERATES AGAINST THIS TEMPLATE
+    R1 · The template is dumb. Every number, every percentage, every bar
+         height arrives pre-computed from `report` (see final_report_view.py).
+         No arithmetic, no parsing, no LLM calls in here.
+    R2 · Nothing is fabricated. A missing figure renders as an explicit
+         "Not extracted" / "—" state, never as an estimate, and never as a
+         chart with an invented bar.
+    R3 · Caps are part of the format, not a suggestion. Every list below is
+         sliced. If an agent produces 30 risks, this report shows the top 8
+         and the appendix says how many were suppressed. Length discipline is
+         what makes the report readable.
+    R4 · One page = one question a VP actually asks. If a section does not
+         answer one of the ten questions on the contents page, it belongs in
+         an appendix or in the workstream detail files, not here.
+    R5 · Every claim carries a source. Citations are footnote markers
+         (`cite` fields), never inline bracketed doc names in the prose.
+
+  RENDER
+    ReportRenderer().render(bundle, "final_report.html.j2", report=<view>,
+                            mps=<mps projection>, brand_logo_data_uri=...)
+    Primary engine WeasyPrint (full SVG + flex fidelity). The PyMuPDF Story
+    fallback degrades charts; ship the HTML when that path is taken.
+-#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ report.meta.company_name | default('Company', true) }} — Final Diligence Report</title>
+<style>
+  /* --- Page + palette: inherited from rainmaker_opportunity_summary.html.j2
+         so the two deliverables look like one family. -------------------- */
+  @page { size: A4 portrait; margin: 14mm 14mm 12mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1A1A1A; font-size: 9pt; line-height: 1.35; margin: 0;
+  }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+
+  /* Screen preview only. In print, @page owns the margins and this block does
+     not apply. On screen there is no @page, so the body needs its own gutter or
+     the text sits flush against the viewport edge — which is what a reviewer
+     opening the HTML in a browser or an embedded viewer sees.
+
+     This block MUST come after the base `body` rule: both are single-element
+     selectors, so at equal specificity the later one wins, and the base rule's
+     `margin: 0` silently cancels the auto centring if this sits above it.
+
+     max-width 202mm + 10mm side padding reproduces the printed content width
+     (A4 210mm less 14mm margins = 182mm) exactly, so line breaks and chart
+     proportions on screen match the PDF. */
+  @media screen {
+    body {
+      max-width: 202mm;
+      margin: 0 auto;
+      margin-inline: auto;
+      padding: 8mm 10mm;
+    }
+    .page { border-bottom: 0.5pt dashed #BFD0E8; padding-bottom: 8mm; margin-bottom: 10mm; }
+    .page:last-child { border-bottom: 0; }
+  }
+
+
+  h1 { color: #1F3864; font-size: 20pt; margin: 0 0 1mm 0; text-transform: uppercase; letter-spacing: -0.01em; }
+  h2.section { color: #1F3864; font-size: 14pt; margin: 0 0 0.5mm 0; }
+  h3.block {
+    color: #FFF; background: #1F3864; font-size: 7.5pt; font-weight: bold;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 1.2mm 2.5mm; margin: 0 0 2mm 0;
+  }
+  h3.block.warn { background: #C2600D; }
+  h3.block.plain { background: #F2F4F7; color: #1F3864; }
+  h4.mini { color: #595959; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1.5mm 0; }
+  .eyebrow { color: #C2600D; font-weight: bold; font-size: 8pt; letter-spacing: 0.08em; text-transform: uppercase; }
+  .subtitle { color: #595959; font-size: 9.5pt; }
+  .meta { color: #595959; font-size: 7.5pt; }
+  .divider { border-top: 2pt solid #1F3864; margin: 2.5mm 0 4mm 0; }
+
+  .running-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    color: #595959; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.04em;
+    border-bottom: 0.5pt solid #BFD0E8; padding-bottom: 1.2mm; margin-bottom: 3.5mm;
+  }
+  .running-header .company { color: #1F3864; font-weight: bold; }
+  .footer { color: #595959; font-size: 6.5pt; border-top: 0.5pt solid #BFD0E8; padding-top: 1.2mm; margin-top: 4mm; }
+
+  /* --- Callouts ------------------------------------------------------- */
+  .verdict { border-left: 3pt solid #1F3864; background: #EEF3FA; padding: 3mm 4mm; margin: 0 0 4mm 0; }
+  .verdict .label { color: #1F3864; font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+  .verdict .call { font-size: 13pt; font-weight: bold; color: #1F3864; display: block; margin: 0.5mm 0 1mm 0; }
+  .verdict.pass { border-left-color: #C2600D; background: #FCEEE0; }
+  .verdict.pass .call, .verdict.pass .label { color: #C2600D; }
+  .one-liner { font-style: italic; background: #F2F4F7; border-left: 3pt solid #BFD0E8; padding: 2mm 3.5mm; margin: 0 0 4mm 0; }
+  .take { background: #F2F4F7; padding: 2mm 3mm; margin: 2mm 0 0 0; font-size: 8.5pt; }
+  .take strong { color: #1F3864; }
+  .nodata { color: #595959; font-style: italic; font-size: 8.5pt; }
+
+  /* --- Tiles ---------------------------------------------------------- */
+  .tiles { display: flex; gap: 2.5mm; margin: 0 0 4mm 0; flex-wrap: wrap; }
+  .tile { flex: 1 1 28mm; background: #F2F4F7; border: 0.5pt solid #BFD0E8; border-radius: 1.5mm; padding: 2.5mm 2mm; text-align: center; }
+  .tile .value { display: block; color: #1F3864; font-size: 14pt; font-weight: bold; line-height: 1.1; }
+  .tile .label { display: block; color: #595959; font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.03em; margin-top: 0.8mm; }
+  .tile .sub { display: block; color: #1A1A1A; font-size: 7pt; margin-top: 0.5mm; }
+  .tile.flag { border-color: #C2600D; background: #FCEEE0; }
+  .tile.flag .value { color: #C2600D; }
+
+  /* --- Tables --------------------------------------------------------- */
+  table.dt { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 0 3mm 0; }
+  table.dt th, table.dt td { border-bottom: 0.5pt solid #BFD0E8; padding: 1.2mm 1.8mm; text-align: right; vertical-align: top; font-size: 8pt; }
+  table.dt th { color: #FFF; background: #1F3864; font-size: 6.8pt; text-transform: uppercase; letter-spacing: 0.03em; font-weight: bold; }
+  table.dt th:first-child, table.dt td:first-child { text-align: left; }
+  table.dt tr.total td { background: #EEF3FA; font-weight: bold; color: #1F3864; }
+  table.dt tr.sub td:first-child { padding-left: 4mm; color: #595959; }
+  table.dt td.calc { background: #EEF3FA; font-weight: bold; color: #1F3864; }
+  table.dt th.calc { background: #17284C; }
+  table.dt.left td, table.dt.left th { text-align: left; }
+  .chip { display: inline-block; padding: 0.3mm 1.6mm; border-radius: 1mm; font-size: 6.8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em; }
+  .chip.high { background: #F8D7D5; color: #9C2A20; }
+  .chip.medium { background: #FCEEE0; color: #C2600D; }
+  .chip.low { background: #E4EFE1; color: #3D6B34; }
+  .chip.neutral { background: #F2F4F7; color: #595959; }
+  sup.cite { color: #4A72B8; font-size: 6pt; }
+
+  /* --- Layout helpers ------------------------------------------------- */
+  .cols-2 { display: flex; gap: 5mm; margin-bottom: 4mm; }
+  .cols-2 > * { flex: 1; min-width: 0; }
+  .cols-3 { display: flex; gap: 4mm; margin-bottom: 4mm; }
+  .cols-3 > * { flex: 1; min-width: 0; }
+  .card { border: 0.5pt solid #BFD0E8; border-radius: 1.5mm; overflow: hidden; }
+  .card .body { padding: 0 2.5mm 2mm 2.5mm; }
+  ul.b { margin: 0 0 2mm 0; padding-left: 3.5mm; }
+  ul.b li { margin-bottom: 0.8mm; }
+  ol.q { margin: 0; padding-left: 5mm; }
+  ol.q li { margin-bottom: 1.5mm; }
+  ol.q .cat { color: #C2600D; font-size: 6.8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; }
+  ol.q .why { color: #595959; font-size: 7.5pt; display: block; }
+  .legend { display: flex; gap: 4mm; flex-wrap: wrap; color: #595959; font-size: 7pt; margin: 0 0 2mm 0; }
+  .legend .k { display: inline-block; width: 2.4mm; height: 2.4mm; border-radius: 0.4mm; margin-right: 1mm; vertical-align: -0.2mm; }
+  svg { display: block; width: 100%; height: auto; }
+
+  /* --- MPS table: lifted verbatim from rainmaker_opportunity_summary.html.j2.
+         Keep in sync with that file, or better, share one partial. ------- */
+  .mps-page { page-break-inside: avoid; }
+  table.mps-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 1.5mm 0; }
+  table.mps-table th, table.mps-table td {
+    border-bottom: 0.5pt solid #BFD0E8; padding: 0.8mm 2mm; text-align: left; vertical-align: top;
+    font-size: 7.3pt; line-height: 1.1; overflow: hidden;
+  }
+  table.mps-table th { color: #fff; background: #1F3864; font-size: 7pt; text-transform: uppercase; }
+  table.mps-table th.mps-category-col, table.mps-table td.mps-category-col { background: #1F3864; color: #fff; font-weight: bold; }
+  table.mps-table tr { page-break-inside: avoid; }
+  table.mps-table td.mps-score-col { text-align: center; font-size: 12pt; font-weight: bold; color: #1F3864; }
+  table.mps-table td.mps-commentary-col ul.bullets { margin: 0; padding-left: 3mm; }
+  table.mps-table td.mps-commentary-col li { margin-bottom: 0.3mm; }
+  table.mps-table li.mps-counter-evidence { color: #595959; font-style: italic; }
+  table.mps-table tr.mps-total-row td { border-bottom: none; border-top: 1pt solid #1F3864; }
+  .mps-legend { color: #595959; font-size: 7pt; margin: 0 0 1mm 0; }
+  .mps-footer-note { color: #1F3864; font-weight: bold; font-size: 9pt; margin-top: 1mm; }
+
+  /* Contents page */
+  table.toc { width: 100%; border-collapse: collapse; }
+  table.toc td { padding: 1.8mm 2mm; border-bottom: 0.5pt solid #BFD0E8; font-size: 9pt; vertical-align: top; }
+  table.toc td.n { width: 8mm; color: #C2600D; font-weight: bold; }
+  table.toc td.p { width: 10mm; text-align: right; color: #595959; }
+  table.toc .q { color: #595959; font-size: 8pt; }
+</style>
+</head>
+<body>
+
+{#- =====================================================================
+    MACROS — the visual vocabulary of the report.
+    Every macro takes ALREADY-NORMALISED input: `pct` fields are 0–100 and
+    computed by the view layer. A macro never scales, never parses, never
+    guesses. `None` inputs are drawn as gaps, not as zero.
+    ===================================================================== -#}
+
+{%- macro running_header(report, section, page_no) -%}
+<div class="running-header">
+  <span><span class="company">{{ report.meta.company_name }}</span> · Final Diligence Report</span>
+  <span>{{ section }} · {{ page_no }}</span>
+</div>
+{%- endmacro -%}
+
+{%- macro page_footer(report) -%}
+<div class="footer">
+  {{ report.meta.status }} · Generated {{ report.meta.date }} · Mode: {{ report.meta.mode_label }} · Overall confidence: {{ report.meta.overall_confidence }}
+</div>
+{%- endmacro -%}
+
+{%- macro nodata(what) -%}
+<p class="nodata">{{ what }} — not extracted from the data room. See the gap list on the appendix page.</p>
+{%- endmacro -%}
+
+{#- CHART 1 · Grouped column chart with an overlaid margin line.
+    Use for: revenue + EBITDA vs prior years, forecast vs historical.
+    Input: {series:[{label, bar1_pct, bar1_value, bar2_pct, bar2_value,
+                     line_pct, line_value}], bar1_name, bar2_name, line_name,
+            axis_max_label, footnote}
+    `*_pct` is height as % of the chart's own max. `None` = bar omitted. -#}
+{%- macro chart_columns(c) -%}
+{%- set n = c.series | length -%}
+{%- if n == 0 -%}{{ nodata(c.bar1_name) }}{%- else -%}
+{%- set step = (300 / n) | round(2) -%}
+<svg viewBox="0 0 340 132" xmlns="http://www.w3.org/2000/svg" role="img">
+  {%- for g in [0, 25, 50, 75, 100] %}
+  <line x1="30" y1="{{ 104 - (g * 0.92) }}" x2="336" y2="{{ 104 - (g * 0.92) }}"
+        stroke="{{ '#BFD0E8' if g > 0 else '#595959' }}" stroke-width="{{ 0.7 if g == 0 else 0.4 }}"/>
+  {%- endfor %}
+  <text x="28" y="14" font-size="6" fill="#595959" text-anchor="end">{{ c.axis_max_label | default('', true) }}</text>
+  <text x="28" y="106" font-size="6" fill="#595959" text-anchor="end">0</text>
+  {%- for s in c.series %}
+  {%- set cx = 30 + (step * loop.index0) + (step / 2) -%}
+    {%- if s.bar1_pct is not none %}
+    <rect x="{{ (cx - 13) | round(2) }}" y="{{ (104 - (s.bar1_pct * 0.92)) | round(2) }}"
+          width="12" height="{{ (s.bar1_pct * 0.92) | round(2) }}" fill="#1F3864"/>
+    <text x="{{ (cx - 7) | round(2) }}" y="{{ (100 - (s.bar1_pct * 0.92)) | round(2) }}"
+          font-size="6.2" fill="#1F3864" text-anchor="middle" font-weight="bold">{{ s.bar1_value }}</text>
+    {%- endif %}
+    {%- if s.bar2_pct is not none %}
+    <rect x="{{ (cx + 1) | round(2) }}" y="{{ (104 - (s.bar2_pct * 0.92)) | round(2) }}"
+          width="12" height="{{ (s.bar2_pct * 0.92) | round(2) }}" fill="#9FB8DC"/>
+    <text x="{{ (cx + 7) | round(2) }}" y="{{ (100 - (s.bar2_pct * 0.92)) | round(2) }}"
+          font-size="6.2" fill="#4A72B8" text-anchor="middle" font-weight="bold">{{ s.bar2_value }}</text>
+    {%- endif %}
+  <text x="{{ cx | round(2) }}" y="115" font-size="6.4" fill="#1A1A1A" text-anchor="middle">{{ s.label }}</text>
+  {%- endfor %}
+  {#- Margin line: only drawn across periods that actually have a value. -#}
+  {%- set pts = [] -%}
+  {%- for s in c.series -%}
+    {%- if s.line_pct is not none -%}
+      {%- set _ = pts.append(((30 + (step * loop.index0) + (step / 2)) | round(2) ~ ',' ~ ((104 - (s.line_pct * 0.92)) | round(2)))) -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if pts | length > 1 %}
+  <polyline points="{{ pts | join(' ') }}" fill="none" stroke="#C2600D" stroke-width="1.2"/>
+  {%- endif %}
+  {%- for s in c.series %}
+    {%- if s.line_pct is not none %}
+    {%- set cx = 30 + (step * loop.index0) + (step / 2) -%}
+    <circle cx="{{ cx | round(2) }}" cy="{{ (104 - (s.line_pct * 0.92)) | round(2) }}" r="2" fill="#C2600D"/>
+    <text x="{{ (cx + 4) | round(2) }}" y="{{ (99 - (s.line_pct * 0.92)) | round(2) }}"
+          font-size="6.2" fill="#C2600D" text-anchor="start" font-weight="bold">{{ s.line_value }}</text>
+    {%- endif %}
+  {%- endfor %}
+  <text x="30" y="128" font-size="5.8" fill="#595959">{{ c.footnote | default('', true) }}</text>
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>{{ c.bar1_name }}</span>
+  {%- if c.bar2_name %}<span><span class="k" style="background:#9FB8DC"></span>{{ c.bar2_name }}</span>{% endif %}
+  {%- if c.line_name %}<span><span class="k" style="background:#C2600D"></span>{{ c.line_name }}</span>{% endif %}
+</div>
+{%- endif -%}
+{%- endmacro -%}
+
+{#- CHART 2 · Horizontal bars with an optional threshold marker.
+    Use for: customer / referral-source concentration (threshold = the
+    Rallyday screen: 25% tech services, 20% healthcare services), payor
+    concentration, vendor dependence.
+    Input: {bars:[{label, value, pct, flag}], threshold_pct, threshold_label} -#}
+{%- macro chart_hbars(c) -%}
+{%- if (c.bars | length) == 0 -%}{{ nodata(c.title | default('Concentration', true)) }}{%- else -%}
+{%- set row_h = 12 -%}
+{%- set x0 = 92 -%}{%- set w = 1.4 -%}
+<svg viewBox="0 0 260 {{ (c.bars | length) * row_h + 14 }}" xmlns="http://www.w3.org/2000/svg" role="img">
+  {%- if c.threshold_pct is not none %}
+  <line x1="{{ (x0 + (c.threshold_pct * w)) | round(2) }}" y1="2"
+        x2="{{ (x0 + (c.threshold_pct * w)) | round(2) }}" y2="{{ (c.bars | length) * row_h + 1 }}"
+        stroke="#C2600D" stroke-width="0.7" stroke-dasharray="2,1.5"/>
+  <text x="{{ (x0 + (c.threshold_pct * w) - 1) | round(2) }}" y="{{ (c.bars | length) * row_h + 9 }}"
+        font-size="5.6" fill="#C2600D" font-weight="bold" text-anchor="middle">{{ c.threshold_label }}</text>
+  {%- endif %}
+  {%- for b in c.bars %}
+  {%- set y = (loop.index0 * row_h) + 2 -%}
+  <text x="0" y="{{ y + 6.5 }}" font-size="7" fill="#1A1A1A">{{ b.label }}</text>
+  <rect x="{{ x0 }}" y="{{ y }}" width="{{ (b.pct * w) | round(2) }}" height="8"
+        fill="{{ '#C2600D' if b.flag else '#1F3864' }}" rx="0.6"/>
+  <text x="{{ (x0 + 3 + (b.pct * w)) | round(2) }}" y="{{ y + 6.5 }}" font-size="7"
+        fill="{{ '#C2600D' if b.flag else '#1F3864' }}" font-weight="bold">{{ b.value }}</text>
+  {%- endfor %}
+</svg>
+{%- endif -%}
+{%- endmacro -%}
+
+{#- CHART 3 · 100% stacked bar with legend.
+    Use for: revenue mix (recurring vs project), payor mix, client
+    distribution by segment / geography / service line.
+    Input: {segments:[{label, pct, value}], caption} — pct must sum to ~100. -#}
+{%- macro chart_stack(c) -%}
+{%- if (c.segments | length) == 0 -%}{{ nodata(c.caption | default('Mix', true)) }}{%- else -%}
+{%- set palette = ['#1F3864', '#4A72B8', '#9FB8DC', '#C2600D', '#E8A33D', '#A6A6A6'] -%}
+<svg viewBox="0 0 340 26" xmlns="http://www.w3.org/2000/svg" role="img">
+  {%- set ns = namespace(x=0) -%}
+  {%- for s in c.segments %}
+  {%- set w = (s.pct * 3.4) | round(2) -%}
+  <rect x="{{ ns.x }}" y="2" width="{{ w }}" height="14" fill="{{ palette[loop.index0 % 6] }}"/>
+  {%- if s.pct >= 9 %}
+  <text x="{{ (ns.x + (w / 2)) | round(2) }}" y="11.5" font-size="6.4" fill="#FFF" text-anchor="middle" font-weight="bold">{{ s.value }}</text>
+  {%- endif %}
+  {%- set ns.x = ns.x + w -%}
+  {%- endfor %}
+</svg>
+<div class="legend">
+  {%- for s in c.segments %}
+  <span><span class="k" style="background:{{ palette[loop.index0 % 6] }}"></span>{{ s.label }} {{ s.value }}</span>
+  {%- endfor %}
+</div>
+{%- endif -%}
+{%- endmacro -%}
+
+{#- CHART 4 · Bullet bars — actual value against a Rallyday screen threshold.
+    Use for: the KPI scorecard. This is the chart that makes the sector
+    guidelines visible instead of buried in prose.
+    Input: {rows:[{name, value, pct, threshold_pct, threshold_label, flag}]} -#}
+{%- macro chart_bullets(c) -%}
+{%- if (c.rows | length) == 0 -%}{{ nodata('Operating KPIs') }}{%- else -%}
+{%- set row_h = 13 -%}
+<svg viewBox="0 0 340 {{ (c.rows | length) * row_h + 4 }}" xmlns="http://www.w3.org/2000/svg" role="img">
+  {%- for r in c.rows %}
+  {%- set y = (loop.index0 * row_h) + 2 -%}
+  <text x="0" y="{{ y + 5 }}" font-size="6.6" fill="#1A1A1A">{{ r.name }}</text>
+  <rect x="118" y="{{ y }}" width="150" height="8" fill="#F2F4F7"/>
+  {%- if r.pct is not none %}
+  <rect x="118" y="{{ y }}" width="{{ (r.pct * 1.5) | round(2) }}" height="8"
+        fill="{{ '#C2600D' if r.flag else '#1F3864' }}"/>
+  {%- else %}
+  <text x="122" y="{{ y + 6 }}" font-size="6" fill="#595959" font-style="italic">not extracted</text>
+  {%- endif %}
+  {%- if r.threshold_pct is not none %}
+  <line x1="{{ (118 + (r.threshold_pct * 1.5)) | round(2) }}" y1="{{ y - 1.5 }}"
+        x2="{{ (118 + (r.threshold_pct * 1.5)) | round(2) }}" y2="{{ y + 9.5 }}"
+        stroke="#1A1A1A" stroke-width="1"/>
+  {%- endif %}
+  <text x="272" y="{{ y + 6 }}" font-size="6.4" fill="{{ '#C2600D' if r.flag else '#1F3864' }}" font-weight="bold">{{ r.value | default('—', true) }}</text>
+  <text x="304" y="{{ y + 6 }}" font-size="5.8" fill="#595959">{{ r.threshold_label | default('', true) }}</text>
+  {%- endfor %}
+</svg>
+<div class="legend">
+  <span><span class="k" style="background:#1F3864"></span>At or above screen</span>
+  <span><span class="k" style="background:#C2600D"></span>Below screen — flagged</span>
+  <span><span class="k" style="background:#1A1A1A;width:0.8mm"></span>Rallyday threshold</span>
+</div>
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Severity chip, driven by the view layer's own severity mapping. -#}
+{%- macro sev(label, cls) -%}<span class="chip {{ cls | default('neutral', true) }}">{{ label }}</span>{%- endmacro -%}
+
+
+{#- =====================================================================
+    PAGE 1 · COVER + THE CALL
+    Question answered: "Do we pursue this, and what is the one-line reason?"
+    The recommendation goes first. A VP should not have to read to page 6.
+    ===================================================================== -#}
+<div class="page">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div class="eyebrow">Final Diligence Report</div>
+      <h1>{{ report.meta.company_name }}</h1>
+      <div class="subtitle">{{ report.meta.sector_label | default('', true) }}</div>
+    </div>
+    {%- if brand_logo_data_uri %}
+    <img src="{{ brand_logo_data_uri }}" alt="" style="max-height:10mm">
+    {%- endif %}
+  </div>
+  <div class="divider"></div>
+
+  <div class="meta" style="margin-bottom:4mm;">
+    Prepared for {{ report.meta.prepared_for }} · {{ report.meta.date }} ·
+    Generated from {{ report.meta.mode_label }} ·
+    {{ report.meta.doc_count | default('—', true) }} documents indexed ·
+    Overall confidence: <strong>{{ report.meta.overall_confidence }}</strong>
+  </div>
+
+  {%- set rec = report.headline.recommendation %}
+  <div class="verdict {{ 'pass' if rec.tone == 'pass' else '' }}">
+    <span class="label">Recommendation</span>
+    <span class="call">{{ rec.verdict | default('Not yet concluded', true) }}</span>
+    {%- if rec.rationale %}<div>{{ rec.rationale }}</div>{% endif %}
+    {%- if rec.conditions %}
+    <div style="margin-top:1.5mm;"><strong>Conditional on:</strong>
+      <ul class="b" style="margin-top:0.8mm;">
+        {%- for cond in rec.conditions[:3] %}<li>{{ cond }}</li>{% endfor %}
+      </ul>
+    </div>
+    {%- endif %}
+  </div>
+
+  <div class="one-liner">{{ report.headline.one_liner | default('One-line business description not yet synthesised.', true) }}</div>
+
+  <h3 class="block">The Numbers That Drive The Call</h3>
+  <div class="tiles">
+    {%- for t in report.headline.tiles[:6] %}
+    <div class="tile {{ 'flag' if t.flag else '' }}">
+      <span class="value">{{ t.value | default('—', true) }}</span>
+      <span class="label">{{ t.label }}</span>
+      {%- if t.sub %}<span class="sub">{{ t.sub }}</span>{% endif %}
+    </div>
+    {%- else %}
+    <div class="tile"><span class="value">—</span><span class="label">Headline metrics not extracted</span></div>
+    {%- endfor %}
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h3 class="block">Why This Could Work — Top 3</h3>
+      <ul class="b">
+        {%- for item in report.headline.thesis[:3] %}<li>{{ item }}{% if item is string %}{% endif %}</li>
+        {%- else %}<li class="nodata">Investment thesis not yet synthesised.</li>{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3 class="block warn">What Could Break It — Top 3</h3>
+      <ul class="b">
+        {%- for item in report.headline.watchouts[:3] %}<li>{{ item }}</li>
+        {%- else %}<li class="nodata">Watchouts not yet synthesised.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 2 · CONTENTS — one page per question.
+    Kept because it is the fastest way for a VP to jump to the one section
+    they care about, and because it forces R4 discipline on us.
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'Contents', 2) }}
+  <h2 class="section">What this report answers</h2>
+  <p class="meta" style="margin-bottom:4mm;">Ten pages, ten questions. Workstream detail, full reconciliation logs and source extracts live in the accompanying files, not here.</p>
+  <table class="toc">
+    {%- for item in report.contents %}
+    <tr>
+      <td class="n">{{ item.no }}</td>
+      <td><strong>{{ item.title }}</strong><div class="q">{{ item.question }}</div></td>
+      <td class="p">{{ item.page }}</td>
+    </tr>
+    {%- endfor %}
+  </table>
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 3 · BUSINESS & REVENUE MODEL
+    Question: "What is this business and how does it actually make money?"
+    Visual: revenue mix stack + client / segment distribution.
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'Business & Revenue Model', 3) }}
+  <h2 class="section">1 · Business and revenue model</h2>
+
+  <div class="cols-2">
+    <div class="card">
+      <h3 class="block">What The Business Does</h3>
+      <div class="body"><ul class="b">
+        {%- for b in report.business.what_it_does[:4] %}<li>{{ b }}</li>
+        {%- else %}<li class="nodata">Business overview not extracted.</li>{% endfor %}
+      </ul></div>
+    </div>
+    <div class="card">
+      <h3 class="block">How It Makes Money</h3>
+      <div class="body"><ul class="b">
+        {%- for b in report.business.how_it_makes_money[:4] %}<li>{{ b }}</li>
+        {%- else %}<li class="nodata">Revenue model not extracted.</li>{% endfor %}
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Revenue mix — durability</h4>
+      {{ chart_stack(report.business.revenue_mix) }}
+      <p class="meta">{{ report.business.revenue_mix.caption | default('', true) }}</p>
+    </div>
+    <div>
+      <h4 class="mini">Client distribution — {{ report.business.client_distribution.dimension | default('segment', true) }}</h4>
+      {{ chart_stack(report.business.client_distribution) }}
+      <p class="meta">{{ report.business.client_distribution.caption | default('', true) }}</p>
+    </div>
+  </div>
+
+  <h3 class="block">Performance By {{ report.business.performance_by.dimension | default('Segment', true) }}</h3>
+  {{ chart_columns(report.business.performance_by.chart) }}
+  {%- if report.business.performance_by.rows %}
+  <table class="dt">
+    <tr>
+      <th>{{ report.business.performance_by.dimension | default('Segment', true) }}</th>
+      <th>Revenue</th><th>% of total</th><th>Gross margin</th><th>Growth YoY</th><th class="calc">Read</th>
+    </tr>
+    {%- for r in report.business.performance_by.rows[:6] %}
+    <tr>
+      <td>{{ r.name }}</td>
+      <td>{{ r.revenue | default('—', true) }}</td>
+      <td>{{ r.share | default('—', true) }}</td>
+      <td>{{ r.gross_margin | default('—', true) }}</td>
+      <td>{{ r.growth | default('—', true) }}</td>
+      <td class="calc">{{ sev(r.read_label, r.read_class) }}</td>
+    </tr>
+    {%- endfor %}
+  </table>
+  {%- endif %}
+
+  {%- if report.business.take %}<div class="take"><strong>Analyst take.</strong> {{ report.business.take }}</div>{% endif %}
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 4 · FINANCIAL PERFORMANCE
+    Question: "Is the financial story improving, and is it real?"
+    Visual: the generic P&L block (works for any company — every row is
+    optional and drops out if the agent did not extract it) + the
+    revenue/EBITDA vs prior years chart.
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'Financial Performance', 4) }}
+  <h2 class="section">2 · Financial performance</h2>
+
+  <h3 class="block">P&amp;L Summary — {{ report.financials.table.unit_label | default('as reported', true) }}</h3>
+  {%- if report.financials.table.periods %}
+  <table class="dt">
+    <tr>
+      <th style="width:32%">{{ report.financials.table.currency | default('$', true) }} {{ report.financials.table.unit | default('', true) }}</th>
+      {%- for p in report.financials.table.periods %}<th>{{ p }}</th>{% endfor %}
+      <th class="calc">{{ report.financials.table.calc_col_label | default('CAGR', true) }}</th>
+    </tr>
+    {#- Row set is generic and self-pruning: revenue → COGS → gross profit →
+        GM% → opex → EBITDA → EBITDA% → adjusted EBITDA → adj. margin →
+        capex → FCF proxy. Rows the agent never extracted are dropped by the
+        view layer, so a services business and a SaaS business both render
+        cleanly from the same block. -#}
+    {%- for row in report.financials.table.rows %}
+    <tr class="{{ 'total' if row.emphasis == 'total' else ('sub' if row.emphasis == 'sub' else '') }}">
+      <td>{{ row.label }}{% if row.cite %}<sup class="cite">{{ row.cite }}</sup>{% endif %}</td>
+      {%- for cell in row.cells %}<td>{{ cell | default('—', true) }}</td>{% endfor %}
+      <td class="calc">{{ row.calc | default('—', true) }}</td>
+    </tr>
+    {%- endfor %}
+  </table>
+  {%- else %}{{ nodata('P&L') }}{% endif %}
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Revenue vs prior years, with EBITDA margin</h4>
+      {{ chart_columns(report.financials.trend_chart) }}
+    </div>
+    <div>
+      <h4 class="mini">Reported vs adjusted EBITDA</h4>
+      {{ chart_columns(report.financials.ebitda_chart) }}
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">What the trend says</h4>
+      <ul class="b">
+        {%- for o in report.financials.observations[:4] %}<li>{{ o }}</li>
+        {%- else %}<li class="nodata">No financial observations synthesised.</li>{% endfor %}
+      </ul>
+    </div>
+    <div>
+      {%- if report.financials.bridge %}
+      <h4 class="mini">Growth bridge — latest period</h4>
+      <table class="dt left">
+        {%- for b in report.financials.bridge[:5] %}
+        <tr><td>{{ b.driver }}</td><td style="text-align:right">{{ b.value }}</td></tr>
+        {%- endfor %}
+      </table>
+      {%- endif %}
+    </div>
+  </div>
+
+  {%- if report.financials.take %}<div class="take"><strong>Analyst take.</strong> {{ report.financials.take }}</div>{% endif %}
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 5 · CUSTOMER QUALITY & CONCENTRATION
+    Question: "Is the revenue durable, and who could take it away?"
+    Visual: concentration bars against the Rallyday threshold.
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'Customer Quality', 5) }}
+  <h2 class="section">3 · Customer quality and concentration</h2>
+
+  <div class="tiles">
+    {%- for t in report.customers.tiles[:5] %}
+    <div class="tile {{ 'flag' if t.flag else '' }}">
+      <span class="value">{{ t.value | default('—', true) }}</span><span class="label">{{ t.label }}</span>
+      {%- if t.sub %}<span class="sub">{{ t.sub }}</span>{% endif %}
+    </div>
+    {%- endfor %}
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Concentration — share of revenue</h4>
+      {{ chart_hbars(report.customers.concentration) }}
+    </div>
+    <div>
+      <h4 class="mini">Retention and tenure</h4>
+      {%- if report.customers.retention_rows %}
+      <table class="dt">
+        <tr><th>Metric</th><th>Value</th><th>Screen</th></tr>
+        {%- for r in report.customers.retention_rows[:6] %}
+        <tr><td>{{ r.metric }}</td><td>{{ r.value | default('—', true) }}</td><td>{{ sev(r.read_label, r.read_class) }}</td></tr>
+        {%- endfor %}
+      </table>
+      {%- else %}{{ nodata('Retention metrics') }}{% endif %}
+    </div>
+  </div>
+
+  {%- if report.customers.top_customers %}
+  <h3 class="block">Top Accounts</h3>
+  <table class="dt">
+    <tr><th style="width:26%">Account</th><th>% of revenue</th><th>Trend</th><th>Gross margin</th><th>Contract status</th><th>Tenure</th></tr>
+    {%- for c in report.customers.top_customers[:5] %}
+    <tr>
+      <td>{{ c.name }}{% if c.cite %}<sup class="cite">{{ c.cite }}</sup>{% endif %}</td>
+      <td>{{ c.share | default('—', true) }}</td>
+      <td>{{ c.trend | default('—', true) }}</td>
+      <td>{{ c.gross_margin | default('—', true) }}</td>
+      <td>{{ c.contract_status | default('—', true) }}</td>
+      <td>{{ c.tenure | default('—', true) }}</td>
+    </tr>
+    {%- endfor %}
+  </table>
+  {%- endif %}
+
+  {%- if report.customers.take %}<div class="take"><strong>Analyst take.</strong> {{ report.customers.take }}</div>{% endif %}
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 6 · KPI SCORECARD vs RALLYDAY SCREENS
+    Question: "Where does this business sit against how we screen its sector?"
+    Visual: bullet bars. The sector overlay drives which KPIs appear.
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'KPI Scorecard', 6) }}
+  <h2 class="section">4 · Operating KPIs against our screens</h2>
+  <p class="meta" style="margin-bottom:3mm;">
+    Sector overlay applied: <strong>{{ report.kpis.overlay_label | default('not determined', true) }}</strong>.
+    Thresholds are the directional first-pass screens, not hard rules — materiality is the deal team's call.
+  </p>
+
+  {{ chart_bullets(report.kpis) }}
+
+  {%- if report.kpis.flagged %}
+  <h3 class="block warn">Flagged — And What It Means</h3>
+  <table class="dt left">
+    <tr><th style="width:24%">KPI</th><th style="width:14%">Value vs screen</th><th>Read</th></tr>
+    {%- for f in report.kpis.flagged[:5] %}
+    <tr><td>{{ f.name }}</td><td>{{ f.value }} vs {{ f.threshold_label }}</td><td>{{ f.note }}{% if f.cite %}<sup class="cite">{{ f.cite }}</sup>{% endif %}</td></tr>
+    {%- endfor %}
+  </table>
+  {%- endif %}
+
+  {%- if report.kpis.other_metrics %}
+  <h4 class="mini">Other operating metrics — no percentage screen applies</h4>
+  <table class="dt">
+    <tr><th style="width:40%">Metric</th><th>Value</th></tr>
+    {%- for k in report.kpis.other_metrics %}
+    <tr><td>{{ k.name }}</td><td>{{ k.value | default('—', true) }}</td></tr>
+    {%- endfor %}
+  </table>
+  {%- endif %}
+
+  {%- if report.kpis.not_extracted %}
+  <h4 class="mini">Screens we could not run</h4>
+  <ul class="b">
+    {%- for k in report.kpis.not_extracted[:5] %}<li>{{ k.name }} — {{ k.reason }}</li>{% endfor %}
+  </ul>
+  {%- endif %}
+
+  {%- if report.kpis.take %}<div class="take"><strong>Analyst take.</strong> {{ report.kpis.take }}</div>{% endif %}
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 7 · EARNINGS QUALITY & LEGAL
+    Question: "Is the EBITDA real, and is there anything in the contracts
+    that changes the price or the close?"
+    Two dense sections on one page — deliberately. Neither carries a
+    standalone page in a report a VP is meant to read end to end.
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'Earnings Quality & Legal', 7) }}
+  <h2 class="section">5 · Quality of earnings</h2>
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Reported to adjusted EBITDA</h4>
+      {{ chart_hbars(report.quality.addback_bars) }}
+      <p class="meta">{{ report.quality.addback_caption | default('', true) }}</p>
+    </div>
+    <div>
+      <h4 class="mini">Earnings quality flags</h4>
+      {%- if report.quality.flags %}
+      <table class="dt left">
+        {%- for f in report.quality.flags[:5] %}
+        <tr><td style="width:16%">{{ sev(f.severity_label, f.severity_class) }}</td><td>{{ f.text }}{% if f.cite %}<sup class="cite">{{ f.cite }}</sup>{% endif %}</td></tr>
+        {%- endfor %}
+      </table>
+      {%- else %}{{ nodata('QoE flags') }}{% endif %}
+    </div>
+  </div>
+
+  <h2 class="section" style="margin-top:2mm;">6 · Contract and legal risk</h2>
+  <div class="cols-3">
+    {%- for t in report.legal.tiles[:3] %}
+    <div class="tile {{ 'flag' if t.flag else '' }}"><span class="value">{{ t.value }}</span><span class="label">{{ t.label }}</span></div>
+    {%- endfor %}
+  </div>
+  {%- if report.legal.flags %}
+  <table class="dt left">
+    <tr><th style="width:16%">Severity</th><th style="width:26%">Issue</th><th>Economic or closing impact</th></tr>
+    {%- for f in report.legal.flags[:5] %}
+    <tr><td>{{ sev(f.severity_label, f.severity_class) }}</td><td>{{ f.issue }}</td><td>{{ f.impact }}{% if f.cite %}<sup class="cite">{{ f.cite }}</sup>{% endif %}</td></tr>
+    {%- endfor %}
+  </table>
+  {%- else %}{{ nodata('Legal flags') }}{% endif %}
+
+  {%- if report.quality.take %}<div class="take"><strong>Analyst take.</strong> {{ report.quality.take }}</div>{% endif %}
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 8 · FORECAST & VALUE CREATION
+    Question: "Is the plan achievable, and what would we actually do with it?"
+    Visual: forecast vs historical run-rate on the same axis as page 4, so
+    the reader can see the step-up the plan assumes.
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'Forecast & Value Creation', 8) }}
+  <h2 class="section">7 · Forecast credibility and value creation</h2>
+
+  <h3 class="block">Plan vs Historical Run-Rate</h3>
+  {{ chart_columns(report.forecast.chart) }}
+
+  <div class="cols-2">
+    <div>
+      <h4 class="mini">Assumptions that carry the plan</h4>
+      {%- if report.forecast.assumptions %}
+      <table class="dt left">
+        <tr><th style="width:44%">Assumption</th><th style="width:20%">Support</th><th>Test</th></tr>
+        {%- for a in report.forecast.assumptions[:5] %}
+        <tr><td>{{ a.assumption }}</td><td>{{ sev(a.support_label, a.support_class) }}</td><td>{{ a.test }}</td></tr>
+        {%- endfor %}
+      </table>
+      {%- else %}{{ nodata('Forecast assumptions') }}{% endif %}
+    </div>
+    <div>
+      <h4 class="mini">Value creation levers</h4>
+      {%- if report.forecast.levers %}
+      <table class="dt left">
+        <tr><th style="width:40%">Lever</th><th style="width:22%">Size</th><th>Owner of proof</th></tr>
+        {%- for l in report.forecast.levers[:4] %}
+        <tr><td>{{ l.lever }}</td><td>{{ l.size | default('—', true) }}</td><td>{{ l.owner | default('—', true) }}</td></tr>
+        {%- endfor %}
+      </table>
+      {%- else %}{{ nodata('Value creation levers') }}{% endif %}
+    </div>
+  </div>
+
+  {%- if report.forecast.take %}<div class="take"><strong>Analyst take.</strong> {{ report.forecast.take }}</div>{% endif %}
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 9 · RISKS, MITIGANTS & WHAT TO TEST FIRST
+    Question: "What breaks the thesis, and what do we ask on Monday?"
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'Risks & Next Tests', 9) }}
+  <h2 class="section">8 · Risks, mitigants and what to test first</h2>
+
+  <div class="tiles">
+    {%- for h in report.risks.counts %}
+    <div class="tile {{ 'flag' if h.flag else '' }}"><span class="value">{{ h.count }}</span><span class="label">{{ h.label }}</span></div>
+    {%- endfor %}
+  </div>
+
+  {%- if report.risks.grid %}
+  <table class="dt left">
+    <tr><th style="width:13%">Severity</th><th style="width:24%">Risk</th><th style="width:31%">Evidence</th><th>Mitigant or test</th></tr>
+    {%- for r in report.risks.grid[:8] %}
+    <tr>
+      <td>{{ sev(r.severity_label, r.severity_class) }}</td>
+      <td><strong>{{ r.risk }}</strong></td>
+      <td>{{ r.evidence }}{% if r.cite %}<sup class="cite">{{ r.cite }}</sup>{% endif %}</td>
+      <td>{{ r.mitigant }}</td>
+    </tr>
+    {%- endfor %}
+  </table>
+  {%- if report.risks.suppressed %}
+  <p class="meta">Showing the {{ report.risks.grid | length }} highest-severity risks; {{ report.risks.suppressed }} further items are in the diligence tracker.</p>
+  {%- endif %}
+  {%- else %}{{ nodata('Risk register') }}{% endif %}
+
+  <h3 class="block warn">Top Questions For Management</h3>
+  {%- if report.questions %}
+  <ol class="q">
+    {%- for q in report.questions[:8] %}
+    <li><span class="cat">{{ q.category }}</span> {{ q.question }}
+      {%- if q.why %}<span class="why">Why it matters: {{ q.why }}</span>{% endif %}
+    </li>
+    {%- endfor %}
+  </ol>
+  {%- else %}{{ nodata('Diligence questions') }}{% endif %}
+
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 10 · MINIMUM PURSUIT SCORE
+
+    THIS PAGE IS NOT A NEW DESIGN. It is the SAME MPS page the executive
+    review renders — same projection (`rainmaker_view._mps_table`), same
+    seven rubric rows, same score columns, same commentary bullets, same
+    total row, same legend, same footer note. The only difference between
+    the two documents is WHAT WAS SCORED: the executive review's run scores
+    the CIM alone; this run scores the CIM plus everything else the agents
+    ingested from the data room.
+
+    Because of that, the markup below must be kept byte-faithful to the
+    `mps-table` block in `rainmaker_opportunity_summary.html.j2`. Do not
+    restyle it, do not add score visualisations, do not re-order columns.
+    If the two ever need to diverge, that is a decision to raise, not a
+    change to make here.
+
+    PREFERRED IMPLEMENTATION: extract that block into a shared partial
+    (`_mps_page.html.j2`) and `{% include %}` it from both templates, so
+    there is one copy rather than two that drift. That means a mechanical
+    edit to the executive review template — swapping the block for an
+    include, with no rendered-output change — which is the one exception
+    worth asking about before treating that file as read-only.
+    ===================================================================== -#}
+<div class="page mps-page">
+  {{ running_header(report, 'Minimum Pursuit Score', 10) }}
+  <div class="eyebrow">Minimum Pursuit Score</div>
+  <h2 class="section">Does this clear Rallyday's bar for further pursuit?</h2>
+  <div class="divider"></div>
+
+  {% set mps_score_col_pct = (16 / mps.columns | length) | round(2) if mps.columns else 0 %}
+  <table class="mps-table">
+    <thead>
+      <tr>
+        <th class="mps-category-col" style="width: 15%;"></th>
+        {% for col in mps.columns %}<th class="mps-score-col" style="width: {{ mps_score_col_pct }}%;">{{ col.header }}</th>{% endfor %}
+        <th>Commentary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in mps.rows %}
+      <tr>
+        <td class="mps-category-col">
+          {{ row.display_name }}{% if row.evidence_marker %}<sup>{{ row.evidence_marker }}</sup>{% endif %}
+        </td>
+        {% for cell in row.score_cells %}<td class="mps-score-col">{{ cell if cell is not none else '—' }}</td>{% endfor %}
+        <td class="mps-commentary-col">
+          {% if row.bullets %}
+          <ul class="bullets">
+            {% for bullet in row.bullets %}
+            <li{% if bullet.kind == 'counter_evidence' %} class="mps-counter-evidence"{% endif %}>{% if bullet.axis %}<strong>{{ bullet.axis }}:</strong> {% endif %}{{ bullet.text }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <ul class="bullets"><li>Not yet assessed in this preview.</li></ul>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="mps-total-row">
+        <td class="mps-category-col"><strong>Total</strong></td>
+        {% for cell in mps.total_cells %}<td class="mps-score-col">{{ cell if cell is not none else '—' }}</td>{% endfor %}
+        <td class="mps-commentary-col"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  {% if mps.show_legend %}
+  <p class="mps-legend">◇ assessed from proxies and judgment; not directly evidenced in the data room</p>
+  {% endif %}
+
+  {% if mps.mps_status == "degraded" %}
+  <div class="mps-footer-note">Not yet assessed in this preview.</div>
+  {% elif mps.verdict is none %}
+  <div class="mps-footer-note">Total not computable — {{ mps.n_scored }} of 7 categories scored.</div>
+  {% else %}
+  <div class="mps-footer-note">Threshold {{ mps.threshold }} · {{ mps.verdict }}</div>
+  {% endif %}
+
+  {{ page_footer(report) }}
+</div>
+
+
+{#- =====================================================================
+    PAGE 11 · APPENDIX — gaps, sources, run manifest
+    Everything a reader needs to trust or challenge the report, and nothing
+    that competes for attention with the nine pages above.
+    ===================================================================== -#}
+<div class="page">
+  {{ running_header(report, 'Appendix', 11) }}
+  <h2 class="section">Appendix</h2>
+
+  <h3 class="block">Data Room Gaps — Information Request</h3>
+  {%- if report.appendix.gaps %}
+  <table class="dt left">
+    <tr><th style="width:12%">Priority</th><th style="width:44%">Item requested</th><th>Why it matters</th></tr>
+    {%- for g in report.appendix.gaps[:10] %}
+    <tr><td>{{ sev(g.priority_label, g.priority_class) }}</td><td>{{ g.item }}</td><td>{{ g.why | default('—', true) }}</td></tr>
+    {%- endfor %}
+  </table>
+  {%- else %}<p class="nodata">No outstanding data room gaps recorded.</p>{% endif %}
+
+  <h3 class="block">Confidence By Area</h3>
+  <table class="dt left">
+    <tr>{% for c in report.appendix.confidence %}<th>{{ c.area }}</th>{% endfor %}</tr>
+    <tr>{% for c in report.appendix.confidence %}<td>{{ sev(c.level, c.level_class) }}</td>{% endfor %}</tr>
+  </table>
+
+  <h3 class="block">Sources Cited</h3>
+  {%- if report.appendix.sources %}
+  <table class="dt left">
+    <tr><th style="width:8%">Ref</th><th style="width:46%">Document</th><th>Location</th></tr>
+    {%- for s in report.appendix.sources %}
+    <tr><td>{{ s.ref }}</td><td>{{ s.document }}</td><td>{{ s.location | default('—', true) }}</td></tr>
+    {%- endfor %}
+  </table>
+  {%- else %}<p class="nodata">Citation index not populated for this run.</p>{% endif %}
+
+  <h3 class="block plain">Run Manifest</h3>
+  <p class="meta">
+    Generation mode: {{ report.meta.mode_label }} ·
+    Documents indexed: {{ report.meta.doc_count | default('—', true) }} ·
+    Workstreams completed: {{ report.appendix.manifest.workstreams_ok | default('—', true) }} of {{ report.appendix.manifest.workstreams_total | default('—', true) }} ·
+    Degraded workstreams: {{ report.appendix.manifest.degraded | default('none', true) }} ·
+    Template version {{ report.meta.template_version | default('final_report.html.j2 v0.1', true) }}
+  </p>
+  <p class="meta">{{ report.meta.status }}</p>
+  {{ page_footer(report) }}
+</div>
+
+</body>
+</html>

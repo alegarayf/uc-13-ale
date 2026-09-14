@@ -1,0 +1,22 @@
+{
+  "elder_care": {
+    "html_sha256": "01b516f2b8b63d932d5b7573647c2f87adcfa672e64e77c929dd74b277a8851d",
+    "pdf_pages": 3
+  },
+  "elder_care_cim_only": {
+    "html_sha256": "c32dfa6ad1bfd13a9876cbaf528fa8d6c2e8e9368c63e3de01104f6f654a93d1",
+    "pdf_pages": 4
+  },
+  "clearsulting": {
+    "html_sha256": "478465a6f4f9b4102b513f8c11785a99c37ea397bdf303036817fdad8cee8518",
+    "pdf_pages": 4
+  },
+  "gkf": {
+    "html_sha256": "920f051eacf8e6a4deb7df9f4f092bff43aaa4685c630f6179c564e1ac7f3325",
+    "pdf_pages": 4
+  },
+  "b2b_saas": {
+    "html_sha256": "64ecac952bf1f51c3cf9be52cfb23cab020c48d22f844f1f8ff4ec607309dfbc",
+    "pdf_pages": 4
+  }
+}

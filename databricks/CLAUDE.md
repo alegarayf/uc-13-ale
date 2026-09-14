@@ -2,6 +2,8 @@
 
 > **Cursor agents:** live workspace access from the laptop is documented in repo-root [`AGENTS.md`](../AGENTS.md) and the [`databricks-access`](../.cursor/skills/databricks-access/SKILL.md) skill. This file covers pipeline implementation only.
 
+> **Current state (2026-09-02).** Chat and vision calls to Claude no longer go through Databricks Model Serving — they use the Anthropic SDK directly through a single gateway, `agents/shared/llm_client.py`. Read **"The LLM gateway"** below before adding any model call; a static test fails the build if you bypass it. The working catalog is **`uc13_preview`** until further notice. Branch: `feature/anthropic-sdk-migration`, deployed to the shared Databricks Git folder; not yet merged to `main`.
+
 ## What this project is
 
 A private equity diligence pipeline running entirely on Databricks. It ingests a company's data room documents (PDFs, Excel, Word, CSV) from SharePoint, parses them into searchable chunks, and runs a set of workstream agents that extract structured diligence outputs (business model, financial trends, customer quality, KPIs, legal contracts, quality of earnings).
@@ -35,13 +37,14 @@ databricks/
       run_diligence_pipeline.py   # Phase 3-5 runner: delegates to PipelineOrchestrator DAG
       run_full_pipeline.py        # Phase 1-5 end-to-end runner: calls run_ingestion_pipeline() then run_pipeline()
       run_vdr_pipeline.py         # VDR wrapper: reads companies_vdr_history row → run_full_pipeline() → copies docx to VDR volume → updates record
-      # --- CIM-first Rainmaker preview (separate flow, uc13_preview) ---
+      # --- Unified VDR flow: CIM-scoped preview OR full-room, uc13_preview ---
       cim_detection.py            # detect_cim(): name/path match + Teaser/IOI/NDA exclusion on the FILE's own name
-      run_vdr_rainmaker.py        # CIM preview runner: scoped ingestion → 7 agents → bundle → Rainmaker PDF
+      run_vdr_rainmaker.py        # Unified runner: CIM found → scoped ingestion → 8 agents (7 Phase 3 + cross_analysis; orchestrator skipped) → Rainmaker ER; no CIM → full Phase 1-5 → same Rainmaker ER + full_report.docx. Both branches now continue into a second stage — see "VDR pipeline (UI-triggered)" below.
+      vdr_progress.py             # Thin progress emitter the runner calls between stages — see "Progress signal" below
     notebooks/
       test_pipeline.ipynb           # End-to-end test notebook — adapt when scripts change
-      run_vdr_job.py                # notebook_task entry for the full VDR pipeline → run_vdr_pipeline()
-      run_vdr_rainmaker_job.py      # notebook_task entry for the CIM preview → run_vdr_rainmaker()
+      run_vdr_job.py                # notebook_task entry for the full VDR pipeline → run_vdr_pipeline() — NOT wired to the live job (see below)
+      run_vdr_rainmaker_job.py      # notebook_task entry for the unified VDR flow → run_vdr_rainmaker() — this IS what the live job runs
       00_setup_vector_search.ipynb  # One-time VS endpoint + index setup
       01_document_classifier.ipynb  # Phase 2a: classify + tag documents
       02_ingestion_parser.ipynb     # Phase 2b: parse → chunks + embeddings
@@ -53,8 +56,13 @@ databricks/
       seed_rules.sql                          # Seed data for garden_rules
   agents/
     shared/
+      llm_client.py       # THE LLM gateway — every Claude chat/vision call routes here (AD-001)
       retrieval.py        # semantic_search() — used by all Phase 3 agents
       agent_base.py       # WorkstreamAgent base class + tool-call/trace infrastructure
+      fallback.py         # Filename-filter retry fallback for BMA/Legal retrieval (R-03) — NOT the LLM fallback
+      run_context.py      # Run attribution: pipeline_thread_id + per-agent agent_run_id (M-RE2 T1)
+      sql_utils.py        # Shared SQL utilities for Phase 3 agents
+      _types.py           # Retrieval types — import shim to avoid circular imports
     workstreams/          # Phase 3 agents — one file per diligence workstream
       business_model_agent.py
       financial_trends_agent.py
@@ -64,14 +72,21 @@ databricks/
       quality_of_earnings_agent.py
       forecast_agent.py             # Phase 3: forecast assumption credibility + downside sensitivities
       cross_analysis_agent.py       # Phase 4: cross-workstream reconciliation + top-10 issues
+      mps_agent.py                  # Not on the VDR path; not in the Phase 3-5 DAG
     orchestration/
       pipeline.py                   # PipelineOrchestrator: Phase 3→5 DAG, parallelism, retry, failure isolation, run manifest; to_result_card()
       orchestrator_agent.py         # Phase 5: assembles final diligence memo (.md + .docx)
     exec_summary/                   # (Ale) Bundle/report layer: BundleBuilder, tldr_compress, Rev3 one-pager; build_exec_summary() is the VDR bridge
       rainmaker_view.py             # Pure/deterministic bundle→template projection (financials, stat tiles, severity). No LLM.
       rainmaker_narrative.py        # LLM narrative layer for the Rainmaker one-pager
-      renderers.py                  # render_rainmaker(): HTML→PDF (WeasyPrint primary, PyMuPDF Story fallback)
+      rainmaker_entry.py            # build_rainmaker_summary(): bundle → narrative → render, shared by BOTH the CIM and full-room VDR branches
+      final_report_view.py          # Pure/deterministic bundle→template projection for the final diligence report (stage 2). No LLM.
+      final_report_narrative.py     # LLM narrative layer for the final report's six analyst takes + cover recommendation — additive, does not touch rainmaker_narrative.py
+      final_report_entry.py         # build_final_report(): bundle → validate → verify → narrative → MPS → render, sibling of rainmaker_entry.py
+      renderers.py                  # render_rainmaker() and render_final_report(): HTML→PDF (WeasyPrint primary, PyMuPDF Story fallback)
       templates/rainmaker_opportunity_summary.html.j2   # The Rainmaker visual one-pager template
+      templates/final_report.html.j2                    # The final diligence report template (11 pages, portrait)
+      templates/_mps_page.html.j2                        # Shared MPS-page partial, {% include %}d from both templates (D-01) — one copy of the markup, not two
     subagents/
       workstream/
         financial/        # Parallel sub-agents for FinancialTrendsAgent (see section below)
@@ -194,7 +209,7 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 | `run_ingestion_pipeline.py` | 1-2 | New data room files added; re-run classification or parsing |
 | `run_diligence_pipeline.py` | 3-5 | Embeddings already populated; re-running or debugging diligence agents |
 | `run_full_pipeline.py` | 1-5 | New company (first-time run) or full refresh |
-| `run_vdr_rainmaker.py` | CIM-scoped 1-4 | Cheap CIM-only preview one-pager in `uc13_preview`. Skips Phase 5 (`run_orchestrator=False`) — one-pager only, no memo. Does not touch `uc13`. |
+| `run_vdr_rainmaker.py` | CIM-scoped 1-4, OR full 1-5 | **Unified VDR runner.** CIM found → scoped ingestion + 8 agents (Ruta 2, `run_orchestrator=False` — the 7 Phase 3 agents plus `cross_analysis`; only the Phase 5 orchestrator is skipped, which is why `diligence_report` gains no row on this path) → Rainmaker executive review. No CIM found → full Phase 1-5 pipeline → the SAME Rainmaker executive review + `full_report.docx`. Both branches write to `uc13_preview`, never `uc13`. `no_cim_mode="noop"` restores the old message-only no-CIM behavior. |
 
 ### Databricks jobs
 
@@ -203,8 +218,8 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 | `uc13_ingestion_pipeline.yml` | 1 per script (multi-task, existing) | Individual Phase 1-2 scripts |
 | `uc13_diligence_pipeline.yml` | 1 task (single-task) | `run_diligence_pipeline.py` |
 | `uc13_full_pipeline.yml` | 2 tasks: `ingestion_pipeline` → `diligence_pipeline` | `run_ingestion_pipeline.py` then `run_diligence_pipeline.py` |
-| `vdr_pipeline.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_job` → `run_vdr_pipeline.py` |
-| `vdr_rainmaker_poc.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_rainmaker_job` → `run_vdr_rainmaker.py` (CIM preview, `uc13_preview`) |
+| `vdr_pipeline.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_job` → `run_vdr_pipeline.py` — **documents `run_vdr_job`'s shape only; the live job of this name does not run it, see below** |
+| `vdr_rainmaker_poc.yml` | 1 `notebook_task` (serverless env) | `jobs/notebooks/run_vdr_rainmaker_job` → `run_vdr_rainmaker.py` (unified CIM/full-room flow, `uc13_preview`) — **this is what the live job runs** |
 
 `uc13_full_pipeline.yml` uses **two tasks** (not one) so each phase has independent visibility, timeouts, and retries in the Databricks job UI. If ingestion fails, the diligence task is automatically blocked.
 
@@ -212,12 +227,141 @@ Vector Search index: **`uc13.ingestion.embeddings_index`** (Delta Sync).
 
 The **VDR Diligence Pipeline** job (`617196299594076` in the Rallyday workspace) is how the Project Lighthouse UI runs diligence. Key facts:
 
-> ⚠️ **Verified 2026-08-10: that job's task currently points at `jobs/notebooks/run_vdr_rainmaker_job`, not `run_vdr_job`.** So triggering it today produces a CIM Rainmaker one-pager in `uc13_preview` and writes to **no** `uc13` table. `run_vdr_job` still exists in the folder but nothing is wired to it. The job name is stale — **always check a job's notebook path before assuming what it runs.** The rest of this section describes `run_vdr_pipeline.py` (the real diligence path) as designed.
+> **As of the unified-flow work** (`docs/plans/connect-all-vdr-er.md` — note `docs/*` is gitignored, so this file exists only on machines that authored it, not in a fresh clone)**: the job's task points at `jobs/notebooks/run_vdr_rainmaker_job`, which now genuinely covers both cases.** Triggering it produces, for a CIM-bearing data room, a CIM-scoped Rainmaker executive review in `uc13_preview`; for a data room with no CIM, the full Phase 1-5 pipeline over `uc13_preview` plus the same Rainmaker executive review and `full_report.docx`. Neither branch writes to `uc13` — that catalog stays frozen until a deliberate promotion step. `run_vdr_job` (→ `run_vdr_pipeline.py`, hardcoded to `uc13`) still exists in the folder but nothing is wired to it. The job name ("VDR Diligence Pipeline") no longer describes a mismatch, but it also doesn't name the Rainmaker format — **always check a job's notebook path before assuming what it runs, rather than trusting the name.**
 >
-> ⚠️ **One Git folder feeds both VDR jobs.** `databricks repos update <id> --branch <b>` changes the code *both* jobs run on their next trigger, and it can swap code mid-run (serverless notebook tasks resolve workspace files as cells execute). Branch `prod-known-good-fc47a29` is pinned at the last commit before the M0–M4 merge if a rollback is needed.
+> ⚠️ **One Git folder feeds both VDR jobs.** `databricks repos update <id> --branch <b>` changes the code *both* jobs run on their next trigger, and it can swap code mid-run (serverless notebook tasks resolve workspace files as cells execute). Branch `prod-known-good-fc47a29` is pinned at the last commit before the M0–M4 merge if a rollback is needed. **Do not run `databricks repos update` casually** — it is the only way code reaches either job, and it can swap out a running job's code mid-execution.
+>
+> ⚠️ **No job/task parameters on the VDR job YAML.** The UI triggers `run-now` passing only notebook widgets (`table_name`, `record_id`); declaring fixed task parameters blocks that trigger. This applies to both stages below — do not add a parameter to expose stage 2 knobs.
+
+### The run is now two stages (`docs/plans/final_report/final_report_plan.md`)
+
+`run_vdr_rainmaker()` no longer stops once the executive review (ER) is built. On
+**both** branches it continues into a second stage that produces a final
+diligence report over the whole data room. Stage 2 is additive: it cannot cause
+the run to fail, and a stage-2 failure leaves the ER intact and downloadable —
+the record still ends `processing_status="done"`, `completion_status="success"`,
+with the stage-2 error recorded in `error_message` and in `progress_json`
+(A-1: this repo does not have precedent or a UI contract for a `"partial"`
+value, so the vocabulary below stays binary; see "Progress signal").
+
+- **Stage 1 — the executive review.** Byte-for-byte the flow that shipped
+  before this change: CIM-scoped ingestion + agents (Branch A) or the full
+  Phase 1-5 pipeline (Branch B), then `build_rainmaker_summary()`. As soon as
+  the ER's `executive_summary.pdf` / `rainmaker_opportunity_summary.html` are
+  copied to the timestamped VDR volume dir, the runner writes
+  `results_location` onto the record — **before stage 2 starts.** The ER's
+  filenames are unchanged and the UI still resolves them by name, so an
+  unmodified UI can download the ER the moment it exists, without waiting for
+  stage 2.
+- **Stage 2 — the final report.** Re-ingests (Branch A only — Branch B's room
+  is already fully ingested) and re-runs the agents (Branch A only), then calls
+  `final_report_entry.build_final_report()`, which never raises, and copies
+  `full_report.pdf` / `final_diligence_report.html` alongside the ER's files in the same
+  `results_location` directory. Both branches share one helper,
+  `_run_final_report_stage()`, differing only in `run_mode`, whether ingestion/
+  agents still have work to do, and whether a prior MPS run should be read back
+  (see the MPS note below). The helper's body is wrapped end-to-end in a bare
+  `try/except Exception` that never re-raises — an ingestion failure, an agent
+  failure, or a `build_final_report` failure (which itself never raises; it
+  returns `status="failed"`) all degrade the same way: the ER stays on disk,
+  `results_location` still points at it, and only `final_report.*` is missing.
+
+**New deliverables.** `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`
+now holds, alongside the unchanged ER files, `full_report.pdf` and
+`final_diligence_report.html` — present only if stage 2 succeeded. The UI resolves a
+run's report by that base name, which is why the Phase-5 orchestrator memo
+(`full_report.docx`) is temporarily no longer copied into the delivery
+folder: two different documents cannot share it. The memo is still generated
+and still on disk at `report_docx_path`.
+
+### Progress signal — four additive columns, `processing_status` unchanged
+
+Progress lives in four **additive, nullable** columns on
+`rallyday_partners_llc.default.companies_vdr_history`:
+`progress_stage`, `progress_pct`, `progress_json`, `stage_updated_at`.
+`ensure_progress_columns()` (`vdr_progress.py`) adds them with a bare
+`ADD COLUMNS (...)` — **not** `IF NOT EXISTS`, which does not parse on this SQL
+engine — wrapped in a blanket `try/except` that swallows `FIELD_ALREADY_EXISTS`
+(and anything else) to stay idempotent without that clause. Confirmed live
+against the warehouse: the columns exist on `companies_vdr_history` today; the
+`uc13_preview.analysis.vdr_progress` fallback table this plan anticipated was
+not needed.
+
+**`processing_status` keeps its exact existing three-value vocabulary**
+(`processing` / `done` / `error`) and stays `processing` until the *whole* run
+— both stages — ends. It is never set to a fourth value for a partial stage-2
+failure; see A-1 above. A UI that only reads `processing_status` is completely
+unaffected by any of this.
+
+`Progress` (`vdr_progress.py`) writes `progress_stage` (the current stage key),
+`progress_pct` (`round(100 * terminal_stages / total_stages)`, clamped to its
+own previous value so it is monotonic, and only forced to `100` at the run's
+terminal update), `progress_json` (the whole ordered stage list on every write
+— `key`, `label`, `status` of `pending`/`processing`/`done`/`failed`/`skipped`,
+`started_at`, `finished_at`, `artifacts` — so the UI never needs to know which
+branch produced it) and `stage_updated_at`. The runner wraps its `Progress`
+instance in a small `_SafeProgress` proxy that also catches and prints on every
+call, belt-and-suspenders on top of `Progress`'s own exception-swallowing: a
+completely broken progress emitter cannot change the run's outcome.
+
+**Stage vocabulary — the two branches diverge by one stage, on purpose.**
+
+Branch A (CIM found):
+
+| key | label |
+|---|---|
+| `cim_detection` | Scanning the data room for a CIM |
+| `cim_ingestion` | Ingesting the CIM |
+| `cim_agents` | Running the diligence agents on the CIM |
+| `executive_review_ready` | Executive review ready |
+| `vdr_ingestion` | Ingesting the full data room |
+| `vdr_agents` | Running the diligence agents on the full data room |
+| `final_report` | Building the final diligence report |
+| `final_report_ready` | Final report ready |
+
+Branch B (no CIM) — `vdr_ingestion` + `vdr_agents` collapse into one
+`vdr_pipeline` stage:
+
+| key | label |
+|---|---|
+| `vdr_scan` | Scanning the data room |
+| `vdr_pipeline` | Ingesting the data room and running the diligence agents |
+| `executive_review_ready` | Executive review ready |
+| `final_report` | Building the final diligence report |
+| `final_report_ready` | Final report ready |
+
+The collapse is deliberate, not a shortcut: Branch B's `run_full_pipeline()` is
+one call that does Phase 1-2 *and* Phase 3-5 internally and only returns when
+both finish, so the runner genuinely cannot observe an ingestion→agents
+boundary from outside it. Emitting two stages here would mean fabricating a
+`finished_at` timestamp on a record the deal team reads. One honest stage beats
+two invented ones.
+
+### MPS on the final report — a fresh score on Branch A, a reused one on Branch B
+
+The final report's MPS page is `rainmaker_view._mps_table` rendered through the
+shared `_mps_page.html.j2` partial (D-01) — not a redesign, not a second
+implementation. What differs by branch is *which run(s)* feed it:
+
+- **Branch A** — stage 2 has new evidence (the rest of the data room was just
+  ingested and re-agented), so it makes a **fresh** `MPSAgent().score(...)`
+  call over the complete bundle, `run_mode="full_vdr_after_cim"`, and reads
+  back the CIM-stage run (`run_mode="cim_only"`) to show alongside it. The page
+  carries **two** score columns: the CIM-only preview score and the full-room
+  score, so the reader sees the score move as more evidence arrived.
+- **Branch B** — there is no new evidence between the ER and the final report:
+  no re-ingestion, no re-agent run, same bundle. A second `MPSAgent().score`
+  call here would just re-score identical data and could produce a different
+  number with nothing on the page to explain the discrepancy (decision D-02).
+  So Branch B's final report **reuses** the ER's own MPS run
+  (`run_mode="full_vdr_no_cim"`, read back and passed through unchanged) — one
+  score column, the same number the deal team already downloaded on the ER.
+  If that read-back comes back empty or malformed, `build_final_report` falls
+  back to a fresh scoring call rather than shipping a blank MPS page, and says
+  so on stdout.
 
 - **Task = `notebook_task`** pointing at a notebook entry with **NO job/task parameters**. The UI triggers `run-now` passing **notebook params `table_name` + `record_id`** (note: `record_id`, not `id`), which arrive as widgets. Declaring fixed task parameters blocks the UI trigger — do not add them.
-- The notebook reads the widgets and calls `run_vdr_pipeline(table_name, record_id)`, which reads a `rallyday_partners_llc.default.companies_vdr_history` row, runs `run_full_pipeline()` (Phase 1-5, catalog **hardcoded `uc13`**), copies `full_report.docx` (the orchestrator memo) + `executive_summary.docx` (the `agents/exec_summary` Rev3 one-pager bridge) to `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`, and flips the record `processing → done`/`error`.
+- The notebook (`run_vdr_rainmaker_job`) reads the widgets and calls `run_vdr_rainmaker(table_name, record_id, special_folder, no_cim_mode)`, which reads a `rallyday_partners_llc.default.companies_vdr_history` row, detects a CIM, and either (a) runs the CIM-scoped Ruta 2 flow, or (b) runs `run_full_pipeline()` (Phase 1-5, catalog **`uc13_preview`**, not `uc13`) followed by the same Rainmaker render. Copies `executive_summary.pdf` + `rainmaker_opportunity_summary.html` (both branches) and `full_report.docx` (full-room branch only) to `/Volumes/rallyday_partners_llc/default/vdr/{company}/{ts}/`, and flips the record `processing → done`/`error`. `run_vdr_pipeline.py` (catalog hardcoded `uc13`, copies `full_report.docx` + `executive_summary.docx`) is the legacy standalone entry this job does **not** call — see `run_vdr_job` above.
 - **Code source = a Databricks Git folder** (`Rallyday`, under a user's `/Workspace/Users/…`) checked out to the working branch — NOT the job's `git_source` block (dead config). To ship code to the job: push, then `databricks repos update <id> --branch <b>`.
 - **Vision is ON by default in this path** (Haiku), overridable via the `vision_endpoint` widget (`""` disables). SharePoint folder is resolved from the `sp_folder_path` secret + `company_name` (`{folder}/Example Data Room/{company_name}`); the record's `source_data_location` is display-only and NOT used.
 
@@ -247,9 +391,65 @@ An optional list of file names that scopes a run to a subset of the data room; d
 
 - **DAG / dependencies**: BMA · FTA · CQA · KPI are independent; `legal_contracts` soft-depends on CQA (`contract_trigger_list`); `quality_of_earnings` hard-depends on FTA + soft on CQA; `forecast` hard-depends on FTA + soft on QofE/CQA. Phase 4 `cross_analysis` waits on all Phase 3; Phase 5 `orchestrator` hard-depends on `cross_analysis`.
 - **Failure isolation:** each agent runs with retries (`max_retries`, default 2). On final failure, agents that **hard-depend** on it are `SKIPPED`; agents that only **soft-depend** run **degraded** (their `_load_*` fallbacks handle a missing upstream table). Independent agents always continue. The run manifest (`SUCCESS`/`FAILED`/`SKIPPED` + attempts + error + degraded_from) is persisted into `uc13.analysis.diligence_report.agent_run_manifest_json` and rendered in the memo appendix.
-- **Parallelism + tracing:** independent agents run concurrently via a wave scheduler (`ThreadPoolExecutor`, `max_parallelism`). Each agent's `@mlflow.trace` spans emit per-thread, so per-agent MLflow tracing is preserved. `run_pipeline` drives Phases 3+4 through the DAG, then runs the Orchestrator explicitly so it receives the manifest.
+- **Parallelism + tracing:** independent agents run concurrently via a wave scheduler (`ThreadPoolExecutor`, `max_parallelism`). `run_pipeline` drives Phases 3+4 through the DAG, then runs the Orchestrator explicitly so it receives the manifest. **Tracing detail, corrected 2026-09-02:** this section previously claimed "each agent's `@mlflow.trace` spans emit per-thread". **That decorator is not used anywhere in this repo.** There are exactly three `mlflow.start_span()` calls — `agent::{key}` and `agent::orchestrator` (`pipeline.py:418`, `:548`) and `llm_client.chat` (`llm_client.py:570`) — and **none of them record `set_inputs`/`set_outputs`**, so no prompt or model response ever enters a trace. Two consequences worth knowing before you build on this: (1) MLflow's trace context is thread-local, so a gateway call made from a `ThreadPoolExecutor` worker (e.g. the FTA financial sub-agents) does **not** nest under its `agent::{key}` span — it lands as an orphan trace; measured on the 2026-09-02 parity runs, 227 of 266 gateway spans had no agent parent. (2) Built-in MLflow LLM judges need request/response content, so they cannot score these traces as-is. See `.specs/features/anthropic-sdk-migration/evaluation-readiness.md` for the full analysis and what it would take to change.
 - **Context discipline:** Cross-Analysis and the Orchestrator NEVER read `chunks`/`embeddings`/`reasoning_trace`. They consume `to_result_card()` (a size-bounded normalized summary derived from each agent's `*_json` columns) plus targeted reads of specific JSON fields. Cross-Analysis reconciliation checks (§10.1) are deterministic Python; the LLM is used only for CIM-claims extraction (§10.2) and top-10 ranking (§10.3). The Orchestrator assembles the memo from each agent's `generate_*_assessment()` (each reads only its own row → bounded context per call); the only cross-cutting LLM call is the executive summary over a compact digest.
 - **Final deliverable:** Markdown + Word memo only. Deck/one-pager/PDF are out of scope; `diligence_report.deliverables_json` is the extensible hook to add them later without a migration.
+
+---
+
+## The LLM gateway — read this before adding any model call
+
+**Since the Anthropic SDK migration (branch `feature/anthropic-sdk-migration`, 2026-09-02), every chat and vision call to Claude goes through `agents/shared/llm_client.py`. Nothing else may construct its own `mlflow.deployments` client for a Claude endpoint.** That is AD-001 in `.specs/STATE.md`, and it is enforced by a static scan — `tests/test_llm_gateway_convention.py` fails the build if a module outside a documented 8-file allowlist calls `get_deploy_client()` or passes a literal Claude endpoint to `predict()`.
+
+Chat/vision now reach Anthropic's API directly (`anthropic>=1.3.0`), with automatic fallback to the equivalent Databricks serving endpoint on transient failures. Call sites did **not** change shape: they still pass the same Databricks-style alias, and no widget, workflow YAML, or notebook needed editing.
+
+```python
+from agents.shared import llm_client
+
+text, usage = llm_client.chat(
+    system_prompt=SYSTEM_PROMPT,      # or None
+    user_content=user_prompt,          # str, or a list of content blocks for vision
+    endpoint="databricks-claude-sonnet-4-6",   # the alias, unchanged
+    max_tokens=8_000,
+    temperature=0.0,
+)
+```
+
+Also public: `is_claude_endpoint(endpoint)`, `resolve_model(endpoint)`, `get_fallback_count()` / `reset_fallback_count()`, `get_endpoint_backends()` / `reset_endpoint_backends()`.
+
+### Four rules that cost real production incidents to learn
+
+**1. A runtime-parametric endpoint must be checked first (AD-002).** If the endpoint arrives from `get_param`/a widget rather than being hardcoded, call `llm_client.is_claude_endpoint(endpoint)` before delegating. If it is `False`, keep using the Databricks deploy client directly. Never let `chat()`/`resolve_model()` raise `ValueError` as your way of detecting a non-Claude endpoint. This bit `company_profiler.call_llm()`, which receives Llama on the standalone Phase 1-2 job and Claude on Phase 1-5 — unconditional routing would have broken the standalone job silently. Same for `ingestion_parser` vision, where `vision_endpoint` may be a Llama vision model.
+
+**2. Embeddings and the document classifier are permanently out (AD-001).** Anthropic has no embeddings API, and `document_classifier._CLASSIFIER_ENDPOINT` is `databricks-meta-llama-3-3-70b-instruct` — Llama, not Claude. Both keep the Databricks deploy client. They are in the allowlist with a documented reason; do not "finish the migration" by routing them.
+
+**3. A new Python dependency must be declared in THREE places, not two (AD-003).** `databricks/requirements.txt`, `databricks/pyproject.toml`, **and** the `environments[].spec.dependencies` list in the job YAML *and* in the live job config via the Jobs API. **The VDR jobs (`617196299594076`, `1064797491105862`) install packages exclusively from their own `environments[].spec.dependencies`** — they never read `requirements.txt` or `pyproject.toml`. Declaring `anthropic` correctly in those two files and nowhere else produced `ModuleNotFoundError` in every agent on the first real post-migration run.
+
+**4. Sampling parameters go through `extra_body` (AD-004).** `anthropic` 1.x removed `temperature`/`top_p`/`top_k` from the typed signature of `messages.create()`. Passing `temperature=` directly is a Python `TypeError`, not an API 400. The gateway passes `extra_body={"temperature": temperature}`. **No mock-based test can catch this class of bug** — mocking `client.messages.create` replaces the very signature you need to validate. `tests/test_llm_client_real_sdk_call_shape.py` is the pattern that does work: a real `anthropic.Anthropic` client with only the HTTP transport mocked (`httpx2.MockTransport`), so the real Python method validates its own kwargs.
+
+### Fallback semantics — and the one case that must NOT degrade
+
+On a transient failure (connection error, 5xx, rate limit), the gateway retries once against the Databricks serving endpoint of the same name, within the same call, and prints `[llm_fallback] <endpoint>: …`. At most one fallback per call — never a retry loop.
+
+**HTTP 401 is deliberately excluded.** An invalid or missing API key raises `anthropic.AuthenticationError` and fails the run. This is intentional: a credential problem that silently degraded to serving would produce a complete, plausible, and wrong deliverable — the same "hollow success" trap documented below for ingestion. If you touch `_is_retryable()`, keep 401 out.
+
+### How to check whether a run degraded
+
+`get_fallback_count()` is in-process state and `_record_fallback()` only prints to driver stdout, which `jobs/get-run-output` does **not** return for serverless notebook tasks. The queryable channel is MLflow: every `llm_client.chat` span carries `llm.backend` and `llm.fallback_used`.
+
+```python
+from mlflow import MlflowClient
+c = MlflowClient()          # MLFLOW_TRACKING_URI=databricks
+# VDR notebook experiment: 250e0a2c79064562a950a6cddb00afd2
+for t in c.search_traces(experiment_ids=[EXP],
+                         filter_string=f"timestamp_ms > {start_ms} AND timestamp_ms < {end_ms}"):
+    for s in (t.data.spans or []):
+        a = s.attributes or {}
+        if a.get("llm.fallback_used"):
+            print(t.info.trace_id, a.get("llm.endpoint_alias"), a.get("llm.backend"))
+```
+
+Full evidence of the migration's end-to-end parity is in `signoffs/ASDK-12-parity.md`; the decision log is `.specs/STATE.md` (AD-001 … AD-004).
 
 ---
 
@@ -347,13 +547,15 @@ All scripts use a dual-source helper: tries `dbutils.widgets.get()` first, falls
 
 ## Catalog convention
 
+> **Current working catalog: `uc13_preview`, until further notice (2026-09-02).** New feature work on this branch runs against `uc13_preview`. `uc13` stays frozen — do not point a run at it to "test in prod", and do not change `run_vdr_rainmaker.VDR_CATALOG`. Note that `get_param("catalog", default="uc13")` is still the required default in production script entry points (the convention test enforces it); the VDR path overrides it with its own constant, which is why VDR runs land in `uc13_preview` regardless.
+
 Three Unity Catalog names appear across the pipeline; they are **not** interchangeable:
 
 | Catalog | Role |
 |---|---|
 | **`uc13`** | Production catalog — all `main()` entry points in `databricks/jobs/scripts/` and `databricks/agents/workstreams/` must default to this via `get_param("catalog", default="uc13")`. |
 | **`uc13_ale`** | Eval / harness / PHV-validation catalog — used by `test_pipeline.ipynb` Cell 1 (`dbutils.widgets.text("catalog", "uc13_ale")`), workflow YAML parameter defaults, and eval/QA instrumentation. |
-| **`uc13_preview`** | CIM-first Rainmaker preview sandbox — `run_vdr_rainmaker.PREVIEW_CATALOG`, a single hardcoded constant. Isolated on purpose so a CIM-scoped ingestion never overwrites a company's full-room data. Disposable. |
+| **`uc13_preview`** | **Working catalog for both VDR modes** (CIM-scoped preview AND full-room Phase 1-5) — `run_vdr_rainmaker.VDR_CATALOG`, a single hardcoded constant (renamed from `PREVIEW_CATALOG` — it is no longer preview-only). Isolated from production `uc13` on purpose; already prepared for the M0-M4 schema (`doc_id`, `doc_status`, `sync_state` all present) while `uc13` is not (see below). No longer "disposable" once a full data room lands in it via the no-CIM branch — that is accepted; `uc13` stays frozen until a deliberate promotion (see `docs/plans/connect-all-vdr-er.md` Appendix A). |
 
 **Watch the defaults when running the M0-M4 tooling by hand** — several scripts point somewhere other than where you probably mean: `manifest_dry_run.py` defaults to `uc13`, while `measure_join_orphan_rate.py` and `measure_attestation.py` default to `uc13_ale`. Pass `catalog=` explicitly.
 
@@ -365,16 +567,28 @@ Three Unity Catalog names appear across the pipeline; they are **not** interchan
 
 ---
 
-## Endpoint names (Databricks model serving)
+## Endpoint aliases
 
-| Role | Endpoint name | Widget |
-|---|---|---|
-| Embeddings | `databricks-bge-large-en` | `embedding_endpoint` |
-| Extraction LLM (structured JSON — Haiku for speed; Sonnet via `llm_endpoint` for narrative) | `databricks-claude-haiku-4-5` | `extraction_endpoint` |
-| Narrative LLM (assessment reports) | `databricks-claude-sonnet-4-6` | `llm_endpoint` |
-| Vision LLM (optional, figure pages) | `databricks-claude-haiku-4-5` | `vision_endpoint` |
+These names are **aliases, not transport**. Since the Anthropic SDK migration they still look like Databricks serving endpoint names and are still what every call site and widget passes — but for the Claude ones, `llm_client` translates the alias to an Anthropic model ID and calls Anthropic directly, falling back to the identically-named serving endpoint only on a transient failure. Embeddings and Llama still go to Databricks serving for real. Keep using the aliases; adding a new Claude model means adding it to `llm_client._MODEL_MAP` first.
 
-**Two-LLM pattern:** FTA uses `extraction_endpoint` (Sonnet) for the single big structured-JSON call (`max_tokens=12_000`, ~90-150s) and `llm_endpoint` (Sonnet) for narrative assessment calls (Cells 11c/12b). BMA uses `extraction_endpoint` for its extraction call and `llm_endpoint` for the narrative. The orchestrator reads from the Delta table, which is written from extraction output only. **Hard token caps on this workspace:** Llama 3.3 70B is capped at 8,192 output tokens; Claude Haiku 4.5 is also capped at 8,192 output tokens (requests for higher are silently floored). Only Sonnet 4.6 reliably generates 10-16K tokens. Do not use Haiku for extraction schemas that exceed ~6,000 tokens of output.
+| Role | Alias | Widget | Actually served by |
+|---|---|---|---|
+| Embeddings | `databricks-bge-large-en` | `embedding_endpoint` | Databricks serving |
+| Extraction LLM (structured JSON) | **per-agent, see below** | `extraction_endpoint` | Anthropic SDK |
+| Narrative LLM (assessment reports) | `databricks-claude-sonnet-4-6` | `llm_endpoint` | Anthropic SDK |
+| Vision LLM (optional, figure pages) | `databricks-claude-haiku-4-5` | `vision_endpoint` | Anthropic SDK (or Databricks, if set to a Llama vision model — AD-002) |
+| Document classification | `databricks-meta-llama-3-3-70b-instruct` | hardcoded `_CLASSIFIER_ENDPOINT` | Databricks serving |
+
+**`extraction_endpoint` has no single default — it differs per agent.** Check the call site before assuming:
+
+- `financial_trends_agent.py` → `databricks-claude-sonnet-4-6`
+- `business_model_agent.py` → `databricks-claude-haiku-4-5`
+
+**Two-LLM pattern:** FTA uses `extraction_endpoint` (Sonnet) for the big structured-JSON call (`max_tokens=12_000`, ~90-150s) and `llm_endpoint` (Sonnet) for narrative assessment calls (Cells 11c/12b). BMA uses `extraction_endpoint` (Haiku) for extraction and `llm_endpoint` (Sonnet) for the narrative. The orchestrator reads from the Delta table, which is written from extraction output only. **Hard token caps on this workspace:** Llama 3.3 70B is capped at 8,192 output tokens; Claude Haiku 4.5 is also capped at 8,192 output tokens (requests for higher are silently floored). Only Sonnet 4.6 reliably generates 10-16K tokens. Do not use Haiku for extraction schemas that exceed ~6,000 tokens of output.
+
+**Do not switch to a Claude 5 model without a plan.** Sonnet 4.6 accepts `temperature`; the 5-series rejects it with a 400. Every Claude call site here passes `temperature=0.0` deliberately, so a model bump breaks all of them at once.
+
+**Vision cost shape.** Vision extraction fires **one LLM call per figure page** (`ingestion_parser._extract_figure_pages_with_vision`), rendered at 150 DPI. It dominates call *count* while barely moving token cost: on the 2026-09-02 parity runs, 215 of 266 calls were Haiku at ~2K tokens each, while 51 Sonnet calls consumed 60% of the tokens.
 
 Vision extraction is opt-in: set the `vision_endpoint` widget in Cell 1 to enable. Leave blank to skip (no PyMuPDF dependency, faster parse).
 

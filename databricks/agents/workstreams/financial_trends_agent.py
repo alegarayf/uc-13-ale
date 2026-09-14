@@ -1476,21 +1476,16 @@ EXECUTIVE SUMMARY: {exec_summary}
 {_pl_context}
 """
 
-    import mlflow.deployments
-    _client = mlflow.deployments.get_deploy_client("databricks")
-    os.environ.setdefault("DATABRICKS_HTTP_TIMEOUT", "600")
-    _response = _client.predict(
+    from agents.shared import llm_client
+
+    narrative, _usage = llm_client.chat(
+        system_prompt=_ASSESS_SYS,
+        user_content=_ASSESS_USER,
         endpoint=llm_endpoint,
-        inputs={
-            "messages": [
-                {"role": "system", "content": _ASSESS_SYS},
-                {"role": "user",   "content": _ASSESS_USER},
-            ],
-            "max_tokens": 2000,
-            "temperature": 0.1,
-        },
+        max_tokens=2000,
+        temperature=0.1,
     )
-    narrative = _response["choices"][0]["message"]["content"].strip()
+    narrative = narrative.strip()
 
     # ══════════════════════════════════════════════════════════════════════
     # Assemble final markdown — P&L first, narrative below

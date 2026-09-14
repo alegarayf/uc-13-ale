@@ -327,6 +327,34 @@ definitions:
               type: string
       workforce_notes:
         type: ["string", "null"]
+      business_description:
+        type: ["string", "null"]
+        description: >
+          Profiler's 2-3 sentence what-it-does / how-it-operates description —
+          the source for the summary's core-business lines.
+      sale_process:
+        type: ["string", "null"]
+        description: >
+          How the company is being brought to market and by whom (named
+          sell-side advisor/banker, process type). Null when no intermediary
+          is named in the data room.
+      key_partners:
+        type: array
+        description: >
+          Named partner / platform / channel relationships from the Business
+          Model agent's key_dependencies.
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - name
+          properties:
+            name:
+              type: string
+            relationship_type:
+              type: string
+            description:
+              type: string
 
   financials:
     type: object
@@ -370,6 +398,16 @@ definitions:
         items:
           type: object
           additionalProperties: true
+      # One row per segment, collapsed from FTA's segment x period records.
+      # Optional: a company whose data room states no segment revenue has none,
+      # and the report renders the section empty rather than inventing a split.
+      segment_performance:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      segment_dimension:
+        type: string
 
   revenue_quality:
     type: object
@@ -387,6 +425,29 @@ definitions:
       end_market_mix:
         type: string
       retention_notes:
+        type: string
+      # Structured passthrough of the customer_quality agent's own blocks.
+      # All optional: absent means the agent extracted nothing there, which is
+      # what lets the report distinguish a real gap from a mapping miss. The
+      # four strings above stay required because they are what the one-pager
+      # reads; these are what the final report's charts and tiles read.
+      top_customers:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      concentration_summary:
+        type: object
+        additionalProperties: true
+      retention:
+        type: object
+        additionalProperties: true
+      customer_tenure:
+        type: object
+        additionalProperties: true
+      # Present only when a client share was computed from dollars rather than
+      # stated by the data room, so the page can say so.
+      concentration_basis_note:
         type: string
 
   kpi_dashboard_row:
@@ -420,6 +481,16 @@ definitions:
         $ref: "#/definitions/area_confidence"
       fill_state:
         $ref: "#/definitions/fill_state"
+      # Whether this row is a single figure, a sentence, or a per-role
+      # breakdown. Only a figure can honestly be drawn as a bar; the
+      # classification is made once in the mapper so the view does not have to
+      # re-derive it from the rendered string.
+      value_kind:
+        type: string
+        enum:
+          - metric
+          - note
+          - breakdown
 
   qoe:
     type: object
@@ -438,6 +509,15 @@ definitions:
         items:
           type: object
           additionalProperties: true
+      # The addback ledger the chart draws. Optional: a company whose QoE agent
+      # found no addback schedule has none, and the section renders empty.
+      addbacks:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      tier4_count:
+        type: ["integer", "null"]
 
   legal:
     type: object
@@ -536,6 +616,12 @@ definitions:
     properties:
       item:
         type: string
+      # Why the missing item matters. Nullable and not required: several
+      # agents write the reason into the gap sentence itself and it is split
+      # out deterministically, but a gap that carries none has to stay empty
+      # rather than acquire an invented justification.
+      why:
+        type: ["string", "null"]
       priority:
         type: string
       source_agent:

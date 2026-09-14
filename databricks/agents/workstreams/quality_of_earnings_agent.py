@@ -133,6 +133,21 @@ def find_repo_root(marker="agents"):
 # Numeric helper
 # ---------------------------------------------------------------------------
 
+def _money_label(amount: object) -> str:
+    """Money label for a flag sentence, without doubling a sign the extraction
+    already wrote.
+
+    ``amount_dollars`` arrives in whatever shape the source table used — a
+    bare "256", a signed "$22K", a negative "($561K)". Prefixing "$"
+    unconditionally produced "($$22K)" and "($($561K))" in every Tier 4 flag
+    of every report. Only add the sign when the value does not carry one.
+    """
+    text = str(amount if amount is not None else "unknown").strip()
+    if not text:
+        return "unknown"
+    return text if "$" in text else f"${text}"
+
+
 def _parse_numeric(value_str: Optional[str]) -> Optional[float]:
     """Strip $, commas, % and parse to float. Returns None on failure."""
     if value_str is None:
@@ -672,14 +687,14 @@ class QualityOfEarningsAgent(WorkstreamAgent):
         for item in ledger:
             if item.get("tier_classification") == "Tier 4":
                 desc = item.get("description", "")
-                amt = item.get("amount_dollars", "unknown")
+                amt = _money_label(item.get("amount_dollars", "unknown"))
                 source_doc = item.get("source_doc", "")
                 self._add_flag(
                     metric="tier4_addback",
-                    value=f"{desc[:80]} (${amt})",
+                    value=f"{desc[:80]} ({amt})",
                     threshold="Tier 4 classification",
                     severity="Red",
-                    note=f"Tier 4 addback: {desc[:200]} (${amt}) — unlikely to survive buyer QofE. Source: {source_doc}.",
+                    note=f"Tier 4 addback: {desc[:200]} ({amt}) — unlikely to survive buyer QofE. Source: {source_doc}.",
                     source_doc=source_doc,
                     confidence="high",
                 )
@@ -1279,23 +1294,18 @@ EXECUTIVE SUMMARY (from extraction agent):
 {exec_summary}
 """
 
-    import mlflow.deployments
-    _client = mlflow.deployments.get_deploy_client("databricks")
-    os.environ.setdefault("DATABRICKS_HTTP_TIMEOUT", "600")
-    _response = _client.predict(
-        endpoint=llm_endpoint,
-        inputs={
-            "messages": [
-                {"role": "system", "content": _ASSESS_SYS},
-                {"role": "user",   "content": _ASSESS_USER},
-            ],
-            "max_tokens": 3_000,
-            "temperature": 0.0,
-        },
-    )
+    from agents.shared import llm_client
     from agents.shared.agent_base import accumulate_tokens as _accum_tokens
-    _accum_tokens(_response.get("usage", {}), endpoint=llm_endpoint)
-    narrative = _response["choices"][0]["message"]["content"].strip()
+
+    narrative, _usage = llm_client.chat(
+        system_prompt=_ASSESS_SYS,
+        user_content=_ASSESS_USER,
+        endpoint=llm_endpoint,
+        max_tokens=3_000,
+        temperature=0.0,
+    )
+    _accum_tokens(_usage, endpoint=llm_endpoint)
+    narrative = narrative.strip()
 
     # ── Assemble final markdown ────────────────────────────────────────────
     qofe_yn   = "Yes" if qofe_present else "No"

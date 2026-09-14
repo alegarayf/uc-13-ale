@@ -1,0 +1,159 @@
+# Tasks — UC13 Final Report + progress signal
+
+Execute in numeric order. **T08 is independent** of T01-T07 and may be done at any
+point. **T06 is unblocked** — D-01 was approved on 2026-09-07 (Path A, the shared partial).
+
+| # | File | Depends on | Closes |
+|---|---|---|---|
+| T01 | [T01_land_inputs.md](T01_land_inputs.md) | — | DoD-8 |
+| T02 | [T02_bundle_field_audit.md](T02_bundle_field_audit.md) | T01 | DoD-11 |
+| T03 | [T03_view_numeric_tests.md](T03_view_numeric_tests.md) | T02 | — |
+| T03b | [T03b_pin_format_policy.md](T03b_pin_format_policy.md) | T03 | DoD-17 |
+| T04 | [T04_render_final_report.md](T04_render_final_report.md) | T01 | — |
+| T05 | [T05_final_report_entry.md](T05_final_report_entry.md) | T04 | DoD-2 / DoD-12 (part) |
+| T06 | [T06_mps_parity.md](T06_mps_parity.md) | T04 | DoD-9 |
+| T07 | [T07_render_tests.md](T07_render_tests.md) | T05, T06, T11 | DoD-2, DoD-3 |
+| T08 | [T08_vdr_progress.md](T08_vdr_progress.md) | — | DoD-6 (part), DoD-10 (part) |
+| T09 | [T09_runner_stage_two.md](T09_runner_stage_two.md) | T05, T08 | DoD-2, DoD-5, DoD-6, DoD-10, DoD-12 |
+| T11 | [T11_final_report_narrative.md](T11_final_report_narrative.md) | T02, T05 | DoD-13 |
+| T09b | [T09b_unanticipated_stage2_failure.md](T09b_unanticipated_stage2_failure.md) | T09 | DoD-18 |
+| T10 | [T10_docs_and_closeout.md](T10_docs_and_closeout.md) | all | DoD-1, DoD-4, DoD-7 |
+| T10b | [T10b_forecast_render_coverage.md](T10b_forecast_render_coverage.md) | T07, T10 | DoD-19 |
+
+## Where to work
+
+**This plan is executed in a dedicated git worktree**, not in the main checkout:
+
+| Path | Branch | Purpose |
+|---|---|---|
+| `/Users/nimblegravity/NimblePyects/Rallyday-uc13-final-report` | `feature/uc13-final-report-and-progress` | **this work** |
+| `/Users/nimblegravity/NimblePyects/Rallyday` | `feature/anthropic-sdk-migration` | everything else |
+
+Both share one `.git`, so commits, branches and remotes are the same repository —
+there is only ever one history. The split exists because a branch can be checked
+out in **one** worktree at a time, which is exactly the guarantee we want: nothing
+in the other checkout can switch this branch out from under a running task. (It
+happened twice while the plan was being written, and it silently corrupted a
+`git rev-list` measurement before anyone noticed.)
+
+Consequences worth knowing:
+
+- **Never `git checkout` another branch here.** If you need to look at
+  `anthropic-sdk-migration`, read it through git (`git show <ref>:<path>`) instead
+  of switching. Switching would take `docs/plans/final_report/**` out of the
+  working tree — it is only un-ignored on this branch — and the plan would appear
+  to vanish.
+- `databricks/.venv` here is a **symlink** to the main checkout's venv, so the two
+  share one interpreter and one set of installed packages. Run tests as
+  `databricks/.venv/bin/python -m pytest tests/ -q`. If a task needs a new
+  dependency, remember `databricks/CLAUDE.md`'s AD-003: it must be declared in
+  three places, not two.
+- Gitignored local files (`.env`, `.claude/`, `.dev/`) do **not** exist here. The
+  suite does not need them; if something does, copy it rather than moving it.
+- To remove the worktree when the plan is done:
+  `git worktree remove ../Rallyday-uc13-final-report` from the main checkout.
+
+## Read only the plan sections your task needs
+
+`../final_report_plan.md` is **~1,500 lines** and grew by 90% over the course of
+the work — every finding from every review was appended to it. Reading it whole
+before each task is waste: most of it documents decisions that are already made
+and defects that are already fixed. Use `grep -n "^## "` to locate a section and
+read that range.
+
+| Task | Sections it actually needs |
+|---|---|
+| T01 | §7 (files), §10 (DoD-8) |
+| T02 | §1.4, §1.5, §1.6, §9 (A-3, F-2) |
+| T03 / T03b | §1.6, §10 |
+| T04 | §7 |
+| T05 | §1.2, §1.5, §1.7, §3 (incl. D-02) |
+| T06 | §5 (D-01) |
+| T07 | §1.8, §10 (DoD-3, DoD-16) |
+| T08 | §4 |
+| **T09** | **§2 (call sequence), §4 (progress), §6 (degradation)** |
+| T09b | §6 (degradation) |
+| T10b | §1.5 (D-03), §10 (DoD-15 / DoD-19) |
+| **T10** | **§7 (files + the read-only baseline), §9 (assumptions/follow-ups), §10 (DoD)** |
+| T11 | §3.5, §9 (F-6) |
+
+The task file itself is self-contained and quotes what it depends on, so this is
+safe. If a task file references a section not listed here, read that one too.
+
+## Rules that apply to every task
+
+1. **Read [`../final_report_plan.md`](../final_report_plan.md) first.** It is the
+   contract; this task file is the instruction set.
+2. **Read `databricks/CLAUDE.md`** before touching anything under `databricks/`.
+   Several of its statements are warnings earned from real outages.
+3. **Read-only files** (plan §7): `rainmaker_view.py` (except the one additive
+   `_MPS_RUN_MODE_LABELS` entry), `rainmaker_narrative.py`, `mps_agent.py`,
+   `mps_rubric.py`, `bundle_builder.py`, `validate.py`, `absence_check.py`,
+   `rainmaker_opportunity_summary.html.j2` (except D-01). If you believe one must
+   change, **stop** and write the reason into plan §9 instead of changing it.
+4. **Never touch the `uc13` catalog.** Everything is `uc13_preview`.
+5. **Never add job or task parameters** to the VDR job YAML. Fixed parameters
+   block the UI's `run-now` trigger. This was a real outage.
+6. **The template does no arithmetic.** If you find yourself adding a calculation
+   to a `.j2`, it belongs in `final_report_view.py`.
+7. **Nothing is fabricated.** A figure the agents did not extract stays `None` all
+   the way to the page, where it renders "not extracted". Never draw a `None` bar
+   at zero. Caps are constants at the top of the view module — do not raise them
+   to fit more content in.
+8. **Repo style:** `from __future__ import annotations`, type hints, module
+   docstrings that explain *why*, comments that record decisions rather than
+   restate the code.
+9. **Tests:** pytest, in `tests/`, following the conventions already in
+   `tests/test_rainmaker_render.py` and `tests/test_run_vdr_rainmaker.py` (heavy
+   dependencies mocked, no cluster needed). Do not introduce a new framework.
+9b. **A test that cannot fail is worse than no test.** It reads as coverage and
+    is not. When a task's tests exist to protect a *policy* value — a cap, a
+    threshold, a screening direction — pin the literal, do not derive it from the
+    constant under test. When in doubt, apply the defect on purpose, confirm the
+    test fails, and restore. Two of T03's mutants survived exactly this mistake.
+
+    **When you mutate a source file on purpose, run with
+    `PYTHONDONTWRITEBYTECODE=1` and clear `__pycache__` afterwards.** Python
+    invalidates bytecode on the source's mtime *and size*. A mutation that
+    preserves size — `"dir": "min"` → `"dir": "max"` is byte-for-byte the same
+    length — restored by `git checkout` inside the same mtime second leaves a
+    `.pyc` holding the mutated code, and the next session hits a phantom failure
+    in a file it never touched. That happened between the T03b review and T04.
+
+10. **Every task ends by ticking its DoD lines** in `../final_report_plan.md` §10
+    and appending a short evidence note. A box without evidence stays unticked.
+11. **One atomic Conventional Commit per task, then push.** Every task ends with
+    the same sequence, on the feature branch and nowhere else:
+
+    ```bash
+    git branch --show-current    # must be feature/uc13-final-report-and-progress
+    pytest tests/ -q             # green before the commit, not after
+    git add <only the files this task touched>
+    git commit -m "<the message at the end of the task file>"
+    git push -u origin feature/uc13-final-report-and-progress
+    ```
+
+    Rules that matter more than they look:
+
+    - **`git add` the files you touched, never `git add -A`.** This repo has a
+      large gitignore surface and untracked local workspaces; a blanket add sweeps
+      in things that must not ship.
+    - **Never commit on `main` or on `feature/anthropic-sdk-migration`.** Check the
+      branch before every commit — the plan branch was cut from the latter and it
+      is easy to end up back on it after a `git checkout`.
+    - **Do not commit unrelated changes alongside.** One task, one commit. If you
+      fixed something incidental, either revert it or commit it separately with its
+      own message.
+    - **Tests green before committing.** A red commit on this branch makes the
+      `git diff --stat` read-only proof in T10 much harder to interpret.
+    - Pushing this branch is safe with respect to the Databricks jobs: they run
+      whatever branch the shared Git folder is checked out to, and **nothing points
+      at this branch**. Do not run `databricks repos update` — one Git folder feeds
+      both VDR jobs and it can swap code mid-run (`databricks/CLAUDE.md`).
+    - **Never force-push**, and never rebase a commit that is already on the
+      remote.
+
+12. **If a task cannot be completed as written, stop and say so.** Write the reason
+    into `../final_report_plan.md` §9 and leave its DoD box unticked. A task that
+    half-lands silently is worse than one that reports a blocker — the DoD is the
+    only record of what actually shipped.

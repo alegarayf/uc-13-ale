@@ -166,8 +166,12 @@ _PROFILING_QUERIES: dict[str, tuple[str, list[str], list[str]]] = {
         ["CIM", "Memorandum", "Business", "Overview", "Summary"],
         ["BUSINESS_MODEL"],
     ),
+    # Also the retrieval that grounds `sale_process`: the sell-side advisor is
+    # normally named on the CIM's confidentiality/disclaimer page ("X has been
+    # engaged to solicit a qualified buyer"), which these terms reach.
     "banked_vs_nonbanked": (
-        "CIM offering memorandum banker investment bank process",
+        "CIM offering memorandum banker investment bank sell-side advisor engaged "
+        "to solicit qualified buyer confidentiality disclaimer process",
         ["CIM", "Memorandum", "Offering", "OM"],
         ["BUSINESS_MODEL"],
     ),
@@ -177,6 +181,36 @@ _PROFILING_QUERIES: dict[str, tuple[str, list[str], list[str]]] = {
         ["BUSINESS_MODEL"],
     ),
 }
+
+
+# Columns added to company_profile after its first release. The CREATE TABLE
+# above is `IF NOT EXISTS`, so on a catalog where the table already exists it
+# is a no-op — and the upsert below is a Delta MERGE, which does NOT evolve the
+# schema (`spark.databricks.delta.schema.autoMerge.enabled` is not set anywhere
+# in this repo, see databricks/CLAUDE.md). Without this ALTER the MERGE fails
+# on every pre-existing catalog. Keep in sync with the DDL and the write Row.
+_PROFILE_ADDED_COLUMNS: dict[str, str] = {
+    "sale_process": "STRING",
+}
+
+
+def _ensure_profile_columns(spark, table_profile: str) -> None:
+    """Add any post-release column the current write needs but an older
+    company_profile table lacks. Idempotent; safe on a fresh catalog."""
+    try:
+        existing = {field.lower() for field in spark.table(table_profile).columns}
+    except Exception as exc:  # noqa: BLE001 - never block profiling on introspection
+        print(f"  ! could not read {table_profile} schema ({exc!r}) — skipping column check")
+        return
+    missing = [
+        f"{name} {sql_type}"
+        for name, sql_type in _PROFILE_ADDED_COLUMNS.items()
+        if name.lower() not in existing
+    ]
+    if not missing:
+        return
+    spark.sql(f"ALTER TABLE {table_profile} ADD COLUMNS ({', '.join(missing)})")
+    print(f"  ✓ {table_profile}: added column(s) {', '.join(missing)}")
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +260,32 @@ def _try_accumulate_tokens(usage: dict, endpoint: str = "unknown") -> None:
 
 
 def call_llm(client, endpoint: str, prompt: str) -> str:
+    """Call `endpoint`, routing through the LLM gateway only when it's Claude.
+
+    `endpoint` is runtime-parametrized (get_param("llm_endpoint", ...)) and
+    legitimately resolves to a non-Claude model on some invocation paths:
+    uc13_ingestion_pipeline.yml defaults it to
+    "databricks-meta-llama-3-3-70b-instruct" for the standalone Phase 1-2 job,
+    while run_full_pipeline.py defaults it to Claude Sonnet for Phase 1-5.
+    llm_client.resolve_model() raises on an unmapped alias by design
+    (ASDK-03), so dispatch must check is_claude_endpoint() first rather than
+    calling chat() unconditionally -- that would break the Llama path instead
+    of falling back gracefully. `client` (the raw deploy client) is only used
+    on the non-Claude branch.
+    """
+    from agents.shared import llm_client
+
+    if llm_client.is_claude_endpoint(endpoint):
+        text, usage = llm_client.chat(
+            system_prompt=None,
+            user_content=prompt,
+            endpoint=endpoint,
+            max_tokens=1500,
+            temperature=0.0,
+        )
+        _try_accumulate_tokens(usage, endpoint=endpoint)
+        return text.strip()
+
     response = client.predict(
         endpoint=endpoint,
         inputs={
@@ -295,11 +355,13 @@ def main():
                 deal_type               STRING,
                 banked                  BOOLEAN,
                 banked_note             STRING,
+                sale_process            STRING,
                 vertical_subsector      STRING,
                 data_room_gaps          ARRAY<STRING>,
                 created_at              TIMESTAMP
             ) USING DELTA
         """)
+        _ensure_profile_columns(_spark, table_profile)
 
         # --- Detect banked/non-banked from classifier output (no LLM needed) ---
         banked, banked_note = detect_banked(_spark, table_relevance, company_name)
@@ -379,6 +441,7 @@ def main():
   "business_description": "2-3 sentence structured description of what the company does and how it operates",
   "company_size_indicators": "revenue, headcount, and EBITDA as extracted verbatim — do not compute or infer",
   "deal_type": "one of: buyout, growth_equity, recapitalization, unknown",
+  "sale_process": "how the company is being brought to market and by whom — name the investment bank, M&A advisor or broker running the process exactly as written (they are usually named on the CIM confidentiality/disclaimer page), plus the process type if stated. null if no intermediary is named anywhere in the documents; never guess a firm name",
   "vertical_subsector": "specific sub-sector within the overlay (e.g. home_care, IT_staffing, behavioral_health)"
 }"""
 
@@ -433,6 +496,7 @@ def main():
             StructField("deal_type",               StringType(),           True),
             StructField("banked",                  BooleanType(),          True),
             StructField("banked_note",             StringType(),           True),
+            StructField("sale_process",            StringType(),           True),
             StructField("vertical_subsector",      StringType(),           True),
             StructField("data_room_gaps",          ArrayType(StringType()), True),
             StructField("created_at",              TimestampType(),        True),
@@ -450,6 +514,7 @@ def main():
             deal_type=profile.get("deal_type"),
             banked=banked,
             banked_note=banked_note,
+            sale_process=profile.get("sale_process"),
             vertical_subsector=profile.get("vertical_subsector"),
             data_room_gaps=data_room_gaps if data_room_gaps else None,
             created_at=datetime.now(timezone.utc),

@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 7,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "surviving_mutant::when a spec says an action happens at most once assert the call count on the success path too not only on the path where the action fails",
+      "text": "When a spec says an action happens at most once, assert the call count on the success path too, not only on the path where the action fails",
+      "signal": "surviving_mutant",
+      "scope": "llm-gateway",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Sensor mutation 6; tests/test_llm_client_fallback.py:156-167 (llm-gateway)"
+      ],
+      "created": "2026-09-02T22:58:07Z",
+      "last_seen": "2026-09-02T22:58:07Z"
+    },
+    {
+      "id": "L-002",
+      "key": "ac_gap::an ast convention scan must match both attribute calls and bare name calls or a from import bypasses the guard silently",
+      "text": "An AST convention scan must match both attribute calls and bare-name calls, or a from-import bypasses the guard silently",
+      "signal": "ac_gap",
+      "scope": "static-scan",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Fix 2; tests/test_llm_gateway_convention.py:81-98 (static-scan)"
+      ],
+      "created": "2026-09-02T22:58:07Z",
+      "last_seen": "2026-09-02T22:58:07Z"
+    },
+    {
+      "id": "L-003",
+      "key": "spec_deviation::a connectivity gate needs a third outcome for reachable but rejected because collapsing an http error status into blocked inverts the fact the gate exists to establish",
+      "text": "A connectivity gate needs a third outcome for reachable-but-rejected, because collapsing an HTTP error status into blocked inverts the fact the gate exists to establish",
+      "signal": "spec_deviation",
+      "scope": "egress-gate",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "tasks.md T2 SPEC_DEVIATION; databricks/jobs/scripts/check_anthropic_egress.py (egress-gate)"
+      ],
+      "created": "2026-09-02T22:58:07Z",
+      "last_seen": "2026-09-02T22:58:07Z"
+    },
+    {
+      "id": "L-004",
+      "key": "surviving_mutant::pin a static guard s argument extraction and scan scope helpers with their own tests not just its call matcher or the guard can be defanged without any test failing",
+      "text": "Pin a static guard's argument-extraction and scan-scope helpers with their own tests, not just its call matcher, or the guard can be defanged without any test failing",
+      "signal": "surviving_mutant",
+      "scope": "static-scan",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md round-2 sensor mutations 12 and 13; tests/test_llm_gateway_convention.py:113-120 and :23 (static-scan)"
+      ],
+      "created": "2026-09-02T23:22:28Z",
+      "last_seen": "2026-09-02T23:22:28Z"
+    },
+    {
+      "id": "L-005",
+      "key": "surviving_mutant::pin a static matcher s depth boundary as well as its breadth because broadening it to nested nodes only adds false positives and no test will object",
+      "text": "Pin a static matcher's depth boundary as well as its breadth, because broadening it to nested nodes only adds false positives and no test will object",
+      "signal": "surviving_mutant",
+      "scope": "static-scan",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md round-3 sensor mutation 16; tests/test_llm_gateway_convention.py:130-139 (static-scan)"
+      ],
+      "created": "2026-09-02T23:46:27Z",
+      "last_seen": "2026-09-02T23:46:27Z"
+    },
+    {
+      "id": "L-006",
+      "key": "ac_gap::before declaring a runtime value unobservable check every channel that already persists it a value missing from job logs may already be a trace attribute",
+      "text": "Before declaring a runtime value unobservable, check every channel that already persists it -- a value missing from job logs may already be a trace attribute",
+      "signal": "ac_gap",
+      "scope": "observability",
+      "status": "candidate",
+      "features": [
+        "anthropic-sdk-migration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "tasks.md T23 Done-when 4; signoffs/ASDK-12-parity.md criterio 4 (observability)"
+      ],
+      "created": "2026-09-03T00:47:46Z",
+      "last_seen": "2026-09-03T00:47:46Z"
+    }
+  ]
+}

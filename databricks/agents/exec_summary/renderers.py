@@ -42,11 +42,15 @@ class ReportRenderer:
         rainmaker: dict[str, Any] | None = None,
         narrative: dict[str, Any] | None = None,
         brand_logo_data_uri: str | None = None,
+        mps: dict[str, Any] | None = None,
+        report: dict[str, Any] | None = None,
     ) -> str:
         """Render *template_path* with ``bundle``; optional ``tldr`` projection (D5-A),
         ``rainmaker`` projection (Capa A — see rainmaker_view.py), ``narrative``
-        (Capa B — see rainmaker_narrative.py), or ``brand_logo_data_uri`` (Rainmaker
-        cover logo, base64 data URI)."""
+        (Capa B — see rainmaker_narrative.py), ``brand_logo_data_uri`` (Rainmaker
+        cover logo, base64 data URI), ``mps`` (the MPS page projection — see
+        rainmaker_view._mps_table, plan §8), or ``report`` (the final report's
+        bundle→template projection — see final_report_view.py)."""
         template_name = Path(template_path).name
         try:
             template = self._env.get_template(template_name)
@@ -59,6 +63,10 @@ class ReportRenderer:
                 context["narrative"] = narrative
             if brand_logo_data_uri is not None:
                 context["brand_logo_data_uri"] = brand_logo_data_uri
+            if mps is not None:
+                context["mps"] = mps
+            if report is not None:
+                context["report"] = report
             return template.render(**context)
         except UndefinedError as exc:
             raise UndefinedError(f"{template_name}: {exc}") from exc
@@ -118,7 +126,7 @@ def render_to_volume(
 _RAINMAKER_TEMPLATE = "rainmaker_opportunity_summary.html.j2"
 
 
-def _html_to_pdf(html: str, pdf_path: str) -> str | None:
+def _html_to_pdf(html: str, pdf_path: str, page_rect_spec: str = "a4-l") -> str | None:
     """Render *html* to *pdf_path*, trying WeasyPrint first (best CSS
     fidelity — page-break, flexbox, web fonts) and falling back to PyMuPDF
     Story (already a pipeline dependency; no extra system libraries needed —
@@ -140,7 +148,10 @@ def _html_to_pdf(html: str, pdf_path: str) -> str | None:
 
         story = fitz.Story(html=html)
         writer = fitz.DocumentWriter(pdf_path)
-        page_rect = fitz.paper_rect("a4")
+        # PyMuPDF Story does not read the CSS @page size, so the fallback
+        # engine's page rect must be set explicitly to match the template
+        # (Rainmaker is landscape A4; the final report is portrait A4).
+        page_rect = fitz.paper_rect(page_rect_spec)
         more = 1
         while more:
             device = writer.begin_page(page_rect)
@@ -177,8 +188,10 @@ def render_rainmaker(
     catalog: str,
     company_name: str,
     narrative: dict[str, Any] | None = None,
+    mps: dict[str, Any] | None = None,
 ) -> dict[str, str]:
-    """Render the Rainmaker "Opportunity Summary" (HTML + PDF, 3 pages).
+    """Render the Rainmaker "Opportunity Summary" (HTML + PDF, 4 pages — the
+    MPS page is the fourth, plan §8).
 
     Unlike :func:`render_to_volume` (the Rev3 prose bridge), this produces
     ONLY the visual summary — no ``full_report`` — matching the CIM-first
@@ -190,6 +203,11 @@ def render_rainmaker(
     ``None`` (default) to render with the deterministic bundle fallbacks
     only (no prose synthesis) — this never breaks the render.
 
+    ``mps`` is a single MPSAgent run (plan §4's ``score()`` return shape),
+    also computed by the caller — this function never calls MPSAgent. Pass
+    ``None`` (default) to render the MPS section's degraded skeleton (still
+    7 rows, no scores) rather than omitting the page.
+
     Returns ``{"html": path}`` plus ``{"pdf": path}`` when a PDF engine
     succeeded.
     """
@@ -197,7 +215,7 @@ def render_rainmaker(
 
     vol_dir = reports_volume_dir(catalog, company_name)
     renderer = ReportRenderer()
-    view = _rainmaker_view(bundle)
+    view = _rainmaker_view(bundle, mps_runs=[mps] if mps else None)
     logo_data_uri = _logo_data_uri()
 
     html_out = f"{vol_dir}/rainmaker_opportunity_summary.html"
@@ -207,6 +225,7 @@ def render_rainmaker(
         rainmaker=view,
         narrative=narrative,
         brand_logo_data_uri=logo_data_uri,
+        mps=view["mps"],
     )
     with open(html_out, "w", encoding="utf-8") as fh:
         fh.write(html)
@@ -219,5 +238,89 @@ def render_rainmaker(
     if engine:
         written["pdf"] = pdf_out
         print(f"[rainmaker] render pdf → {pdf_out} (engine={engine})")
+
+    return written
+
+
+# ---------------------------------------------------------------------------
+# Final Diligence Report (plan §7 — final_report_view.py + final_report.html.j2)
+# ---------------------------------------------------------------------------
+
+_FINAL_REPORT_TEMPLATE = "final_report.html.j2"
+
+
+def render_final_report(
+    bundle: dict[str, Any],
+    catalog: str,
+    company_name: str,
+    narrative: dict[str, Any] | None = None,
+    mps: dict[str, Any] | None = None,
+    prior_mps: list[dict[str, Any]] | None = None,
+    run_mode: str | None = None,
+) -> dict[str, str]:
+    """Render the final diligence report (HTML + PDF, 11 pages).
+
+    Mirrors :func:`render_rainmaker` in shape and discipline: this function
+    renders only — it never calls an LLM, never calls ``MPSAgent``, and never
+    computes a projection it was not handed.
+
+    ``narrative`` is the final report's own Capa B output (six analyst takes
+    + a structured recommendation — see ``final_report_narrative.py``),
+    computed by the caller. ``run_mode`` is a fact about which branch the
+    caller took, threaded through to ``final_report_view`` (plan §9 A-3).
+
+    ``mps`` is the current run's ``MPSAgent().score()`` output and
+    ``prior_mps`` any earlier run(s) for the same company (e.g. the CIM-stage
+    run on Branch A) — both computed by the caller. The MPS page projection
+    is built here from the **same** ``rainmaker_view`` the executive review
+    uses, ordered prior runs first and the current run last (so
+    ``_mps_table`` takes its verdict, threshold and commentary from the
+    current run, not a stale one). This function never builds its own MPS
+    projection — that is how the two documents would start to disagree.
+
+    Returns ``{"html": path}``, plus ``{"pdf": path, "pdf_engine": engine}``
+    when a PDF engine succeeded. When the PDF was produced by the PyMuPDF
+    Story fallback, the return value also carries ``"pdf_degraded": True`` —
+    that engine honours neither SVG nor flex layout, so the HTML is the
+    faithful artifact in that case. The caller must consult this returned
+    dict (not the file system) to know which artifact to trust.
+    """
+    from agents.exec_summary.final_report_view import final_report_view
+    from agents.exec_summary.rainmaker_view import rainmaker_view as _rainmaker_view
+
+    vol_dir = reports_volume_dir(catalog, company_name)
+    renderer = ReportRenderer()
+
+    view = final_report_view(bundle, narrative=narrative, run_mode=run_mode)
+    mps_runs = [*(prior_mps or []), mps] if mps else (prior_mps or None)
+    mps_projection = _rainmaker_view(bundle, mps_runs=mps_runs)["mps"]
+
+    html_out = f"{vol_dir}/final_diligence_report.html"
+    html = renderer.render(
+        bundle,
+        _TEMPLATES_DIR / _FINAL_REPORT_TEMPLATE,
+        report=view,
+        narrative=narrative,
+        mps=mps_projection,
+        brand_logo_data_uri=_logo_data_uri(),
+    )
+    with open(html_out, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    print(f"[final_report] render html → {html_out}")
+
+    written: dict[str, str] = {"html": html_out}
+
+    pdf_out = f"{vol_dir}/full_report.pdf"
+    engine = _html_to_pdf(html, pdf_out, page_rect_spec="a4")
+    if engine:
+        written["pdf"] = pdf_out
+        written["pdf_engine"] = engine
+        print(f"[final_report] render pdf → {pdf_out} (engine={engine})")
+        if engine == "pymupdf":
+            written["pdf_degraded"] = True
+            print(
+                "[final_report] WARNING: PDF rendered via PyMuPDF Story fallback "
+                "(no SVG/flex support) — the HTML is the faithful artifact"
+            )
 
     return written

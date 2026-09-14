@@ -1155,8 +1155,6 @@ def generate_kpi_assessment(
     Returns:
         Markdown string.
     """
-    import mlflow.deployments
-
     # ── Parse result dict ─────────────────────────────────────────────────
     overlay         = result.get("overlay_confirmed", "unknown")
     tech_kpis       = json.loads(result.get("tech_services_kpis_json") or "{}")
@@ -1449,22 +1447,18 @@ Rules:
         + _KPI_CONTEXT
     )
 
-    _client = mlflow.deployments.get_deploy_client("databricks")
-    os.environ.setdefault("DATABRICKS_HTTP_TIMEOUT", "600")
-    _response = _client.predict(
-        endpoint=llm_endpoint,
-        inputs={
-            "messages": [
-                {"role": "system", "content": _ASSESS_SYS},
-                {"role": "user",   "content": _ASSESS_USER},
-            ],
-            "max_tokens": 3_000,
-            "temperature": 0.0,
-        },
-    )
+    from agents.shared import llm_client
     from agents.shared.agent_base import accumulate_tokens as _accum_tokens
-    _accum_tokens(_response.get("usage", {}), endpoint=llm_endpoint)
-    narrative = _response["choices"][0]["message"]["content"].strip()
+
+    narrative, _usage = llm_client.chat(
+        system_prompt=_ASSESS_SYS,
+        user_content=_ASSESS_USER,
+        endpoint=llm_endpoint,
+        max_tokens=3_000,
+        temperature=0.0,
+    )
+    _accum_tokens(_usage, endpoint=llm_endpoint)
+    narrative = narrative.strip()
 
     # ══════════════════════════════════════════════════════════════════════
     # PHASE 3 — Assemble final markdown

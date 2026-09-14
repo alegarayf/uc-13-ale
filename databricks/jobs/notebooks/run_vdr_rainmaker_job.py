@@ -1,18 +1,21 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # VDR Rainmaker POC — job entry notebook
+# MAGIC # VDR Rainmaker — job entry notebook
 # MAGIC
-# MAGIC Thin notebook the **VDR Rainmaker POC** job runs — a NEW, separate job from
-# MAGIC the production **VDR Diligence Pipeline** (`617196299594076`). Same
-# MAGIC widget-based invocation pattern (`table_name`, `record_id`), plus an
-# MAGIC optional `special_folder` widget for the no-CIM fallback path.
+# MAGIC Thin notebook the **VDR Diligence Pipeline** job runs (`617196299594076`).
+# MAGIC Same widget-based invocation pattern (`table_name`, `record_id`), plus an
+# MAGIC optional `special_folder` widget and a `no_cim_mode` kill switch.
 # MAGIC
 # MAGIC It reads the widgets and delegates to
 # MAGIC `jobs/scripts/run_vdr_rainmaker.py:run_vdr_rainmaker()`, which makes the
-# MAGIC one decision this POC needs: if a CIM is found in the data room, run a
+# MAGIC one decision this job needs: if a CIM is found in the data room, run a
 # MAGIC CIM-scoped diligence pass and render the Rainmaker "Opportunity Summary"
-# MAGIC PDF; otherwise no-op with a message. See
-# MAGIC `docs/plans/CIM-first-rainmaker-template/plan.md`.
+# MAGIC PDF; otherwise (when `no_cim_mode="full"`, the default) run the full
+# MAGIC Phase 1-5 pipeline over the whole data room and render the SAME
+# MAGIC Rainmaker-format executive review, plus the full diligence memo
+# MAGIC (`full_report.docx`). Set `no_cim_mode="noop"` to restore the old
+# MAGIC message-only behavior without a code change. See
+# MAGIC `docs/plans/connect-all-vdr-er.md`.
 
 # COMMAND ----------
 
@@ -21,7 +24,11 @@ dbutils.widgets.text("record_id", "", "The id of the record to process within th
 dbutils.widgets.text("id", "", "Alias for record_id (manual runs)")
 dbutils.widgets.text(
     "special_folder", "",
-    "Optional data-room folder to use when no CIM is found (leave blank to no-op)",
+    "Optional data-room folder to use for CIM detection",
+)
+dbutils.widgets.text(
+    "no_cim_mode", "full",
+    "What to do when no CIM is found: 'full' (run Phase 1-5) or 'noop'",
 )
 dbutils.widgets.text(
     "vision_endpoint", "databricks-claude-haiku-4-5",
@@ -45,6 +52,7 @@ if not record_id:
 os.environ["tableName"] = table_name
 os.environ["id"] = str(record_id)
 os.environ["special_folder"] = dbutils.widgets.get("special_folder")
+os.environ["no_cim_mode"] = dbutils.widgets.get("no_cim_mode") or "full"
 os.environ["vision_endpoint"] = dbutils.widgets.get("vision_endpoint")
 
 # COMMAND ----------
@@ -73,8 +81,9 @@ result = run_vdr_rainmaker(
     table_name,
     int(record_id),
     special_folder=os.environ.get("special_folder", ""),
+    no_cim_mode=os.environ.get("no_cim_mode", "full"),
 )
-print(f"VDR Rainmaker POC {result.get('status')} — {result.get('company_name')}")
+print(f"VDR Rainmaker {result.get('status')} ({result.get('mode', 'n/a')}) — {result.get('company_name')}")
 
 # COMMAND ----------
 

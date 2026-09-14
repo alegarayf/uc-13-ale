@@ -1,0 +1,144 @@
+# T07 — `test_final_report_render.py`: four scenarios
+
+**Depends on:** T05, T06 · **Closes:** DoD-3, evidence for DoD-2 · **Est. size:** medium
+
+Read [`../final_report_plan.md`](../final_report_plan.md) and
+[`tasks/README.md`](README.md) before starting.
+
+## Goal
+
+Prove the template renders — without raising, without a missing page, and without a
+fabricated figure — across the four bundle/MPS combinations that matter. Model the
+file on `tests/test_rainmaker_render.py`.
+
+Render through `ReportRenderer` (the production path), not through a bespoke Jinja
+environment: the autoescape predicate and the template search path are part of what
+is being tested. Do not invoke a PDF engine — assert on the HTML.
+
+## The four scenarios
+
+### (a) The illustrative bundle
+
+`tests/fixtures/final_report_sample_bundle.py` + a full seven-category MPS run.
+Renders without raising. Spot-assert that a handful of known fixture values appear
+in the output (pick figures that only the fixture could have produced, so the test
+fails if the projection silently stops feeding the page).
+
+### (b) A nearly empty bundle
+
+A bundle with `meta` and nothing else meaningful. Assert:
+
+- it renders without raising;
+- **no page is missing** — every one of the eleven pages' anchors is present. Count
+  `class="page` occurrences, or assert on each section's heading text; pick one and
+  say in a comment why that anchor was chosen;
+- every section that has no data shows its "not extracted" state;
+- **no `0` was fabricated**: assert the absence of a zero-height bar and of a
+  literal `$0` / `0%` that the fixture never supplied. Be specific — assert on the
+  markup a `None` bar would produce if someone "fixed" it to `0`.
+
+### (c) No MPS run
+
+`mps=None`, `prior_mps=None`. Assert:
+
+- the MPS page is **rendered, not omitted**;
+- it shows the seven-row unscored skeleton (seven `<tr>` in the MPS table body);
+- the degraded footer note is present;
+- no score column header is rendered.
+
+### (d) Two MPS runs
+
+`prior_mps=[cim_run]`, `mps=full_run`. Assert:
+
+- exactly **two** score column headers, in the order CIM-first then full-room —
+  the current run must be last, because `_mps_table` takes the verdict, threshold
+  and commentary from `mps_runs[-1]` (`rainmaker_view.py:786-789`);
+- exactly **two** total cells;
+- every rubric row has exactly two score cells;
+- the verdict, threshold and commentary shown belong to the **full-room** run —
+  construct the two runs with different totals and thresholds so this is
+  distinguishable.
+
+## The prose layer (T11)
+
+Add to scenario (a) and (b):
+
+- **(a) with a full final narrative:** exactly **six** `class="take"` boxes render,
+  and the cover's recommendation block shows the verdict, not the
+  `'Not yet concluded'` default (`final_report.html.j2:392`).
+- **(b) with a degraded final narrative** (every take `None`, `recommendation`
+  `None`): **zero** take boxes render, the cover falls back to
+  `'Not yet concluded'`, and **no page is missing**. A quieter report is the
+  correct degradation; a broken one is not.
+- **A take for an empty section must not appear.** Feed a bundle with no `qoe` and
+  a narrative that (incorrectly) supplies a `quality_take`, and assert the page
+  still renders — then note in a comment that suppressing that case is T11's
+  prompt-side responsibility, not the template's.
+
+## Pagination — inherited from T11, and the criterion has changed
+
+T11 wired `core_business` onto the business page and could not verify the effect:
+WeasyPrint cannot render here and PyMuPDF's count is meaningless (plan §1.8).
+Measured during the T11 review with headless Chrome: **11 pages without
+`core_business`, 12 with it**, and page 4 of the twelve carries only the business
+section's footer — 204 characters against 1,935 on page 3.
+
+**Hector's decision (2026-09-08): the page count is not the criterion; the format
+is.** Twelve pages is acceptable. A sheet carrying only a running header and a
+footer, with no content, is not — that is a spill, and it is what the ER's
+`ad6d009` fixed for the executive review.
+
+So T07 owns:
+
+1. **Measure it, with the method in plan §1.8** — headless Chrome, backgrounded
+   and polled, then `fitz` for the count. Do **not** substitute WeasyPrint or the
+   PyMuPDF fallback; both have been ruled out with evidence.
+2. **Assert no orphan sheet.** For each page in the produced PDF, extract the text
+   and flag any page whose content is only chrome. A practical threshold: a page
+   whose extracted text is under ~250 characters *and* consists only of the footer
+   disclaimer and/or the running header. Report the per-page character counts so
+   the judgement is visible rather than hidden in a boolean.
+3. **Fix the spill by shortening, not by loosening.** The task-set rule stands: do
+   not raise a cap, do not shrink a font, do not delete `core_business` — Hector
+   asked explicitly that the narrative content and its guidelines be preserved.
+   The likely fix is folding `core_business` into the existing "What The Business
+   Does" block on that page rather than adding a block above it, so the three
+   lines cost less vertical space than a new bordered container.
+4. **Keep `core_business` rendering.** After the fix, the three lines must still be
+   in the HTML. A pagination fix that drops the content fails DoD-16.
+
+This is a real render check against a real engine, not a unit test — put it in its
+own test module or mark it so it can be skipped where Chrome is absent, following
+whatever convention the repo already uses for the 38 environment-dependent skips.
+Do not let it become a silent skip on this machine, where Chrome *is* present.
+
+## The MPS appears exactly once
+
+In every scenario, assert the rendered final report contains exactly **one**
+MPS section (one `<table class="mps-table">`) and that no MPS score, gauge or
+headline appears on the cover or anywhere else. This is DoD-3 and it is easy to
+regress by "helpfully" adding a summary tile.
+
+## Acceptance criteria
+
+- [ ] All four scenarios pass.
+- [ ] The one-MPS-section assertion runs in all four.
+- [ ] `pytest tests/ -q` passes.
+- [ ] The pagination measurement ran against headless Chrome, the per-page character counts are in the close-out, and no sheet carries only chrome.
+- [ ] `core_business` still renders after the pagination fix.
+- [ ] No test writes into a Volume path; render to a tmp dir
+      (`tmp_path` / monkeypatched `reports_volume_dir`), following whatever
+      `tests/test_rainmaker_render.py` already does.
+
+## Close out
+
+In [`../final_report_plan.md`](../final_report_plan.md) §10:
+
+- Tick **DoD-3** with the scenario-(c)/(d) assertions as evidence.
+- Append the two-column assertion as evidence under **DoD-2** (T09 ticks it).
+
+Commit:
+
+```
+test(final-report): cover the four render scenarios and MPS column behaviour
+```
