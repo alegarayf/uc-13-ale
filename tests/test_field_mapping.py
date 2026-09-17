@@ -16,6 +16,8 @@ import json
 
 from agents.exec_summary.field_mapping import (
     _company_framing_from_bma,
+    _value_creation_levers_from_bma,
+    apply_field_mappings,
     _fta_table_rows,
     _headline_from_fta,
     _addbacks_from_qoe,
@@ -693,6 +695,216 @@ def test_company_framing_carries_the_new_fields_even_with_no_bma_output():
     assert framing["business_description"] == "Desc."
     assert framing["sale_process"]
     assert framing["key_partners"] == []
+
+
+# ---------------------------------------------------------------------------
+# value_creation_levers (plan report-surface-truth-w1, T3 §2.3).
+#
+# The mapper used to hardcode `value_creation_levers: []` on the POPULATED
+# branch too, so every company rendered "Value creation levers — not extracted
+# from the data room" over a BMA extraction that did carry the underlying
+# facts. These tests pin the four source classes, the priority order, the cap,
+# and — the half that matters just as much — that a genuinely empty extraction
+# still yields [] rather than an invented lever.
+# ---------------------------------------------------------------------------
+
+
+def test_levers_from_primary_model_changes_carry_the_stated_date():
+    bma_yaml = {
+        "recent_model_changes": [
+            {"change_type": "ma", "description": "Acquired a regional operator",
+             "approximate_date": "2024-06"},
+            {"change_type": "geography", "description": "Opened a second region"},
+            {"change_type": "customer_mix", "description": "Mix shifted"},
+        ]
+    }
+    levers = _value_creation_levers_from_bma(bma_yaml)
+    assert levers == [
+        "Acquired a regional operator (2024-06)",
+        "Opened a second region",
+    ]
+    # customer_mix is not a lever class — a mix shift is an observation.
+    assert not any("Mix shifted" in lever for lever in levers)
+
+
+def test_levers_from_revenue_visibility_pipeline_and_backlog():
+    pipeline_only = _value_creation_levers_from_bma(
+        {"revenue_visibility": {"pipeline_description": "Weighted pipeline of $40M."}}
+    )
+    assert pipeline_only == ["Forward pipeline: Weighted pipeline of $40M."]
+
+    backlog_only = _value_creation_levers_from_bma(
+        {"revenue_visibility": {"backlog_coverage_months": "7"}}
+    )
+    assert backlog_only == ["Backlog coverage: 7 months of forward revenue."]
+
+
+def test_levers_from_offshore_delivery_capacity():
+    levers = _value_creation_levers_from_bma(
+        {
+            "workforce_capacity": {
+                "workforce_model": {
+                    "offshore_or_contract_headcount": "153",
+                    "offshore_pct_of_total": "8%",
+                }
+            }
+        }
+    )
+    assert levers == [
+        "Offshore/contract delivery capacity: 153 offshore/contract headcount, "
+        "8% of total headcount."
+    ]
+
+
+def test_secondary_model_changes_are_used_but_rank_after_the_primary_classes():
+    secondary_only = _value_creation_levers_from_bma(
+        {
+            "recent_model_changes": [
+                {"change_type": "technology", "description": "Replatformed scheduling"},
+                {"change_type": "staffing", "description": "Insourced recruiting"},
+                {"change_type": "operational", "description": "Centralized intake"},
+            ]
+        }
+    )
+    assert secondary_only == [
+        "Replatformed scheduling",
+        "Insourced recruiting",
+        "Centralized intake",
+    ]
+
+    both = _value_creation_levers_from_bma(
+        {
+            "recent_model_changes": [
+                {"change_type": "technology", "description": "Replatformed scheduling"},
+                {"change_type": "pricing", "description": "Raised rate card"},
+            ]
+        }
+    )
+    assert both == ["Raised rate card", "Replatformed scheduling"]
+
+
+def test_levers_cap_at_four_in_declared_priority_order():
+    bma_yaml = {
+        "recent_model_changes": [
+            {"change_type": "technology", "description": "Replatformed scheduling"},
+            {"change_type": "ma", "description": "Acquired operator A"},
+            {"change_type": "product", "description": "Launched a second service line"},
+        ],
+        "revenue_visibility": {
+            "pipeline_description": "Weighted pipeline of $40M.",
+            "backlog_coverage_months": "7",
+        },
+        "workforce_capacity": {"workforce_model": {"offshore_pct_of_total": "8%"}},
+    }
+    levers = _value_creation_levers_from_bma(bma_yaml)
+    assert len(levers) == 4
+    assert levers == [
+        "Acquired operator A",
+        "Launched a second service line",
+        "Forward pipeline: Weighted pipeline of $40M.",
+        "Backlog coverage: 7 months of forward revenue.",
+    ]
+
+
+def test_levers_are_deduped_stripped_and_never_empty_strings():
+    bma_yaml = {
+        "recent_model_changes": [
+            {"change_type": "ma", "description": "  Acquired operator A  "},
+            {"change_type": "geography", "description": "Acquired operator A"},
+            {"change_type": "product", "description": "   "},
+            {"change_type": "pricing", "description": None},
+            {"change_type": "gtm", "description": "Hired a direct sales team"},
+        ]
+    }
+    levers = _value_creation_levers_from_bma(bma_yaml)
+    assert levers == ["Acquired operator A", "Hired a direct sales team"]
+    assert all(lever == lever.strip() and lever for lever in levers)
+
+
+def test_levers_stay_empty_when_all_four_source_classes_are_empty():
+    """The honest-empty path. The nodata state the final report renders is
+    correct when the extraction really is empty — this fix inverts it only for
+    a populated extraction, it does not paper over a missing one."""
+    assert _value_creation_levers_from_bma({}) == []
+    assert _value_creation_levers_from_bma({"executive_summary": "A company."}) == []
+    assert (
+        _value_creation_levers_from_bma(
+            {
+                "recent_model_changes": [{"change_type": "customer_mix", "description": "Mix"}],
+                "revenue_visibility": {"renewal_cadence_note": "Annual"},
+                "workforce_capacity": {"workforce_model": {}},
+                "key_dependencies": [
+                    {"dependency_type": "customer", "name": "Top account",
+                     "concentration_risk": "high"}
+                ],
+            }
+        )
+        == []
+    )
+    # and the no-BMA branch of the framing builder is untouched
+    assert _company_framing_from_bma(None)["thesis"]["value_creation_levers"] == []
+    assert _company_framing_from_bma({})["thesis"]["value_creation_levers"] == []
+
+
+def test_company_framing_fills_levers_on_the_populated_branch():
+    framing = _company_framing_from_bma(
+        {
+            "executive_summary": "A company.",
+            "recent_model_changes": [
+                {"change_type": "ma", "description": "Acquired operator A",
+                 "approximate_date": "2024-06"}
+            ],
+        }
+    )
+    assert framing["thesis"]["value_creation_levers"] == ["Acquired operator A (2024-06)"]
+    assert framing["thesis"]["bullets"] == []
+
+
+def test_mapper_levers_are_plain_strings_that_satisfy_the_bundle_schema():
+    """Schema round trip: the mapper emits list[str], and that is exactly what
+    ``company_framing.thesis`` declares. This is the subschema
+    ``validate.py::validate_bundle`` applies inside ``BundleBuilder.build``, so
+    a dict-shaped lever would fail a whole VDR run, not just this block."""
+    import jsonschema
+    import yaml as _yaml
+    from pathlib import Path
+
+    snapshots = {
+        "business_model": {
+            "yaml_dict": {
+                "executive_summary": "A consulting firm.",
+                "recent_model_changes": [
+                    {"change_type": "ma", "description": "Acquired operator A",
+                     "approximate_date": "2024-06"},
+                ],
+                "workforce_capacity": {"workforce_model": {"offshore_pct_of_total": "8%"}},
+            },
+            "delta_row": {},
+        },
+        "financial_trends": {"yaml_dict": {}, "delta_row": {}},
+        "customer_quality": {"yaml_dict": {}, "delta_row": {}},
+        "kpi": {"yaml_dict": {}, "delta_row": {}},
+        "quality_of_earnings": {"yaml_dict": {}, "delta_row": {}},
+        "legal": {"yaml_dict": {}, "delta_row": {}},
+    }
+    partial = apply_field_mappings(
+        snapshots,
+        {"industry_overlay": "tech_services"},
+        {"company_name": "Test Co", "generated_at": "2026-09-17T00:00:00Z"},
+    )
+    levers = partial["company_framing"]["thesis"]["value_creation_levers"]
+    assert levers, "the fixture produced no levers — the check would pass vacuously"
+    assert all(isinstance(lever, str) for lever in levers)
+
+    schema = _yaml.safe_load(
+        (
+            Path(__file__).resolve().parents[1]
+            / "databricks/agents/exec_summary/orchestrator_bundle.schema.yaml"
+        ).read_text(encoding="utf-8")
+    )
+    jsonschema.Draft7Validator(
+        {"$ref": "#/definitions/company_framing", "definitions": schema["definitions"]}
+    ).validate(partial["company_framing"])
 
 
 # ---------------------------------------------------------------------------

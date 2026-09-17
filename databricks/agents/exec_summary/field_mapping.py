@@ -573,6 +573,97 @@ def _key_partners_from_bma(bma_yaml: dict) -> list[dict[str, str]]:
     return partners
 
 
+# BMA ``recent_model_changes[].change_type`` values that describe a business
+# change a buyer could extend — the commercial moves (M&A, a new geography, a
+# new product, a pricing change, a go-to-market change) come first because they
+# are the levers an investment team underwrites; the delivery-side moves
+# (technology, staffing, operational) come second. ``key_dependencies`` is
+# deliberately absent from both tiers: a dependency with a concentration risk
+# is a risk, not a lever. The agent's own vocabulary — nothing vertical-specific.
+_PRIMARY_LEVER_CHANGE_TYPES = ("ma", "geography", "product", "pricing", "gtm")
+_SECONDARY_LEVER_CHANGE_TYPES = ("technology", "staffing", "operational")
+_VALUE_CREATION_LEVER_CAP = 4
+
+
+def _value_creation_levers_from_bma(bma_yaml: dict) -> list[str]:
+    """Value creation levers assembled deterministically from BMA fields the
+    extraction already produced. Not a new extraction, not a narrative call —
+    every string here is traceable to a ``recent_model_changes`` /
+    ``revenue_visibility`` / ``workforce_capacity.workforce_model`` value that
+    was sitting in the YAML while the bundle hardcoded ``[]`` and every company
+    rendered "Value creation levers — not extracted from the data room."
+
+    Source priority (first four non-empty win): primary ``recent_model_changes``
+    classes, then forward revenue visibility, then offshore/contract delivery
+    capacity, then secondary ``recent_model_changes`` classes. ``[]`` when all
+    four classes are genuinely empty — an empty list is the honest state, and
+    nothing here invents a lever from a template sentence.
+    """
+    if not isinstance(bma_yaml, dict):
+        return []
+
+    changes = bma_yaml.get("recent_model_changes") or []
+    if not isinstance(changes, list):
+        changes = []
+
+    def _model_change_levers(wanted: tuple[str, ...]) -> list[str]:
+        out: list[str] = []
+        for change in changes:
+            if not isinstance(change, dict):
+                continue
+            if str(change.get("change_type") or "").strip().lower() not in wanted:
+                continue
+            description = str(change.get("description") or "").strip()
+            if not description:
+                continue
+            when = str(change.get("approximate_date") or "").strip()
+            if when and when.lower() not in ("null", "none", "unknown"):
+                out.append(f"{description} ({when})")
+            else:
+                out.append(description)
+        return out
+
+    candidates: list[str] = list(_model_change_levers(_PRIMARY_LEVER_CHANGE_TYPES))
+
+    visibility = bma_yaml.get("revenue_visibility") or {}
+    if isinstance(visibility, dict):
+        pipeline = str(visibility.get("pipeline_description") or "").strip()
+        if pipeline and pipeline.lower() not in ("null", "none"):
+            candidates.append(f"Forward pipeline: {pipeline}")
+        backlog = str(visibility.get("backlog_coverage_months") or "").strip()
+        if backlog and backlog.lower() not in ("null", "none"):
+            candidates.append(f"Backlog coverage: {backlog} months of forward revenue.")
+
+    wfc = bma_yaml.get("workforce_capacity") or {}
+    wf_model = (wfc.get("workforce_model") or {}) if isinstance(wfc, dict) else {}
+    if isinstance(wf_model, dict):
+        offshore_hc = str(wf_model.get("offshore_or_contract_headcount") or "").strip()
+        offshore_pct = str(wf_model.get("offshore_pct_of_total") or "").strip()
+        agg: list[str] = []
+        if offshore_hc:
+            agg.append(f"{offshore_hc} offshore/contract headcount")
+        if offshore_pct:
+            agg.append(f"{offshore_pct} of total headcount")
+        if agg:
+            candidates.append(
+                "Offshore/contract delivery capacity: " + ", ".join(agg) + "."
+            )
+
+    candidates.extend(_model_change_levers(_SECONDARY_LEVER_CHANGE_TYPES))
+
+    levers: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        lever = candidate.strip()
+        if not lever or lever.lower() in seen:
+            continue
+        seen.add(lever.lower())
+        levers.append(lever)
+        if len(levers) >= _VALUE_CREATION_LEVER_CAP:
+            break
+    return levers
+
+
 def _sale_process_from_profile(profile: dict[str, Any]) -> str | None:
     """How the company reached the market. Prefers the profiler's own
     ``sale_process`` (which names the sell-side advisor when the CIM does);
@@ -621,7 +712,14 @@ def _company_framing_from_bma(
             "note": str(rev.get("note") or ""),
         },
         "recent_changes": bma_yaml.get("recent_model_changes") or [],
-        "thesis": {"bullets": [], "value_creation_levers": []},
+        # ``bullets`` stays [] — thesis.bullets is declared not_attempted in
+        # constants.py. ``value_creation_levers`` no longer does: the BMA
+        # extraction already carries the underlying facts, so hardcoding [] here
+        # was what made every populated company render the nodata state.
+        "thesis": {
+            "bullets": [],
+            "value_creation_levers": _value_creation_levers_from_bma(bma_yaml),
+        },
         "business_description": business_description,
         "sale_process": sale_process,
         "key_partners": _key_partners_from_bma(bma_yaml),
