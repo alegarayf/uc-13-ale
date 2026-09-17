@@ -973,3 +973,62 @@ def test_appendix_reason_still_lands_correctly_after_filtering():
     gaps = frv._appendix(bundle, narrative)["gaps"]
     assert gaps[0]["why"] == "Confirms churn exposure."
     assert gaps[1]["why"] == "Sizes the liability."
+
+
+# =========================================================================
+# T5-bis — end state 1 at the final-report chart surface.
+#
+# `_ebitda_chart` is the only place in the report where the earnings-quality
+# gap is visible rather than described, so a collapsed EBITDA pick rendered
+# it as two identical columns. The bundle is built by the production mapper
+# from a dual-version FTA yaml — a hand-written bundle carrying both keys
+# would already have drawn two different bars before this wave and would
+# falsify nothing.
+# =========================================================================
+
+# Imported with the block it serves.
+from agents.exec_summary.field_mapping import _fta_table_rows
+
+# Same shape as tests/test_field_mapping.py::_DUAL_VERSION_FTA — duplicated
+# rather than imported, matching this repo's no-cross-test-module-import
+# convention.
+_DUAL_VERSION_FTA = {
+    "revenue_trend": [
+        {"period": "2023A", "revenue_stated": "80.0"},
+        {"period": "2024A", "revenue_stated": "100.0"},
+    ],
+    "ebitda": [
+        {"period": "2023A", "version": "reported",
+         "ebitda_dollars": "8.0", "ebitda_margin_pct": "10.0%"},
+        {"period": "2024A", "version": "reported",
+         "ebitda_dollars": "9.2", "ebitda_margin_pct": "9.2%"},
+        {"period": "2024A", "version": "pf_adjusted",
+         "ebitda_dollars": "12.4", "ebitda_margin_pct": "12.4%"},
+    ],
+}
+
+
+def test_ebitda_chart_plots_a_real_reported_series_against_a_real_adjusted_series():
+    bundle = {"financials": {"table_rows": _fta_table_rows(_DUAL_VERSION_FTA)}}
+    chart = frv._ebitda_chart(bundle)
+
+    assert chart["bar1_name"] == "Reported EBITDA"
+    assert chart["bar2_name"] == "Adjusted EBITDA"
+
+    by_period = {s["label"]: s for s in chart["series"]}
+    dual = by_period["2024A"]
+
+    # Point literals: the reported bar is the reported record, the adjusted
+    # bar the pf_adjusted one, and the two are drawn at different heights.
+    assert dual["bar1_value"] == "$9.2M"
+    assert dual["bar2_value"] == "$12.4M"
+    assert dual["bar1_value"] != dual["bar2_value"]
+    assert dual["bar1_pct"] != dual["bar2_pct"]
+    assert dual["bar1_pct"] < dual["bar2_pct"]
+
+    # The reported-only period keeps an undrawn adjusted bar rather than a
+    # bar borrowed from the reported series.
+    reported_only = by_period["2023A"]
+    assert reported_only["bar1_value"] == "$8.0M"
+    assert reported_only["bar2_value"] is None
+    assert reported_only["bar2_pct"] is None

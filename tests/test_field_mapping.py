@@ -1161,3 +1161,112 @@ def test_qoe_reads_the_real_percentage_column_not_the_short_name():
 def test_qoe_still_falls_back_to_fta_when_the_agent_computed_none():
     result = _qoe_from_snapshots({"delta_row": {}}, {"addback_schedule": {"addback_pct_of_ebitda": "40%"}})
     assert result["addback_pct_of_ebitda"] == "40%"
+
+
+# =========================================================================
+# T5-bis — adversarial falsifiers for the Wave-1 end states.
+#
+# These are cross-surface falsifiers, not coverage: each one fails on the
+# pre-wave behaviour (one collapsed "best available" EBITDA pick, a
+# hardcoded empty lever list) rather than merely exercising the new code.
+# The dual-version FTA dict below is the shared input for the bundle-side
+# leg; the view-side legs build the same shape inline in their own modules
+# (this repo does not import fixtures across test modules).
+# =========================================================================
+
+# One period carrying BOTH a reported and a pf_adjusted EBITDA record, which
+# is the exact condition §2.2 item 7 is about, plus an earlier period that has
+# only a reported record — so the adjusted column must stay empty there
+# instead of borrowing the reported figure.
+_DUAL_VERSION_FTA = {
+    "revenue_trend": [
+        {"period": "2023A", "revenue_stated": "80.0"},
+        {"period": "2024A", "revenue_stated": "100.0"},
+    ],
+    "ebitda": [
+        {"period": "2023A", "version": "reported",
+         "ebitda_dollars": "8.0", "ebitda_margin_pct": "10.0%"},
+        {"period": "2024A", "version": "reported",
+         "ebitda_dollars": "9.2", "ebitda_margin_pct": "9.2%"},
+        {"period": "2024A", "version": "pf_adjusted",
+         "ebitda_dollars": "12.4", "ebitda_margin_pct": "12.4%"},
+    ],
+}
+
+
+def test_dual_version_fta_never_shows_one_ebitda_figure_under_both_meanings():
+    """End state 1 at the bundle surface. Before the split, both EBITDA
+    meanings resolved to the single ``_EBITDA_VERSION_PRIORITY`` pick
+    (``pf_adjusted`` first), so the reported and adjusted figures a reader
+    compares were the same number and the earnings-quality gap was zero."""
+    rows = {r["year"]: r for r in _fta_table_rows(_DUAL_VERSION_FTA)}
+
+    # Point literals, not "is not None": the reported cell is the reported
+    # record's own dollars and the adjusted cell the pf_adjusted record's.
+    assert rows["2024A"]["ebitda"] == "9.2"
+    assert rows["2024A"]["adjusted_ebitda"] == "12.4"
+    assert rows["2024A"]["ebitda"] != rows["2024A"]["adjusted_ebitda"]
+    assert rows["2024A"]["ebitda_margin_pct"] == "9.2%"
+    assert rows["2024A"]["adjusted_ebitda_margin_pct"] == "12.4%"
+    assert rows["2024A"]["ebitda_margin_pct"] != rows["2024A"]["adjusted_ebitda_margin_pct"]
+
+    # A period with no pf_adjusted record keeps an EMPTY adjusted cell — the
+    # reported figure is never copied across to fill it.
+    assert rows["2023A"]["ebitda"] == "8.0"
+    assert rows["2023A"]["adjusted_ebitda"] == ""
+    assert rows["2023A"]["adjusted_ebitda_margin_pct"] == ""
+
+    # Same invariant on the headline pair the cover tile reads.
+    headline = _headline_from_fta(_DUAL_VERSION_FTA)
+    assert headline["ltm_ebitda"] == "9.2"
+    assert headline["ltm_adjusted_ebitda"] == "12.4"
+    assert headline["ltm_ebitda"] != headline["ltm_adjusted_ebitda"]
+
+
+# A BMA extraction that populates three of the four lever source classes —
+# the agent's own field names and change_type vocabulary, nothing invented.
+_POPULATED_LEVER_BMA = {
+    "executive_summary": "Regional provider.",
+    "recent_model_changes": [
+        {"change_type": "geography",
+         "description": "Opened two Carolinas branches",
+         "approximate_date": "2024"},
+        {"change_type": "pricing",
+         "description": "Repriced the private-pay book"},
+    ],
+    "revenue_visibility": {
+        "pipeline_description": "Two payor contracts in late-stage negotiation",
+        "backlog_coverage_months": "7",
+    },
+    "workforce_capacity": {
+        "workforce_model": {
+            "offshore_or_contract_headcount": "153",
+            "offshore_pct_of_total": "8%",
+        }
+    },
+}
+
+
+def test_value_creation_levers_are_filled_when_the_bma_sources_are_populated():
+    """End state 2 at the mapper surface. ``_company_framing_from_bma``
+    hardcoded ``value_creation_levers: []``, so every company rendered
+    "Value creation levers — not extracted from the data room." over a BMA
+    extraction that carried the underlying facts."""
+    levers = _company_framing_from_bma(_POPULATED_LEVER_BMA)["thesis"]["value_creation_levers"]
+
+    assert levers, "populated BMA lever sources must not yield an empty list"
+    assert len(levers) <= 4
+    assert all(isinstance(lever, str) and lever.strip() for lever in levers)
+
+    # Each element traceable to a named BMA field, asserted as a point
+    # literal — a template sentence or an invented lever would not match.
+    assert levers[0] == "Opened two Carolinas branches (2024)"   # recent_model_changes[0]
+    assert levers[1] == "Repriced the private-pay book"          # recent_model_changes[1]
+    assert (
+        levers[2] == "Forward pipeline: Two payor contracts in late-stage negotiation"
+    )  # revenue_visibility.pipeline_description
+
+    # The honest-empty path is NOT re-asserted here: T3's own
+    # ``test_levers_stay_empty_when_all_four_source_classes_are_empty`` already
+    # pins it, and an assertion that is green on the pre-wave baseline is not
+    # a falsifier for this wave (kill criterion (c)).

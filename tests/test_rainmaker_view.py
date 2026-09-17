@@ -1166,3 +1166,75 @@ def test_adjusted_rows_carry_a_growth_column_cell():
     assert rows["Adjusted EBITDA"]["growth"] == "300%"  # 10 → 40 over one period
     assert rows["% Adj. EBITDA Margin"]["growth_kind"] == "delta_pts"
     assert rows["% Adj. EBITDA Margin"]["growth"] == "+10.0 pts"
+
+
+# =========================================================================
+# T5-bis — end state 1 at the executive-review surfaces.
+#
+# The bundle under test is built by the production mapper from an FTA yaml
+# that carries BOTH EBITDA versions for one period, rather than hand-written:
+# a hand-written bundle would already have satisfied the chart/table readers
+# before this wave landed and would prove nothing about the mapper→view path
+# an actual run takes.
+# =========================================================================
+
+# Imported with the block they serve (the rest of this module needs neither).
+from agents.exec_summary.field_mapping import _fta_table_rows, _headline_from_fta
+from agents.exec_summary.rainmaker_view import _financial_availability, _financial_table
+
+# Same shape as tests/test_field_mapping.py::_DUAL_VERSION_FTA — duplicated
+# rather than imported, matching this repo's no-cross-test-module-import
+# convention.
+_DUAL_VERSION_FTA = {
+    "revenue_trend": [
+        {"period": "2023A", "revenue_stated": "80.0"},
+        {"period": "2024A", "revenue_stated": "100.0"},
+    ],
+    "ebitda": [
+        {"period": "2023A", "version": "reported",
+         "ebitda_dollars": "8.0", "ebitda_margin_pct": "10.0%"},
+        {"period": "2024A", "version": "reported",
+         "ebitda_dollars": "9.2", "ebitda_margin_pct": "9.2%"},
+        {"period": "2024A", "version": "pf_adjusted",
+         "ebitda_dollars": "12.4", "ebitda_margin_pct": "12.4%"},
+    ],
+}
+
+
+def _dual_version_bundle() -> dict:
+    return {
+        "financials": {"table_rows": _fta_table_rows(_DUAL_VERSION_FTA)},
+        "headline_metrics": _headline_from_fta(_DUAL_VERSION_FTA),
+    }
+
+
+def test_financial_table_shows_reported_and_adjusted_ebitda_as_two_different_rows():
+    """Both rows present AND carrying different figures. Asserting only that
+    the rows exist would pass on a table that printed the same number twice,
+    which is the defect; asserting only that they differ would pass on a
+    table that dropped the adjusted pair entirely."""
+    table = _financial_table(_dual_version_bundle())
+    rows = {r["metric_name"]: r["cells"] for r in table["rows"]}
+
+    assert table["periods"] == ["2023A", "2024A"]
+    assert "EBITDA" in rows and "Adjusted EBITDA" in rows
+    assert "% EBITDA Margin" in rows and "% Adj. EBITDA Margin" in rows
+
+    assert rows["EBITDA"] == ["$8.0", "$9.2"]
+    assert rows["Adjusted EBITDA"] == [None, "$12.4"]
+    assert rows["EBITDA"] != rows["Adjusted EBITDA"]
+
+    assert rows["% EBITDA Margin"] == ["10.0%", "9.2%"]
+    assert rows["% Adj. EBITDA Margin"] == [None, "12.4%"]
+    assert rows["% EBITDA Margin"] != rows["% Adj. EBITDA Margin"]
+
+
+def test_financial_availability_reported_and_adjusted_statuses_are_different_figures():
+    """The availability strip sourced its Adjusted row from ``ltm_ebitda``,
+    printing the reported figure under the "Adjusted EBITDA" label — which
+    told the reader the addbacks were zero."""
+    statuses = {r["label"]: r["status"] for r in _financial_availability(_dual_version_bundle())}
+
+    assert statuses["Reported EBITDA"] == "9.2"
+    assert statuses["Adjusted EBITDA"] == "12.4"
+    assert statuses["Reported EBITDA"] != statuses["Adjusted EBITDA"]

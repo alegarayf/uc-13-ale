@@ -394,3 +394,82 @@ def test_final_report_render_forecast_absent_shows_not_extracted_and_fabricates_
     assert not re.search(r'<rect[^>]*\bheight="0(?:\.0+)?"', body)
     assert "$0" not in body
     assert re.search(r"\b0%", body) is None
+
+
+# =========================================================================
+# T5-bis — the two nodata INVERSIONS, at render altitude.
+#
+# `_EMPTY_BUNDLE` above proves the nodata sentences still fire when there is
+# genuinely nothing to show, and it must keep doing so — but it bypasses the
+# mapper entirely, so it cannot fail when a populated extraction renders as
+# "not extracted". These two cases are the other half of that pair: the same
+# template, fed a populated bundle, must NOT show the nodata sentence.
+#
+# The levers case builds `company_framing` with the production mapper rather
+# than hand-writing the lever list, so it fails if the mapper stops filling
+# levers — which is the defect, not the template.
+# =========================================================================
+
+# Imported with the block it serves.
+from agents.exec_summary.field_mapping import _company_framing_from_bma
+
+# A BMA extraction populating three of the four lever source classes, in the
+# agent's own field names and `change_type` vocabulary.
+_POPULATED_LEVER_BMA = {
+    "executive_summary": "Regional provider.",
+    "recent_model_changes": [
+        {"change_type": "geography",
+         "description": "Opened two Carolinas branches",
+         "approximate_date": "2024"},
+        {"change_type": "pricing",
+         "description": "Repriced the private-pay book"},
+    ],
+    "revenue_visibility": {
+        "pipeline_description": "Two payor contracts in late-stage negotiation",
+    },
+    "workforce_capacity": {
+        "workforce_model": {
+            "offshore_or_contract_headcount": "153",
+            "offshore_pct_of_total": "8%",
+        }
+    },
+}
+
+
+def test_final_report_render_populated_levers_invert_the_value_creation_nodata_state():
+    bundle = {
+        "meta": _EMPTY_BUNDLE["meta"],
+        "company_framing": _company_framing_from_bma(_POPULATED_LEVER_BMA),
+    }
+    html = _render(bundle, narrative=None, mps_runs=None, run_mode="cim_only")
+
+    assert "Value creation levers — not extracted from the data room." not in html
+
+    # The levers the mapper derived from named BMA fields actually reach the
+    # page — absence of the nodata sentence alone would also be satisfied by
+    # a section that rendered nothing at all.
+    assert "Opened two Carolinas branches (2024)" in html
+    assert "Repriced the private-pay book" in html
+    assert "Forward pipeline: Two payor contracts in late-stage negotiation" in html
+
+    # A lever list does not add or drop a page (V-C's coupled aggregate).
+    assert html.count('<div class="page') == 11
+
+
+def test_final_report_render_populated_tenure_inverts_the_retention_nodata_state():
+    """A populated customer-tenure fact used to render as "Retention metrics
+    — not extracted from the data room." beside the "Avg tenure" tile built
+    from the very same field. NRR/GRR/logo churn are all absent here, which
+    is the case that made the nodata gate fire."""
+    bundle = {
+        "meta": _EMPTY_BUNDLE["meta"],
+        "revenue_quality": {"customer_tenure": {"average_tenure_years": "4.7 years"}},
+    }
+    html = _render(bundle, narrative=None, mps_runs=None, run_mode="cim_only")
+
+    assert "Retention metrics — not extracted from the data room." not in html
+    assert "Average customer tenure" in html
+    assert "4.7 years" in html
+
+    # A tenure row does not add or drop a page (V-C's coupled aggregate).
+    assert html.count('<div class="page') == 11

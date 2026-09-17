@@ -21,6 +21,19 @@ business_model:
       tag: Fee-for-service home health
       durability_rating: medium
       note: Census-driven
+    # Lever source classes the BMA extraction already has field names for.
+    # Before Wave 1 only workforce_capacity.workforce_model below was
+    # populated here, so only the offshore-capacity lever class was reachable
+    # from a file fixture.
+    recent_model_changes:
+    - change_type: geography
+      description: Opened two Carolinas branches
+      approximate_date: '2024'
+    - change_type: pricing
+      description: Repriced the private-pay book
+    revenue_visibility:
+      pipeline_description: Two payor contracts in late-stage negotiation
+      backlog_coverage_months: '7'
     workforce_capacity:
       total_headcount: 1,888 caregivers as of Dec-24
       headcount_period: Dec-24
@@ -58,9 +71,17 @@ financial_trends:
       revenue: $21M
       yoy_growth_pct: 18%
     ebitda:
+    # Two version-tagged records for the SAME period — the condition the
+    # reported-vs-adjusted invariant is about. The reported record keeps the
+    # figures this fixture already carried; only the version tag is new.
     - period: '2024'
+      version: reported
       ebitda: $4.6M
       ebitda_margin_pct: 22%
+    - period: '2024'
+      version: pf_adjusted
+      ebitda: $5.4M
+      ebitda_margin_pct: 26%
     gross_margin:
     - period: '2024'
       gross_profit: $8.6M
