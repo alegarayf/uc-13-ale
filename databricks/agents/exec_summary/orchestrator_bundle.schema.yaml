@@ -219,6 +219,11 @@ definitions:
         type: string
       ltm_ebitda_margin_pct:
         type: string
+      # Optional and additive: ltm_ebitda is the REPORTED latest-period figure
+      # and this is the pf_adjusted one for the same period. Not in `required`
+      # — every pre-existing fixture and bundle omits it.
+      ltm_adjusted_ebitda:
+        type: string
       revenue_cagr:
         type: string
       enterprise_value_indicated:
@@ -385,9 +390,19 @@ definitions:
               type: string
             gross_margin_pct:
               type: string
+            # `ebitda` / `ebitda_margin_pct` are the REPORTED series (an
+            # explicit reported record, else the best non-PF fallback). The two
+            # keys below are the pf_adjusted series, kept disjoint so no
+            # surface can show one figure under both labels. Optional and
+            # additive — deliberately NOT added to `required`, so every
+            # pre-existing bundle and fixture still validates.
             ebitda:
               type: string
             ebitda_margin_pct:
+              type: string
+            adjusted_ebitda:
+              type: string
+            adjusted_ebitda_margin_pct:
               type: string
       observations:
         type: array

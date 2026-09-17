@@ -21,12 +21,16 @@ fails here, at the point it is added, rather than on the next real run.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 
+from agents.exec_summary.bundle_builder import BundleBuilder
 from agents.exec_summary.field_mapping import apply_field_mappings
+from agents.exec_summary.validate import BundleValidationError, validate_bundle
 
 _SCHEMA = yaml.safe_load(
     (
@@ -131,6 +135,108 @@ def test_kpi_dashboard_rows_declare_every_key_they_emit():
     declared = set((_row_schema(_SCHEMA["properties"]["kpi_dashboard"]).get("properties") or {}).keys())
     for row in rows:
         assert not set(row) - declared, f"KPI row emits {sorted(set(row) - declared)}"
+
+
+# ---------------------------------------------------------------------------
+# Two disjoint EBITDA series (plan report-surface-truth-w1, T1 §2.1/§2.2).
+#
+# The block-level checks above compare the top-level keys of ``financials``;
+# they do not descend into ``table_rows`` items, which carry their own
+# ``additionalProperties: false``. So the two new row keys need both a row-key
+# check and a real round trip: apply_field_mappings is reached through
+# BundleBuilder.build, which calls validate_bundle before it returns. That is
+# the path a VDR run takes, and the path an undeclared key fails.
+# ---------------------------------------------------------------------------
+
+_DUAL_VERSION_SNAPSHOTS = deepcopy(_SNAPSHOTS)
+_DUAL_VERSION_SNAPSHOTS["financial_trends"]["yaml_dict"]["ebitda"] = [
+    {"period": "2024", "version": "reported", "ebitda_dollars": "11,400",
+     "ebitda_margin_pct": "19.1%"},
+    {"period": "2024", "version": "pf_adjusted", "ebitda_dollars": "9,239",
+     "ebitda_margin_pct": "19.9%"},
+]
+
+
+def _build_bundle(snapshots: dict) -> dict:
+    """Full BundleBuilder.build round trip — the real call path, including the
+    validate_bundle call inside build. No llm_endpoint, so stage-6 synthesis
+    is skipped and the run stays hermetic."""
+    builder = BundleBuilder()
+    with (
+        patch(
+            "agents.exec_summary.bundle_builder._ingest_snapshots",
+            return_value=deepcopy(snapshots),
+        ),
+        patch(
+            "agents.exec_summary.bundle_builder._load_company_profile",
+            return_value={"industry_overlay": "tech_services"},
+        ),
+        patch("agents.exec_summary.bundle_builder.freshness", return_value="current"),
+        patch("agents.exec_summary.bundle_builder.write_bundle_yaml"),
+    ):
+        return builder.build("Test Co", "uc13_ale", spark=MagicMock())
+
+
+def test_financial_table_rows_declare_every_key_they_emit():
+    rows = (_PARTIAL.get("financials") or {}).get("table_rows") or []
+    assert rows, "the fixture produced no financial table rows — the check would pass vacuously"
+    financials = _SCHEMA["definitions"]["financials"]
+    declared = set(
+        (_row_schema(financials["properties"]["table_rows"]).get("properties") or {}).keys()
+    )
+    assert {"adjusted_ebitda", "adjusted_ebitda_margin_pct"} <= declared
+    for row in rows:
+        assert not set(row) - declared, f"table row emits {sorted(set(row) - declared)}"
+
+
+def test_dual_version_ebitda_bundle_survives_validate_bundle_on_the_real_build_path():
+    """The highest-risk row: both new table_rows keys plus
+    headline_metrics.ltm_adjusted_ebitda are emitted by the mapper and must be
+    accepted by validate_bundle, which runs inside BundleBuilder.build — so an
+    undeclared key does not degrade a report, it fails the whole VDR run."""
+    bundle = _build_bundle(_DUAL_VERSION_SNAPSHOTS)  # raises if validation fails
+
+    row = bundle["financials"]["table_rows"][0]
+    assert row["ebitda"] == "11,400"
+    assert row["adjusted_ebitda"] == "9,239"
+    assert row["ebitda"] != row["adjusted_ebitda"]
+    assert bundle["headline_metrics"]["ltm_ebitda"] == "11,400"
+    assert bundle["headline_metrics"]["ltm_adjusted_ebitda"] == "9,239"
+
+    validate_bundle(bundle)  # must not raise
+
+
+def test_baseline_single_version_bundle_still_validates_without_the_new_keys():
+    """The three new keys are optional: a bundle whose FTA emitted no
+    pf_adjusted record validates with them empty, and none of them entered
+    the schema's `required` lists."""
+    bundle = _build_bundle(_SNAPSHOTS)
+    assert bundle["financials"]["table_rows"][0]["adjusted_ebitda"] == ""
+    assert bundle["headline_metrics"]["ltm_adjusted_ebitda"] == ""
+    validate_bundle(bundle)
+
+    stripped = deepcopy(bundle)
+    stripped["headline_metrics"].pop("ltm_adjusted_ebitda")
+    for row in stripped["financials"]["table_rows"]:
+        row.pop("adjusted_ebitda", None)
+        row.pop("adjusted_ebitda_margin_pct", None)
+    validate_bundle(stripped)
+
+
+def test_additional_properties_false_still_holds_on_both_extended_objects():
+    """Guards the guard: the two objects gained keys, so prove the constraint
+    that makes declaring them necessary was not relaxed to get there."""
+    bundle = _build_bundle(_DUAL_VERSION_SNAPSHOTS)
+
+    stray_headline = deepcopy(bundle)
+    stray_headline["headline_metrics"]["ltm_invented_ebitda"] = "$1"
+    with pytest.raises(BundleValidationError):
+        validate_bundle(stray_headline)
+
+    stray_row = deepcopy(bundle)
+    stray_row["financials"]["table_rows"][0]["invented_ebitda"] = "$1"
+    with pytest.raises(BundleValidationError):
+        validate_bundle(stray_row)
 
 
 def test_the_populated_fixture_actually_exercises_the_new_mappings():

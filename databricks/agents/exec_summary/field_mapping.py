@@ -163,8 +163,16 @@ def _flag_sort_key(flag: dict) -> tuple:
 
 
 # EBITDA version preference when a period has more than one version record
-# (mirrors the 3-version cap documented for EbitdaSubAgent — pf_adjusted is
-# the most decision-useful figure, reported is the fallback of last resort).
+# (mirrors the 3-version cap documented for EbitdaSubAgent).
+#
+# RETAINED, but its role changed: since the reported/PF-adjusted split it is no
+# longer a single collapse order for "the" EBITDA figure. It survives as the
+# *non-PF* fallback order consulted by ``_reported_ebitda_by_period`` only —
+# an explicit ``reported`` record always wins that column outright, and
+# ``pf_adjusted`` is excluded from it entirely so the two series can never
+# carry the same record. ``_pf_adjusted_ebitda_by_period`` does not consult it
+# at all. The tuple keeps ``pf_adjusted`` at index 0 so
+# ``_ebitda_version_rank`` still reports a stable rank for every known version.
 _EBITDA_VERSION_PRIORITY = ("pf_adjusted", "clinic_level_adjusted", "reported")
 
 
@@ -189,13 +197,47 @@ def _ebitda_version_rank(record: dict) -> int:
         return len(_EBITDA_VERSION_PRIORITY)
 
 
-def _canonical_ebitda_by_period(ebitda_rows: list) -> dict[str, dict]:
-    """One EBITDA record per period, preferring pf_adjusted > clinic_level_adjusted
-    > reported > anything else (fix B0 — FTA can emit multiple EBITDA versions
-    for the same period, which previously produced duplicate table rows)."""
+def _reported_ebitda_by_period(ebitda_rows: list) -> dict[str, dict]:
+    """The *reported* EBITDA record per period — one half of the two disjoint
+    EBITDA series the bundle now carries.
+
+    Supersedes the former ``_canonical_ebitda_by_period``, which collapsed
+    every version FTA emits for a period into a single "best available"
+    record, preferring ``pf_adjusted``. That collapse made the earnings-quality
+    gap — the whole point of the reported-vs-adjusted comparison — render as
+    zero, because one figure was shown under both the "Reported EBITDA" and
+    "Adjusted EBITDA" labels.
+
+    Selection (never falls back to ``pf_adjusted``, so this series and
+    ``_pf_adjusted_ebitda_by_period`` can never carry the same record):
+
+    1. An explicit ``version == "reported"`` record always wins.
+    2. Otherwise the best available **non-PF** record by
+       ``_EBITDA_VERSION_PRIORITY`` — ``clinic_level_adjusted``, then an
+       unversioned / unknown-version record. Keeping unversioned records
+       eligible matters: a weak extraction that tags no version at all would
+       otherwise empty this column entirely under a strict
+       ``version == "reported"`` filter.
+    3. A period whose only record is ``pf_adjusted`` is absent from this map,
+       so its reported cell renders empty. Empty is the honest state — this
+       mapper never invents a missing dollar figure.
+
+    Both of the guards the collapse carried survive here and in the PF
+    function: the ``_has_numeric_signal`` non-data-record filter, and the
+    period/label derivation with an empty-period skip.
+    """
+
+    def rank(record: dict) -> int:
+        if str(record.get("version") or "").strip().lower() == "reported":
+            # An explicitly reported record outranks every fallback candidate.
+            return -1
+        return _ebitda_version_rank(record)
+
     by_period: dict[str, dict] = {}
     for r in ebitda_rows:
         if not isinstance(r, dict):
+            continue
+        if str(r.get("version") or "").strip().lower() == "pf_adjusted":
             continue
         if not _has_numeric_signal(r, "ebitda_dollars", "ebitda_margin_pct"):
             continue
@@ -203,8 +245,34 @@ def _canonical_ebitda_by_period(ebitda_rows: list) -> dict[str, dict]:
         if not period:
             continue
         existing = by_period.get(period)
-        if existing is None or _ebitda_version_rank(r) < _ebitda_version_rank(existing):
+        if existing is None or rank(r) < rank(existing):
             by_period[period] = r
+    return by_period
+
+
+def _pf_adjusted_ebitda_by_period(ebitda_rows: list) -> dict[str, dict]:
+    """The ``pf_adjusted`` EBITDA record per period — the other half of the
+    two disjoint series.
+
+    ``version == "pf_adjusted"`` **only**: no fallback of any kind, so this
+    column is never a copy of the reported figure and never silently picks up
+    a ``clinic_level_adjusted`` or unversioned record. Absent ⇒ the period is
+    missing from this map and the adjusted cell renders empty. Duplicate PF
+    records for one period keep the first seen, matching the
+    ``revenue_trend``/gross-margin duplicate rules elsewhere in this module.
+    """
+    by_period: dict[str, dict] = {}
+    for r in ebitda_rows:
+        if not isinstance(r, dict):
+            continue
+        if str(r.get("version") or "").strip().lower() != "pf_adjusted":
+            continue
+        if not _has_numeric_signal(r, "ebitda_dollars", "ebitda_margin_pct"):
+            continue
+        period = str(r.get("period", r.get("label", "")))
+        if not period or period in by_period:
+            continue
+        by_period[period] = r
     return by_period
 
 
@@ -286,7 +354,8 @@ def _fta_table_rows(fta_yaml: dict | None) -> list[dict[str, str]]:
     revenue_trend = fta_yaml.get("revenue_trend") or []
     ebitda_rows = fta_yaml.get("ebitda") or []
     gross_margin = fta_yaml.get("gross_margin") or []
-    ebitda_by_period = _canonical_ebitda_by_period(ebitda_rows)
+    reported_ebitda_by_period = _reported_ebitda_by_period(ebitda_rows)
+    pf_ebitda_by_period = _pf_adjusted_ebitda_by_period(ebitda_rows)
     gm_by_period = _canonical_gross_margin_by_period(gross_margin)
     # A period with real data ANYWHERE across the three sources is genuine.
     # Filters out a non-data record a sub-agent sometimes appends inline
@@ -295,7 +364,15 @@ def _fta_table_rows(fta_yaml: dict | None) -> list[dict[str, str]]:
     # companion entry in gross_margin/ebitda either) — without this, it
     # becomes a phantom empty column in both the P&L table and the
     # Financial Snapshot chart.
-    real_periods = _periods_with_real_data(revenue_trend, gm_by_period, ebitda_by_period)
+    # Period genuineness must consider BOTH EBITDA series. Passing only the
+    # reported map is the natural-looking refactor and it silently deletes
+    # rows: a period whose only EBITDA record is pf_adjusted would be judged
+    # unreal and vanish from the table entirely.
+    real_periods = _periods_with_real_data(
+        revenue_trend,
+        gm_by_period,
+        {**reported_ebitda_by_period, **pf_ebitda_by_period},
+    )
     rows: list[dict[str, str]] = []
     seen_periods: set[str] = set()
     for rev in revenue_trend:
@@ -307,7 +384,8 @@ def _fta_table_rows(fta_yaml: dict | None) -> list[dict[str, str]]:
             # period (e.g. from multiple source documents); keep the first.
             continue
         seen_periods.add(period)
-        ebitda = ebitda_by_period.get(period, {})
+        ebitda = reported_ebitda_by_period.get(period, {})
+        adjusted_ebitda = pf_ebitda_by_period.get(period, {})
         gm = gm_by_period.get(period, {})
         rows.append(
             {
@@ -327,6 +405,20 @@ def _fta_table_rows(fta_yaml: dict | None) -> list[dict[str, str]]:
                 "ebitda_margin_pct": str(
                     ebitda.get("ebitda_margin_pct") or ebitda.get("margin_pct") or ""
                 ),
+                # Same extraction idiom against the pf_adjusted record. Empty
+                # when FTA extracted no pf_adjusted version for this period —
+                # never a copy of the reported figure.
+                "adjusted_ebitda": str(
+                    adjusted_ebitda.get("ebitda_dollars")
+                    or adjusted_ebitda.get("ebitda")
+                    or adjusted_ebitda.get("value")
+                    or ""
+                ),
+                "adjusted_ebitda_margin_pct": str(
+                    adjusted_ebitda.get("ebitda_margin_pct")
+                    or adjusted_ebitda.get("margin_pct")
+                    or ""
+                ),
             }
         )
     return rows
@@ -337,6 +429,7 @@ def _headline_from_fta(fta_yaml: dict | None) -> dict[str, str | None]:
         "ltm_revenue": "",
         "ltm_ebitda": "",
         "ltm_ebitda_margin_pct": "",
+        "ltm_adjusted_ebitda": "",
         "revenue_cagr": "",
         "enterprise_value_indicated": None,
         "rule_of_40": None,
@@ -360,13 +453,40 @@ def _headline_from_fta(fta_yaml: dict | None) -> dict[str, str | None]:
     if ebitda_rows:
         last_raw = ebitda_rows[-1] if isinstance(ebitda_rows[-1], dict) else {}
         last_period = str(last_raw.get("period", ""))
-        latest_e = _canonical_ebitda_by_period(ebitda_rows).get(last_period, last_raw)
-        empty["ltm_ebitda"] = str(
-            latest_e.get("ebitda_dollars") or latest_e.get("ebitda") or latest_e.get("value") or ""
-        )
-        empty["ltm_ebitda_margin_pct"] = str(
-            latest_e.get("ebitda_margin_pct") or latest_e.get("margin_pct") or ""
-        )
+        # Same latest-period derivation as before; what changed is that the
+        # period now resolves against TWO disjoint series. ltm_ebitda is the
+        # reported figure, ltm_adjusted_ebitda the pf_adjusted one, for that
+        # same period — so the headline can no longer show one number under
+        # both meanings.
+        latest_e = _reported_ebitda_by_period(ebitda_rows).get(last_period)
+        latest_pf = _pf_adjusted_ebitda_by_period(ebitda_rows).get(last_period)
+        if (
+            latest_e is None
+            and latest_pf is None
+            and str(last_raw.get("version") or "").strip().lower() != "pf_adjusted"
+        ):
+            # Retained legacy fallback for a last record neither map keyed
+            # (e.g. a label-derived period). Deliberately NOT applied to a
+            # pf_adjusted record: that would put the adjusted figure back
+            # under the reported label, which is the defect this split fixes.
+            latest_e = last_raw
+        if latest_e:
+            empty["ltm_ebitda"] = str(
+                latest_e.get("ebitda_dollars")
+                or latest_e.get("ebitda")
+                or latest_e.get("value")
+                or ""
+            )
+            empty["ltm_ebitda_margin_pct"] = str(
+                latest_e.get("ebitda_margin_pct") or latest_e.get("margin_pct") or ""
+            )
+        if latest_pf:
+            empty["ltm_adjusted_ebitda"] = str(
+                latest_pf.get("ebitda_dollars")
+                or latest_pf.get("ebitda")
+                or latest_pf.get("value")
+                or ""
+            )
     return empty
 
 

@@ -54,6 +54,10 @@ def test_fta_table_rows_reads_real_field_names():
         "gross_margin_pct": "82.3%",
         "ebitda": "$0.7",
         "ebitda_margin_pct": "35.7%",
+        # Both periods carry a reported record only — the pf_adjusted series
+        # is genuinely empty here and renders as such, not as a copy.
+        "adjusted_ebitda": "",
+        "adjusted_ebitda_margin_pct": "",
     }
     assert rows[1]["revenue"] == "$8.3"
     assert rows[1]["ebitda"] == "$4.4"
@@ -77,8 +81,24 @@ def test_fta_table_rows_dedupes_duplicate_periods():
 
 
 def test_fta_table_rows_picks_canonical_ebitda_version():
-    """When a period has multiple EBITDA version records, prefer
-    pf_adjusted > clinic_level_adjusted > reported."""
+    """SUPERSEDED IN PLACE by the reported/PF-adjusted split (plan
+    report-surface-truth-w1 T1, §2.2 items 1 and 4; decision log
+    .dev/plans/report-surface-truth-w1/decision-logs/T1.md).
+
+    This test previously asserted the OPPOSITE behaviour: that a period
+    carrying several EBITDA versions collapses to one cell, preferring
+    pf_adjusted > clinic_level_adjusted > reported, so ``ebitda`` here was
+    "$3.0". That collapse is what made the earnings-quality gap render as
+    zero — one figure was shown under both the "Reported EBITDA" and
+    "Adjusted EBITDA" labels, so the chart whose entire purpose is the
+    difference between them showed none.
+
+    The superseding contract: ``ebitda``/``ebitda_margin_pct`` are the
+    REPORTED series and ``adjusted_ebitda``/``adjusted_ebitda_margin_pct``
+    the pf_adjusted one, disjoint, with both versions present yielding two
+    distinct cells. The test is kept rather than deleted so the inverted
+    invariant stays locatable.
+    """
     fta_yaml = {
         "revenue_trend": [{"period": "2024A", "revenue_stated": "$10"}],
         "gross_margin": [],
@@ -89,8 +109,108 @@ def test_fta_table_rows_picks_canonical_ebitda_version():
     }
     rows = _fta_table_rows(fta_yaml)
     assert len(rows) == 1
-    assert rows[0]["ebitda"] == "$3.0"
-    assert rows[0]["ebitda_margin_pct"] == "30%"
+    assert rows[0]["ebitda"] == "$1.0"
+    assert rows[0]["ebitda_margin_pct"] == "10%"
+    assert rows[0]["adjusted_ebitda"] == "$3.0"
+    assert rows[0]["adjusted_ebitda_margin_pct"] == "30%"
+    # The invariant the collapse violated: the two labels never carry one value.
+    assert rows[0]["ebitda"] != rows[0]["adjusted_ebitda"]
+
+
+def test_fta_table_rows_pf_only_period_leaves_the_reported_cell_empty():
+    """§2.2 item 3 — when the only EBITDA record for a period is pf_adjusted,
+    the reported cell is empty and the adjusted cell is populated. Empty is
+    the honest state; copying the PF figure into the reported column is the
+    defect."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2024A", "revenue_stated": "$10"}],
+        "gross_margin": [],
+        "ebitda": [
+            {"period": "2024A", "version": "pf_adjusted", "ebitda_dollars": "$3.0", "ebitda_margin_pct": "30%"},
+        ],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert len(rows) == 1
+    assert rows[0]["ebitda"] == ""
+    assert rows[0]["ebitda_margin_pct"] == ""
+    assert rows[0]["adjusted_ebitda"] == "$3.0"
+    assert rows[0]["adjusted_ebitda_margin_pct"] == "30%"
+
+
+def test_fta_table_rows_pf_only_period_still_appears_as_a_row():
+    """§2.2 item 5 — period genuineness is decided over BOTH series. A period
+    whose ONLY signal anywhere is a pf_adjusted EBITDA record must still
+    render; feeding only the reported map into ``_periods_with_real_data``
+    silently deletes the row."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2024A"}],
+        "gross_margin": [],
+        "ebitda": [
+            {"period": "2024A", "version": "pf_adjusted", "ebitda_dollars": "$3.0", "ebitda_margin_pct": "30%"},
+        ],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert [r["year"] for r in rows] == ["2024A"]
+    assert rows[0]["adjusted_ebitda"] == "$3.0"
+    assert rows[0]["ebitda"] == ""
+
+
+def test_fta_table_rows_reported_absent_falls_back_to_non_pf_never_to_pf():
+    """§2.2 item 2 — with no reported record, the reported column takes the
+    best available NON-PF version (clinic_level_adjusted) and the adjusted
+    column takes pf_adjusted. The fallback chain must never reach
+    pf_adjusted, or the two columns collapse back onto one record."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2024A", "revenue_stated": "$10"}],
+        "gross_margin": [],
+        "ebitda": [
+            {"period": "2024A", "version": "pf_adjusted", "ebitda_dollars": "$3.0", "ebitda_margin_pct": "30%"},
+            {"period": "2024A", "version": "clinic_level_adjusted", "ebitda_dollars": "$2.0", "ebitda_margin_pct": "20%"},
+        ],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert rows[0]["ebitda"] == "$2.0"
+    assert rows[0]["ebitda_margin_pct"] == "20%"
+    assert rows[0]["adjusted_ebitda"] == "$3.0"
+    assert rows[0]["adjusted_ebitda_margin_pct"] == "30%"
+
+
+def test_fta_table_rows_unversioned_ebitda_record_still_fills_the_reported_column():
+    """§2.2 item 2, highest-risk failure mode — a weak extraction tags no
+    version at all. An over-strict ``version == "reported"`` filter would
+    empty the reported column for that company entirely; the non-PF fallback
+    keeps the unversioned record eligible."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2024A", "revenue_stated": "$10"}],
+        "gross_margin": [],
+        "ebitda": [
+            {"period": "2024A", "ebitda_dollars": "$1.5", "ebitda_margin_pct": "15%"},
+        ],
+    }
+    rows = _fta_table_rows(fta_yaml)
+    assert rows[0]["ebitda"] == "$1.5"
+    assert rows[0]["ebitda_margin_pct"] == "15%"
+    assert rows[0]["adjusted_ebitda"] == ""
+
+    # version: null must behave identically to an absent version key.
+    fta_yaml["ebitda"][0]["version"] = None
+    rows = _fta_table_rows(fta_yaml)
+    assert rows[0]["ebitda"] == "$1.5"
+
+
+def test_fta_table_rows_explicit_reported_beats_clinic_level_adjusted():
+    """§2.2 item 1 — an explicit reported record wins the reported column
+    outright, regardless of array order, and is not outranked by
+    clinic_level_adjusted (which is only a fallback when reported is absent)."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2024A", "revenue_stated": "$10"}],
+        "gross_margin": [],
+        "ebitda": [
+            {"period": "2024A", "version": "clinic_level_adjusted", "ebitda_dollars": "$2.0"},
+            {"period": "2024A", "version": "reported", "ebitda_dollars": "$1.0"},
+        ],
+    }
+    assert _fta_table_rows(fta_yaml)[0]["ebitda"] == "$1.0"
 
 
 def test_fta_table_rows_never_invents_missing_dollar_figures():
@@ -136,7 +256,62 @@ def test_headline_from_fta_empty_input_returns_blank_fields():
     headline = _headline_from_fta(None)
     assert headline["ltm_revenue"] == ""
     assert headline["ltm_ebitda"] == ""
+    assert headline["ltm_adjusted_ebitda"] == ""
     assert headline["revenue_cagr"] == ""
+
+
+def test_headline_from_fta_splits_reported_and_pf_adjusted_for_the_latest_period():
+    """§2.2 item 6 — ltm_ebitda is the REPORTED figure for the latest period
+    and ltm_adjusted_ebitda the pf_adjusted one for that same period. The
+    cover previously showed a single unlabeled figure that was in fact the
+    PF-adjusted number presented as "the" EBITDA."""
+    fta_yaml = {
+        "revenue_trend": [
+            {"period": "2023A", "revenue_stated": "$1.9"},
+            {"period": "2024A", "revenue_stated": "$8.3"},
+        ],
+        "ebitda": [
+            {"period": "2023A", "version": "reported", "ebitda_dollars": "$0.7", "ebitda_margin_pct": "35.7%"},
+            {"period": "2024A", "version": "reported", "ebitda_dollars": "$4.4", "ebitda_margin_pct": "53.4%"},
+            {"period": "2024A", "version": "pf_adjusted", "ebitda_dollars": "$9.2", "ebitda_margin_pct": "110%"},
+        ],
+    }
+    headline = _headline_from_fta(fta_yaml)
+    assert headline["ltm_ebitda"] == "$4.4"
+    assert headline["ltm_ebitda_margin_pct"] == "53.4%"
+    assert headline["ltm_adjusted_ebitda"] == "$9.2"
+    assert headline["ltm_ebitda"] != headline["ltm_adjusted_ebitda"]
+
+
+def test_headline_from_fta_leaves_adjusted_blank_when_no_pf_record_exists():
+    """§2.2 item 6, negative path — no pf_adjusted record for the latest
+    period means an empty ltm_adjusted_ebitda, never a copy of the reported
+    figure."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "2024A", "revenue_stated": "$8.3"}],
+        "ebitda": [
+            {"period": "2024A", "version": "reported", "ebitda_dollars": "$4.4", "ebitda_margin_pct": "53.4%"},
+        ],
+    }
+    headline = _headline_from_fta(fta_yaml)
+    assert headline["ltm_ebitda"] == "$4.4"
+    assert headline["ltm_adjusted_ebitda"] == ""
+
+
+def test_headline_from_fta_pf_only_latest_period_leaves_reported_blank():
+    """§2.2 items 3 + 6 — a latest period extracted only as pf_adjusted
+    yields an empty ltm_ebitda. The legacy "fall back to the raw last
+    record" path must not smuggle the PF figure under the reported label."""
+    fta_yaml = {
+        "revenue_trend": [{"period": "TTM Aug-24", "revenue_stated": "35,136"}],
+        "ebitda": [
+            {"period": "TTM Aug-24", "version": "pf_adjusted", "ebitda_dollars": "9,239", "ebitda_margin_pct": "19.9%"},
+        ],
+    }
+    headline = _headline_from_fta(fta_yaml)
+    assert headline["ltm_ebitda"] == ""
+    assert headline["ltm_ebitda_margin_pct"] == ""
+    assert headline["ltm_adjusted_ebitda"] == "9,239"
 
 
 # ---------------------------------------------------------------------------
@@ -443,7 +618,10 @@ def test_fta_table_rows_ebitda_also_filters_non_data_sentinel_records():
         ],
     }
     rows = _fta_table_rows(fta_yaml)
-    assert rows[0]["ebitda"] == "2,000"
+    # The real record is pf_adjusted, so it lands in the adjusted column
+    # (report-surface-truth-w1 T1 §2.2); what this test pins is that the
+    # sentinel "NOTE" record is filtered out of both series alike.
+    assert rows[0]["adjusted_ebitda"] == "2,000"
     assert "NOTE" not in [r["year"] for r in rows]
 
 
