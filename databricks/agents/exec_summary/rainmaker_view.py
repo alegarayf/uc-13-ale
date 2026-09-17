@@ -131,6 +131,7 @@ def _financial_availability(bundle: dict[str, Any]) -> list[dict[str, str]]:
 
     ltm_revenue = _headline(bundle, "ltm_revenue")
     ltm_ebitda = _headline(bundle, "ltm_ebitda")
+    ltm_adjusted_ebitda = _headline(bundle, "ltm_adjusted_ebitda")
     revenue_cagr = _headline(bundle, "revenue_cagr")
     gross_margin = _last_populated(rows, "gross_margin_pct") if isinstance(rows, list) else ""
 
@@ -141,8 +142,13 @@ def _financial_availability(bundle: dict[str, Any]) -> list[dict[str, str]]:
     else:
         addback_status = _NONE
 
-    if not _is_blank(ltm_ebitda):
-        adjusted_ebitda_status = ltm_ebitda
+    # The Adjusted row reads the PF-adjusted headline, never the reported one.
+    # Sourcing it from ``ltm_ebitda`` printed the SAME figure under both the
+    # "Reported EBITDA" and "Adjusted EBITDA" labels, which told the reader
+    # the addbacks were zero on every company that had any. The addback-derived
+    # fallback below is retained for the genuinely-absent-PF case.
+    if not _is_blank(ltm_adjusted_ebitda):
+        adjusted_ebitda_status = ltm_adjusted_ebitda
     elif not _is_blank(addback_pct):
         try:
             pct_num = float(addback_pct)
@@ -374,7 +380,25 @@ _FINANCIAL_TABLE_ROW_SPECS: tuple[tuple[str, str | None, bool], ...] = (
     ("% Gross Margin", "gross_margin_pct", False),
     ("EBITDA", "ebitda", True),
     ("% EBITDA Margin", "ebitda_margin_pct", False),
+    # ``ebitda`` is the REPORTED version; ``adjusted_ebitda`` is the
+    # ``pf_adjusted`` one (field_mapping splits the two FTA series instead of
+    # collapsing them into one "best available" pick). Showing only one of
+    # them under a label the reader interprets as the other is the defect this
+    # pair exists to close: the gap between the two rows IS the
+    # earnings-quality question. Both rows are dropped together when no period
+    # carries a PF figure — see ``_ADJUSTED_ROW_FIELDS`` below.
+    ("Adjusted EBITDA", "adjusted_ebitda", True),
+    ("% Adj. EBITDA Margin", "adjusted_ebitda_margin_pct", False),
 )
+
+# The two row specs above are included only when at least one period carries a
+# PF-adjusted figure. A company whose FTA emitted no ``pf_adjusted`` version
+# would otherwise render two full rows of "–", which reads as "we extracted
+# zero adjusted EBITDA" rather than "this company has no PF version". Both
+# fields are consulted, and a blank ``""`` counts exactly as an absent key
+# (field_mapping may emit either), so the two rows are never split apart.
+_ADJUSTED_ROW_FIELDS = ("adjusted_ebitda", "adjusted_ebitda_margin_pct")
+_ADJUSTED_ROW_LABELS = frozenset({"Adjusted EBITDA", "% Adj. EBITDA Margin"})
 
 # A $ row and its own % row, self-consistency-checked against the same
 # period's Total Revenue (plan Part B, B4). ``financial_trends_agent`` and
@@ -388,6 +412,11 @@ _FINANCIAL_TABLE_ROW_SPECS: tuple[tuple[str, str | None, bool], ...] = (
 _MARGIN_ROW_PAIRS: tuple[tuple[str, str], ...] = (
     ("Gross Profit", "% Gross Margin"),
     ("EBITDA", "% EBITDA Margin"),
+    # Same base as every other margin row in this table: the period's own
+    # Total Revenue. Adjusted EBITDA / Total Revenue is the margin a reader
+    # can verify by hand from the two cells shown; reconciling it against an
+    # adjusted revenue the bundle does not carry is not an option.
+    ("Adjusted EBITDA", "% Adj. EBITDA Margin"),
 )
 _MARGIN_RECONCILE_TOLERANCE_PTS = 1.0
 
@@ -504,7 +533,12 @@ def _financial_periods(bundle: dict[str, Any]) -> list[dict[str, Any]]:
 # the offending period — this rescales the unit the agent read, it does not
 # invent or adjust a figure.
 _UNIT_OUTLIER_FACTOR = 500.0
-_MONEY_FIELDS = ("revenue", "gross_profit", "ebitda")
+# ``adjusted_ebitda`` belongs here for the same reason its siblings do: a
+# field absent from this tuple is left unrescaled, so a period extracted
+# 1000x off its neighbours would get its reported EBITDA rescaled and its
+# adjusted EBITDA left raw — drawing the two series on two magnitudes at
+# once, which is worse than not rescaling at all.
+_MONEY_FIELDS = ("revenue", "gross_profit", "ebitda", "adjusted_ebitda")
 
 
 def _nearest_power_of_1000(ratio: float) -> float:
@@ -681,8 +715,19 @@ def _financial_table(bundle: dict[str, Any]) -> dict[str, Any]:
         else:
             growth_values.append(None)
 
+    # Conditional inclusion of the two PF-adjusted rows. The predicate reads
+    # the period rows themselves — NOT the rendered cells — so it cannot be
+    # fooled by formatting, and it treats "" and an absent key identically.
+    # It drops the pair only when NO period carries either adjusted field, so
+    # it can never hide a period where reported and adjusted actually differ.
+    show_adjusted = any(
+        not _is_blank(r.get(field)) for r in period_rows for field in _ADJUSTED_ROW_FIELDS
+    )
+
     rows = []
     for label, field, highlighted in _FINANCIAL_TABLE_ROW_SPECS:
+        if label in _ADJUSTED_ROW_LABELS and not show_adjusted:
+            continue
         if field is None:
             values = growth_values
         elif field in _MONEY_FIELDS:
@@ -714,10 +759,12 @@ def _financial_table(bundle: dict[str, Any]) -> dict[str, Any]:
 
 # Row metric names that show a CAGR (first-to-last populated period) in the
 # growth column — dollar figures only; a CAGR on a percentage is meaningless.
-_CAGR_GROWTH_ROWS = frozenset({"Total Revenue", "Gross Profit", "EBITDA"})
+_CAGR_GROWTH_ROWS = frozenset({"Total Revenue", "Gross Profit", "EBITDA", "Adjusted EBITDA"})
 # Row metric names that show a point-delta (last minus first populated
-# period) in the growth column — the two margin rows.
-_DELTA_PTS_GROWTH_ROWS = frozenset({"% Gross Margin", "% EBITDA Margin"})
+# period) in the growth column — the margin rows.
+_DELTA_PTS_GROWTH_ROWS = frozenset(
+    {"% Gross Margin", "% EBITDA Margin", "% Adj. EBITDA Margin"}
+)
 
 
 def _populated_first_last(

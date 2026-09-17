@@ -91,7 +91,20 @@ def test_pnl_period_order_and_unit_label_match_executive_review():
 # "Total Revenue"/"EBITDA", final report: "Revenue"/"EBITDA") even though
 # both read the same ``revenue``/``ebitda`` bundle fields through the same
 # ``_normalize_period_units(_financial_periods(bundle))`` pipeline.
-_ROW_NAME_MAP = {"Revenue": "Total Revenue", "EBITDA": "EBITDA"}
+#
+# "Adjusted EBITDA" is the one row name the two documents spell identically,
+# and each module hardcodes its own copy of the literal (final_report_view's
+# ``_pnl_table`` specs and rainmaker_view's ``_FINANCIAL_TABLE_ROW_SPECS``).
+# Mapping it here is the single cross-check that pins the two copies against
+# each other: rename it in one module and this test cannot find the row.
+# Note the deliberate asymmetry in its % sibling, which is NOT mapped — the
+# final report says "Adj. EBITDA margin %" and the executive review says
+# "% Adj. EBITDA Margin", each matching its own document's margin-row style.
+_ROW_NAME_MAP = {
+    "Revenue": "Total Revenue",
+    "EBITDA": "EBITDA",
+    "Adjusted EBITDA": "Adjusted EBITDA",
+}
 
 
 def test_pnl_cell_values_match_executive_review_for_revenue_and_ebitda():
@@ -101,11 +114,11 @@ def test_pnl_cell_values_match_executive_review_for_revenue_and_ebitda():
         "financials": {
             "currency": "$",
             "table_rows": [
-                {"year": "2022A", "revenue": "44.2", "ebitda": "4.4", "ebitda_margin_pct": "10%"},
+                {"year": "2022A", "revenue": "44.2", "ebitda": "4.4", "ebitda_margin_pct": "10%", "adjusted_ebitda": "5.1"},
                 # extracted in raw dollars while its neighbours are in millions
-                {"year": "2021A", "revenue": "38000", "ebitda": "3420", "ebitda_margin_pct": "9%"},
-                {"year": "LTM MAY 2025", "revenue": "48.2", "ebitda": "5.3", "ebitda_margin_pct": "11%"},
-                {"year": "2023A", "revenue": "40.1", "ebitda": "3.8", "ebitda_margin_pct": "9.5%"},
+                {"year": "2021A", "revenue": "38000", "ebitda": "3420", "ebitda_margin_pct": "9%", "adjusted_ebitda": "4100"},
+                {"year": "LTM MAY 2025", "revenue": "48.2", "ebitda": "5.3", "ebitda_margin_pct": "11%", "adjusted_ebitda": "6.2"},
+                {"year": "2023A", "revenue": "40.1", "ebitda": "3.8", "ebitda_margin_pct": "9.5%", "adjusted_ebitda": "4.5"},
             ],
         },
     }

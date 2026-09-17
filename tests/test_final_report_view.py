@@ -707,6 +707,29 @@ def test_every_money_chart_reads_the_same_ordered_rows():
     assert [s["label"] for s in frv._ebitda_chart(bundle)["series"]] == expected
 
 
+def test_ebitda_chart_plots_two_real_distinct_series():
+    """report-surface-truth-w1: the chart always read ``ebitda`` and
+    ``adjusted_ebitda``, but the mapper collapsed both FTA versions into
+    ``ebitda`` and never wrote ``adjusted_ebitda`` — so the gap between the
+    two columns, which IS the earnings-quality question, rendered as zero.
+    With the two bundle series split, this is the first time it plots two."""
+    bundle = {"financials": {"table_rows": [
+        {"year": "2024", "revenue": "$200", "ebitda": "$20", "adjusted_ebitda": "$25"},
+        {"year": "2023", "revenue": "$100", "ebitda": "$10", "adjusted_ebitda": "$12"},
+    ]}}
+    chart = frv._ebitda_chart(bundle)
+    assert chart["bar1_name"] == "Reported EBITDA"
+    assert chart["bar2_name"] == "Adjusted EBITDA"
+    latest = chart["series"][-1]
+    assert latest["label"] == "2024"
+    assert latest["bar1_value"] != latest["bar2_value"]
+    assert latest["bar1_value"] is not None and latest["bar2_value"] is not None
+    # Shared axis maxed on the largest figure either series carries (25).
+    assert latest["bar1_pct"] == 80.0
+    assert latest["bar2_pct"] == 100.0
+    assert latest["bar1_pct"] != latest["bar2_pct"]
+
+
 def test_forecast_drops_a_plan_row_that_merely_restates_an_actual():
     """GKF's real shape: the revenue build opens with the actual periods it
     builds from, so 2023A/2024A/2025B were drawn twice — the second time

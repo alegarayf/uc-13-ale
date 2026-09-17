@@ -939,3 +939,230 @@ def test_format_period_money_honours_a_non_dollar_currency():
     from agents.exec_summary.rainmaker_view import format_period_money
 
     assert format_period_money("14000", "€") == "€14,000"
+
+
+# ---------------------------------------------------------------------------
+# report-surface-truth-w1 T2 — the reported and the PF-adjusted EBITDA series
+# are two different numbers, and the executive review must show them as two.
+#
+# Before this wave the bundle collapsed every FTA EBITDA version into one
+# ``ebitda`` cell and two surfaces labelled that single figure both "Reported
+# EBITDA" and "Adjusted EBITDA" — so the addback question rendered as zero on
+# every company that had addbacks. ``test_financial_availability_covers_
+# expected_labels`` above proves only that both labels EXIST; these prove they
+# cannot carry the same figure.
+# ---------------------------------------------------------------------------
+
+
+def test_financial_availability_reported_and_adjusted_ebitda_are_distinct():
+    """The duplicate-value bug: the Adjusted row was sourced from
+    ``ltm_ebitda``, printing the reported figure under both labels."""
+    bundle = {
+        "headline_metrics": {"ltm_ebitda": "$9.2", "ltm_adjusted_ebitda": "$12.5"},
+        "financials": {"table_rows": []},
+    }
+    rows = {r["label"]: r["status"] for r in rainmaker_view(bundle)["financial_availability"]}
+    assert rows["Reported EBITDA"] == "$9.2"
+    assert rows["Adjusted EBITDA"] == "$12.5"
+    assert rows["Reported EBITDA"] != rows["Adjusted EBITDA"]
+
+
+def test_financial_availability_adjusted_falls_back_to_addbacks_when_pf_is_absent():
+    """No ``pf_adjusted`` version extracted ⇒ the addback-derived status, NOT
+    a copy of the reported figure."""
+    bundle = {
+        "headline_metrics": {"ltm_ebitda": "$9.2", "ltm_adjusted_ebitda": ""},
+        "qoe": {"addback_pct_of_ebitda": 35},
+        "financials": {"table_rows": []},
+    }
+    rows = {r["label"]: r["status"] for r in rainmaker_view(bundle)["financial_availability"]}
+    assert rows["Reported EBITDA"] == "$9.2"
+    assert rows["Adjusted EBITDA"] == "NOT COMPUTABLE — ADDBACKS 35% OF REPORTED EBITDA"
+    assert rows["Adjusted EBITDA"] != rows["Reported EBITDA"]
+
+
+def test_financial_availability_adjusted_is_not_computable_without_pf_or_addbacks():
+    bundle = {
+        "headline_metrics": {"ltm_ebitda": "$9.2"},
+        "financials": {"table_rows": []},
+    }
+    rows = {r["label"]: r["status"] for r in rainmaker_view(bundle)["financial_availability"]}
+    assert rows["Adjusted EBITDA"] == "NOT COMPUTABLE"
+
+
+def test_financial_table_shows_reported_and_adjusted_ebitda_as_distinct_rows():
+    """§2.2 item 7: where FTA carries both versions with distinct values, no
+    rendered surface may show them as equal or one of them under both labels."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "TTM Aug-24",
+                    "revenue": "35136",
+                    "ebitda": "9239",
+                    "ebitda_margin_pct": "26.3%",
+                    "adjusted_ebitda": "12500",
+                    "adjusted_ebitda_margin_pct": "35.6%",
+                },
+            ]
+        }
+    }
+    view = rainmaker_view(bundle)
+    metrics = {r["metric_name"]: r["cells"] for r in view["financials"]["rows"]}
+    assert metrics["EBITDA"] == ["$9,239"]
+    assert metrics["Adjusted EBITDA"] == ["$12,500"]
+    assert metrics["EBITDA"] != metrics["Adjusted EBITDA"]
+    # Both stated margins already reconcile against their own $ row, so they
+    # are kept verbatim — and they too are distinct.
+    assert metrics["% EBITDA Margin"] == ["26.3%"]
+    assert metrics["% Adj. EBITDA Margin"] == ["35.6%"]
+
+
+def test_financial_table_omits_both_adjusted_rows_when_no_period_carries_a_pf_figure():
+    """A company whose FTA emitted no ``pf_adjusted`` version must not render
+    two full rows of "–", which reads as "we extracted zero adjusted EBITDA"
+    rather than "this company has no PF version"."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {"year": "2023A", "revenue": "$1.9", "ebitda": "$0.7"},
+                {"year": "2024A", "revenue": "$8.3", "ebitda": "$4.4"},
+            ]
+        }
+    }
+    metrics = {r["metric_name"] for r in rainmaker_view(bundle)["financials"]["rows"]}
+    assert "EBITDA" in metrics
+    assert "Adjusted EBITDA" not in metrics
+    assert "% Adj. EBITDA Margin" not in metrics
+
+
+def test_financial_table_treats_a_blank_adjusted_value_exactly_like_an_absent_one():
+    """``field_mapping`` may emit ``""`` rather than omitting the key; the
+    inclusion predicate must not be fooled into rendering an empty pair."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "2023A", "revenue": "$1.9", "ebitda": "$0.7",
+                    "adjusted_ebitda": "", "adjusted_ebitda_margin_pct": "",
+                },
+                {
+                    "year": "2024A", "revenue": "$8.3", "ebitda": "$4.4",
+                    "adjusted_ebitda": "", "adjusted_ebitda_margin_pct": "",
+                },
+            ]
+        }
+    }
+    metrics = {r["metric_name"] for r in rainmaker_view(bundle)["financials"]["rows"]}
+    assert "Adjusted EBITDA" not in metrics
+    assert "% Adj. EBITDA Margin" not in metrics
+
+
+def test_financial_table_includes_both_adjusted_rows_when_any_one_period_carries_a_pf_figure():
+    """The pair is never split: one PF period is enough, and the periods
+    without one render "–" inside a row the reader can now interpret."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {"year": "2023A", "revenue": "$1.9", "ebitda": "$0.7", "adjusted_ebitda": ""},
+                {"year": "2024A", "revenue": "$8.3", "ebitda": "$4.4", "adjusted_ebitda": "$5.1"},
+            ]
+        }
+    }
+    metrics = {r["metric_name"]: r["cells"] for r in rainmaker_view(bundle)["financials"]["rows"]}
+    assert "Adjusted EBITDA" in metrics
+    assert "% Adj. EBITDA Margin" in metrics
+    assert metrics["Adjusted EBITDA"] == [None, "$5.1"]
+
+
+def test_pf_only_period_keeps_the_adjusted_rows_and_leaves_the_reported_cell_empty():
+    """§2.2 item 3: when the ONLY EBITDA record for a period is ``pf_adjusted``,
+    field_mapping leaves ``ebitda`` blank rather than copying the PF figure
+    across. The conditional-inclusion predicate must not read that empty
+    reported cell as "no adjusted series" — this is precisely the period the
+    §2.2 item 7 invariant is about, so dropping the rows here would void the
+    invariant by removing the row it constrains."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {"year": "2023A", "revenue": "100", "ebitda": "", "adjusted_ebitda": "30"},
+                {"year": "2024A", "revenue": "200", "ebitda": "", "adjusted_ebitda": "70"},
+            ]
+        }
+    }
+    metrics = {r["metric_name"]: r["cells"] for r in rainmaker_view(bundle)["financials"]["rows"]}
+    assert metrics["EBITDA"] == [None, None]  # honest empty, never a copy of the PF figure
+    assert metrics["Adjusted EBITDA"] == ["$30", "$70"]
+    assert metrics["% Adj. EBITDA Margin"] == ["30.0%", "35.0%"]
+
+
+def test_adjusted_margin_row_reconciles_against_the_periods_total_revenue():
+    """C6: pairing "% Adj. EBITDA Margin" with "Adjusted EBITDA" puts the
+    adjusted margin through the same recomputation as every other margin row.
+    The base is the period's own Total Revenue — 50/200 = 25.0%, hand-computed
+    — not an adjusted revenue the bundle does not carry."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "2024A",
+                    "revenue": "200",
+                    "ebitda": "30",
+                    "ebitda_margin_pct": "15%",
+                    "adjusted_ebitda": "50",
+                    "adjusted_ebitda_margin_pct": "12%",  # contradicts 50/200 = 25.0%
+                },
+            ]
+        }
+    }
+    metrics = {r["metric_name"]: r["cells"] for r in rainmaker_view(bundle)["financials"]["rows"]}
+    assert metrics["Adjusted EBITDA"] == ["$50"]  # the $ VALUE is never touched
+    assert metrics["% Adj. EBITDA Margin"] == ["25.0%"]  # recomputed, not the stated 12%
+    assert metrics["% EBITDA Margin"] == ["15%"]  # already consistent — kept verbatim
+
+
+def test_adjusted_ebitda_is_unit_rescaled_with_its_siblings():
+    """C7: ``_MONEY_FIELDS`` drives ``_normalize_period_units``. A field absent
+    from it is left raw, so a period extracted 1000x off would get its reported
+    EBITDA rescaled and its adjusted EBITDA left alone — drawing the two series
+    on two magnitudes at once. Asserted numerically, so a rescale that skips
+    the adjusted column fails on the value, not on the log line."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                # extracted in raw dollars while its neighbours are in thousands
+                {"year": "2022A", "revenue": "40000000", "ebitda": "9000000", "adjusted_ebitda": "12000000"},
+                {"year": "2023A", "revenue": "44000", "ebitda": "9000", "adjusted_ebitda": "12000"},
+                {"year": "2024A", "revenue": "48000", "ebitda": "10000", "adjusted_ebitda": "13000"},
+            ]
+        }
+    }
+    metrics = {r["metric_name"]: r["cells"] for r in rainmaker_view(bundle)["financials"]["rows"]}
+    assert metrics["Total Revenue"] == ["$40,000", "$44,000", "$48,000"]
+    assert metrics["EBITDA"] == ["$9,000", "$9,000", "$10,000"]
+    assert metrics["Adjusted EBITDA"] == ["$12,000", "$12,000", "$13,000"]
+
+
+def test_adjusted_rows_carry_a_growth_column_cell():
+    """``_CAGR_GROWTH_ROWS``/``_DELTA_PTS_GROWTH_ROWS`` are keyed on the row
+    metric name, so a new row is invisible to the growth column unless it is
+    added to them."""
+    bundle = {
+        "financials": {
+            "table_rows": [
+                {
+                    "year": "2023A", "revenue": "100", "adjusted_ebitda": "10",
+                    "adjusted_ebitda_margin_pct": "10.0%",
+                },
+                {
+                    "year": "2024A", "revenue": "200", "adjusted_ebitda": "40",
+                    "adjusted_ebitda_margin_pct": "20.0%",
+                },
+            ]
+        }
+    }
+    rows = {r["metric_name"]: r for r in rainmaker_view(bundle)["financials"]["rows"]}
+    assert rows["Adjusted EBITDA"]["growth_kind"] == "cagr"
+    assert rows["Adjusted EBITDA"]["growth"] == "300%"  # 10 → 40 over one period
+    assert rows["% Adj. EBITDA Margin"]["growth_kind"] == "delta_pts"
+    assert rows["% Adj. EBITDA Margin"]["growth"] == "+10.0 pts"
