@@ -242,6 +242,66 @@ def test_retention_rows_metric_with_no_screen_is_not_flagged_and_does_not_raise(
         assert rows[0]["read_label"] == "No screen"
 
 
+# -------------------------------------------------------------------------
+# 4b. Customer tenure row (T4) — a populated tenure fact must not render as
+#     "Retention metrics — not extracted from the data room."
+# -------------------------------------------------------------------------
+
+def test_retention_rows_emits_tenure_row_when_no_aggregate_retention_exists():
+    # The defect this pins: CQA found no NRR/GRR/churn but did extract an
+    # average tenure, and the report rendered the retention nodata copy
+    # beside an "Avg tenure" tile built from the same field.
+    bundle = {"revenue_quality": {"customer_tenure": {"average_tenure_years": "7.4"}}}
+    rows = frv._retention_rows(bundle, "tech_services")
+    assert len(rows) == 1
+    assert rows[0]["metric"] == "Average customer tenure"
+    assert rows[0]["value"] == "7.4"
+    assert rows[0]["read_label"] == "No screen"
+    assert rows[0]["read_class"] == "neutral"
+
+
+def test_retention_rows_falls_back_to_tenure_distribution_note():
+    bundle = {"revenue_quality": {"customer_tenure": {
+        "tenure_distribution_note": "Top 10 clients average 9+ years; long tail under 2.",
+    }}}
+    rows = frv._retention_rows(bundle, "tech_services")
+    assert len(rows) == 1
+    assert rows[0]["metric"] == "Average customer tenure"
+    assert rows[0]["value"] == "Top 10 clients average 9+ years; long tail under 2."
+
+
+def test_retention_rows_empty_when_neither_retention_nor_tenure_extracted():
+    # Negative leg: the honest-empty state must stay reachable, or the
+    # template's "Retention metrics — not extracted from the data room."
+    # nodata copy becomes dead code.
+    for bundle in ({}, {"revenue_quality": {}}, {"revenue_quality": {"retention": {}, "customer_tenure": {}}}):
+        for sector in _SECTORS:
+            assert frv._retention_rows(bundle, sector) == []
+
+
+def test_retention_rows_orders_tenure_last_and_leaves_screen_logic_intact():
+    key = "nrr_pct"
+    threshold = next(s["threshold"] for s in frv._SCREENS if s["key"] == key and s["sector"] == "tech_services")
+    bundle = {"revenue_quality": {
+        "retention": {key: f"{threshold - 5}%"},
+        "customer_tenure": {"average_tenure_years": "3.1"},
+    }}
+    rows = frv._retention_rows(bundle, "tech_services")
+    assert [r["metric"] for r in rows] == ["Net revenue retention", "Average customer tenure"]
+    assert rows[0]["read_label"] == "Below screen"
+    assert rows[0]["read_class"] == "high"
+
+
+def test_retention_rows_tenure_never_invents_a_screen():
+    # A low tenure value must still read neutral — there is no sector screen
+    # for tenure, so it may never render as "Below screen" / "high".
+    bundle = {"revenue_quality": {"customer_tenure": {"average_tenure_years": "0.4"}}}
+    for sector in _SECTORS:
+        rows = frv._retention_rows(bundle, sector)
+        assert rows[-1]["read_class"] == "neutral"
+        assert rows[-1]["read_label"] == "No screen"
+
+
 # =========================================================================
 # 5. Caps
 # =========================================================================

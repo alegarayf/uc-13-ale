@@ -946,6 +946,20 @@ def _retention_rows(bundle: dict[str, Any], sector: str) -> list[dict[str, Any]]
             "read_label": "Below screen" if flag else ("At screen" if screen else "No screen"),
             "read_class": "high" if flag else ("low" if screen else "neutral"),
         })
+    # A populated customer-tenure fact used to render as "Retention metrics —
+    # not extracted from the data room." beside the "Avg tenure" tile built
+    # from the very same field. Tenure has no sector screen, so the row is
+    # always a neutral read; the note is the fallback when the agent stated a
+    # distribution but no average.
+    tenure = (bundle.get("revenue_quality") or {}).get("customer_tenure") or {}
+    tenure_value = tenure.get("average_tenure_years")
+    if tenure_value in (None, ""):
+        tenure_value = tenure.get("tenure_distribution_note")
+    if tenure_value not in (None, ""):
+        out.append({
+            "metric": "Average customer tenure", "value": tenure_value,
+            "read_label": "No screen", "read_class": "neutral",
+        })
     return out
 
 
