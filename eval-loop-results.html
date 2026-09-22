@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UC-13 eval loop — results briefing (through cycle 46)</title>
+  <style>
+    :root {
+      --ink: #1c1917;
+      --muted: #57534e;
+      --line: #d6d3d1;
+      --paper: #fafaf9;
+      --card: #ffffff;
+      --met: #166534;
+      --met-bg: #dcfce7;
+      --open: #9a3412;
+      --open-bg: #ffedd5;
+      --held: #1e3a5f;
+      --held-bg: #e0e7ff;
+      --accent: #1e3a5f;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+    body {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Times New Roman", serif;
+      line-height: 1.45;
+      font-size: 17px;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 28px 80px; }
+    header.mast {
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 20px;
+      margin-bottom: 28px;
+    }
+    .kicker {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    h1 { font-size: 34px; line-height: 1.15; font-weight: 600; margin: 0 0 10px; }
+    .lede { font-size: 19px; color: var(--ink); max-width: 46rem; margin: 0; }
+    .meta {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+    h2 {
+      font-size: 22px;
+      margin: 40px 0 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+    h3 { font-size: 16px; margin: 20px 0 8px; font-family: ui-sans-serif, system-ui, sans-serif; }
+    p { margin: 0 0 12px; }
+    .tiles {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 24px 0;
+    }
+    .tile {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 14px 14px 12px;
+    }
+    .tile .label {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .tile .num { font-size: 32px; line-height: 1.1; margin: 6px 0 4px; letter-spacing: -0.02em; }
+    .tile .sub { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; color: var(--muted); }
+    .bars {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .bar {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+    }
+    .pill {
+      display: inline-block;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+    .pill.met { background: var(--met-bg); color: var(--met); }
+    .pill.open { background: var(--open-bg); color: var(--open); }
+    .pill.held { background: var(--held-bg); color: var(--held); }
+    .bar p { font-size: 15px; margin-top: 8px; }
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    figure {
+      margin: 0;
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 10px 8px 6px;
+    }
+    figure figcaption {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 0 10px 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 13px;
+      background: var(--card);
+    }
+    th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.inc td:first-child { font-weight: 600; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    ul { margin: 0 0 12px; padding-left: 1.15em; }
+    li { margin-bottom: 6px; }
+    .note {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      background: #f5f5f4;
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+    }
+    .tl { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px; }
+    .tl div { display: grid; grid-template-columns: 72px 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+    .tl b { font-variant-numeric: tabular-nums; }
+    footer {
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid var(--ink);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9em; }
+    @media (max-width: 860px) {
+      .tiles, .bars, .charts, .cols { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; }
+    }
+    @media print {
+      body { background: #fff; font-size: 12pt; }
+      .wrap { padding: 0; }
+      .tile, .bar, figure, table, .note { break-inside: avoid; }
+      h2 { break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="mast">
+      <p class="kicker">UC-13 · eval loop experiment · 9–11 Sep 2026</p>
+      <h1>What the loop actually moved</h1>
+      <p class="lede">
+        After 46 measured cycles the judge bar is met, six more companies are seated,
+        and retrieval on the four original companies is up 3.4 points — short of the
+        25 expected and the 30 stretch. The formal retrieval win bar is still open.
+        Cycle 47 is in flight; the run stops at cycle 50.
+      </p>
+      <p class="meta">
+        Catalog <code>uc13_ale</code> · branch <code>eval_loop_experiment_9_9_2026</code> ·
+        as of cycle 46 KEEP <code>705e89e</code> · D10 <code>e99bf89</code> ·
+        halt at cycle 50
+      </p>
+    </header>
+
+    <div class="tiles">
+      <div class="tile">
+        <div class="label">Primary scoreboard</div>
+        <div class="num">18.9</div>
+        <div class="sub">Incumbent-4 mean r@10 (pt)<br>Started 15.5 · expected ~25 · stretch 30</div>
+      </div>
+      <div class="tile">
+        <div class="label">Expanded board</div>
+        <div class="num">16.6</div>
+        <div class="sub">In-loop-10 unweighted mean<br>Started ~12.3 when W3 sat · not the 30 target</div>
+      </div>
+      <div class="tile">
+        <div class="label">Judge agreement</div>
+        <div class="num">44/53</div>
+        <div class="sub">0.830 ≥ 0.80 bar · Elder Care exec<br>Started 32/53 (0.604)</div>
+      </div>
+      <div class="tile">
+        <div class="label">Companies seated</div>
+        <div class="num">10</div>
+        <div class="sub">4 incumbent + 6 W3 first pins<br>All have chunks and a complete exam</div>
+      </div>
+    </div>
+
+    <h2>Win bar — plan §4a</h2>
+    <p>
+      “Win” here is a written bar, not “a keep landed.” A keep can be real work
+      and still miss the formal bar. That is the honest reading of this run.
+    </p>
+    <div class="bars">
+      <div class="bar">
+        <span class="pill met">Met</span>
+        <h3>Judge calibration</h3>
+        <p>Elder Care exec batch <code>58d3</code> agrees with human labels on 44/53 (0.8302). Accuracy backlog row closed. Other companies have no human labels — blocked, not failed.</p>
+      </div>
+      <div class="bar">
+        <span class="pill met">Company bar met</span>
+        <h3>Checklist — Elder Care</h3>
+        <p>ALL PASS on a rebuilt legal row. Clearsulting Legal is still 0/11 (no LEGAL-classified docs). GKF privacy is 4 rows vs a bar of 5. SPG is INFO-only (no floors).</p>
+      </div>
+      <div class="bar">
+        <span class="pill open">Open</span>
+        <h3>Retrieval</h3>
+        <p>Needs a hash-stable ranking enhancement with <code>gate_pass=true</code> and mean recall more than 1 point above the pin it replaces. Named leftover overlays are not that bar. Stretch 30 is also missed (18.9 / 30).</p>
+      </div>
+      <div class="bar">
+        <span class="pill open">Open</span>
+        <h3>Agent-error XOR</h3>
+        <p>Nine residual human/judge disagreements remain on the exec sample (some collateral). Not zero. Same companies without labels stay unmeasurable.</p>
+      </div>
+    </div>
+
+    <h2>Scoreboard over time</h2>
+    <p>
+      Two different numbers. The <strong>incumbent-4</strong> line is the stretch-30
+      board (Elder Care, Clearsulting, GKF, SPG). The <strong>in-loop-10</strong>
+      line includes the six later companies and is <em>not</em> allowed to replace
+      the 30. Retrieval last moved the primary board in cycle 36; later keeps
+      were W3 lifts, ingest remints, or held means.
+    </p>
+    <div class="charts">
+      <figure>
+        <svg id="chart-inc" viewBox="0 0 520 280" width="100%" height="280" role="img" aria-label="Incumbent-4 mean recall points from cycle 26 to 46"></svg>
+        <figcaption>Source: cycle-state notes + charter. End-of-cycle incumbent-4 mean r@10 × 100. Guidelines at expected 25 and stretch 30.</figcaption>
+      </figure>
+      <figure>
+        <svg id="chart-ten" viewBox="0 0 520 280" width="100%" height="280" role="img" aria-label="In-loop-10 mean recall points from cycle 36 to 46"></svg>
+        <figcaption>Source: cycle-state notes. Unweighted mean of all ten seated companies. Appears when W3 first pins land (cycle 36).</figcaption>
+      </figure>
+    </div>
+
+    <h2>Where each company sits now</h2>
+    <p>
+      Means are the <em>blended exam</em> the loop pins (named overlays counted).
+      W3 “first” is the first complete sidecar pin, not a pre-ingest zero.
+      Completeness is parsed / should-parse docs, not retrieval recall.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Cohort</th>
+          <th class="num">First mean</th>
+          <th class="num">Now</th>
+          <th class="num">Δ pt</th>
+          <th>What that number is</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="inc">
+          <td>Elder Care</td>
+          <td>Incumbent</td>
+          <td class="num">11.4</td>
+          <td class="num">12.2</td>
+          <td class="num">+0.8</td>
+          <td>Overlay + leftover on exam 651c84. Largest corpus. Leftover CIM/contracts closed; leftover-zero ranking retired.</td>
+        </tr>
+        <tr class="inc">
+          <td>Clearsulting</td>
+          <td>Incumbent</td>
+          <td class="num">12.9</td>
+          <td class="num">24.3</td>
+          <td class="num">+11.4</td>
+          <td>Biggest incumbent lift (cycles 26–30): q4, location, named zeros, leftover overlay. Still 0 LEGAL docs.</td>
+        </tr>
+        <tr class="inc">
+          <td>GKF</td>
+          <td>Incumbent</td>
+          <td class="num">14.4</td>
+          <td class="num">15.6</td>
+          <td class="num">+1.2</td>
+          <td>Location overlay 0.333→0.667. In-pool residuals already top-10 — not a ranking lever.</td>
+        </tr>
+        <tr class="inc">
+          <td>SPG</td>
+          <td>Incumbent</td>
+          <td class="num">23.3</td>
+          <td class="num">23.3</td>
+          <td class="num">0.0</td>
+          <td>Gold-identity / hygiene through cycle 25. Fairfax slack ingested later; no remint (tax-return, not a leftover lever).</td>
+        </tr>
+        <tr>
+          <td>Infinitive</td>
+          <td>W3</td>
+          <td class="num">8.8</td>
+          <td class="num">12.8</td>
+          <td class="num">+4.0</td>
+          <td>Vis / bench / overview baked into remint 37a94b. Completeness 58/59. People arms dead.</td>
+        </tr>
+        <tr>
+          <td>Integrity Risk</td>
+          <td>W3</td>
+          <td class="num">7.7</td>
+          <td class="num">14.7</td>
+          <td class="num">+7.0</td>
+          <td>Named overlay: location, headcount, bench, account_size all 1.0.</td>
+        </tr>
+        <tr>
+          <td>Northbound</td>
+          <td>W3</td>
+          <td class="num">6.1</td>
+          <td class="num">14.8</td>
+          <td class="num">+8.7</td>
+          <td>D21 remints then FAILED-deps parse. Completeness 90/94→93/94. Mean held 14.8 — ingest, not a retrieval lift.</td>
+        </tr>
+        <tr>
+          <td>Stride</td>
+          <td>W3</td>
+          <td class="num">5.4</td>
+          <td class="num">16.3</td>
+          <td class="num">+10.9</td>
+          <td>Largest W3 climb. Overlay peak 17.4; ingest remint absorbed overlays and mean settled at 16.3 (49/49 docs).</td>
+        </tr>
+        <tr>
+          <td>Project Sherpa</td>
+          <td>W3</td>
+          <td class="num">11.7</td>
+          <td class="num">15.0</td>
+          <td class="num">+3.3</td>
+          <td>Excel em-dash unblocked the join; D21 four adds. Smallest corpus (489 chunks).</td>
+        </tr>
+        <tr>
+          <td>Solvd</td>
+          <td>W3</td>
+          <td class="num">7.9</td>
+          <td class="num">16.9</td>
+          <td class="num">+9.0</td>
+          <td>Named overlay visibility 0.667 / overview 0.50. q2/q3/contract 1.0. model_changes still 0 at rank 11.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note" style="margin-top:12px">
+      Incumbent-4 first means are the cycle-26 starting exam (board = 15.5).
+      W3 first means are each company’s first complete sidecar pin (cycles 26–31).
+      Do not average the ten-company column into the 30-point stretch.
+    </p>
+
+    <h2>What worked, and what we stopped doing</h2>
+    <div class="cols">
+      <div>
+        <h3>Kept moving the number</h3>
+        <ul>
+          <li><strong>Company-scoped query / filter</strong> in the harness — leftover gold into the returned pool without rewriting shared registry strings.</li>
+          <li><strong>Small-bag gold identity</strong> — replace destack clones with in-pool right-class chunk ids (Northbound contracts 0→0.692; Sherpa D21).</li>
+          <li><strong>Judge XOR with a confined bind</strong> — 026 / 011 / 043+051 / 048. Agreement 32/53 → 44/53. Sample-wide prompt edits were reverted when they collateral-damaged the score.</li>
+          <li><strong>Seating W3</strong> — KPI citation aliases, then first pins, then named leftover overlays. Coverage win, not a stretch-30 win.</li>
+          <li><strong>Parser completeness</strong> — never-parsed docs and missing docx/xlsx deps. Real ingest; exam mean often held or dipped.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Tried, measured, retired</h3>
+        <ul>
+          <li><strong>Leftover-zero ranking</strong> when gold is not in the pool — vacuous <code>gate_pass</code>, then revert. Now a written dead rule.</li>
+          <li><strong>Destack to shrink the bag</strong> — gated set shrinks; do not treat a smaller exam as a higher score.</li>
+          <li><strong>Shared BMA / KPI string rewrites</strong> — collide across companies. Company-only overrides only.</li>
+          <li><strong>Bonus-term chasing</strong> (payroll-build, clinic, article7, corp-org) — gold still out of pool.</li>
+          <li><strong>Force-reparse filtered residuals</strong> and bagging huge destack leftovers — not a 1-point lever.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Cycle spine (the keeps that changed a board)</h2>
+    <div class="tl">
+      <div><b>1–7</b><span>Dry era later vacated. Loop procedure existed; wet measure was not yet the default.</span></div>
+      <div><b>8–25</b><span>Wet retrieval + destack honesty. SPG gold-identity / hygiene through cycle 25 (exam 420d08, 23.3). Judge 32/53→41/53. Incumbent board at cycle-26 start: <strong>15.5</strong>.</span></div>
+      <div><b>26–30</b><span>Clearsulting stack 12.9→24.3. GKF location 14.4→15.6. First W3 sidecars. Incumbent board to <strong>18.7</strong>.</span></div>
+      <div><b>31–35</b><span>Sherpa + Solvd seated (all ten pinned). Judge 41/53→44/53 — <strong>judge bar met</strong> at cycle 34. Incumbent held 18.7.</span></div>
+      <div><b>36</b><span>Elder Care leftover overlay. Incumbent <strong>18.7→18.9</strong>. In-loop-10 opens ~12.3. Last primary-board retrieval lift.</span></div>
+      <div><b>37–44</b><span>W3 named leftovers and D21 remints. In-loop-10 12.3→16.7. Incumbent held 18.9. Not §4a.</span></div>
+      <div><b>45–46</b><span>Ingest remints (Stride + Infinitive completeness; Northbound FAILED deps 90/94→93/94). Means held or dipped. Credit: producer / ingest, not retrieval lift.</span></div>
+      <div><b>47–50</b><span>In flight / remaining. Halt at 50, or incumbent ≥30 and judge ≥0.80, or three straight no-keeps. Retro after 50. Do not start 51.</span></div>
+    </div>
+
+    <h2>How to say this out loud</h2>
+    <div class="note">
+      <p><strong>Yes:</strong> the judge now agrees with humans at 83% on the Elder Care exec sample. Ten companies are on a live exam. The four original companies are 3.4 retrieval points higher than the cycle-26 start. The six later companies were unseated at the start of this stretch and now sit in the mid-teens.</p>
+      <p><strong>No:</strong> we did not hit 30. We did not hit the formal retrieval win bar. We do not get to substitute the ten-company average for the four-company stretch. An ingest remint that holds the mean is not a retrieval win.</p>
+      <p style="margin-bottom:0"><strong>Still open going into 47–50:</strong> leftover gold still not in pool on several W3 exams (two-step ranking is dead until that flips); Clearsulting has no LEGAL docs; stretch-30 gap is 11.1 points with four cycles left — that gap is not a late-cycle overlay.</p>
+    </div>
+
+    <h2>Machine trackers (already in the repo)</h2>
+    <p>
+      This page is the shareable digest. The loop already kept the numbers in
+      files that are accurate and hard to hand someone:
+    </p>
+    <ul>
+      <li><code>.dev/plans/eval-loop-experiment-9-9-2026/cycle-state.json</code> — pins, win-bar flags, cycle notes, plateau counters.</li>
+      <li><code>CHANGELOG.MD</code> — one keep per cycle, in engineer language.</li>
+      <li><code>.dev/plans/eval-loop-experiment-9-9-2026/runs/ledger.md</code> — dispatch / job / SHA log.</li>
+      <li><code>.dev/plans/eval-loop-experiment-9-9-2026/plan.md</code> §4a — the win-bar contract.</li>
+      <li><code>.dev/plans/eval-loop-experiment-9-9-2026/runs/skill-deltas/next-run-charter.md</code> — aims (charter still shows 18.7 / 12.2; live board is 18.9 / 16.6).</li>
+    </ul>
+
+    <footer>
+      Generated 11 Sep 2026 for sharing · not a pin · refresh from <code>cycle-state.json</code> after cycle 50.
+      Retrieval preferred bar and stretch-30 are still missed as of cycle 46.
+    </footer>
+  </div>
+
+  <script>
+    function lineChart(svgId, points, opt) {
+      var svg = document.getElementById(svgId);
+      var W = 520, H = 280, L = 48, R = 16, T = 22, B = 36;
+      var pw = W - L - R, ph = H - T - B;
+      var xs = points.map(function (p) { return p.x; });
+      var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+      function X(x) { return L + ((x - minX) / (maxX - minX)) * pw; }
+      function Y(y) { return T + ((opt.yMax - y) / (opt.yMax - opt.yMin)) * ph; }
+      function line(x1, y1, x2, y2, stroke, dash) {
+        var e = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        e.setAttribute("x1", x1); e.setAttribute("y1", y1);
+        e.setAttribute("x2", x2); e.setAttribute("y2", y2);
+        e.setAttribute("stroke", stroke);
+        e.setAttribute("stroke-width", "1");
+        if (dash) e.setAttribute("stroke-dasharray", dash);
+        svg.appendChild(e);
+      }
+      function text(x, y, s, anchor, fill) {
+        var e = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        e.setAttribute("x", x); e.setAttribute("y", y);
+        e.setAttribute("text-anchor", anchor || "start");
+        e.setAttribute("fill", fill || "#57534e");
+        e.setAttribute("font-size", "11");
+        e.setAttribute("font-family", "ui-sans-serif, system-ui, sans-serif");
+        e.textContent = s;
+        svg.appendChild(e);
+      }
+      var title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      title.setAttribute("x", L); title.setAttribute("y", 14);
+      title.setAttribute("fill", "#1c1917");
+      title.setAttribute("font-size", "13");
+      title.setAttribute("font-weight", "600");
+      title.setAttribute("font-family", "ui-sans-serif, system-ui, sans-serif");
+      title.textContent = opt.title;
+      svg.appendChild(title);
+
+      line(L, T, L, T + ph, "#d6d3d1");
+      line(L, T + ph, L + pw, T + ph, "#d6d3d1");
+      (opt.guides || []).forEach(function (g) {
+        line(L, Y(g.y), L + pw, Y(g.y), "#a8a29e", "3 3");
+        text(L + pw, Y(g.y) - 4, g.label, "end");
+      });
+      var d = points.map(function (p, i) {
+        return (i ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1);
+      }).join(" ");
+      var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "#1e3a5f");
+      path.setAttribute("stroke-width", "2");
+      svg.appendChild(path);
+      var last = points[points.length - 1];
+      var dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", X(last.x)); dot.setAttribute("cy", Y(last.y));
+      dot.setAttribute("r", "3.5"); dot.setAttribute("fill", "#1e3a5f");
+      svg.appendChild(dot);
+      text(X(last.x) - 4, Y(last.y) - 8, last.y.toFixed(1), "end", "#1c1917");
+      text(L, H - 10, "Cycle " + minX, "start");
+      text(L + pw, H - 10, "Cycle " + maxX, "end");
+      text(4, T + 8, opt.yLabel, "start");
+    }
+
+    lineChart("chart-inc", [
+      { x: 26, y: 16.4 }, { x: 27, y: 16.6 }, { x: 28, y: 16.9 },
+      { x: 29, y: 17.3 }, { x: 30, y: 18.7 }, { x: 31, y: 18.7 },
+      { x: 32, y: 18.7 }, { x: 33, y: 18.7 }, { x: 34, y: 18.7 },
+      { x: 35, y: 18.7 }, { x: 36, y: 18.9 }, { x: 37, y: 18.9 },
+      { x: 38, y: 18.9 }, { x: 39, y: 18.9 }, { x: 40, y: 18.9 },
+      { x: 41, y: 18.9 }, { x: 42, y: 18.9 }, { x: 43, y: 18.9 },
+      { x: 44, y: 18.9 }, { x: 45, y: 18.9 }, { x: 46, y: 18.9 }
+    ], {
+      title: "Incumbent-4 mean r@10 (pt)",
+      yMin: 14, yMax: 32, yLabel: "pt",
+      guides: [
+        { y: 30, label: "stretch 30" },
+        { y: 25, label: "expected ~25" },
+        { y: 15.5, label: "start 15.5" }
+      ]
+    });
+
+    lineChart("chart-ten", [
+      { x: 36, y: 12.3 }, { x: 37, y: 14.7 }, { x: 38, y: 15.4 },
+      { x: 39, y: 15.7 }, { x: 40, y: 16.0 }, { x: 41, y: 16.3 },
+      { x: 42, y: 16.5 }, { x: 43, y: 16.6 }, { x: 44, y: 16.7 },
+      { x: 45, y: 16.6 }, { x: 46, y: 16.6 }
+    ], {
+      title: "In-loop-10 unweighted mean (pt)",
+      yMin: 10, yMax: 22, yLabel: "pt",
+      guides: [{ y: 12.3, label: "W3 seated ~12.3" }]
+    });
+  </script>
+</body>
+</html>

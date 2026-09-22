@@ -107,6 +107,7 @@ Use this index when triaging failures, writing improvements, or explaining resul
 | **State snapshot** | [`.dev/eval_state_of_affairs_2026-08-03.md`](../.dev/eval_state_of_affairs_2026-08-03.md) | Historical; superseded on Clearsulting by M4 — still useful for gap taxonomy §10 |
 | **Failure vocabulary** | [`architecture/rallyday/failure-taxonomy.md`](architecture/rallyday/failure-taxonomy.md) | Classifying retrieval/agent/infra failures |
 | **Issues (incidents)** | [`.dev/issues/INDEX.md`](../.dev/issues/INDEX.md) | Harness gate failures, cluster attestation |
+| **Operator pace (1 cu)** | [`.dev/operator-pace.md`](../.dev/operator-pace.md) | Estimating slices against Wave 4 M1–M8 = 2.3 working days |
 
 ### 3.2 Warehouse (live)
 

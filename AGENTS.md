@@ -67,4 +67,4 @@ Read-only queries by default. Do not `DROP`, truncate, or trigger full ingestion
 
 Before merging any branch that touches `databricks/agents/workstreams/business_model_agent.py` or other pipeline files, check **`.dev/merge-decisions.md`** for standing decisions that must not be silently reverted-in.
 
-In particular: **BMA extraction must remain a single LLM call** over the full unbounded context — see `.dev/merge-decisions.md` and `databricks/CLAUDE.md` (`_call_llm()` / serving-timeout section).
+In particular: **BMA extraction must remain a single LLM call** over the full unbounded context — see `.dev/merge-decisions.md` and `databricks/CLAUDE.md` (`_call_llm()` / serving-timeout section). **Report-surface EBITDA must stay dual-labeled** (reported vs `pf_adjusted`); do not collapse PF into `table_rows[].ebitda` — see the 2026-09-17 entry in `.dev/merge-decisions.md`.
